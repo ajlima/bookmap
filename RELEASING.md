@@ -17,7 +17,7 @@ The workflow `.github/workflows/release.yml` runs on each push to `main`.
 
 The `release` job runs only after a successful `publish` job. Thus, each GitHub release is also on Maven Central.
 
-These modules go to Maven Central with the group `pt.daaz.bookmap`:
+These modules go to Maven Central with the group `pt.dazz.bookmap`:
 `bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, and `bookmap-spring-boot`.
 
 ## One-time setup
@@ -27,8 +27,8 @@ Do these steps before the first release. The `publish` job stops with an error i
 ### 1. Create a Sonatype Central account
 
 1. Go to <https://central.sonatype.com> and create an account.
-2. Open **Namespaces** and add the namespace `pt.daaz`.
-3. Sonatype shows a verification key. Add a DNS `TXT` record with this key to the domain `daaz.pt`.
+2. Open **Namespaces** and add the namespace `pt.dazz`.
+3. Sonatype shows a verification key. Add a DNS `TXT` record with this key to the domain `dazz.pt`.
 4. Wait until the namespace shows **Verified**.
 
 ### 2. Create a Sonatype user token
