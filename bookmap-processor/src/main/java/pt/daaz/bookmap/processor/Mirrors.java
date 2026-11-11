@@ -74,7 +74,9 @@ final class Mirrors {
 
     private static Object value(AnnotationValue value) {
         Object raw = value.getValue();
-        if (JAVAC_ERROR_VALUE.equals(raw)) {
+        // javac gives the text "<error>" for an unresolved value. A string literal with the
+        // same text is a correct value: its source form has quotes.
+        if (JAVAC_ERROR_VALUE.equals(raw) && JAVAC_ERROR_VALUE.equals(value.toString())) {
             return UNRESOLVED;
         }
         return raw instanceof Element constant ? constant.getSimpleName().toString() : raw;

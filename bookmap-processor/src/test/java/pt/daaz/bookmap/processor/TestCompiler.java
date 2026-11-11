@@ -52,6 +52,25 @@ final class TestCompiler {
     }
 
     /**
+     * Makes a source file in another package, with the common imports.
+     */
+    static JavaFileObject sourceIn(String packageName, String simpleName, String... lines) {
+        return JavaFileObjects.forSourceString(packageName + "." + simpleName,
+            HEADER.replace("package test;", "package " + packageName + ";") + "\n"
+                + String.join("\n", lines));
+    }
+
+    /**
+     * Makes a {@code package-info.java} file with one package annotation.
+     */
+    static JavaFileObject packageInfo(String packageName, String annotation) {
+        return JavaFileObjects.forSourceString(packageName + ".package-info",
+            annotation + " package " + packageName + ";\n"
+                + "import pt.daaz.bookmap.annotation.BookDefaults;\n"
+                + "import pt.daaz.bookmap.annotation.Usage;");
+    }
+
+    /**
      * Gives a public getter and setter for a field.
      */
     static String accessors(String type, String name) {

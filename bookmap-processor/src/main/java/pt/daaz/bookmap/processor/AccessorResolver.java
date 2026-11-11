@@ -1,6 +1,7 @@
 package pt.daaz.bookmap.processor;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -8,6 +9,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
@@ -18,14 +20,17 @@ import javax.lang.model.util.Elements;
  * <p>Lombok rule: if the field, or the class that declares the field, has
  * {@code lombok.Getter}, {@code lombok.Setter}, or {@code lombok.Data}, the resolver gives the
  * conventional name and does not look for the method. Lombok can generate the method later in
- * the same compilation. An annotation on the field has priority over an annotation on the class.
- * {@code AccessLevel.NONE} gives no accessor. A {@code final} field gets no setter. With
+ * the same compilation. The getter of a primitive {@code boolean} field is {@code is<Name>}.
+ * An annotation on the field has priority over an annotation on the class.
+ * {@code AccessLevel.NONE} and {@code AccessLevel.PRIVATE} give no accessor, because the generated
+ * codec cannot call them. A {@code final} field gets no setter. With
  * {@code lombok.experimental.Accessors}, the resolver does not assume names. The resolver finds
  * the Lombok annotations by name. It does not depend on Lombok.
  *
  * <p>Without the Lombok rule, the resolver looks for a public instance method on the owner class
- * or its superclasses. A getter has no parameters and returns the field type. A setter has one
- * parameter of the field type. The return type of a setter is not checked.
+ * or its superclasses. A getter has no parameters and returns the field type. For a primitive
+ * {@code boolean} field, the resolver tries {@code is<Name>} first, then {@code get<Name>}.
+ * A setter has one parameter of the field type. The return type of a setter is not checked.
  */
 public final class AccessorResolver {
 
@@ -33,6 +38,7 @@ public final class AccessorResolver {
     private static final String SETTER = "lombok.Setter";
     private static final String DATA = "lombok.Data";
     private static final String ACCESSORS = "lombok.experimental.Accessors";
+    private static final Set<String> NOT_CALLABLE = Set.of("NONE", "PRIVATE");
 
     private final Elements elements;
 
@@ -53,13 +59,16 @@ public final class AccessorResolver {
      * @return the getter name, or empty if no getter is available
      */
     public Optional<String> getter(TypeElement owner, VariableElement field) {
-        String name = "get" + capitalize(field);
+        String name = getterName(field);
         if (lombokGenerates(field, GETTER)) {
             return Optional.of(name);
         }
         TypeMirror type = field.asType();
-        return find(owner, name,
-            method -> method.getParameters().isEmpty() && same(method.getReturnType(), type));
+        Predicate<ExecutableElement> signature =
+            method -> method.getParameters().isEmpty() && same(method.getReturnType(), type);
+        Optional<String> found = find(owner, name, signature);
+        return name.startsWith("is")
+            ? found.or(() -> find(owner, "get" + capitalize(field), signature)) : found;
     }
 
     /**
@@ -70,13 +79,34 @@ public final class AccessorResolver {
      * @return the setter name, or empty if no setter is available
      */
     public Optional<String> setter(TypeElement owner, VariableElement field) {
-        String name = "set" + capitalize(field);
+        String name = setterName(field);
         if (!field.getModifiers().contains(Modifier.FINAL) && lombokGenerates(field, SETTER)) {
             return Optional.of(name);
         }
         TypeMirror type = field.asType();
         return find(owner, name, method -> method.getParameters().size() == 1
             && same(method.getParameters().get(0).asType(), type));
+    }
+
+    /**
+     * Gives the conventional getter name of a field: {@code is<Name>} for a primitive
+     * {@code boolean} field (as Lombok makes it), else {@code get<Name>}.
+     *
+     * @param field the field
+     * @return the getter name
+     */
+    static String getterName(VariableElement field) {
+        return (field.asType().getKind() == TypeKind.BOOLEAN ? "is" : "get") + capitalize(field);
+    }
+
+    /**
+     * Gives the conventional setter name of a field.
+     *
+     * @param field the field
+     * @return the setter name {@code set<Name>}
+     */
+    static String setterName(VariableElement field) {
+        return "set" + capitalize(field);
     }
 
     private static String capitalize(VariableElement field) {
@@ -92,17 +122,18 @@ public final class AccessorResolver {
         }
         Optional<AnnotationMirror> onField = Mirrors.find(field, annotation);
         if (onField.isPresent()) {
-            return notNone(onField.get());
+            return callable(onField.get());
         }
         Optional<AnnotationMirror> onClass = Mirrors.find(declaringClass, annotation);
         if (onClass.isPresent()) {
-            return notNone(onClass.get());
+            return callable(onClass.get());
         }
         return Mirrors.find(declaringClass, DATA).isPresent();
     }
 
-    private static boolean notNone(AnnotationMirror mirror) {
-        return !"NONE".equals(Mirrors.explicitValues(mirror).get("value"));
+    private static boolean callable(AnnotationMirror mirror) {
+        // The generated codec is in the same package, so only PRIVATE and NONE are not callable.
+        return !NOT_CALLABLE.contains(Mirrors.explicitValues(mirror).getOrDefault("value", ""));
     }
 
     private Optional<String> find(TypeElement owner, String name,

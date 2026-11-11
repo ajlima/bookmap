@@ -1,6 +1,14 @@
 package pt.daaz.bookmap.processor;
 
+import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAccessor;
+import java.time.temporal.TemporalQuery;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -13,8 +21,13 @@ import javax.lang.model.util.Types;
 import pt.daaz.bookmap.annotation.Direction;
 import pt.daaz.bookmap.annotation.Usage;
 import pt.daaz.bookmap.codec.BookWriter;
+import pt.daaz.bookmap.codec.Formats;
 import pt.daaz.bookmap.processor.model.FieldModel;
 import pt.daaz.bookmap.processor.model.FieldModel.JavaKind;
+import pt.daaz.bookmap.processor.pic.PicParser;
+import pt.daaz.bookmap.processor.pic.PicSpec;
+import pt.daaz.bookmap.processor.pic.PicSpec.Category;
+import pt.daaz.bookmap.processor.pic.PicSyntaxException;
 
 /**
  * Resolves the attributes of one {@code @BookField} and checks them against the Java type.
@@ -43,24 +56,50 @@ final class FieldResolver {
     private static final Map<JavaKind, Integer> MAX_DIGITS = Map.of(
         JavaKind.INT, 9, JavaKind.INTEGER, 9, JavaKind.LONG, 18, JavaKind.LONG_BOXED, 18);
 
+    private static final Set<JavaKind> NUMERIC = EnumSet.of(JavaKind.INT, JavaKind.INTEGER,
+        JavaKind.LONG, JavaKind.LONG_BOXED, JavaKind.BIG_DECIMAL);
+
+    private static final Set<JavaKind> TEMPORAL = EnumSet.of(JavaKind.LOCAL_DATE,
+        JavaKind.LOCAL_TIME, JavaKind.LOCAL_DATE_TIME);
+
+    private static final List<String> PIC_ATTRIBUTES = List.of("length", "scale", "signed",
+        "usage");
+
+    // Two-digit month, day, and hour values give the longest text for patterns such as "M".
+    private static final Map<JavaKind, TemporalAccessor> SAMPLES = Map.of(
+        JavaKind.LOCAL_DATE, LocalDate.of(2026, 12, 31),
+        JavaKind.LOCAL_TIME, LocalTime.of(23, 59, 58),
+        JavaKind.LOCAL_DATE_TIME, LocalDateTime.of(2026, 12, 31, 23, 59, 58));
+
+    private static final Map<JavaKind, TemporalQuery<?>> QUERIES = Map.of(
+        JavaKind.LOCAL_DATE, LocalDate::from,
+        JavaKind.LOCAL_TIME, LocalTime::from,
+        JavaKind.LOCAL_DATE_TIME, LocalDateTime::from);
+
     private final Elements elements;
     private final Types types;
     private final AccessorResolver accessors;
+    private final DefaultsResolver defaultsResolver;
 
     /**
      * Makes a resolver.
      *
      * @param elements the element utilities
      * @param types the type utilities
+     * @param defaultsResolver the resolver of the {@code @BookDefaults} values
      */
-    FieldResolver(Elements elements, Types types) {
+    FieldResolver(Elements elements, Types types, DefaultsResolver defaultsResolver) {
         this.elements = elements;
         this.types = types;
         this.accessors = new AccessorResolver(elements);
+        this.defaultsResolver = defaultsResolver;
     }
 
     /**
-     * Builds a field model.
+     * Builds a field model. Each attribute comes from the explicit value, then from {@code pic},
+     * then from the {@code @BookDefaults} of the declaring class, then from the built-in default.
+     * The {@code usage} and {@code signed} defaults apply only to numeric types. The
+     * {@code pattern} default applies only to date and time types.
      *
      * @param owner the class that the generated code uses for the accessors
      * @param member the annotated field
@@ -72,21 +111,7 @@ final class FieldResolver {
                        Problems problems) {
         int before = problems.count();
         Map<String, Object> values = member.values();
-        Direction direction;
-        if (itemDirection == null) {
-            direction = Direction.valueOf(
-                (String) values.getOrDefault("direction", Direction.INPUT_OUTPUT.name()));
-        } else {
-            if (values.containsKey("direction")) {
-                problems.error(member, "direction must not be set on an item field");
-            }
-            direction = itemDirection;
-        }
-        Usage usage = Usage.valueOf(
-            (String) values.getOrDefault("usage", Usage.DISPLAY.name()));
-        int scale = (Integer) values.getOrDefault("scale", 0);
-        boolean signed = (Boolean) values.getOrDefault("signed", false);
-        String pattern = (String) values.getOrDefault("pattern", DEFAULT_PATTERN);
+        Direction direction = direction(member, itemDirection, problems);
         TypeMirror fieldType = member.field().asType();
         TypeElement converter = converter(values);
         JavaKind kind;
@@ -100,11 +125,43 @@ final class FieldResolver {
             kind = JavaKind.CONVERTED;
             checkConverter(member, converter, fieldType, problems);
         }
-        Integer length = (Integer) values.get("length");
+        boolean numeric = NUMERIC.contains(kind);
+        boolean temporal = TEMPORAL.contains(kind);
+        ResolvedDefaults defaults = defaultsResolver.forDeclaringClass(
+            (TypeElement) member.field().getEnclosingElement());
+        Optional<PicSpec> pic = pic(member, kind, fieldType, problems);
+        Usage usage = Optional.ofNullable((String) values.get("usage")).map(Usage::valueOf)
+            .or(() -> pic.flatMap(PicSpec::usage))
+            .or(() -> numeric ? defaults.usage() : Optional.empty())
+            .orElse(Usage.DISPLAY);
+        boolean signed = Optional.ofNullable((Boolean) values.get("signed"))
+            .or(() -> pic.map(PicSpec::signed))
+            .or(() -> numeric ? defaults.signed() : Optional.empty())
+            .orElse(false);
+        int scale = Optional.ofNullable((Integer) values.get("scale"))
+            .or(() -> pic.map(PicSpec::scale))
+            .orElse(0);
+        String pattern = Optional.ofNullable((String) values.get("pattern"))
+            .or(() -> temporal ? defaults.pattern() : Optional.empty())
+            .orElse(DEFAULT_PATTERN);
+        Integer length = Optional.ofNullable((Integer) values.get("length"))
+            .or(() -> pic.map(PicSpec::length))
+            .orElse(null);
+        Integer textLength = temporal ? textLength(member, kind, fieldType, pattern, problems)
+            : null;
         if (length == null) {
-            problems.error(member, "length is missing");
+            length = textLength;
+        }
+        if (length == null) {
+            // A date or time field has a pattern error. A field with a pic has a pic error.
+            if (!temporal && picText(values).isEmpty()) {
+                problems.error(member, "pic or length is missing");
+            }
         } else if (length < 1) {
             problems.error(member, "length must be at least 1");
+        } else if (textLength != null && !length.equals(textLength)) {
+            problems.error(member, "length " + length + " does not agree with pattern '"
+                + pattern + "' (" + textLength + " characters)");
         }
         if (scale < 0) {
             problems.error(member, "scale must not be negative");
@@ -120,6 +177,87 @@ final class FieldResolver {
         return new FieldModel(member.owner(), member.name(), member.order(), length,
             direction, usage, scale, signed, pattern, kind, fieldType, getter.get(),
             setter.get(), converter, BookWriter.byteLength(usage, length));
+    }
+
+    private static Direction direction(AnnotatedMember member, Direction itemDirection,
+                                       Problems problems) {
+        Map<String, Object> values = member.values();
+        if (itemDirection == null) {
+            return Direction.valueOf(
+                (String) values.getOrDefault("direction", Direction.INPUT_OUTPUT.name()));
+        }
+        if (values.containsKey("direction")) {
+            problems.error(member, "direction must not be set on an item field");
+        }
+        return itemDirection;
+    }
+
+    /**
+     * Parses the {@code pic} attribute and checks it against the Java type.
+     *
+     * @return the parsed {@code pic}, or empty if the field has no {@code pic} or it is not
+     *     correct
+     */
+    private static Optional<PicSpec> pic(AnnotatedMember member, JavaKind kind,
+                                         TypeMirror fieldType, Problems problems) {
+        Map<String, Object> values = member.values();
+        String text = picText(values);
+        if (text.isEmpty()) {
+            return Optional.empty();
+        }
+        List<String> combined = PIC_ATTRIBUTES.stream().filter(values::containsKey).toList();
+        if (!combined.isEmpty()) {
+            problems.error(member, "pic must not be combined with " + String.join(", ", combined));
+        }
+        PicSpec spec;
+        try {
+            spec = PicParser.parse(text);
+        } catch (PicSyntaxException e) {
+            problems.error(member, e.getMessage());
+            return Optional.empty();
+        }
+        String simpleName = simpleName(fieldType);
+        if (spec.category() == Category.TEXT) {
+            if (NUMERIC.contains(kind)) {
+                problems.error(member, "a text pic is not permitted for " + simpleName);
+            }
+        } else if (kind == JavaKind.STRING) {
+            problems.error(member, "a numeric pic is not permitted for String");
+        } else if (TEMPORAL.contains(kind) && (spec.signed() || spec.scale() > 0)) {
+            problems.error(member, "a signed or decimal pic is not permitted for " + simpleName);
+        }
+        return Optional.of(spec);
+    }
+
+    /** Gives the {@code pic} text. An empty text means that the field has no {@code pic}. */
+    private static String picText(Map<String, Object> values) {
+        return (String) values.getOrDefault("pic", "");
+    }
+
+    /**
+     * Makes the formatter of a date or time field and formats a sample value of the field type.
+     * The formatted text must also parse back to the field type.
+     *
+     * @return the length of the formatted text, or null if the pattern is not correct
+     */
+    private static Integer textLength(AnnotatedMember member, JavaKind kind,
+                                      TypeMirror fieldType, String pattern, Problems problems) {
+        DateTimeFormatter formatter;
+        try {
+            formatter = Formats.of(pattern);
+        } catch (IllegalArgumentException e) {
+            problems.error(member, "pattern '" + pattern + "' is not valid: " + e.getMessage());
+            return null;
+        }
+        try {
+            String text = formatter.format(SAMPLES.get(kind));
+            formatter.parse(text, QUERIES.get(kind));
+            return text.length();
+        } catch (DateTimeException e) {
+            problems.error(member, "pattern '" + pattern + "' does not fit "
+                + simpleName(fieldType) + ": " + e.getMessage());
+            return null;
+        }
     }
 
     private void checkTypeAndUsage(AnnotatedMember member, JavaKind kind, TypeMirror fieldType,
@@ -204,7 +342,8 @@ final class FieldResolver {
     Optional<String> getter(TypeElement owner, AnnotatedMember member, Problems problems) {
         Optional<String> getter = accessors.getter(owner, member.field());
         if (getter.isEmpty()) {
-            problems.accessorError(member, "missing getter get" + capitalized(member));
+            problems.accessorError(member, "missing getter "
+                + AccessorResolver.getterName(member.field()));
         }
         return getter;
     }
@@ -220,13 +359,9 @@ final class FieldResolver {
     Optional<String> setter(TypeElement owner, AnnotatedMember member, Problems problems) {
         Optional<String> setter = accessors.setter(owner, member.field());
         if (setter.isEmpty()) {
-            problems.accessorError(member, "missing setter set" + capitalized(member));
+            problems.accessorError(member, "missing setter "
+                + AccessorResolver.setterName(member.field()));
         }
         return setter;
-    }
-
-    private static String capitalized(AnnotatedMember member) {
-        String name = member.name();
-        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 }

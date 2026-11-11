@@ -28,7 +28,8 @@ public @interface BookCollection {
 
     /**
      * Gives the name of the field that holds the number of entries (OCCURS DEPENDING ON).
-     * An empty value means a fixed number of entries.
+     * An empty value means the member immediately before the collection, in {@code order}.
+     * The count field must be {@code int}, {@code Integer}, {@code long}, or {@code Long}.
      *
      * @return the field name
      */

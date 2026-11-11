@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,6 +54,7 @@ public final class ModelBuilder {
     private final Elements elements;
     private final Types types;
     private final Messager messager;
+    private final DefaultsResolver defaultsResolver;
     private final FieldResolver fieldResolver;
     private boolean deferred;
 
@@ -65,7 +67,8 @@ public final class ModelBuilder {
         this.elements = env.getElementUtils();
         this.types = env.getTypeUtils();
         this.messager = env.getMessager();
-        this.fieldResolver = new FieldResolver(elements, types);
+        this.defaultsResolver = new DefaultsResolver(elements);
+        this.fieldResolver = new FieldResolver(elements, types, defaultsResolver);
     }
 
     /**
@@ -119,6 +122,8 @@ public final class ModelBuilder {
         private final TypeElement type;
         private final boolean continuable;
         private final Problems problems = new Problems();
+        /** The operation class, its superclasses, the item classes, and their superclasses. */
+        private final Set<TypeElement> declaringClasses = new LinkedHashSet<>();
 
         Run(TypeElement type) {
             this.type = type;
@@ -146,15 +151,17 @@ public final class ModelBuilder {
             Map<String, String> countUsers = new HashMap<>();
             for (AnnotatedMember member : annotated) {
                 if (member.collection()) {
-                    CollectionModel collection = collection(member, byName, fields, countUsers);
+                    CollectionModel collection = collection(member, annotated, byName, fields,
+                        members, countUsers);
                     if (collection != null) {
                         members.add(collection);
                     }
                 }
             }
             members.sort(Comparator.comparingInt(MemberModel::order));
-            return new OperationModel(type, operationName, "", List.copyOf(members), continuable,
-                implementsInterface(type, VALIDATABLE));
+            String charsetName = charset();
+            return new OperationModel(type, operationName, charsetName, List.copyOf(members),
+                continuable, implementsInterface(type, VALIDATABLE));
         }
 
         // ---- operation class ----
@@ -207,6 +214,29 @@ public final class ModelBuilder {
             problems.classError(type, message);
         }
 
+        /**
+         * Gives the charset of the operation: the {@code @BookDefaults} charset of the class or
+         * its package. Each other declaring class must not set a different charset.
+         */
+        private String charset() {
+            for (TypeElement declaring : declaringClasses) {
+                problems.unresolved |= defaultsResolver.unresolved(declaring);
+            }
+            String name = defaultsResolver.forDeclaringClass(type).charset().orElse("");
+            if (!name.isEmpty()) {
+                DefaultsResolver.charsetProblem(name).ifPresent(this::classError);
+            }
+            String operationCharset = name.isEmpty() ? "(none)" : "'" + name + "'";
+            for (TypeElement declaring : declaringClasses) {
+                defaultsResolver.forDeclaringClass(declaring).charset()
+                    .filter(other -> !other.equals(name))
+                    .ifPresent(other -> classError("charset '" + other + "' of "
+                        + declaring.getQualifiedName()
+                        + " is different from the operation charset " + operationCharset));
+            }
+            return name;
+        }
+
         // ---- annotated fields ----
 
         /** Gives the annotated fields of a class and its superclasses, superclass fields first. */
@@ -215,6 +245,7 @@ public final class ModelBuilder {
             for (TypeElement current = owner; current != null; current = superclass(current)) {
                 hierarchy.add(0, current);
             }
+            declaringClasses.addAll(hierarchy);
             List<AnnotatedMember> result = new ArrayList<>();
             for (TypeElement current : hierarchy) {
                 for (VariableElement field : ElementFilter.fieldsIn(current.getEnclosedElements())) {
@@ -274,8 +305,10 @@ public final class ModelBuilder {
         // ---- collections ----
 
         private CollectionModel collection(AnnotatedMember member,
+                                           List<AnnotatedMember> annotated,
                                            Map<String, AnnotatedMember> byName,
                                            Map<String, FieldModel> fields,
+                                           List<MemberModel> members,
                                            Map<String, String> countUsers) {
             int before = problems.count();
             Map<String, Object> values = member.values();
@@ -290,7 +323,8 @@ public final class ModelBuilder {
                     "an INPUT_OUTPUT collection is not permitted in a Continuable class");
             }
             ItemModel item = item(member, direction);
-            FieldModel count = countField(member, direction, byName, fields, countUsers);
+            FieldModel count = countField(member, direction, annotated, byName, fields, members,
+                countUsers);
             Optional<String> getter = fieldResolver.getter(type, member, problems);
             Optional<String> setter = fieldResolver.setter(type, member, problems);
             if (problems.count() != before || item == null || count == null || getter.isEmpty()
@@ -346,14 +380,29 @@ public final class ModelBuilder {
             return (TypeElement) types.asElement(arguments.get(0));
         }
 
+        /**
+         * Finds the count field of a collection: the {@code dependsOn} field, else the member
+         * immediately before the collection. A count field without an explicit direction gets
+         * the direction of the collection. The method replaces it in {@code fields} and
+         * {@code members}.
+         */
         private FieldModel countField(AnnotatedMember collection, Direction direction,
+                                      List<AnnotatedMember> annotated,
                                       Map<String, AnnotatedMember> byName,
                                       Map<String, FieldModel> fields,
+                                      List<MemberModel> members,
                                       Map<String, String> countUsers) {
             String name = (String) collection.values().getOrDefault("dependsOn", "");
             if (name.isEmpty()) {
-                problems.error(collection, "dependsOn is missing");
-                return null;
+                Optional<AnnotatedMember> previous = annotated.stream()
+                    .filter(member -> member.order() < collection.order())
+                    .max(Comparator.comparingInt(AnnotatedMember::order));
+                if (previous.isEmpty()) {
+                    problems.error(collection,
+                        "dependsOn is missing and no member comes before the collection");
+                    return null;
+                }
+                name = previous.get().name();
             }
             AnnotatedMember target = byName.get(name);
             String prefix = "dependsOn field '" + name + "' ";
@@ -374,7 +423,13 @@ public final class ModelBuilder {
             if (count.order() >= collection.order()) {
                 problems.error(collection, prefix + "must come before the collection");
             }
-            if (direction.isInput() && !count.direction().isInput()
+            if (!target.values().containsKey("direction")) {
+                FieldModel old = count;
+                count = withDirection(old, direction);
+                FieldModel inherited = count;
+                fields.put(name, inherited);
+                members.replaceAll(member -> member == old ? inherited : member);
+            } else if (direction.isInput() && !count.direction().isInput()
                 || direction.isOutput() && !count.direction().isOutput()) {
                 problems.error(collection, prefix + "has direction " + count.direction()
                     + ", which does not include " + direction);
@@ -388,6 +443,13 @@ public final class ModelBuilder {
         }
 
         // ---- helpers ----
+
+        private static FieldModel withDirection(FieldModel field, Direction direction) {
+            return new FieldModel(field.ownerSimpleName(), field.name(), field.order(),
+                field.length(), direction, field.usage(), field.scale(), field.signed(),
+                field.pattern(), field.kind(), field.type(), field.getter(), field.setter(),
+                field.converter(), field.byteLength());
+        }
 
         private boolean implementsInterface(TypeElement element, String interfaceName) {
             return types.isAssignable(element.asType(),
