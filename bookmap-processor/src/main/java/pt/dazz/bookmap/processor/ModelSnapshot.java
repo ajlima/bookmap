@@ -5,6 +5,7 @@ import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 import pt.dazz.bookmap.processor.model.OperationModel;
+import pt.dazz.bookmap.processor.model.SubTypesModel;
 
 /**
  * Gives a copy of an {@link OperationModel} that contains only strings and primitive values.
@@ -15,9 +16,21 @@ import pt.dazz.bookmap.processor.model.OperationModel;
  * @param continuable {@code true} if the class implements {@code Continuable}
  * @param validatable {@code true} if the class implements {@code Validatable}
  * @param members the members, sorted by order
+ * @param discriminator the name of the discriminator field, or {@code ""}
+ * @param variants the subtypes
  */
 record ModelSnapshot(String operationName, String charsetName, boolean continuable,
-    boolean validatable, List<Member> members) {
+    boolean validatable, List<Member> members, String discriminator, List<Variant> variants) {
+
+    /**
+     * Gives a copy of one subtype.
+     *
+     * @param type the simple name of the subtype
+     * @param value the normalized discriminator value
+     * @param members the member names of the full layout, sorted by order
+     */
+    record Variant(String type, String value, List<String> members) {
+    }
 
     /**
      * Gives a copy of one member. A collection has no length, scale, sign, usage, pattern, Java
@@ -54,8 +67,14 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
      * @return the snapshot
      */
     static ModelSnapshot of(OperationModel model) {
+        SubTypesModel subTypes = model.subTypes();
         return new ModelSnapshot(model.operationName(), model.charsetName(), model.continuable(),
-            model.validatable(), model.members().stream().map(ModelSnapshot::member).toList());
+            model.validatable(), model.members().stream().map(ModelSnapshot::member).toList(),
+            subTypes == null ? "" : subTypes.discriminator().name(),
+            subTypes == null ? List.of() : subTypes.variants().stream()
+                .map(variant -> new Variant(variant.type().getSimpleName().toString(),
+                    variant.value(), variant.members().stream().map(MemberModel::name).toList()))
+                .toList());
     }
 
     private static Member member(MemberModel member) {
