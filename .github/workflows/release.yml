@@ -128,7 +128,8 @@ jobs:
       - name: Collect the published JARs
         run: |
           mkdir -p published
-          for module in bookmap-core bookmap-processor bookmap-transport-simulator bookmap-spring-boot; do
+          for module in bookmap-core bookmap-processor bookmap-transport-simulator bookmap-spring-boot \
+                        bookmap-copybook bookmap-copybook-cli; do
             cp "$module"/build/libs/*.jar published/
           done
           ls -l published
