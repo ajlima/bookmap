@@ -34,6 +34,56 @@ class SimulatorTransportTest {
             .build();
     }
 
+    /** A codec for a hierarchy: {@link Greeting} and {@link PoliteGreeting}. */
+    private static final class HierarchyCodec extends GreetingCodec {
+        HierarchyCodec() {
+            super("");
+        }
+
+        @Override
+        public List<Class<? extends Greeting>> types() {
+            return List.of(Greeting.class, PoliteGreeting.class);
+        }
+    }
+
+    @Test
+    void registerResponderAnswersWithAnotherObject() {
+        SimulatorTransport transport = transportWith("");
+        transport.registerResponder(Greeting.class, call -> {
+            Greeting answer = new PoliteGreeting();
+            answer.message = "Good morning, " + call.name;
+            return answer;
+        });
+
+        byte[] response = transport.exchange(request("Greet", "Ada".getBytes(EBCDIC)));
+
+        assertThat(response).isEqualTo("Good morning, Ada".getBytes(EBCDIC));
+    }
+
+    @Test
+    void responderReturnsNull() {
+        SimulatorTransport transport = transportWith("");
+        transport.registerResponder(Greeting.class, call -> null);
+
+        assertThatThrownBy(() -> transport.exchange(request("Greet", "Ada".getBytes(EBCDIC))))
+            .isInstanceOf(MappingException.class)
+            .hasMessage("Greet: the responder returned null");
+    }
+
+    @Test
+    void registerWithASubtypeFails() {
+        SimulatorTransport transport = SimulatorTransport.builder()
+            .codecRegistry(BookCodecRegistry.of(new HierarchyCodec())).build();
+        String message = PoliteGreeting.class.getName() + " is a subtype of "
+            + Greeting.class.getName() + ". Register " + Greeting.class.getName() + ".";
+
+        assertThatThrownBy(() -> transport.register(PoliteGreeting.class, call -> { }))
+            .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
+        assertThatThrownBy(() -> transport.registerResponder(PoliteGreeting.class, call -> call))
+            .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
+        transport.register(Greeting.class, call -> call.message = "Hello");
+    }
+
     @Test
     void byteLevelOperation() {
         SimulatorTransport transport = SimulatorTransport.builder().build();
