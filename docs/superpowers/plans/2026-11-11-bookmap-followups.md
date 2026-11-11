@@ -1,0 +1,95 @@
+# bookmap v1 — implementation rulings and follow-ups
+
+This file records the decisions made during the implementation of plan `2026-11-11-bookmap.md`, and the review findings that were deferred.
+
+## Rulings
+
+- Ruling R1: Implementers add whatever tests are needed beyond the listed ones to reach 100% line+branch coverage, without JaCoCo exclusions — CLAUDE.md and Global Constraints require it — cost if wrong: some extra test code.
+- Ruling R2: Where a task step says "run the tests", the task is done only when `./gradlew :<module>:check` (tests + coverage) is green — Global Constraints — cost if wrong: none.
+- Ruling R3: bookmap-processor may call core runtime helpers (Formats.of, BookWriter.byteLength) at compile time — plan Task 6 dependency on core is declared — cost if wrong: processor jar depends on core (already the case).
+- Ruling R4: A null number with COMP3 writes packed zero with sign nibble C (signed) or F (unsigned); with COMP writes binary 0 — spec "Null, write: number → zeros" — cost if wrong: one sign nibble.
+- Ruling R5: CodecContext stays in pt.daaz.bookmap.convert (Task 1 placed it there; plan file tree said spi) — spec does not fix the package; moving costs churn — cost if wrong: one package move later
+- Ruling R6: accept two stricter packed reads from Task 3 — unsigned COMP3 rejects sign B/D; even-length pad nibble must be 0 — consistent with the DISPLAY unsigned rule and the no-silent-corruption anti-goal — cost if wrong: hosts that send non-standard packed data get MappingException instead of a value.
+- Ruling R7: Task 5 — duplicate codecs for one type in the registry → IllegalStateException; unknown codec charsetName → MappingException naming the operation; maxCalls counts the first call (maxCalls 3 → exactly 3 exchanges) — spec silent on duplicates/unknown charset (processor validates charset at compile time) — cost if wrong: different exception types.
+- Ruling R8: PicSyntaxException extends IllegalArgumentException (as the brief says), not BookmapException — it is processor-internal, never thrown at runtime to users; the "all exceptions extend BookmapException" constraint covers the runtime API — cost if wrong: one superclass change.
+- Ruling R9: accept parser limits repeat count 1..999999999 and total length ≤ Integer.MAX_VALUE; field-size limits (COMP ≤ 18, int ≤ 9, long ≤ 18) belong to Task 7 validation — cost if wrong: none.
+- Ruling R10: split Task 7 into 7a (processor skeleton, service file, rounds/deferral, ModelSnapshot hook, model records with the Produces block verbatim, AccessorResolver + Lombok rules, explicit-attribute validations incl. operation-class rules, order, type×usage with field-size limits, converter checks, collection rules, INPUT_OUTPUT+Continuable) and 7b (PicParser integration, DefaultsResolver, convention steps 1–7, charset rules, date-pattern validation via Formats.of, ConventionTest, pic/defaults/charset ValidationTest cases). Produces block identical in both; Tasks 8/9 unaffected — review size and fix-loop cost — cost if wrong: one extra review.
+- Ruling R11: Task 7a step 0 proves real Lombok runs inside compile-testing in both processor orders before other work. Fallback if it cannot: stub lombok.* annotations only in tests asserting on ModelSnapshot (never on compilation success); real both-orders Lombok tests move to bookmap-examples (Task 11) as two compile configurations with reversed processor order — unverified JDK21/Lombok/in-process javac assumption — cost if wrong: Lombok coverage moves to Task 11.
+- Ruling R12: in the processingOver() round the processor only reports errors for still-deferred types; it never generates sources there (avoids "created in the last round" warning that breaks succeededWithoutWarnings in Task 8). Writing the services resource in that round is fine — cost if wrong: none.
+- Ruling R13: missing getter/setter errors are reported only in the last round, even when the class has other errors — avoids false errors when another generator adds accessors — cost if wrong: a user sees the accessor error one round later.
+- Ruling R14: additive API beyond the Produces block accepted (package-private ModelBuilder.deferred(), static MemberModel.descriptor(...), Mirrors helper) — Produces signatures unchanged — cost if wrong: none.
+- Ruling R15 (carried to 7b): Lombok getter for a primitive boolean field is isX; Lombok AccessLevel PRIVATE or NONE gives no accessor, PACKAGE/PROTECTED/PUBLIC are callable (the codec is in the same package) — cost if wrong: compile error in generated code.
+- Ruling R16 (carried to 7b): fix the BookCollection.dependsOn Javadoc (empty = previous member, spec 4.12), and replace the 7a "dependsOn is missing" error with convention step 6.
+- Ruling R17: a type that becomes valid only in the processingOver() round must not be dropped silently: report an ERROR on the type ("codec could not be generated: type completed only in the last processing round") — R12 forbids generation there; silence would give a runtime "No codec" — cost if wrong: an error in an edge case nobody reached.
+- Ruling R18: "<error>" is unresolved only when both the raw value and AnnotationValue.toString() are <error> (a String literal prints with quotes) — the R-carried "non-String type" rule broke @BookOperation(MISSING) — cost if wrong: none found.
+- Ruling R19: temporal length = length of the formatted sample (writeTemporal contract), e.g. yyyy-MM-dd'T'HH:mm:ss → 19; the sample must also parse back to the field type, also for INPUT-only fields; pic with S or V on a temporal field is an error — patterns must round-trip — cost if wrong: an INPUT-only one-way pattern is rejected.
+- Ruling R20 (load-bearing, carried to Task 8): Lombok primitive boolean field already named isX (isActive) → Lombok generates isActive()/setActive(); strip the leading "is" as Lombok does — otherwise the generated codec does not compile — cost if wrong: none.
+- Ruling R21 (carried to Task 8): variable-width temporal patterns (d, M, H, MMMM, EEEE) pass with one 2-digit sample; also format a 1-digit sample (2026-01-01 01:01:01) and require the same length — otherwise runtime length mismatch — cost if wrong: some unusual patterns rejected.
+- Ruling R22: R21 adjusted — MMMM/EEEE under Locale.ROOT are fixed 3-letter names, accepted; M, d, H rejected — Locale.ROOT behaviour — cost if wrong: none.
+- Ruling R23: primitive boolean field already named isX: expected accessors isX()/setX() also for handwritten code, with getX() as getter fallback — matches IDE/Lombok convention — cost if wrong: a strict-JavaBeans isIsX accessor is not found.
+- Ruling R24 (carried to Task 9): one converter instance per converter class per codec (spec 5.4), not per field — cost if wrong: none.
+- Ruling R25: accept item methods with an extra CodecContext parameter (converters need ctx.charset()); accept new validation: generic item class is a compile error; raw/generic converter types rejected in validation — cost if wrong: none.
+- Ruling R26: SimulatedAbend stays a RuntimeException (as the brief says) — it is a test signal thrown by user handlers and always translated to RemoteAbendException; it never escapes the simulator — cost if wrong: one superclass change.
+- Ruling R27: accept JUnit 6.0.3 on the bookmap-spring-boot test classpath only (Spring BOM upgrade); other modules stay on 5.13.4 — build is green; unify versions in the final fix wave if the reviewer asks — cost if wrong: version drift between modules.
+- Ruling R28: temporal write is strict — encode, parse back, compare with the value; any difference (lost seconds, nanos, out-of-window year) → MappingException; no silent truncation, also for nanoseconds (users truncate before setting) — anti-goal "never truncate silently" — cost if wrong: LocalTime.now() into HHmmss fails until the caller truncates. Two-digit year (yy/uu) read window is 2000–2099 (DateTimeFormatter default); document it in README, spec 5.3, and BookField.pattern Javadoc.
+- Ruling R29: R15 corrected — Lombok PACKAGE/PROTECTED accessors are callable only when the declaring class is in the codec's package; otherwise a bookmap compile error.
+- Ruling R30: R27 reversed — bump JUnit to 6.0.3 for all modules (one catalog line); align AssertJ with the Spring BOM version as well.
+- Ruling R31: I6 — change README native-image wording to "configured but not tested yet"; no native smoke test in v1.
+- Ruling R32: I7 — set group "pt.daaz.bookmap" and version "0.1.0-SNAPSHOT" in the root build; keep publishing setup for later; switch bookmap-spring-boot to api(platform(...)).
+- Ruling R33: accept documented Lombok limits with bookmap-first order (@Data with uninitialized final/@NonNull fields → javac error in generated code; @RequiredArgsConstructor without required fields → bookmap error, add @NoArgsConstructor); explicit signed/scale on String/temporal is an error even when set to the default value — processor cannot see field initializers; strictness avoids silent ignores — cost if wrong: users add @NoArgsConstructor or remove redundant attributes.
+
+## Deferred findings (can wait, per the final review triage)
+
+- Task 1: minor (deferred): catalog versions may be stale (JUnit 5.13.4, Lombok 1.18.38, SB 4.0.0…); unresolved coords (JavaPoet, compile-testing, Lombok, SB) — carried to Tasks 6/7/12 dispatches to verify/bump
+- Task 1: minor (deferred): CodecContext should reject !canEncode() charsets with IllegalArgumentException (newEncoder throws UOE)
+- Task 1: minor (deferred): BookRequest stores caller's attributes map as-is (Map.copyOf) and payload not copied
+- Task 1: minor (deferred): no group/version in root build (needed for publishing)
+- Task 1: minor (deferred): java-library re-applied in core build; check depends on JacocoReport
+- Task 1: minor (deferred): ApiTypesTest does not assert TransportException parent for 3 subclasses
+- Task 2: minor (deferred): report claimed 36 tests (31 actual); RED step skipped
+- Task 2: minor (deferred, final review): TextCodec.decode uses new String(bytes, cs) → unmappable bytes become U+FFFD silently (asymmetric with REPORT on write; IBM037 maps all 256)
+- Task 3: minor (deferred): packed size formula duplicated in PackedDecimal (use BookWriter.byteLength / pass size)
+- Task 3: minor (deferred): packedRoundTripKeepsScale only reads (rename); packedInvalidNibbleFails does not assert offset; no mixed spaces/low-values packed test
+- Task 4: minor (deferred): no RED run; some expected bytes from String.getBytes(IBM037)
+- Task 4: minor (deferred): converter wrap try/catch duplicated in BookWriter/BookReader; null e.getMessage() gives "(null)"
+- Task 4: minor (deferred): LocalTime low-values read not tested
+- Task 4: minor (deferred, docs): "0000-00-00" with pattern yyyy-MM-dd is not "only zeros" → MappingException (null writes all zeros)
+- Task 5: minor (deferred): reset-before-exchange not asserted in one event sequence
+- Task 5: minor (deferred): no test pins validate-before-continuation / validate-before-limit (maxCalls 1 + invalid page)
+- Task 5: minor (deferred): no test for multi-byte codec charsetName → MappingException
+- Task 5: minor (deferred): Javadoc — loadDefault() uses thread context class loader; execute() should state exceptions pass unchanged
+- Task 5: minor (deferred): style — FQCN BusinessException in FakeCodec; import order in BookCodecRegistryTest
+- Task 6: minor (deferred): toUpperCase(ROOT) lets non-ASCII letters (ſ, ı) through; messages show upper-cased char
+- Task 6: minor (deferred): temporary PicSpec rebuilt in parse; PicSpec has no compact-constructor invariants; parse(null) bare NPE
+- Task 6: minor (deferred, docs): picture must be one word (S9(7) V99, PIC IS X(3) rejected) — undocumented in Javadoc; Javadoc cites internal spec section
+- Task 7a: minor (deferred): duplicate diagnostics for a superclass shared by two operations / item used by two collections (dedupe Problems)
+- Task 7a: minor (deferred): no hadErrorCount pin on unresolvedFieldTypeIsReportedInTheLastRound; no resolve-in-round-2-then-real-error test
+- Task 7a: minor (deferred): duplicateOperationName does not assert which class gets the error
+- Task 7a: minor (deferred): ERROR-kind interfaces do not defer (continuable/validatable may be wrong if a generated interface extends Continuable)
+- Task 7a: minor (deferred): accessor errors lost when the class also has other errors (extension of R13)
+- Task 7a: minor (deferred): annotation default values hard-coded in ModelBuilder (use getElementValuesWithDefaults for fallbacks)
+- Task 7a: minor (deferred): skipped unresolved member can cause a misleading extra bookmap error (javac error is also reported)
+- Task 7a: minor (deferred): AccessorResolver.same ignores type arguments (List<Object> getter accepted for List<Line> field)
+- Task 7b: minor (deferred): charsets compared as plain strings (aliases like Cp037 vs IBM037 → false "different charset" error)
+- Task 7b: minor (deferred, Task 8 relevance): Lombok naming for boolean field already named isX (isActive → isActive()/setActive()) not handled
+- Task 7b: minor (deferred): cc0c30f not strictly a pure move (Problem.annotation added then removed)
+- Task 7b: minor (deferred): explicit charset "" on superclass/item reported as different (decide: "" = not set)
+- Task 7b: minor (deferred): unresolved operation charset in last round can add a misleading "different charset" error (skip loop when unresolved)
+- Task 7b: minor (deferred): charset names compared as strings (aliases/case); compile-time rule also rejects !canEncode while CodecContext does not (see Task 1 minor); charsetThatCannotEncode depends on ISO-2022-CN
+- Task 7b: minor (deferred): charsetProblem placement in DefaultsResolver; Problems mutable fields; FieldResolver.resolve ~70 lines, forDeclaringClass per field
+- Task 7b: minor (deferred, carried 7a gap): explicit signed/scale on String/temporal silently ignored
+- Task 8: minor (deferred): Lombok PACKAGE/PROTECTED accessor on a superclass in another package is treated as callable; the codec cannot call it (generated-code compile error)
+- Task 8: minor (deferred): raw FieldConverter type gives an unchecked warning in generated code (validation gap)
+- Task 8: minor (deferred): nano pattern n passes sample check (samples have 0 nanos); runtime fails loudly
+- Task 8: minor (deferred): ServicesFileWriter.existingNames swallows every IOException
+- Task 8: minor (deferred): generatedCodeUsesNoReflection does not assert success; primitiveReadsZeroFromBlank does not assert e..h; redundant sample-0 format
+- Task 9: minor (deferred, final review — raised twice): Lombok PACKAGE/PROTECTED accessor on a class in another package (superclass or item) gives a generated codec that does not compile; should be a bookmap validation error
+- Task 9: minor (deferred): maxResponseLength has no int-overflow check; unmodifiable user list in append mode → UnsupportedOperationException (not BookmapException)
+- Task 9: minor (deferred): no test that resetOutputCollections leaves INPUT collections untouched; item field errors do not name the collection/index
+- Task 10: minor (deferred): unused CancellationException import; builder accepts non-positive timeout and multi-byte charset; recorded payload shared with handler (clone); dead GreetingCodec.charset helper; no addSuppressed on pass-through; CopyOnWriteArrayList log O(n²)
+- Task 11: minor (deferred): amounts/dates test checks values only; abend test no request-count assert; no COMP/converter in examples; CustomerProfile mixes explicit date length; Javadoc fragments; spec §6 explanatory comments omitted
+- Task 11: minor (deferred): import order in EndToEndTest
+- Task 12: minor (deferred): implementation(platform) with api(spring-boot-autoconfigure) → consumers get a versionless API dependency (use api(platform))
+- Task 12: minor (deferred): invalidCharsetPropertyFails asserts only hasFailed(); unknown charset name throws UnsupportedCharsetException (not tested); defaultsAreApplied/charsetPropertyIsApplied swallow the exception they rely on
+- Task 12: minor (deferred): ordering contract (before = BookmapAutoConfiguration) not tested; FQCN style in test; no configuration metadata processor
+- Task 13: minor (deferred): UpdateShipment snippet drops @Getter/@Setter without an "omitted" note; "Spring does not enter the core module" wording; missing spec 5.6 rules (null list → ArrayList, INPUT_OUTPUT not reset/replaced, INPUT_OUTPUT+Continuable error); limitations list partial; a few non-STE fragments
