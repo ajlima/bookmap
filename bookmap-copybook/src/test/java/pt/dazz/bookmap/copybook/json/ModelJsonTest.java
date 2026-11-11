@@ -3,12 +3,11 @@ package pt.dazz.bookmap.copybook.json;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.copybook.Golden;
+import pt.dazz.bookmap.copybook.Models;
 import pt.dazz.bookmap.copybook.model.BookModel;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
@@ -20,49 +19,20 @@ import pt.dazz.bookmap.copybook.model.SubTypes;
 
 class ModelJsonTest {
 
-    /** An account book with a fixed and a variable table, and two subtypes. */
-    static BookModel accountModel() {
-        ClassModel account = new ClassModel("GetAccount", ClassKind.OPERATION, null,
-            new SubTypes("accountType", List.of(new SubTypeEntry("01", "CheckingData"),
-                new SubTypeEntry("02", "SavingsAccount"))),
-            List.of(
-                new FieldMember("accountId", JavaType.STRING, 10, "X(12)",
-                    Direction.INPUT_OUTPUT, "ACCOUNT-ID", "05 ACCOUNT-ID PIC X(12)."),
-                new FieldMember("accountType", JavaType.INT, 20, "9(2)",
-                    Direction.INPUT_OUTPUT, "ACCOUNT-TYPE", "05 ACCOUNT-TYPE PIC 9(2)."),
-                new CollectionMember("holder", 30, Direction.INPUT_OUTPUT, "HOLDER",
-                    "05 HOLDER OCCURS 2.", 2, true, null, "Holder")));
-        ClassModel holder = new ClassModel("Holder", ClassKind.ITEM, null, null, List.of(
-            new FieldMember("holderName", JavaType.STRING, 10, "X(30)", Direction.INPUT_OUTPUT,
-                "HOLDER-NAME", "10 HOLDER-NAME PIC X(30).")));
-        ClassModel checking = new ClassModel("CheckingData", ClassKind.SUBTYPE, "GetAccount",
-            null, List.of(
-                new FieldMember("overdraftLimit", JavaType.BIG_DECIMAL, 40, "S9(9)V99 COMP-3",
-                    Direction.OUTPUT, "OVERDRAFT-LIMIT",
-                    "10 OVERDRAFT-LIMIT PIC S9(9)V99 COMP-3."),
-                new FieldMember("entryCount", JavaType.LONG, 50, "9(10)", Direction.OUTPUT,
-                    "ENTRY-COUNT", "10 ENTRY-COUNT PIC 9(10)."),
-                new CollectionMember("entry", 60, Direction.OUTPUT, "ENTRY",
-                    "10 ENTRY OCCURS 0 TO 10 DEPENDING ON ENTRY-COUNT.", 10, false,
-                    "entryCount", "Entry")));
-        return new BookModel(BookModel.FORMAT_VERSION, "ACCOUNT.cpy",
-            List.of(account, holder, checking));
-    }
-
     @Test
     void writesTheGoldenFile() {
-        Golden.assertMatches("json/model.json", ModelJson.write(accountModel()));
+        Golden.assertMatches("json/model.json", ModelJson.write(Models.accountModel()));
     }
 
     @Test
     void roundTripGivesAnEqualModel() {
-        BookModel model = accountModel();
+        BookModel model = Models.accountModel();
         assertThat(ModelJson.read(ModelJson.write(model))).isEqualTo(model);
     }
 
     @Test
     void writeIsDeterministic() {
-        assertThat(ModelJson.write(accountModel())).isEqualTo(ModelJson.write(accountModel()));
+        assertThat(ModelJson.write(Models.accountModel())).isEqualTo(ModelJson.write(Models.accountModel()));
     }
 
     @Test

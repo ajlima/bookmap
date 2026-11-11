@@ -2,7 +2,7 @@ plugins { `java-library` }
 
 dependencies {
     api(project(":bookmap-core"))
-    implementation(libs.javapoet)
+    api(libs.javapoet)
     implementation(libs.jackson.databind)
 
     testImplementation(project(":bookmap-processor"))
