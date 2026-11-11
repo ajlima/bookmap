@@ -36,7 +36,7 @@ You can use the code of the old framework as an inspiration. It is not a limit.
 - Real transports (CTG/ECI, MQ, HTTP/z/OS Connect). The transport SPI must let you add them without a change to the core.
 - Quarkus and Guice integrations.
 - Generation of POJOs from copybook source (a COBOL parser).
-- `REDEFINES`, nested collections (a collection in a collection item), `COMP-1`/`COMP-2` (floating point), `SIGN LEADING`/`SIGN SEPARATE`.
+- `REDEFINES` without a discriminator, nested collections (a collection in a collection item), `COMP-1`/`COMP-2` (floating point), `SIGN LEADING`/`SIGN SEPARATE`. A `REDEFINES` with a discriminator is supported through subtypes: see `2026-11-11-bookmap-subtypes-design.md`.
 - Separate request and response classes. One class holds both directions (see 4.1).
 - An asynchronous or reactive API.
 
@@ -252,7 +252,7 @@ public interface FieldConverter<J> {
 
 For each class with `@BookOperation`, the processor generates `<ClassName>_BookCodec implements BookCodec<ClassName>` in the same package. For a nested class `Outer.Inner`, the codec is the top-level class `Outer_Inner_BookCodec`.
 
-The operation class must be public, not abstract, not generic, not a record, and top-level or `static` nested. It must have a public no-argument constructor. If not, this is a compile error. The codec has these methods:
+The operation class must be public, not abstract, not generic, not a record, and top-level or `static` nested. It must have a public no-argument constructor. A base class with `@BookSubTypes` can be abstract; then it needs no constructor. If not, this is a compile error. The codec has these methods:
 - `encodeRequest(T, context) → byte[]` and `decodeResponse(byte[], T, context)`: the client uses them.
 - `decodeRequest(byte[], context) → T` and `encodeResponse(T, context) → byte[]`: the typed simulator uses them.
 - `resetOutputCollections(T)`: see 5.6.
@@ -336,18 +336,18 @@ BookmapClient client = BookmapClient.builder()
     .maxCalls(1000)                        // default; safety limit
     .build();
 
-GetCustomerOrders result = client.execute(request);   // returns the same object, filled
+GetCustomerOrders result = client.execute(request);   // returns the response object
 ```
 
 Cycle:
 1. The client finds the codec of the class. If there is no codec, it throws `MappingException`. The message tells you to examine the annotation processor configuration.
 2. The client clears the `OUTPUT` collections.
-3. `encodeRequest` → `transport.exchange(BookRequest)` → `decodeResponse` on the same object.
+3. `encodeRequest` → `transport.exchange(BookRequest)` → `readResponse` on the first call, `decodeResponse` on the next calls. Without subtypes, both fill the same object. With subtypes, the first response can give a new object of a subclass (see the subtypes spec, 4.8). The next calls use that object.
 4. If the POJO is `Validatable`, the client calls `validate()`. An exception stops the execution and goes to the caller. Pagination does not continue.
 5. If the POJO is `Continuable`, the client calls `hasContinuation()`. If the result is `true`, the client goes back to step 3.
 6. If `hasContinuation()` is still true after `maxCalls` calls, the client throws `ContinuationLimitException`.
 
-The client finds the codec by the exact class of the POJO. A subclass instance without its own `@BookOperation` causes "No codec".
+The client finds the codec by the exact class of the POJO. A subclass instance without its own `@BookOperation` causes "No codec", unless the subclass is in the `@BookSubTypes` list of its base class.
 
 `BookmapClient` is immutable and thread-safe. The POJO is not thread-safe. It belongs to the caller.
 

@@ -93,3 +93,12 @@ This file records the decisions made during the implementation of plan `2026-11-
 - Task 12: minor (deferred): invalidCharsetPropertyFails asserts only hasFailed(); unknown charset name throws UnsupportedCharsetException (not tested); defaultsAreApplied/charsetPropertyIsApplied swallow the exception they rely on
 - Task 12: minor (deferred): ordering contract (before = BookmapAutoConfiguration) not tested; FQCN style in test; no configuration metadata processor
 - Task 13: minor (deferred): UpdateShipment snippet drops @Getter/@Setter without an "omitted" note; "Spring does not enter the core module" wording; missing spec 5.6 rules (null list → ArrayList, INPUT_OUTPUT not reset/replaced, INPUT_OUTPUT+Continuable error); limitations list partial; a few non-STE fragments
+
+## Subtypes (REDEFINES): deferred design items
+
+These items are out of scope for the subtypes design (`2026-11-11-bookmap-subtypes-design.md`):
+
+- Subtypes in a subtype (more than one level of `@BookSubTypes`).
+- Base fields after the redefined area (a trailer after the `REDEFINES`).
+- A count field in the base class for a collection in a subclass.
+- A `REDEFINES` without a discriminator, with all views of the same bytes at the same time.
