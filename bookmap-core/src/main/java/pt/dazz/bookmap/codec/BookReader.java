@@ -66,6 +66,21 @@ public final class BookReader {
     }
 
     /**
+     * Moves the position forward over the unused slots of a fixed collection. Unlike
+     * {@link #skip(int)}, this method checks that the data holds the full area.
+     *
+     * @param field the collection descriptor, for error messages
+     * @param length the number of bytes to skip
+     * @throws MappingException if the data ends before the end of the area
+     */
+    public void skipArea(String field, int length) {
+        if (length > data.length - position) {
+            throw new MappingException(field + ": the response is too short for the fixed area");
+        }
+        position += length;
+    }
+
+    /**
      * Counts the used slots of a fixed collection. A slot is empty if all its bytes are
      * LOW-VALUES ({@code 0x00}). The check does not use the charset. The reader does not move.
      *

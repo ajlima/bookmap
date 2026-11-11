@@ -577,8 +577,8 @@ final class CodecGenerator {
             .addStatement("$N.add($N(reader, ctx))", n.list(), itemMethodsOf(collection).read())
             .endControlFlow();
         if (collection.fixed()) {
-            code.addStatement("reader.skip(($L - $N) * $L)", collection.maxOccurs(), n.count(),
-                itemLength);
+            code.addStatement("reader.skipArea($N, ($L - $N) * $L)", n.descriptor(),
+                collection.maxOccurs(), n.count(), itemLength);
         }
         return code.addStatement("target.$N($N)", collection.setter(), n.list()).build();
     }
