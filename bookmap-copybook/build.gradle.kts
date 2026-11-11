@@ -7,4 +7,5 @@ dependencies {
 
     testImplementation(project(":bookmap-processor"))
     testImplementation(libs.compile.testing)
+    testImplementation(libs.lombok)
 }
