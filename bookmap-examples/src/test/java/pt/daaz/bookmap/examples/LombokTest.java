@@ -100,23 +100,28 @@ class LombokTest {
     void packageDefaultsApply() {
         ListInvoices call = new ListInvoices();
         call.setAccountId("ACC0000042");
-        call.setInvoices(List.of(invoice("INV0000001", "12.34"), invoice("INV0000002", "-12.34")));
+        call.setInvoices(List.of(invoice("INV0000001", "12.34", "1.50"), invoice("INV0000002", "-12.34", "-1.50")));
         var codec = BookCodecRegistry.loadDefault().codecFor(ListInvoices.class);
 
         byte[] response = codec.encodeResponse(call, CodecContext.defaults());
 
-        // accountId (10) + invoiceCount (S9(3) COMP-3 = 2 bytes) + 2 x (invoiceNumber 10 + amount 5)
-        assertThat(response).hasSize(10 + 2 + 2 * 15);
+        // accountId (10) + invoiceCount (unsigned 9(3), COMP-3 from the defaults = 2 bytes)
+        // + 2 x (invoiceNumber 10 + amount 5 + tax 4)
+        assertThat(response).hasSize(10 + 2 + 2 * 19);
+        assertThat(Arrays.copyOfRange(response, 10, 12)).containsExactly(0x00, 0x2F);
         assertThat(Arrays.copyOfRange(response, 12, 22))
             .isEqualTo("INV0000001".getBytes(EBCDIC));
         assertThat(Arrays.copyOfRange(response, 22, 27))
             .containsExactly(0x00, 0x00, 0x01, 0x23, 0x4C);
-        assertThat(Arrays.copyOfRange(response, 37, 42))
+        assertThat(Arrays.copyOfRange(response, 27, 31)).containsExactly(0x00, 0x00, 0x15, 0x0C);
+        assertThat(Arrays.copyOfRange(response, 41, 46))
             .containsExactly(0x00, 0x00, 0x01, 0x23, 0x4D);
+        assertThat(Arrays.copyOfRange(response, 46, 50)).containsExactly(0x00, 0x00, 0x15, 0x0D);
 
         ListInvoices decoded = codec.newInstance();
         codec.decodeResponse(response, decoded, CodecContext.defaults());
         assertThat(decoded.getInvoices().get(1).getAmount()).isEqualByComparingTo("-12.34");
+        assertThat(decoded.getInvoices().get(1).getTax()).isEqualByComparingTo("-1.50");
     }
 
     private static ShipmentLine line(String sku, int quantity) {
@@ -126,10 +131,11 @@ class LombokTest {
         return line;
     }
 
-    private static Invoice invoice(String number, String amount) {
+    private static Invoice invoice(String number, String amount, String tax) {
         Invoice invoice = new Invoice();
         invoice.setInvoiceNumber(number);
         invoice.setAmount(new BigDecimal(amount));
+        invoice.setTax(new BigDecimal(tax));
         return invoice;
     }
 }

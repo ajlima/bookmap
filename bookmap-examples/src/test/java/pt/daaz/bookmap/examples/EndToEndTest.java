@@ -4,12 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import java.util.Arrays;
 import pt.daaz.bookmap.BookmapClient;
+import pt.daaz.bookmap.codec.BookCodecRegistry;
+import pt.daaz.bookmap.convert.CodecContext;
 import pt.daaz.bookmap.exception.RemoteAbendException;
 import pt.daaz.bookmap.simulator.SimulatedAbend;
 import pt.daaz.bookmap.simulator.SimulatorTransport;
@@ -72,6 +76,42 @@ class EndToEndTest {
         assertThat(simulator.receivedRequests()).hasSize(3);
         assertThat(result.getOrderCount()).isEqualTo(20);
         assertThat(result.getMoreData()).isEqualTo("N");
+    }
+
+    @Test
+    void requestLayoutIs22BytesAndRestartKeyGoesBack() {
+        registerPagedHandler();
+
+        client.execute(newRequest());
+
+        Charset ibm037 = CodecContext.defaults().charset();
+        byte[] first = simulator.receivedRequests().get(0).payload();
+        byte[] second = simulator.receivedRequests().get(1).payload();
+        assertThat(first).hasSize(22);
+        assertThat(new String(Arrays.copyOfRange(first, 0, 10), ibm037)).isEqualTo("CUST000042");
+        assertThat(new String(Arrays.copyOfRange(second, 10, 22), ibm037)).isEqualTo("50          ");
+    }
+
+    @Test
+    void responseLayoutIs80BytesPlus26PerOrder() {
+        var codec = BookCodecRegistry.loadDefault().codecFor(GetCustomerOrders.class);
+        GetCustomerOrders page = newRequest();
+        page.setReturnCode("0000");
+        page.setReturnMessage("OK");
+        page.setMoreData("N");
+
+        page.setOrders(orders(50));
+        assertThat(codec.encodeResponse(page, CodecContext.defaults())).hasSize(80 + 50 * 26);
+        page.setOrders(orders(3));
+        assertThat(codec.encodeResponse(page, CodecContext.defaults())).hasSize(80 + 3 * 26);
+    }
+
+    private static List<Order> orders(int count) {
+        List<Order> list = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            list.add(order(i));
+        }
+        return list;
     }
 
     @Test
