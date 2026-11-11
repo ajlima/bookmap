@@ -8,6 +8,7 @@ public class SimulatedAbend extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
+    /** The simulated abend code, for example {@code ASRA}. */
     private final String abendCode;
 
     /**

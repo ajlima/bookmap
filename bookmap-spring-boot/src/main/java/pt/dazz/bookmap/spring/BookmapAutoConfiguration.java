@@ -23,6 +23,13 @@ import pt.dazz.bookmap.spi.Transport;
 public class BookmapAutoConfiguration {
 
     /**
+     * Creates the auto-configuration. Spring Boot calls this constructor.
+     */
+    public BookmapAutoConfiguration() {
+        // No state.
+    }
+
+    /**
      * Loads the generated codecs with the service loader.
      *
      * @return the codec registry

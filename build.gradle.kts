@@ -1,8 +1,21 @@
 plugins {
     base
+    alias(libs.plugins.maven.publish) apply false
 }
 
+import com.vanniktech.maven.publish.JavaLibrary
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
+
 val catalog = the<org.gradle.accessors.dm.LibrariesForLibs>()
+
+// Modules that go to Maven Central, with their POM descriptions.
+val publishedModules = mapOf(
+    "bookmap-core" to "BookMap core: annotations, runtime codecs, client, and transport SPI.",
+    "bookmap-processor" to "BookMap annotation processor: generates the codecs at compile time.",
+    "bookmap-transport-simulator" to "BookMap in-memory transport for tests.",
+    "bookmap-spring-boot" to "BookMap Spring Boot auto-configuration.",
+)
 
 allprojects {
     group = "pt.dazz.bookmap"
@@ -72,6 +85,45 @@ subprojects {
         tasks.named("check") {
             dependsOn(tasks.withType<JacocoCoverageVerification>())
             dependsOn(tasks.withType<JacocoReport>())
+        }
+    }
+
+    publishedModules[name]?.let { moduleDescription ->
+        apply(plugin = "com.vanniktech.maven.publish")
+
+        extensions.configure<MavenPublishBaseExtension> {
+            configure(JavaLibrary(javadocJar = JavadocJar.Javadoc(), sourcesJar = true))
+            publishToMavenCentral(automaticRelease = true)
+            // Sign only when a key is present (CI release). Local publishToMavenLocal works without a key.
+            if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+                signAllPublications()
+            }
+            coordinates(group.toString(), name, version.toString())
+            pom {
+                this.name.set(project.name)
+                description.set(moduleDescription)
+                inceptionYear.set("2026")
+                url.set("https://github.com/ajlima/bookmap")
+                licenses {
+                    license {
+                        this.name.set("Apache License, Version 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                        distribution.set("repo")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("ajlima")
+                        this.name.set("Alexandre Lima")
+                        url.set("https://github.com/ajlima")
+                    }
+                }
+                scm {
+                    url.set("https://github.com/ajlima/bookmap")
+                    connection.set("scm:git:https://github.com/ajlima/bookmap.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/ajlima/bookmap.git")
+                }
+            }
         }
     }
 }

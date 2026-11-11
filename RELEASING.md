@@ -1,0 +1,93 @@
+# Releasing BookMap
+
+GitHub Actions makes each release. Read this file to set up the release and to understand the cycle.
+
+## How a release occurs
+
+The workflow `.github/workflows/release.yml` runs on each push to `main`.
+
+1. The `build` job calculates the next version from the commit messages since the last tag:
+   - `feat:` increases the minor version.
+   - `fix:` increases the patch version.
+   - `BREAKING CHANGE` in the commit body increases the major version.
+   - Other types (`docs:`, `test:`, `build:`, `refactor:`, `ci:`) make no release.
+2. The `build` job builds and tests with that version. The build fails if coverage is less than 100%.
+3. The `publish` job signs the modules and publishes them to Maven Central.
+4. The `release` job creates the tag `vX.Y.Z` and a GitHub release with the module JARs.
+
+The `release` job runs only after a successful `publish` job. Thus, each GitHub release is also on Maven Central.
+
+These modules go to Maven Central with the group `pt.daaz.bookmap`:
+`bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, and `bookmap-spring-boot`.
+
+## One-time setup
+
+Do these steps before the first release. The `publish` job stops with an error if a secret is missing.
+
+### 1. Create a Sonatype Central account
+
+1. Go to <https://central.sonatype.com> and create an account.
+2. Open **Namespaces** and add the namespace `pt.daaz`.
+3. Sonatype shows a verification key. Add a DNS `TXT` record with this key to the domain `daaz.pt`.
+4. Wait until the namespace shows **Verified**.
+
+### 2. Create a Sonatype user token
+
+1. Open **Account** > **Generate User Token**.
+2. Keep the token username and the token password. You need them in step 4.
+
+### 3. Create a GPG signing key
+
+Maven Central accepts only signed artifacts.
+
+```bash
+gpg --full-generate-key
+```
+
+Use RSA 4096 and a strong passphrase. Then find the key ID:
+
+```bash
+gpg --list-secret-keys --keyid-format=long
+```
+
+Send the public key to a key server, so that Maven Central can verify the signatures:
+
+```bash
+gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
+```
+
+### 4. Add the GitHub secrets
+
+Run these commands in the repository folder. Each command asks for the value. Do not put a secret value on the command line.
+
+```bash
+gh secret set MAVEN_CENTRAL_USERNAME
+```
+
+```bash
+gh secret set MAVEN_CENTRAL_PASSWORD
+```
+
+```bash
+gh secret set SIGNING_KEY_PASSWORD
+```
+
+For the signing key, send the exported private key directly to the secret:
+
+```bash
+gpg --armor --export-secret-keys <KEY_ID> | gh secret set SIGNING_KEY
+```
+
+## Make a release
+
+Merge a commit with the type `feat:` or `fix:` into `main`. The workflow does the rest.
+
+To run the workflow again (for example, after you add a missing secret), open **Actions** > **Build and release** > **Run workflow** on the `main` branch.
+
+## Local check
+
+Run this command to make the release artifacts in the local Maven repository, without a signature:
+
+```bash
+./gradlew publishToMavenLocal -PreleaseVersion=0.0.0-local
+```

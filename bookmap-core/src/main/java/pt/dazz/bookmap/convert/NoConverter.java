@@ -6,6 +6,13 @@ package pt.dazz.bookmap.convert;
 public final class NoConverter implements FieldConverter<Object> {
 
     /**
+     * Creates the marker. The annotation default refers to the class only.
+     */
+    public NoConverter() {
+        // Marker class: no state.
+    }
+
+    /**
      * Throws always. This class is a marker only.
      *
      * @param bytes not used

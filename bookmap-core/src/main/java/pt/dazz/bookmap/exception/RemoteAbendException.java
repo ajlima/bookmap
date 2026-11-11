@@ -7,6 +7,7 @@ public class RemoteAbendException extends TransportException {
 
     private static final long serialVersionUID = 1L;
 
+    /** The abend code of the remote program, for example {@code ASRA}. */
     private final String abendCode;
 
     /**

@@ -468,7 +468,8 @@ Then the `Transport` bean exists when the client condition runs. The core module
 
 ## Project status
 
-BookMap is at version `0.1.0-SNAPSHOT`. It is not published to a Maven repository yet.
+BookMap is at version `0.1.0-SNAPSHOT`. GitHub Actions builds each release and publishes it to Maven Central.
+See [RELEASING.md](RELEASING.md) for the release cycle and the one-time setup.
 The build enforces 100% line and branch coverage for the core, processor, simulator, and Spring Boot modules.
 Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transport SPI accepts them without a change to the core.
 
