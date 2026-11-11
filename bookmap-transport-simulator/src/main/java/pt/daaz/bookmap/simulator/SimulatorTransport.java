@@ -17,6 +17,7 @@ import java.util.concurrent.TimeoutException;
 import pt.daaz.bookmap.codec.BookCodecRegistry;
 import pt.daaz.bookmap.convert.CodecContext;
 import pt.daaz.bookmap.exception.BookmapException;
+import pt.daaz.bookmap.exception.MappingException;
 import pt.daaz.bookmap.exception.OperationNotFoundException;
 import pt.daaz.bookmap.exception.RemoteAbendException;
 import pt.daaz.bookmap.exception.TransportException;
@@ -36,7 +37,7 @@ import pt.daaz.bookmap.spi.Transport;
 public final class SimulatorTransport implements Transport {
 
     private final BookCodecRegistry registry;
-    private final Charset charset;
+    private final CodecContext defaultContext;
     private final Duration timeout;
     private final Map<String, SimulatedOperation> operations = new ConcurrentHashMap<>();
     private final Map<String, CodecContext> contexts = new ConcurrentHashMap<>();
@@ -45,7 +46,8 @@ public final class SimulatorTransport implements Transport {
 
     private SimulatorTransport(Builder builder) {
         this.registry = builder.registry == null ? BookCodecRegistry.loadDefault() : builder.registry;
-        this.charset = builder.charset == null ? CodecContext.defaults().charset() : builder.charset;
+        this.defaultContext = builder.charset == null
+            ? CodecContext.defaults() : new CodecContext(builder.charset);
         this.timeout = builder.timeout;
     }
 
@@ -84,7 +86,7 @@ public final class SimulatorTransport implements Transport {
     public <T> SimulatorTransport register(Class<T> type, SimulatedHandler<T> handler) {
         Objects.requireNonNull(handler, "handler");
         BookCodec<T> codec = registry.codecFor(type);
-        CodecContext ctx = contexts.computeIfAbsent(codec.charsetName(), this::contextFor);
+        CodecContext ctx = contextFor(codec);
         return register(codec.operationName(), request -> {
             T call = codec.decodeRequest(request, ctx);
             handler.handle(call);
@@ -92,8 +94,18 @@ public final class SimulatorTransport implements Transport {
         });
     }
 
-    private CodecContext contextFor(String charsetName) {
-        return new CodecContext(charsetName.isEmpty() ? charset : Charset.forName(charsetName));
+    private CodecContext contextFor(BookCodec<?> codec) {
+        String name = codec.charsetName();
+        if (name.isEmpty()) {
+            return defaultContext;
+        }
+        return contexts.computeIfAbsent(name, key -> {
+            try {
+                return new CodecContext(Charset.forName(key));
+            } catch (IllegalArgumentException e) {
+                throw new MappingException(codec.operationName() + ": invalid charset " + key, e);
+            }
+        });
     }
 
     /**

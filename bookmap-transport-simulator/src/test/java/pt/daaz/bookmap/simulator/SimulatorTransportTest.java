@@ -9,9 +9,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import pt.daaz.bookmap.codec.BookCodecRegistry;
 import pt.daaz.bookmap.exception.ConnectionException;
+import pt.daaz.bookmap.exception.MappingException;
 import pt.daaz.bookmap.exception.OperationNotFoundException;
 import pt.daaz.bookmap.exception.RemoteAbendException;
 import pt.daaz.bookmap.exception.TransportException;
@@ -86,6 +88,18 @@ class SimulatorTransportTest {
         byte[] response = transport.exchange(request("Greet", "Bo".getBytes(StandardCharsets.US_ASCII)));
 
         assertThat(response).isEqualTo("Hi Bo".getBytes(StandardCharsets.US_ASCII));
+    }
+
+    @Test
+    void invalidCodecCharsetsAreReportedAsMappingExceptions() {
+        for (String name : new String[] {"NO-SUCH-CHARSET", "bad name!", "UTF-8"}) {
+            SimulatorTransport transport = transportWith(name);
+
+            assertThatThrownBy(() -> transport.register(Greeting.class, call -> { }))
+                .isExactlyInstanceOf(MappingException.class)
+                .hasMessage("Greet: invalid charset " + name)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+        }
     }
 
     @Test
@@ -187,14 +201,21 @@ class SimulatorTransportTest {
         assertThat(interrupted.await(5, TimeUnit.SECONDS)).isTrue();
     }
 
-    @Test
+    @RepeatedTest(20)
     void interruptedCallerGetsATransportException() {
         SimulatorTransport transport = SimulatorTransport.builder().build();
-        transport.register("Echo", req -> req);
+        transport.register("Block", req -> {
+            try {
+                new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return req;
+        });
 
         Thread.currentThread().interrupt();
         try {
-            assertThatThrownBy(() -> transport.exchange(request("Echo", new byte[0])))
+            assertThatThrownBy(() -> transport.exchange(request("Block", new byte[0])))
                 .isExactlyInstanceOf(TransportException.class)
                 .hasCauseInstanceOf(InterruptedException.class);
             assertThat(Thread.currentThread().isInterrupted()).isTrue();
