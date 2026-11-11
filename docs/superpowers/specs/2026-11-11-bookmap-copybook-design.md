@@ -184,6 +184,8 @@ The parser keeps the line and column of each item for diagnostics. The parser al
 - `OCCURS n` → `@BookCollection(order = …, maxOccurs = n, fixed = true)`, without `dependsOn`. The copybook does not tell which field is a count. The developer adds `dependsOn` by hand if the program uses a count field.
 - `OCCURS m TO n DEPENDING ON X` → `@BookCollection(order = …, maxOccurs = n, dependsOn = "<field name of X>")`. The minimum `m` is ignored.
 - The `DEPENDING ON` field must be in the same generated class, before the table. If not, error.
+- A fixed table of `COMP` items cannot write the value 0 without a count field: its bytes are all LOW-VALUES, and the fixed `OCCURS` codec rejects them. The mapper gives an `INFO` diagnostic for such a table.
+- A generated operation class does not implement `Continuable`. Thus, the BookMap rule against an `INPUT_OUTPUT` collection in a `Continuable` class does not apply. If a developer adds `Continuable` by hand, the developer must also change the direction of such a collection.
 - The item class gets the name of the `OCCURS` item (`ORDER-LINE` → `OrderLine`). The collection field gets the field name of the same item (`orderLine`).
 
 ### 5.5 Directions
