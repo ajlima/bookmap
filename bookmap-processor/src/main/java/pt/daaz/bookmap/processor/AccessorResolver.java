@@ -117,13 +117,15 @@ public final class AccessorResolver {
 
     /**
      * Gives the field name with a capital first letter. As Lombok does, the name of a primitive
-     * {@code boolean} field such as {@code isActive} loses the {@code is} prefix: the
-     * accessors are {@code isActive} and {@code setActive}.
+     * {@code boolean} field loses the {@code is} prefix if the third character is not a
+     * lowercase letter. Thus, the accessors of {@code isActive} are {@code isActive} and
+     * {@code setActive}, and the accessors of {@code is_open} are {@code is_open} and
+     * {@code set_open}.
      */
     private static String property(VariableElement field) {
         String name = field.getSimpleName().toString();
         if (isBoolean(field) && name.startsWith("is") && name.length() > 2
-            && Character.isUpperCase(name.charAt(2))) {
+            && !Character.isLowerCase(name.charAt(2))) {
             return name.substring(2);
         }
         return Character.toUpperCase(name.charAt(0)) + name.substring(1);

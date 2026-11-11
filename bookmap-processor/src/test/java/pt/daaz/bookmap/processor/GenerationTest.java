@@ -581,7 +581,7 @@ class GenerationTest {
     }
 
     @Test
-    void collectionMembersAreNotEncodedYet() {
+    void collectionWithTheDefaultDirectionIsOnlyInTheResponse() {
         Compilation compilation = compiler.compile(
             source("Basket",
                 "@BookOperation public class Basket {",
@@ -601,8 +601,9 @@ class GenerationTest {
         // The collection and its count field are OUTPUT (the default direction of a collection).
         assertThat(text(codec.encodeRequest(basket, LATIN))).isEqualTo("GIFT");
         assertThat(text(codec.encodeResponse(basket, LATIN))).isEqualTo("00GIFT");
-        assertThat(codec.maxResponseLength()).isEqualTo(6);
+        assertThat(codec.maxResponseLength()).isEqualTo(2 + 3 * 5 + 4);
         codec.resetOutputCollections(basket);
+        assertThat(CompiledCodec.get(basket, "lines")).isEqualTo(List.of());
     }
 
     // ---- R20: Lombok primitive boolean field with an "is" prefix ----
@@ -614,6 +615,10 @@ class GenerationTest {
             "private boolean isActive;",
             "@BookField(order = 2, length = 1, converter = FlagConverter.class)",
             "private Boolean isGift;",
+            "@BookField(order = 3, length = 1, converter = FlagConverter.class)",
+            "private boolean is_open;",
+            "@BookField(order = 4, length = 1, converter = FlagConverter.class)",
+            "private boolean is2fa;",
             "}");
     }
 
@@ -630,11 +635,14 @@ class GenerationTest {
         assertThat(compiler.only().members())
             .extracting(ModelSnapshot.Member::getter, ModelSnapshot.Member::setter)
             .containsExactly(tuple("isActive", "setActive"),
-                tuple("getIsGift", "setIsGift"));
+                tuple("getIsGift", "setIsGift"), tuple("is_open", "set_open"),
+                tuple("is2fa", "set2fa"));
         BookCodec<Object> codec = CompiledCodec.load(compilation, "test.Flags");
         Object flags = codec.newInstance();
-        codec.decodeResponse(bytes("YN"), flags, LATIN);
+        codec.decodeResponse(bytes("YNYY"), flags, LATIN);
         assertThat(CompiledCodec.get(flags, "active")).isEqualTo(true);
         assertThat(CompiledCodec.get(flags, "isGift")).isEqualTo(false);
+        assertThat(CompiledCodec.get(flags, "_open")).isEqualTo(true);
+        assertThat(CompiledCodec.get(flags, "2fa")).isEqualTo(true);
     }
 }

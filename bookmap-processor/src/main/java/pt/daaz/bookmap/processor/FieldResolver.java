@@ -84,7 +84,6 @@ final class FieldResolver {
         JavaKind.LOCAL_TIME, LocalTime::from,
         JavaKind.LOCAL_DATE_TIME, LocalDateTime::from);
 
-    private final Elements elements;
     private final Types types;
     private final AccessorResolver accessors;
     private final DefaultsResolver defaultsResolver;
@@ -97,7 +96,6 @@ final class FieldResolver {
      * @param defaultsResolver the resolver of the {@code @BookDefaults} values
      */
     FieldResolver(Elements elements, Types types, DefaultsResolver defaultsResolver) {
-        this.elements = elements;
         this.types = types;
         this.accessors = new AccessorResolver(elements);
         this.defaultsResolver = defaultsResolver;
@@ -321,7 +319,17 @@ final class FieldResolver {
             problems.error(member, "converter " + converter.getQualifiedName()
                 + " must be a public class with a public no-argument constructor");
         }
+        if (!converter.getTypeParameters().isEmpty()) {
+            problems.error(member, "converter " + converter.getQualifiedName()
+                + " must not have type parameters");
+        }
         TypeMirror javaType = converterJavaType(converter.asType());
+        if (javaType == null) {
+            // A raw FieldConverter makes unchecked calls in the generated codec.
+            problems.error(member, "converter " + converter.getQualifiedName()
+                + " must implement FieldConverter with a type argument");
+            return;
+        }
         TypeMirror boxed = fieldType.getKind().isPrimitive()
             ? types.boxedClass((PrimitiveType) fieldType).asType() : fieldType;
         if (!types.isSameType(javaType, boxed)) {
@@ -330,15 +338,17 @@ final class FieldResolver {
         }
     }
 
-    /** Finds {@code J} of {@code FieldConverter<J>} in the supertypes of a converter. */
+    /**
+     * Finds {@code J} of {@code FieldConverter<J>} in the supertypes of a converter. Gives
+     * {@code null} if the converter implements the raw type {@code FieldConverter}.
+     */
     private TypeMirror converterJavaType(TypeMirror type) {
         for (TypeMirror supertype : types.directSupertypes(type)) {
             DeclaredType declared = (DeclaredType) supertype;
             if (((TypeElement) declared.asElement()).getQualifiedName()
                 .contentEquals(FIELD_CONVERTER)) {
                 return declared.getTypeArguments().isEmpty()
-                    ? elements.getTypeElement("java.lang.Object").asType()
-                    : declared.getTypeArguments().get(0);
+                    ? null : declared.getTypeArguments().get(0);
             }
             TypeMirror found = converterJavaType(supertype);
             if (found != null) {

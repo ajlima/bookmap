@@ -34,6 +34,9 @@ final class TestCompiler {
         "import pt.daaz.bookmap.convert.FieldConverter;",
         "import pt.daaz.bookmap.convert.NoConverter;");
 
+    /** Reports all lint warnings except the notes about unclaimed annotations. */
+    private static final String LINT = "-Xlint:all,-processing";
+
     final List<ModelSnapshot> snapshots = new ArrayList<>();
 
     private TestCompiler() {
@@ -86,11 +89,11 @@ final class TestCompiler {
     Compilation compile(List<Processor> others, JavaFileObject... files) {
         List<Processor> processors = new ArrayList<>(others);
         processors.add(new BookmapProcessor(snapshots::add));
-        return Compiler.javac().withProcessors(processors).compile(files);
+        return Compiler.javac().withOptions(LINT).withProcessors(processors).compile(files);
     }
 
     Compilation compileWithProcessors(List<Processor> processors, JavaFileObject... files) {
-        return Compiler.javac().withProcessors(processors).compile(files);
+        return Compiler.javac().withOptions(LINT).withProcessors(processors).compile(files);
     }
 
     BookmapProcessor processor() {

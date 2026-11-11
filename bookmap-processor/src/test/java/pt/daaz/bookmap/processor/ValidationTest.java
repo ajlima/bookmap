@@ -302,14 +302,73 @@ class ValidationTest {
     }
 
     @Test
-    void rawConverterDoesNotAgree() {
+    void genericItemClassIsRejected() {
+        Compilation compilation = compile(
+            order(field("@BookField(order = 1, length = 1)", "int", "boxCount"),
+                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Box<String>>", "boxes")),
+            source("Box",
+                "public class Box<T> {",
+                field("@BookField(order = 1, length = 3)", "String", "code"),
+                "}"));
+        assertError(compilation, "Order.boxes (order 2)",
+            "item class test.Box must not have type parameters");
+    }
+
+    @Test
+    void rawConverterIsRejected() {
         Compilation compilation = compile(
             order(field("@BookField(order = 1, length = 1, converter = RawConverter.class)",
                 "String", "flag")),
             converter("RawConverter", "public class RawConverter implements FieldConverter",
                 "Object"));
         assertError(compilation, "Order.flag (order 1)",
-            "converter type java.lang.Object does not agree with field type java.lang.String");
+            "converter test.RawConverter must implement FieldConverter with a type argument");
+    }
+
+    @Test
+    void rawConverterOnObjectFieldIsRejected() {
+        Compilation compilation = compile(
+            order(field("@BookField(order = 1, length = 1, converter = RawConverter.class)",
+                "Object", "any")),
+            converter("RawConverter", "public class RawConverter implements FieldConverter",
+                "Object"));
+        assertError(compilation, "Order.any (order 1)",
+            "converter test.RawConverter must implement FieldConverter with a type argument");
+    }
+
+    @Test
+    void converterThroughRawSuperclassIsRejected() {
+        Compilation compilation = compile(
+            order(field("@BookField(order = 1, length = 1, converter = CodeConverter.class)",
+                "Object", "any")),
+            source("BaseConverter",
+                "public abstract class BaseConverter<T> implements FieldConverter<T> {",
+                "}"),
+            converter("CodeConverter", "public class CodeConverter extends BaseConverter",
+                "Object"));
+        assertError(compilation, "Order.any (order 1)",
+            "converter test.CodeConverter must implement FieldConverter with a type argument");
+    }
+
+    @Test
+    void genericConverterIsRejected() {
+        Compilation compilation = compile(
+            order(field("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+                "Boolean", "flag")),
+            converter("FlagConverter",
+                "public class FlagConverter<T> implements FieldConverter<Boolean>", "Boolean"));
+        assertError(compilation, "Order.flag (order 1)",
+            "converter test.FlagConverter must not have type parameters");
+    }
+
+    @Test
+    void objectFieldWithObjectConverterIsAccepted() {
+        Compilation compilation = compile(
+            order(field("@BookField(order = 1, length = 1, converter = AnyConverter.class)",
+                "Object", "any")),
+            converter("AnyConverter", "public class AnyConverter implements FieldConverter<Object>",
+                "Object"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
     }
 
     @Test
@@ -583,6 +642,25 @@ class ValidationTest {
                 ModelSnapshot.Member::setter)
             .containsExactly(tuple("isActive", "setActive"), tuple("isIsland", "setIsland"),
                 tuple("isIs", "setIs"), tuple("getOpen", "setOpen"));
+    }
+
+    @Test
+    void isPrefixIsRemovedWhenTheThirdCharacterIsNotLowercase() {
+        Compilation compilation = compile(
+            order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+                "private boolean is_open;",
+                "public boolean is_open() { return is_open; }",
+                "public void set_open(boolean v) { is_open = v; }",
+                "@BookField(order = 2, length = 1, converter = FlagConverter.class)",
+                "private boolean is2fa;",
+                "public boolean is2fa() { return is2fa; }",
+                "public void set2fa(boolean v) { is2fa = v; }"),
+            converter("FlagConverter",
+                "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().members()).extracting(ModelSnapshot.Member::getter,
+                ModelSnapshot.Member::setter)
+            .containsExactly(tuple("is_open", "set_open"), tuple("is2fa", "set2fa"));
     }
 
     @Test

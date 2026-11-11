@@ -351,6 +351,10 @@ public final class ModelBuilder {
                 problems.error(collection, "item class " + itemType.getQualifiedName()
                     + " must be a public class with a public no-argument constructor");
             }
+            if (!itemType.getTypeParameters().isEmpty()) {
+                problems.error(collection, "item class " + itemType.getQualifiedName()
+                    + " must not have type parameters");
+            }
             List<AnnotatedMember> annotated = annotatedFields(itemType);
             if (annotated.stream().anyMatch(AnnotatedMember::collection)) {
                 problems.error(collection, "item class " + itemType.getQualifiedName()
