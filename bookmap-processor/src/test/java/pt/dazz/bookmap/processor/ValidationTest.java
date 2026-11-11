@@ -625,7 +625,7 @@ class ValidationTest {
                 "@lombok.Getter(lombok.AccessLevel.PACKAGE)",
                 "@lombok.Setter(lombok.AccessLevel.PROTECTED)",
                 "@BookField(order = 2, length = 5) private String code;",
-                "@lombok.Getter(lombok.AccessLevel.MODULE) @lombok.Setter",
+                "@SuppressWarnings(\"deprecation\") @lombok.Getter(lombok.AccessLevel.MODULE) @lombok.Setter",
                 "@BookField(order = 3, length = 5) private String region;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
