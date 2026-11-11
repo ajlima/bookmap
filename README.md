@@ -113,12 +113,12 @@ Add the core library and the processor.
 
 ```kotlin
 dependencies {
-    implementation("pt.daaz.bookmap:bookmap-core:0.1.0-SNAPSHOT")
-    annotationProcessor("pt.daaz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
+    implementation("pt.dazz.bookmap:bookmap-core:0.1.0-SNAPSHOT")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
 }
 ```
 
-The group is `pt.daaz.bookmap` and the version is `0.1.0-SNAPSHOT`. The project is not published yet.
+The group is `pt.dazz.bookmap` and the version is `0.1.0-SNAPSHOT`. The project is not published yet.
 Inside this build, use `project(":bookmap-core")` and `project(":bookmap-processor")`.
 
 If you use Lombok, list Lombok before BookMap in `annotationProcessor`. This is the recommended order.
@@ -129,7 +129,7 @@ The `bookmap-examples` build lists BookMap first on purpose, because that order 
 dependencies {
     compileOnly("org.projectlombok:lombok:<version>")
     annotationProcessor("org.projectlombok:lombok:<version>")
-    annotationProcessor("pt.daaz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
 }
 ```
 
@@ -210,7 +210,7 @@ Use `package-info.java` to set defaults for a package. The billing example does 
 
 ```java
 @BookDefaults(usage = Usage.COMP3, signed = true)
-package pt.daaz.bookmap.examples.billing;
+package pt.dazz.bookmap.examples.billing;
 ```
 
 | Attribute | Meaning |

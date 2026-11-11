@@ -1,7 +1,7 @@
 # bookmap — Design
 
 Date: 2026-11-10
-Base package: `pt.daaz.bookmap`
+Base package: `pt.dazz.bookmap`
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. You can change them if you have a good reason.
 
@@ -112,7 +112,7 @@ The POJOs can use Lombok to generate getters and setters. See 5.5.
 
 ### 4.11 Names
 
-Framework name: `bookmap`. Package: `pt.daaz.bookmap`. The annotations have neutral names (no "Cics").
+Framework name: `bookmap`. Package: `pt.dazz.bookmap`. The annotations have neutral names (no "Cics").
 
 ### 4.12 Convention over configuration
 
@@ -273,7 +273,7 @@ The operation class must be public, not abstract, not generic, not a record, and
 
 **Records** are not supported. The POJO is mutable: the response and the restart change it.
 
-**Registration.** The processor generates the entries in `META-INF/services/pt.daaz.bookmap.spi.BookCodec`. As AutoService does, it reads the existing file, merges the names, and removes names of types that no longer exist. Thus, an incremental compile does not lose codecs. The `BookCodecRegistry` in the core loads them with `ServiceLoader` and keeps an index by class.
+**Registration.** The processor generates the entries in `META-INF/services/pt.dazz.bookmap.spi.BookCodec`. As AutoService does, it reads the existing file, merges the names, and removes names of types that no longer exist. Thus, an incremental compile does not lose codecs. The `BookCodecRegistry` in the core loads them with `ServiceLoader` and keeps an index by class.
 
 **Compile errors.** The processor reports these errors:
 - duplicate `order` in the class hierarchy;

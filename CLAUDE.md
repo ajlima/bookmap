@@ -1,6 +1,6 @@
 # bookmap
 
-Java 21+ framework that maps COBOL books (copybooks) to Java POJOs with annotations. The core is independent of middleware and of DI containers. Base package: `pt.daaz.bookmap`. Build: Gradle.
+Java 21+ framework that maps COBOL books (copybooks) to Java POJOs with annotations. The core is independent of middleware and of DI containers. Base package: `pt.dazz.bookmap`. Build: Gradle.
 
 Design spec: `docs/superpowers/specs/2026-11-10-bookmap-design.md`.
 

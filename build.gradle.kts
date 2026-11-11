@@ -5,7 +5,7 @@ plugins {
 val catalog = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
 allprojects {
-    group = "pt.daaz.bookmap"
+    group = "pt.dazz.bookmap"
     version = "0.1.0-SNAPSHOT"
 }
 

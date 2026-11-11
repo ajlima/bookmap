@@ -8,7 +8,7 @@ This file records the decisions made during the implementation of plan `2026-11-
 - Ruling R2: Where a task step says "run the tests", the task is done only when `./gradlew :<module>:check` (tests + coverage) is green — Global Constraints — cost if wrong: none.
 - Ruling R3: bookmap-processor may call core runtime helpers (Formats.of, BookWriter.byteLength) at compile time — plan Task 6 dependency on core is declared — cost if wrong: processor jar depends on core (already the case).
 - Ruling R4: A null number with COMP3 writes packed zero with sign nibble C (signed) or F (unsigned); with COMP writes binary 0 — spec "Null, write: number → zeros" — cost if wrong: one sign nibble.
-- Ruling R5: CodecContext stays in pt.daaz.bookmap.convert (Task 1 placed it there; plan file tree said spi) — spec does not fix the package; moving costs churn — cost if wrong: one package move later
+- Ruling R5: CodecContext stays in pt.dazz.bookmap.convert (Task 1 placed it there; plan file tree said spi) — spec does not fix the package; moving costs churn — cost if wrong: one package move later
 - Ruling R6: accept two stricter packed reads from Task 3 — unsigned COMP3 rejects sign B/D; even-length pad nibble must be 0 — consistent with the DISPLAY unsigned rule and the no-silent-corruption anti-goal — cost if wrong: hosts that send non-standard packed data get MappingException instead of a value.
 - Ruling R7: Task 5 — duplicate codecs for one type in the registry → IllegalStateException; unknown codec charsetName → MappingException naming the operation; maxCalls counts the first call (maxCalls 3 → exactly 3 exchanges) — spec silent on duplicates/unknown charset (processor validates charset at compile time) — cost if wrong: different exception types.
 - Ruling R8: PicSyntaxException extends IllegalArgumentException (as the brief says), not BookmapException — it is processor-internal, never thrown at runtime to users; the "all exceptions extend BookmapException" constraint covers the runtime API — cost if wrong: one superclass change.
@@ -35,7 +35,7 @@ This file records the decisions made during the implementation of plan `2026-11-
 - Ruling R29: R15 corrected — Lombok PACKAGE/PROTECTED accessors are callable only when the declaring class is in the codec's package; otherwise a bookmap compile error.
 - Ruling R30: R27 reversed — bump JUnit to 6.0.3 for all modules (one catalog line); align AssertJ with the Spring BOM version as well.
 - Ruling R31: I6 — change README native-image wording to "configured but not tested yet"; no native smoke test in v1.
-- Ruling R32: I7 — set group "pt.daaz.bookmap" and version "0.1.0-SNAPSHOT" in the root build; keep publishing setup for later; switch bookmap-spring-boot to api(platform(...)).
+- Ruling R32: I7 — set group "pt.dazz.bookmap" and version "0.1.0-SNAPSHOT" in the root build; keep publishing setup for later; switch bookmap-spring-boot to api(platform(...)).
 - Ruling R33: accept documented Lombok limits with bookmap-first order (@Data with uninitialized final/@NonNull fields → javac error in generated code; @RequiredArgsConstructor without required fields → bookmap error, add @NoArgsConstructor); explicit signed/scale on String/temporal is an error even when set to the default value — processor cannot see field initializers; strictness avoids silent ignores — cost if wrong: users add @NoArgsConstructor or remove redundant attributes.
 
 ## Deferred findings (can wait, per the final review triage)
