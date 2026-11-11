@@ -119,5 +119,8 @@ Run this command to make the release artifacts in the local Maven repository, wi
 - The Gradle wrapper checks the SHA-256 of the Gradle distribution (`distributionSha256Sum`).
   The `setup-gradle` action also validates the wrapper JAR.
 - Only the `publish` job sees the Maven Central token and the signing key, through the `maven-central` environment.
+- The `setup-gradle` cache is disabled. Since v6, that cache is a proprietary component with separate terms of use.
+  The `build` job uses the open-source `setup-java` cache instead.
+  The `publish` job uses no cache, so a release always builds from clean dependencies.
 - Not done yet: Gradle dependency verification (`gradle/verification-metadata.xml`). It pins the checksum of each plugin and library.
   Add it when the dependency set is stable, because each Dependabot update then needs a new checksum.
