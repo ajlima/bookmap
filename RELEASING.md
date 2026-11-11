@@ -53,8 +53,14 @@ gpg --list-secret-keys --keyid-format=long
 Send the public key to a key server, so that Maven Central can verify the signatures:
 
 ```bash
-gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
+gpg --keyserver hkps://keys.openpgp.org --send-keys <KEY_ID>
 ```
+
+The key server sends a verification email to the address of the key. Click the link in that email.
+Without this step, the server publishes the key without your name and email.
+
+If `keys.openpgp.org` is not available, use `hkps://keyserver.ubuntu.com:443`.
+Use the `hkps://` form: some networks block the default HKP port 11371.
 
 ### 4. Create the `maven-central` environment
 
