@@ -81,4 +81,19 @@ class LowValuesTest {
         assertThat(new BookReader(hex("4040"), ebcdic).countUsedSlots("lines", 2, 1))
             .isEqualTo(1);
     }
+
+    @Test
+    void skipAreaMovesThePosition() {
+        BookReader reader = new BookReader(hex("41424344"), LATIN);
+        reader.skipArea("lines", 4);
+        assertThat(reader.position()).isEqualTo(4);
+    }
+
+    @Test
+    void skipAreaRejectsShortData() {
+        BookReader reader = new BookReader(hex("4142"), LATIN);
+        assertThatThrownBy(() -> reader.skipArea("lines", 3))
+            .isInstanceOf(MappingException.class)
+            .hasMessage("lines: the response is too short for the fixed area");
+    }
 }

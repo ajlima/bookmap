@@ -305,6 +305,23 @@ class FixedCollectionGenerationTest {
             .hasMessageContaining("is not between 0 and maxOccurs 3");
     }
 
+    @Test
+    void countModeRejectsAShortResponseWhenTheTableIsLast() {
+        BookCodec<Object> codec = codec("ListLines", source("ListLines",
+                "@BookOperation public class ListLines {",
+                field("@BookField(order = 10, pic = \"9(2)\")", "int", "lineCount"),
+                field("@BookCollection(order = 20, maxOccurs = 3, fixed = true,"
+                    + " dependsOn = \"lineCount\")", "List<OrderLine>", "lines"),
+                "}"),
+            orderLine());
+        byte[] response = concat(bytes("01"), bytes("P001005"));
+        Object target = codec.newInstance();
+        assertThatThrownBy(() -> codec.decodeResponse(response, target, LATIN))
+            .isInstanceOf(MappingException.class)
+            .hasMessage("ListLines.lines (order 20): the response is too short for the fixed"
+                + " area");
+    }
+
     // ---- subtype items ----
 
     @Test
