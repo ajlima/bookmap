@@ -2,6 +2,8 @@ package pt.daaz.bookmap.codec;
 
 import java.math.BigDecimal;
 import pt.daaz.bookmap.annotation.Usage;
+import pt.daaz.bookmap.codec.internal.BinaryInteger;
+import pt.daaz.bookmap.codec.internal.PackedDecimal;
 import pt.daaz.bookmap.codec.internal.TextCodec;
 import pt.daaz.bookmap.codec.internal.ZonedDecimal;
 import pt.daaz.bookmap.convert.CodecContext;
@@ -51,11 +53,15 @@ public final class BookReader {
      */
     public BigDecimal readNumber(String field, int length, int scale, boolean signed,
                                  Usage usage) {
-        if (usage != Usage.DISPLAY) {
-            throw new UnsupportedOperationException("Usage not supported yet: " + usage);
-        }
-        int from = take(field, BookWriter.byteLength(usage, length));
-        return ZonedDecimal.decode(field, data, from, length, scale, signed, ctx.charset());
+        int size = BookWriter.byteLength(usage, length);
+        int from = take(field, size);
+        return switch (usage) {
+            case DISPLAY -> ZonedDecimal.decode(field, data, from, length, scale, signed,
+                ctx.charset());
+            case COMP3 -> PackedDecimal.decode(field, data, from, length, scale, signed,
+                ctx.charset());
+            case COMP -> BinaryInteger.decode(data, from, size, scale, signed);
+        };
     }
 
     /**

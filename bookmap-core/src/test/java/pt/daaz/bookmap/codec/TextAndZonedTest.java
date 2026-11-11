@@ -147,12 +147,12 @@ class TextAndZonedTest {
 
     @Test void invalidDigitNibbleFails() {
         assertThatThrownBy(() -> read(bytes(0xF1, 0xFA, 0xF3), 3, 0, false))
-            .isInstanceOf(MappingException.class);
+            .isInstanceOf(MappingException.class).hasMessageStartingWith(F);
     }
 
     @Test void invalidLastZoneFails() {
         assertThatThrownBy(() -> read(bytes(0xF1, 0xF2, 0x13), 3, 0, true))
-            .isInstanceOf(MappingException.class);
+            .isInstanceOf(MappingException.class).hasMessageStartingWith(F);
     }
 
     @Test void shortResponseFails() {
@@ -197,26 +197,17 @@ class TextAndZonedTest {
     @Test void asciiMalformedFails() {
         var ctx = new CodecContext(StandardCharsets.US_ASCII);
         assertThatThrownBy(() -> read(ctx, "1A3".getBytes(StandardCharsets.US_ASCII), 3, 0, true))
-            .isInstanceOf(MappingException.class);
+            .isInstanceOf(MappingException.class).hasMessageStartingWith(F);
         assertThatThrownBy(() -> read(ctx, "12!".getBytes(StandardCharsets.US_ASCII), 3, 0, true))
-            .isInstanceOf(MappingException.class);
+            .isInstanceOf(MappingException.class).hasMessageStartingWith(F);
         assertThatThrownBy(() -> read(ctx, "12}".getBytes(StandardCharsets.US_ASCII), 3, 0, false))
-            .isInstanceOf(MappingException.class);
+            .isInstanceOf(MappingException.class).hasMessageStartingWith(F);
     }
 
     @Test void unsignedAcceptsZoneCRejectsZoneD() {
         assertThat(read(bytes(0xF1, 0xF2, 0xC3), 3, 0, false)).isEqualByComparingTo("123");
         assertThatThrownBy(() -> read(bytes(0xF1, 0xF2, 0xD3), 3, 0, false))
             .isInstanceOf(MappingException.class).hasMessageStartingWith(F);
-    }
-
-    @Test void packedAndBinaryAreNotSupportedYet() {
-        var w = new BookWriter(EBCDIC);
-        var r = new BookReader(new byte[8], EBCDIC);
-        assertThatThrownBy(() -> w.writeNumber(F, null, 3, 0, true, Usage.COMP3))
-            .isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(() -> r.readNumber(F, 3, 0, true, Usage.COMP))
-            .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test void byteLengthFollowsUsage() {

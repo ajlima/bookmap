@@ -3,6 +3,8 @@ package pt.daaz.bookmap.codec;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import pt.daaz.bookmap.annotation.Usage;
+import pt.daaz.bookmap.codec.internal.BinaryInteger;
+import pt.daaz.bookmap.codec.internal.PackedDecimal;
 import pt.daaz.bookmap.codec.internal.TextCodec;
 import pt.daaz.bookmap.codec.internal.ZonedDecimal;
 import pt.daaz.bookmap.convert.CodecContext;
@@ -65,10 +67,13 @@ public final class BookWriter {
      */
     public void writeNumber(String field, BigDecimal value, int length, int scale,
                             boolean signed, Usage usage) {
-        if (usage != Usage.DISPLAY) {
-            throw new UnsupportedOperationException("Usage not supported yet: " + usage);
-        }
-        out.writeBytes(ZonedDecimal.encode(field, value, length, scale, signed, ctx.charset()));
+        out.writeBytes(switch (usage) {
+            case DISPLAY -> ZonedDecimal.encode(field, value, length, scale, signed,
+                ctx.charset());
+            case COMP3 -> PackedDecimal.encode(field, value, length, scale, signed);
+            case COMP -> BinaryInteger.encode(field, value, length, scale, signed,
+                byteLength(usage, length));
+        });
     }
 
     /**

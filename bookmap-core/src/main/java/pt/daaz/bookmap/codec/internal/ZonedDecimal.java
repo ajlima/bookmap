@@ -2,7 +2,6 @@ package pt.daaz.bookmap.codec.internal;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.RoundingMode;
 import java.nio.charset.Charset;
 import pt.daaz.bookmap.exception.MappingException;
 
@@ -37,24 +36,9 @@ public final class ZonedDecimal {
      */
     public static byte[] encode(String field, BigDecimal value, int length, int scale,
                                 boolean signed, Charset cs) {
-        BigDecimal number = value == null ? BigDecimal.ZERO : value;
-        BigInteger unscaled;
-        try {
-            unscaled = number.setScale(scale, RoundingMode.UNNECESSARY).unscaledValue();
-        } catch (ArithmeticException e) {
-            throw new MappingException(field + ": " + number
-                + " has more than " + scale + " decimal places", e);
-        }
+        BigInteger unscaled = Unscaled.of(field, value, length, scale, signed);
         boolean negative = unscaled.signum() < 0;
-        if (negative && !signed) {
-            throw new MappingException(field + ": negative value " + number
-                + " in an unsigned field");
-        }
         String digits = unscaled.abs().toString();
-        if (digits.length() > length) {
-            throw new MappingException(field + ": " + number + " has more than "
-                + length + " digits");
-        }
         boolean ebcdic = isEbcdic(cs);
         byte[] out = new byte[length];
         int offset = length - digits.length();
@@ -95,7 +79,7 @@ public final class ZonedDecimal {
             int code = ebcdic ? ebcdicDigit(b, last) : asciiDigit(text.charAt(i), last);
             if (code == INVALID || last && !signed && code >= NEGATIVE_FLAG) {
                 throw new MappingException(field + ": byte 0x" + String.format("%02X", b)
-                    + " at position " + i + " is not valid in a zoned decimal");
+                    + " at offset " + i + " of the field is not valid in a zoned decimal");
             }
             negative = code >= NEGATIVE_FLAG;
             digits.append((char) ('0' + code % NEGATIVE_FLAG));
