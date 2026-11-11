@@ -119,7 +119,7 @@ public final class ModelBuilder {
             // Before the last round, another generator can still add the accessors.
             run.accessorErrors.forEach(this::report);
         }
-        return run.errors.isEmpty() && run.accessorErrors.isEmpty()
+        return !run.unresolved && run.errors.isEmpty() && run.accessorErrors.isEmpty()
             ? Optional.of(model) : Optional.empty();
     }
 
@@ -233,7 +233,12 @@ public final class ModelBuilder {
 
         private String operationName() {
             AnnotationMirror mirror = Mirrors.find(type, BOOK_OPERATION).orElseThrow();
-            String value = (String) Mirrors.explicitValues(mirror).getOrDefault("value", "");
+            Object explicit = Mirrors.explicitValues(mirror).getOrDefault("value", "");
+            if (explicit == Mirrors.UNRESOLVED) {
+                unresolved = true;
+                return type.getSimpleName().toString();
+            }
+            String value = (String) explicit;
             if (value.isEmpty()) {
                 return type.getSimpleName().toString();
             }
@@ -266,6 +271,11 @@ public final class ModelBuilder {
                     }
                     Map<String, Object> values =
                         Mirrors.explicitValues(bookField.or(() -> bookCollection).orElseThrow());
+                    if (values.containsValue(Mirrors.UNRESOLVED)) {
+                        // javac reports the unresolved value. Wait for a generator, or stop.
+                        unresolved = true;
+                        continue;
+                    }
                     Annotated member = new Annotated(field, bookField.isEmpty(),
                         (Integer) values.get("order"), values);
                     if (field.getModifiers().contains(Modifier.STATIC)) {
@@ -341,9 +351,10 @@ public final class ModelBuilder {
             TypeElement converter = converter(values);
             JavaKind kind;
             if (converter == null) {
-                kind = KINDS.get(fieldType.toString());
+                kind = KINDS.get(Mirrors.typeName(fieldType));
                 if (kind == null) {
-                    error(member, "type " + fieldType + " is not supported without a converter");
+                    error(member, "type " + Mirrors.typeName(fieldType)
+                        + " is not supported without a converter");
                 }
             } else {
                 kind = JavaKind.CONVERTED;
@@ -373,7 +384,7 @@ public final class ModelBuilder {
 
         private void checkTypeAndUsage(Annotated member, JavaKind kind, TypeMirror fieldType,
                                        Usage usage, int length, int scale) {
-            String typeName = fieldType.toString();
+            String typeName = Mirrors.typeName(fieldType);
             String simpleName = typeName.substring(typeName.lastIndexOf('.') + 1);
             if (DISPLAY_ONLY.contains(kind) && usage != Usage.DISPLAY) {
                 error(member, usage + " is not permitted for " + simpleName);

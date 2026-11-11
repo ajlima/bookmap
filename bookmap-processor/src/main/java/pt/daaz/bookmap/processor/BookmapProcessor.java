@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
@@ -72,9 +73,10 @@ public final class BookmapProcessor extends AbstractProcessor {
         deferred.forEach(name -> types.add(elements.getTypeElement(name)));
         deferred.clear();
         if (round.processingOver()) {
-            // Only to report the errors. A class cannot become complete in this round, because
-            // no new source arrives after the previous round.
-            types.forEach(type -> builder.build(type, true));
+            // Report the errors. Never generate in this round.
+            Messager messager = processingEnv.getMessager();
+            types.forEach(type -> builder.build(type, true)
+                .ifPresent(model -> reportCompletedInLastRound(messager, model)));
             return false;
         }
         types.addAll(ElementFilter.typesIn(round.getElementsAnnotatedWith(
@@ -88,6 +90,20 @@ public final class BookmapProcessor extends AbstractProcessor {
             }
         }
         return false;
+    }
+
+    /**
+     * Reports a class that became valid only in the last round. The processor must not generate
+     * sources in that round, so the class gets no codec. javac gives no new source in the last
+     * round, so this case is not expected.
+     *
+     * @param messager the messager
+     * @param model the model of the class
+     */
+    static void reportCompletedInLastRound(Messager messager, OperationModel model) {
+        messager.printMessage(Diagnostic.Kind.ERROR, model.type().getSimpleName()
+            + ": codec could not be generated: the type was completed only in the last processing"
+            + " round", model.type());
     }
 
     private void register(OperationModel model) {

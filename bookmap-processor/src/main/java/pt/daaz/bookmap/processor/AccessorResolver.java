@@ -118,9 +118,9 @@ public final class AccessorResolver {
         return Optional.empty();
     }
 
-    // The resolver has only Elements, not Types. The text form of two types is equal when the
-    // types are equal, for the field types that bookmap supports.
+    // The resolver has only Elements, not Types. It compares the qualified names without type
+    // annotations and type arguments, which is sufficient for the field types that bookmap supports.
     private static boolean same(TypeMirror a, TypeMirror b) {
-        return a.toString().equals(b.toString());
+        return Mirrors.typeName(a).equals(Mirrors.typeName(b));
     }
 }

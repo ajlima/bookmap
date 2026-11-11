@@ -10,7 +10,13 @@ import com.google.testing.compile.Compilation;
 import com.google.testing.compile.CompilationSubject;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -540,7 +546,7 @@ class ValidationTest {
         Compilation compilation = compile(order(
             field("@BookField(order = 1, length = 3)", "int", "count"),
             field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
-                "java.util.Set<Line>", "lines"),
+                "Set<Line>", "lines"),
             field("@BookCollection(order = 3, maxOccurs = 2, dependsOn = \"count\")", "String",
                 "text"),
             field("@BookCollection(order = 4, maxOccurs = 2, dependsOn = \"count\")", "List",
@@ -947,14 +953,105 @@ class ValidationTest {
     }
 
     @Test
-    void unresolvedConverterAndConstants() {
+    void unresolvedConverterIsLeftToJavac() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 5, converter = Missing.class)", "String", "a"),
-            field("@BookField(order = 2, length = MISSING, usage = Usage.NOPE)", "String", "b")));
-        CompilationSubject.assertThat(compilation).failed();
+            field("@BookField(order = 1, length = 5, converter = Missing.class)", "String", "id")));
         CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
-        // Only the javac errors; the processor does not fail and adds nothing.
-        CompilationSubject.assertThat(compilation).hadErrorCount(3);
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void unresolvedLengthConstantIsLeftToJavac() {
+        Compilation compilation = compile(order(
+            field("@BookField(order = 1, length = MISSING)", "String", "id")));
+        CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void unresolvedOperationNameConstantIsLeftToJavac() {
+        Compilation compilation = compile(source("Order",
+            "@BookOperation(MISSING) public class Order { }"));
+        CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+        assertThat(compiler.snapshots).isEmpty();
+    }
+
+    @Test
+    void converterFromAnotherGeneratorDefersTheClass() {
+        TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
+            Map.of("test.CodeConverter", String.join("\n",
+                "public class CodeConverter implements FieldConverter<String> {",
+                "public String decode(byte[] b, FieldContext c) { return null; }",
+                "public byte[] encode(String v, FieldContext c) { return null; }",
+                "}")));
+        Compilation compilation = compiler.compile(List.of(generator), order(
+            field("@BookField(order = 1, length = 5, converter = CodeConverter.class)", "String",
+                "code")));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().members().get(0).converter()).isEqualTo("test.CodeConverter");
+    }
+
+    @Test
+    void typeUseAnnotationsAreIgnored() {
+        Compilation compilation = compile(
+            source("Nullable",
+                "@java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)",
+                "public @interface Nullable { }"),
+            order(
+                field("@BookField(order = 1, length = 5)", "@Nullable Integer", "qty"),
+                "@BookField(order = 2, length = 5) private @Nullable String id;",
+                "public String getId() { return id; }",
+                "public void setId(String v) { id = v; }",
+                field("@BookField(order = 3, length = 1, converter = FlagConverter.class)",
+                    "@Nullable Boolean", "flag")),
+            converter("FlagConverter",
+                "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().members()).extracting(ModelSnapshot.Member::javaKind)
+            .containsExactly("INTEGER", "STRING", "CONVERTED");
+    }
+
+    @Test
+    void arrayTypeWithoutConverter() {
+        assertError(compile(order(field("@BookField(order = 1, length = 4)", "byte[]", "data"))),
+            "Order.data (order 1)", "type byte[] is not supported without a converter");
+    }
+
+    @Test
+    void typeCompletedOnlyInTheLastRoundIsReported() {
+        // javac gives no new source in the last round, so a deferred class cannot become valid
+        // there. This test calls the report method of the last round directly.
+        Compilation compilation = compiler.compileWithProcessors(
+            List.of(new LastRoundReporter()), order());
+        assertError(compilation, "Order",
+            "codec could not be generated: the type was completed only in the last processing"
+                + " round");
+    }
+
+    /** Builds a valid model and gives it to the last-round report of the processor. */
+    static final class LastRoundReporter extends AbstractProcessor {
+
+        @Override
+        public Set<String> getSupportedAnnotationTypes() {
+            return Set.of(ModelBuilder.BOOK_OPERATION);
+        }
+
+        @Override
+        public SourceVersion getSupportedSourceVersion() {
+            return SourceVersion.latestSupported();
+        }
+
+        @Override
+        public boolean process(Set<? extends TypeElement> a,
+                               RoundEnvironment round) {
+            ModelBuilder builder = new ModelBuilder(processingEnv);
+            for (TypeElement type : ElementFilter.typesIn(round.getRootElements())) {
+                BookmapProcessor.reportCompletedInLastRound(processingEnv.getMessager(),
+                    builder.build(type, true).orElseThrow());
+            }
+            return false;
+        }
     }
 
     @Test
