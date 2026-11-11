@@ -74,6 +74,7 @@ public final class Lexer {
                 i = literal(line, i + 1);
             } else if (c == '.' && endsWord(text, i + 1)) {
                 tokens.add(token(TokenType.PERIOD, ".", line, i));
+                expectPicture = false;
                 i++;
             } else {
                 i = word(line, i);
