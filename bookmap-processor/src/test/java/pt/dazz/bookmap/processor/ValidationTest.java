@@ -468,6 +468,28 @@ class ValidationTest {
     // ---- I4: layout errors that the processor can detect ----
 
     @Test
+    void fixedCollectionWithMissingDependsOn() {
+        Compilation compilation = compile(order(
+            field("@BookCollection(order = 2, maxOccurs = 5, fixed = true, dependsOn = \"nothing\")",
+                "List<Line>", "lines")),
+            source("Line", "public class Line {",
+                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+        assertError(compilation, "Order.lines (order 2)", "dependsOn field 'nothing' does not exist");
+    }
+
+    @Test
+    void fixedCollectionCountFieldTooSmall() {
+        Compilation compilation = compile(order(
+            field("@BookField(order = 1, length = 1)", "int", "lineCount"),
+            field("@BookCollection(order = 2, maxOccurs = 50, fixed = true, dependsOn = \"lineCount\")",
+                "List<Line>", "lines")),
+            source("Line", "public class Line {",
+                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+        assertError(compilation, "Order.lines (order 2)",
+            "dependsOn field 'lineCount' has 1 digits and cannot hold maxOccurs 50");
+    }
+
+    @Test
     void countFieldTooSmallForMaxOccurs() {
         Compilation compilation = compile(order(
             field("@BookField(order = 1, length = 1)", "int", "lineCount"),

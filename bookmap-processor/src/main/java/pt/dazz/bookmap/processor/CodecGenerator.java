@@ -466,21 +466,26 @@ final class CodecGenerator {
     private CodeBlock setCount(CollectionModel collection) {
         CollectionNames n = collections.get(collection);
         FieldModel count = collection.countField();
-        return CodeBlock.builder()
+        CodeBlock.Builder code = CodeBlock.builder()
             .addStatement("$T $N = value.$N()", listOf(collection), n.list(), collection.getter())
             .addStatement("int $N = $N == null ? 0 : $N.size()", n.count(), n.list(), n.list())
             .beginControlFlow("if ($N > $L)", n.count(), collection.maxOccurs())
             .addStatement("throw new $T($N + $S + $N + $S)", MAPPING_EXCEPTION, n.descriptor(),
                 ": the list has ", n.count(),
                 " items, more than maxOccurs " + collection.maxOccurs())
-            .endControlFlow()
+            .endControlFlow();
+        if (count != null) {
             // A Long setter needs a long value. The other count types accept an int.
-            .addStatement("value.$N($L$N)", count.setter(),
-                count.kind() == JavaKind.LONG_BOXED ? "(long) " : "", n.count())
-            .build();
+            code.addStatement("value.$N($L$N)", count.setter(),
+                count.kind() == JavaKind.LONG_BOXED ? "(long) " : "", n.count());
+        }
+        return code.build();
     }
 
     private CodeBlock writeItems(CollectionModel collection) {
+        if (collection.fixed()) {
+            return writeFixedItems(collection);
+        }
         CollectionNames n = collections.get(collection);
         return CodeBlock.builder()
             .beginControlFlow("if ($N != null)", n.list())
@@ -493,6 +498,35 @@ final class CodecGenerator {
             .addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write())
             .endControlFlow()
             .endControlFlow()
+            .build();
+    }
+
+    /**
+     * Writes the items of a fixed collection, then LOW-VALUES in the unused slots. Without a
+     * count field, an item that is all LOW-VALUES is an error: a read cannot find it.
+     */
+    private CodeBlock writeFixedItems(CollectionModel collection) {
+        CollectionNames n = collections.get(collection);
+        CodeBlock.Builder code = CodeBlock.builder()
+            .beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
+            .addStatement("$T item = $N.get(i)", ClassName.get(collection.item().type()), n.list())
+            .beginControlFlow("if (item == null)")
+            .addStatement("throw new $T($N + $S)", MAPPING_EXCEPTION, n.descriptor(),
+                ": the list contains a null item")
+            .endControlFlow();
+        if (collection.countField() == null) {
+            code.addStatement("int start = writer.position()")
+                .addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write())
+                .beginControlFlow("if (writer.isLowValuesFrom(start))")
+                .addStatement("throw new $T($N + $S + i + $S)", MAPPING_EXCEPTION, n.descriptor(),
+                    ": item ", " is all LOW-VALUES, so a read cannot find it")
+                .endControlFlow();
+        } else {
+            code.addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write());
+        }
+        return code.endControlFlow()
+            .addStatement("writer.writeLowValues(($L - $N) * $L)", collection.maxOccurs(),
+                n.count(), collection.item().byteLength())
             .build();
     }
 
@@ -522,10 +556,14 @@ final class CodecGenerator {
 
     private CodeBlock readItems(CollectionModel collection, boolean append) {
         CollectionNames n = collections.get(collection);
-        CodeBlock.Builder code = CodeBlock.builder().addStatement("int $N = $L", n.count(),
-            helperCall(Helper.COLLECTION_SIZE,
+        int itemLength = collection.item().byteLength();
+        CodeBlock size = collection.countField() == null
+            ? CodeBlock.of("reader.countUsedSlots($N, $L, $L)", n.descriptor(), itemLength,
+                collection.maxOccurs())
+            : helperCall(Helper.COLLECTION_SIZE,
                 CodeBlock.of("target.$N()", collection.countField().getter()),
-                CodeBlock.of("$N", n.descriptor()), CodeBlock.of("$L", collection.maxOccurs())));
+                CodeBlock.of("$N", n.descriptor()), CodeBlock.of("$L", collection.maxOccurs()));
+        CodeBlock.Builder code = CodeBlock.builder().addStatement("int $N = $L", n.count(), size);
         if (append) {
             // A new list: the getter can return a copy or an unmodifiable list.
             code.addStatement("$T $N = new $T<>($T.requireNonNullElse(target.$N(), $T.of()))",
@@ -535,11 +573,14 @@ final class CodecGenerator {
             code.addStatement("$T $N = new $T<>($N)", listOf(collection), n.list(),
                 ArrayList.class, n.count());
         }
-        return code.beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
+        code.beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
             .addStatement("$N.add($N(reader, ctx))", n.list(), itemMethodsOf(collection).read())
-            .endControlFlow()
-            .addStatement("target.$N($N)", collection.setter(), n.list())
-            .build();
+            .endControlFlow();
+        if (collection.fixed()) {
+            code.addStatement("reader.skip(($L - $N) * $L)", collection.maxOccurs(), n.count(),
+                itemLength);
+        }
+        return code.addStatement("target.$N($N)", collection.setter(), n.list()).build();
     }
 
     private ItemMethods itemMethodsOf(CollectionModel collection) {
