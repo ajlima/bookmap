@@ -27,15 +27,25 @@ public final class Golden {
     public static void assertMatches(String resource, String actual) {
         String expected = read(resource);
         if (!actual.equals(expected)) {
-            try {
-                Path file = Path.of("build", "golden-actual", resource);
-                Files.createDirectories(file.getParent());
-                Files.writeString(file, actual);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+            writeActual(resource, actual);
         }
         assertThat(actual).isEqualTo(expected);
+    }
+
+    /**
+     * Writes an actual text to {@code build/golden-actual/}.
+     *
+     * @param resource the resource path
+     * @param actual the actual text
+     */
+    public static void writeActual(String resource, String actual) {
+        try {
+            Path file = Path.of("build", "golden-actual", resource);
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, actual);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
