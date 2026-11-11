@@ -36,7 +36,7 @@ This design adds a fixed collection that supports both ways.
 
 ### 2.1 Goals
 
-- A fixed collection in an operation class, in an item class of a collection, and in a subtype.
+- A fixed collection in an operation class and in a subtype (nested collections stay a non-goal).
 - An optional count field.
 - Without a count field, empty items are detected through `LOW-VALUES`.
 - Compile-time offsets for the members after a fixed collection.
