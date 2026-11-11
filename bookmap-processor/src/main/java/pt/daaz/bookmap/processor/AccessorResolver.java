@@ -21,6 +21,8 @@ import javax.lang.model.util.Elements;
  * {@code lombok.Getter}, {@code lombok.Setter}, or {@code lombok.Data}, the resolver gives the
  * conventional name and does not look for the method. Lombok can generate the method later in
  * the same compilation. The getter of a primitive {@code boolean} field is {@code is<Name>}.
+ * As Lombok does, a primitive {@code boolean} field {@code isActive} has the accessors
+ * {@code isActive} and {@code setActive}.
  * An annotation on the field has priority over an annotation on the class.
  * {@code AccessLevel.NONE} and {@code AccessLevel.PRIVATE} give no accessor, because the generated
  * codec cannot call them. A {@code final} field gets no setter. With
@@ -67,8 +69,8 @@ public final class AccessorResolver {
         Predicate<ExecutableElement> signature =
             method -> method.getParameters().isEmpty() && same(method.getReturnType(), type);
         Optional<String> found = find(owner, name, signature);
-        return name.startsWith("is")
-            ? found.or(() -> find(owner, "get" + capitalize(field), signature)) : found;
+        return isBoolean(field)
+            ? found.or(() -> find(owner, "get" + property(field), signature)) : found;
     }
 
     /**
@@ -96,7 +98,7 @@ public final class AccessorResolver {
      * @return the getter name
      */
     static String getterName(VariableElement field) {
-        return (field.asType().getKind() == TypeKind.BOOLEAN ? "is" : "get") + capitalize(field);
+        return (isBoolean(field) ? "is" : "get") + property(field);
     }
 
     /**
@@ -106,11 +108,24 @@ public final class AccessorResolver {
      * @return the setter name {@code set<Name>}
      */
     static String setterName(VariableElement field) {
-        return "set" + capitalize(field);
+        return "set" + property(field);
     }
 
-    private static String capitalize(VariableElement field) {
+    private static boolean isBoolean(VariableElement field) {
+        return field.asType().getKind() == TypeKind.BOOLEAN;
+    }
+
+    /**
+     * Gives the field name with a capital first letter. As Lombok does, the name of a primitive
+     * {@code boolean} field such as {@code isActive} loses the {@code is} prefix: the
+     * accessors are {@code isActive} and {@code setActive}.
+     */
+    private static String property(VariableElement field) {
         String name = field.getSimpleName().toString();
+        if (isBoolean(field) && name.startsWith("is") && name.length() > 2
+            && Character.isUpperCase(name.charAt(2))) {
+            return name.substring(2);
+        }
         return Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 

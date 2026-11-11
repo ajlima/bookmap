@@ -1,5 +1,7 @@
 package pt.daaz.bookmap.processor;
 
+import com.palantir.javapoet.JavaFile;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -22,7 +24,9 @@ import pt.daaz.bookmap.processor.model.OperationModel;
 /**
  * Processes the classes with {@code @BookOperation}.
  *
- * <p>The processor builds the model of each class and reports the mapping errors. A class with
+ * <p>The processor builds the model of each class, reports the mapping errors, and generates
+ * the codec of each valid class. In the last round, it writes the service file
+ * {@code META-INF/services/pt.daaz.bookmap.spi.BookCodec}. A class with
  * a field type or a superclass from another generator, or with missing getters or setters, waits
  * for the next round. In the last round, the processor builds the waiting classes again only to
  * report their errors. It never generates sources in the last round.
@@ -32,6 +36,7 @@ public final class BookmapProcessor extends AbstractProcessor {
     private final Consumer<ModelSnapshot> listener;
     private final Set<String> deferred = new LinkedHashSet<>();
     private final Map<String, String> operationNames = new HashMap<>();
+    private final ServicesFileWriter services = new ServicesFileWriter();
     private ModelBuilder builder;
 
     /**
@@ -77,6 +82,7 @@ public final class BookmapProcessor extends AbstractProcessor {
             Messager messager = processingEnv.getMessager();
             types.forEach(type -> builder.build(type, true)
                 .ifPresent(model -> reportCompletedInLastRound(messager, model)));
+            services.write(processingEnv.getFiler(), elements, messager);
             return false;
         }
         types.addAll(ElementFilter.typesIn(round.getElementsAnnotatedWith(
@@ -117,5 +123,20 @@ public final class BookmapProcessor extends AbstractProcessor {
             return;
         }
         listener.accept(ModelSnapshot.of(model));
+        generate(model);
+    }
+
+    private void generate(OperationModel model) {
+        JavaFile file = CodecGenerator.generate(model);
+        String codecName = file.packageName() + "." + file.typeSpec().name();
+        try {
+            file.writeTo(processingEnv.getFiler());
+        } catch (IOException e) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                model.type().getSimpleName() + ": codec " + codecName
+                    + " could not be generated: " + e.getMessage(), model.type());
+            return;
+        }
+        services.add(codecName, model.type().getQualifiedName().toString());
     }
 }

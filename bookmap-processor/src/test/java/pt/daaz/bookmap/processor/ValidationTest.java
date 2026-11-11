@@ -558,6 +558,47 @@ class ValidationTest {
     }
 
     @Test
+    void isPrefixOfPrimitiveBooleanIsRemovedAsLombokDoes() {
+        Compilation compilation = compile(
+            order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+                "private boolean isActive;",
+                "public boolean isActive() { return isActive; }",
+                "public void setActive(boolean v) { isActive = v; }",
+                "@BookField(order = 2, length = 1, converter = FlagConverter.class)",
+                "private boolean island;",
+                "public boolean isIsland() { return island; }",
+                "public void setIsland(boolean v) { island = v; }",
+                "@BookField(order = 3, length = 1, converter = FlagConverter.class)",
+                "private boolean is;",
+                "public boolean isIs() { return is; }",
+                "public void setIs(boolean v) { is = v; }",
+                "@BookField(order = 4, length = 1, converter = FlagConverter.class)",
+                "private boolean isOpen;",
+                "public boolean getOpen() { return isOpen; }",
+                "public void setOpen(boolean v) { isOpen = v; }"),
+            converter("FlagConverter",
+                "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().members()).extracting(ModelSnapshot.Member::getter,
+                ModelSnapshot.Member::setter)
+            .containsExactly(tuple("isActive", "setActive"), tuple("isIsland", "setIsland"),
+                tuple("isIs", "setIs"), tuple("getOpen", "setOpen"));
+    }
+
+    @Test
+    void missingSetterOfIsPrefixedBooleanNamesTheLombokName() {
+        Compilation compilation = compile(
+            order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+                "private boolean isActive;",
+                "public boolean isActive() { return isActive; }",
+                "public void setIsActive(boolean v) { isActive = v; }"),
+            converter("FlagConverter",
+                "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
+        assertError(compilation, "Order.isActive (order 1)", "missing setter setActive");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
     void handwrittenIsGetterOfPrimitiveBooleanIsFound() {
         Compilation compilation = compile(
             order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
@@ -1271,6 +1312,35 @@ class ValidationTest {
         assertError(compilation, "Order.shipped (order 1)", "pattern 'yyyyMMdd{' is not valid");
         assertError(compilation, "Order.time (order 2)", "pattern 'bb' is not valid");
         CompilationSubject.assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
+    void datePatternWithVariableLength() {
+        Compilation compilation = compile(order(
+            field("@BookField(order = 1, pattern = \"yyyy-M-d\")", "LocalDate", "shipped"),
+            field("@BookField(order = 3, pattern = \"Hmmss\")", "LocalTime", "time"),
+            field("@BookField(order = 5, pattern = \"yyyyMMddhhmmssa\")", "LocalDateTime",
+                "created"),
+            field("@BookField(order = 6, pattern = \"yyyy-MM-dd H:mm:ss\")", "LocalDateTime",
+                "changed")));
+        assertError(compilation, "Order.shipped (order 1)",
+            "pattern 'yyyy-M-d' gives text of variable length for LocalDate");
+        assertError(compilation, "Order.time (order 3)",
+            "pattern 'Hmmss' gives text of variable length for LocalTime");
+        assertError(compilation, "Order.changed (order 6)",
+            "pattern 'yyyy-MM-dd H:mm:ss' gives text of variable length for LocalDateTime");
+        CompilationSubject.assertThat(compilation).hadErrorCount(3);
+    }
+
+    @Test
+    void monthAndDayNamesHaveAFixedLengthInTheRootLocale() {
+        // Locale.ROOT gives "Dec", "Jan", "Thu", "Wed" also for MMMM and EEEE.
+        Compilation compilation = compile(order(
+            field("@BookField(order = 1, pattern = \"yyyyMMMMdd\")", "LocalDate", "billed"),
+            field("@BookField(order = 2, pattern = \"yyyyMMddEEEE\")", "LocalDate", "due")));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().members()).extracting(ModelSnapshot.Member::length)
+            .containsExactly(9, 11);
     }
 
     @Test

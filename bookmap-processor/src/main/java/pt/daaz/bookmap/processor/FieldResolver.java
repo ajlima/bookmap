@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.PrimitiveType;
@@ -65,11 +66,18 @@ final class FieldResolver {
     private static final List<String> PIC_ATTRIBUTES = List.of("length", "scale", "signed",
         "usage");
 
-    // Two-digit month, day, and hour values give the longest text for patterns such as "M".
-    private static final Map<JavaKind, TemporalAccessor> SAMPLES = Map.of(
-        JavaKind.LOCAL_DATE, LocalDate.of(2026, 12, 31),
-        JavaKind.LOCAL_TIME, LocalTime.of(23, 59, 58),
-        JavaKind.LOCAL_DATE_TIME, LocalDateTime.of(2026, 12, 31, 23, 59, 58));
+    // The first sample has two-digit values. The second sample has one-digit values. A pattern
+    // that gives different text lengths for them (such as "d", "M", or "H") has no fixed length.
+    // With Locale.ROOT, month and day names ("MMMM", "EEEE") have three letters.
+    private static final List<LocalDateTime> SAMPLES = List.of(
+        LocalDateTime.of(2026, 12, 31, 23, 59, 58),
+        LocalDateTime.of(2026, 1, 1, 1, 1, 1));
+
+    private static final Map<JavaKind, Function<LocalDateTime, TemporalAccessor>> SAMPLE_VALUES =
+        Map.of(
+            JavaKind.LOCAL_DATE, LocalDateTime::toLocalDate,
+            JavaKind.LOCAL_TIME, LocalDateTime::toLocalTime,
+            JavaKind.LOCAL_DATE_TIME, sample -> sample);
 
     private static final Map<JavaKind, TemporalQuery<?>> QUERIES = Map.of(
         JavaKind.LOCAL_DATE, LocalDate::from,
@@ -236,7 +244,8 @@ final class FieldResolver {
 
     /**
      * Makes the formatter of a date or time field and formats a sample value of the field type.
-     * The formatted text must also parse back to the field type.
+     * The formatted text must also parse back to the field type. Other samples with one-digit
+     * values must give text of the same length.
      *
      * @return the length of the formatted text, or null if the pattern is not correct
      */
@@ -249,9 +258,17 @@ final class FieldResolver {
             problems.error(member, "pattern '" + pattern + "' is not valid: " + e.getMessage());
             return null;
         }
+        Function<LocalDateTime, TemporalAccessor> value = SAMPLE_VALUES.get(kind);
         try {
-            String text = formatter.format(SAMPLES.get(kind));
+            String text = formatter.format(value.apply(SAMPLES.get(0)));
             formatter.parse(text, QUERIES.get(kind));
+            for (LocalDateTime sample : SAMPLES) {
+                if (formatter.format(value.apply(sample)).length() != text.length()) {
+                    problems.error(member, "pattern '" + pattern
+                        + "' gives text of variable length for " + simpleName(fieldType));
+                    return null;
+                }
+            }
             return text.length();
         } catch (DateTimeException e) {
             problems.error(member, "pattern '" + pattern + "' does not fit "
