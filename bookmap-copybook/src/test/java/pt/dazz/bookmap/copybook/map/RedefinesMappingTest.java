@@ -110,11 +110,50 @@ class RedefinesMappingTest {
     }
 
     @Test
-    void noFillerWhenNothingFollows() {
+    void fillerAlsoWhenNothingFollows() {
         MapResult result = map("01 GET-ORDER.", "05 ORDER-IN.", "10 ORDER-ID PIC X(10).",
             "05 ORDER-OUT REDEFINES ORDER-IN.", "10 STATUS PIC X(2).");
         assertThat(type(result, "GetOrder").members()).extracting(MemberModel::name)
-            .containsExactly("orderId", "status");
+            .containsExactly("orderId", "status", "filler1");
+    }
+
+    @Test
+    void splitPadsWhenTheAreaEndsItsGroup() {
+        MapResult result = map("01 MSG.", "05 BODY.", "10 REQUEST-DATA.", "15 CUST-ID PIC X(4).",
+            "10 RESPONSE-DATA REDEFINES REQUEST-DATA.", "15 CUST-NAME PIC X(10).",
+            "05 TRAILER PIC X(2).");
+        assertThat(type(result, "Msg").members()).extracting(MemberModel::name,
+                MemberModel::direction)
+            .containsExactly(tuple("custId", Direction.INPUT), tuple("filler1", Direction.INPUT),
+                tuple("custName", Direction.OUTPUT), tuple("trailer", Direction.INPUT_OUTPUT));
+        assertThat(((FieldMember) member(type(result, "Msg"), "filler1")).pic())
+            .isEqualTo("X(6)");
+    }
+
+    @Test
+    void fixedTableInASplitIsPermitted() {
+        MapResult result = map("01 MSG.", "05 REQUEST-DATA.", "10 QLINE OCCURS 3 PIC X(3).",
+            "05 RESPONSE-DATA REDEFINES REQUEST-DATA.", "10 NAME PIC X(20).");
+        assertThat(result.hasErrors()).isFalse();
+        assertThat(((FieldMember) member(type(result, "Msg"), "filler1")).pic())
+            .isEqualTo("X(11)");
+    }
+
+    @Test
+    void elementaryAlternativeOfAGroupIsAnError() {
+        MapResult result = map("01 MSG.", "05 REQUEST-DATA.", "10 CUST-ID PIC X(4).",
+            "05 RESPONSE-TEXT REDEFINES REQUEST-DATA PIC X(20).", "05 TRAILER PIC X(2).");
+        assertThat(errors(result)).containsExactly("RESPONSE-TEXT is an elementary item that"
+            + " redefines the group REQUEST-DATA. BookMap does not support this.");
+    }
+
+    @Test
+    void variableTableInASplitIsAnError() {
+        MapResult result = map("01 MSG.", "05 REQUEST-DATA.", "10 N PIC 9.",
+            "10 QLINE OCCURS 1 TO 5 DEPENDING ON N PIC X(3).",
+            "05 RESPONSE-DATA REDEFINES REQUEST-DATA.", "10 NAME PIC X(20).");
+        assertThat(errors(result)).containsExactly("the REDEFINES alternative REQUEST-DATA has"
+            + " OCCURS DEPENDING ON. A direction split needs a fixed size.");
     }
 
     @Test
@@ -332,8 +371,8 @@ class RedefinesMappingTest {
         MapResult result = map("01 ORDER.", "05 N PIC 9(2).", "05 ORDER-IN.", "10 X PIC X.",
             "05 ORDER-OUT REDEFINES ORDER-IN.",
             "10 LINES OCCURS 1 TO 10 DEPENDING ON N PIC X.");
-        assertThat(errors(result)).containsExactly(
-            "count field N is outside the REDEFINES area of collection LINES");
+        assertThat(errors(result)).containsExactly("the REDEFINES alternative ORDER-OUT has"
+            + " OCCURS DEPENDING ON. A direction split needs a fixed size.");
     }
 
     @Test

@@ -170,7 +170,7 @@ public final class ModelMapper {
             info(this, item);
             Usage usage = item.usage() != null ? item.usage() : context.usage();
             if (item.redefines() != null) {
-                redefines.redefiningItem(item, items);
+                redefines.redefiningItem(item, items, context.usage());
                 continue;
             }
             List<DataItem> alternatives = RedefinesResolver.alternatives(item, items);
@@ -232,7 +232,7 @@ public final class ModelMapper {
         }
         String dependsOn = null;
         if (item.occurs().dependingOn() != null) {
-            dependsOn = countField(item, owner, context.direction());
+            dependsOn = countField(item, owner);
             if (dependsOn == null) {
                 return;
             }
@@ -261,7 +261,7 @@ public final class ModelMapper {
     }
 
     /** Resolves the {@code DEPENDING ON} item. Gives its field name, or {@code null}. */
-    private String countField(DataItem table, ClassBuilder owner, Direction direction) {
+    private String countField(DataItem table, ClassBuilder owner) {
         String target = table.occurs().dependingOn().toString();
         return switch (index.find(table.occurs().dependingOn())) {
             case ItemIndex.NotFound notFound -> {
@@ -278,11 +278,6 @@ public final class ModelMapper {
                 if (count == null || count.owner() != owner) {
                     error(table, "DEPENDING ON item " + target
                         + " must be in the same class, before the table");
-                    yield null;
-                }
-                if (count.field().direction() != direction) {
-                    error(table, "count field " + target + " is outside the REDEFINES area of"
-                        + " collection " + table.name());
                     yield null;
                 }
                 if (count.field().javaType() != JavaType.INT
