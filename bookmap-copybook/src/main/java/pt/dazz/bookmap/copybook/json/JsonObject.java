@@ -3,8 +3,10 @@ package pt.dazz.bookmap.copybook.json;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -177,6 +179,40 @@ public final class JsonObject {
             }
             texts.add(element.asText());
         }
+        return texts;
+    }
+
+    /**
+     * Gives a mandatory object as a map of nodes, in key order.
+     *
+     * @param key the key
+     * @return the entries
+     */
+    public Map<String, JsonNode> nodeMap(String key) {
+        JsonNode value = node(key);
+        if (!value.isObject()) {
+            throw wrongType(key, "an object");
+        }
+        Map<String, JsonNode> entries = new LinkedHashMap<>();
+        value.fields().forEachRemaining(entry -> entries.put(entry.getKey(), entry.getValue()));
+        return entries;
+    }
+
+    /**
+     * Gives a mandatory object of text values as a map, in key order.
+     *
+     * @param key the key
+     * @return the entries
+     */
+    public Map<String, String> textMap(String key) {
+        Map<String, String> texts = new LinkedHashMap<>();
+        nodeMap(key).forEach((name, value) -> {
+            if (!value.isTextual()) {
+                throw new ModelJsonException("key '" + name + "' in " + path(key)
+                    + " must be a string");
+            }
+            texts.put(name, value.asText());
+        });
         return texts;
     }
 
