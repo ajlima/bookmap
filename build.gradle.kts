@@ -15,6 +15,7 @@ val publishedModules = mapOf(
     "bookmap-processor" to "BookMap annotation processor: generates the codecs at compile time.",
     "bookmap-transport-simulator" to "BookMap in-memory transport for tests.",
     "bookmap-spring-boot" to "BookMap Spring Boot auto-configuration.",
+    "bookmap-copybook" to "BookMap copybook generator: parses COBOL copybooks and generates BookMap classes.",
 )
 
 allprojects {
