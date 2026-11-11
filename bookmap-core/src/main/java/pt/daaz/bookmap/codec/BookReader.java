@@ -1,12 +1,21 @@
 package pt.daaz.bookmap.codec;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import pt.daaz.bookmap.annotation.Usage;
 import pt.daaz.bookmap.codec.internal.BinaryInteger;
 import pt.daaz.bookmap.codec.internal.PackedDecimal;
+import pt.daaz.bookmap.codec.internal.TemporalCodec;
 import pt.daaz.bookmap.codec.internal.TextCodec;
 import pt.daaz.bookmap.codec.internal.ZonedDecimal;
 import pt.daaz.bookmap.convert.CodecContext;
+import pt.daaz.bookmap.convert.FieldContext;
+import pt.daaz.bookmap.convert.FieldConverter;
+import pt.daaz.bookmap.exception.BookmapException;
 import pt.daaz.bookmap.exception.MappingException;
 
 /**
@@ -62,6 +71,76 @@ public final class BookReader {
                 ctx.charset());
             case COMP -> BinaryInteger.decode(data, from, size, scale, signed);
         };
+    }
+
+    /**
+     * Reads a date field.
+     *
+     * @param field the field descriptor, for error messages
+     * @param length the field length in bytes
+     * @param formatter the formatter, from {@link Formats#of(String)}
+     * @return the date, or null if the field has only spaces, low-values, or zeros
+     * @throws MappingException if the text is not a valid date
+     */
+    public LocalDate readDate(String field, int length, DateTimeFormatter formatter) {
+        int from = take(field, length);
+        return TemporalCodec.decode(field, data, from, length, formatter, ctx.charset(),
+            LocalDate::from, null);
+    }
+
+    /**
+     * Reads a time field.
+     *
+     * @param field the field descriptor, for error messages
+     * @param length the field length in bytes
+     * @param formatter the formatter, from {@link Formats#of(String)}
+     * @return the time, midnight if the field has only zeros,
+     *     or null if the field has only spaces or low-values
+     * @throws MappingException if the text is not a valid time
+     */
+    public LocalTime readTime(String field, int length, DateTimeFormatter formatter) {
+        int from = take(field, length);
+        return TemporalCodec.decode(field, data, from, length, formatter, ctx.charset(),
+            LocalTime::from, LocalTime.MIDNIGHT);
+    }
+
+    /**
+     * Reads a date and time field.
+     *
+     * @param field the field descriptor, for error messages
+     * @param length the field length in bytes
+     * @param formatter the formatter, from {@link Formats#of(String)}
+     * @return the date and time, or null if the field has only spaces, low-values, or zeros
+     * @throws MappingException if the text is not a valid date and time
+     */
+    public LocalDateTime readDateTime(String field, int length, DateTimeFormatter formatter) {
+        int from = take(field, length);
+        return TemporalCodec.decode(field, data, from, length, formatter, ctx.charset(),
+            LocalDateTime::from, null);
+    }
+
+    /**
+     * Reads a field with a custom converter. The converter gets exactly
+     * {@code context.byteLength()} bytes.
+     *
+     * @param <J> the Java type of the field
+     * @param field the field descriptor, for error messages
+     * @param converter the converter
+     * @param context the description of the field
+     * @return the value from the converter
+     * @throws MappingException if the converter fails
+     */
+    public <J> J readConverted(String field, FieldConverter<J> converter,
+                               FieldContext context) {
+        int from = take(field, context.byteLength());
+        byte[] bytes = Arrays.copyOfRange(data, from, from + context.byteLength());
+        try {
+            return converter.decode(bytes, context);
+        } catch (BookmapException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new MappingException(field + ": converter failed (" + e.getMessage() + ")", e);
+        }
     }
 
     /**

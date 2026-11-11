@@ -2,12 +2,19 @@ package pt.daaz.bookmap.codec;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAccessor;
 import pt.daaz.bookmap.annotation.Usage;
 import pt.daaz.bookmap.codec.internal.BinaryInteger;
 import pt.daaz.bookmap.codec.internal.PackedDecimal;
+import pt.daaz.bookmap.codec.internal.TemporalCodec;
 import pt.daaz.bookmap.codec.internal.TextCodec;
 import pt.daaz.bookmap.codec.internal.ZonedDecimal;
 import pt.daaz.bookmap.convert.CodecContext;
+import pt.daaz.bookmap.convert.FieldContext;
+import pt.daaz.bookmap.convert.FieldConverter;
+import pt.daaz.bookmap.exception.BookmapException;
+import pt.daaz.bookmap.exception.MappingException;
 
 /**
  * Writes the fields of a book into a byte array. Generated codecs call this class.
@@ -74,6 +81,48 @@ public final class BookWriter {
             case COMP -> BinaryInteger.encode(field, value, length, scale, signed,
                 byteLength(usage, length));
         });
+    }
+
+    /**
+     * Writes a date or time field as text. A null value writes zeros.
+     *
+     * @param field the field descriptor, for error messages
+     * @param value the date or time, or null
+     * @param length the field length in bytes, equal to the length of the formatted text
+     * @param formatter the formatter, from {@link Formats#of(String)}
+     */
+    public void writeTemporal(String field, TemporalAccessor value, int length,
+                              DateTimeFormatter formatter) {
+        out.writeBytes(TemporalCodec.encode(field, value, length, formatter, ctx.charset()));
+    }
+
+    /**
+     * Writes a field with a custom converter. The converter must return exactly
+     * {@code context.byteLength()} bytes.
+     *
+     * @param <J> the Java type of the field
+     * @param field the field descriptor, for error messages
+     * @param value the value
+     * @param converter the converter
+     * @param context the description of the field
+     * @throws MappingException if the converter fails or returns a wrong number of bytes
+     */
+    public <J> void writeConverted(String field, J value, FieldConverter<J> converter,
+                                   FieldContext context) {
+        byte[] bytes;
+        try {
+            bytes = converter.encode(value, context);
+        } catch (BookmapException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new MappingException(field + ": converter failed (" + e.getMessage() + ")", e);
+        }
+        if (bytes == null || bytes.length != context.byteLength()) {
+            throw new MappingException(field + ": converter must return "
+                + context.byteLength() + " bytes but returned "
+                + (bytes == null ? "null" : bytes.length + " bytes"));
+        }
+        out.writeBytes(bytes);
     }
 
     /**
