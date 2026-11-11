@@ -84,7 +84,7 @@ The class has an annotation with a **logical operation name** (for example, `"Ge
 
 ### 4.4 Variable-length collections
 
-A collection works like `OCCURS DEPENDING ON`. The book size really changes with the number of items. The collection annotation points to the count field.
+A collection works like `OCCURS DEPENDING ON`. The book size really changes with the number of items. The collection annotation points to the count field. A fixed table (`OCCURS n` without `DEPENDING ON`) is supported through `fixed = true`: see `2026-11-11-bookmap-fixed-occurs-design.md`.
 
 ### 4.5 Restart (pagination) with the `Continuable` interface
 

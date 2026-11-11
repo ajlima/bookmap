@@ -187,7 +187,8 @@ An operation class and an item class need at least one annotated field.
 |---|---|---|
 | `order` | Position in the book. | Mandatory. |
 | `direction` | As in `@BookField`. | `OUTPUT`. |
-| `dependsOn` | The name of the count field. | The member immediately before the collection. |
+| `dependsOn` | The name of the count field. | Variable collection: the member immediately before the collection. Fixed collection: no count field. |
+| `fixed` | `true` for a fixed table (`OCCURS n` without `DEPENDING ON`). See [Fixed collections](#fixed-collections). | `false` |
 | `maxOccurs` | The maximum number of items in one call. | Mandatory. |
 
 The item class has `@BookField` fields without `direction`. They use the direction of the collection.
@@ -236,7 +237,7 @@ The framework uses few attributes. Six conventions reduce the work:
 1. `@BookOperation` without a value uses the simple class name.
 2. `pic` replaces `length`, `scale`, `signed`, and `usage`.
 3. A date or time field without `length` and `pic` gets its length from the pattern.
-4. Without `dependsOn`, the count field is the member immediately before the collection.
+4. Without `dependsOn`, the count field of a variable collection is the member immediately before it. A fixed collection without `dependsOn` has no count field.
 5. A collection is `OUTPUT` by default. The count field takes the direction of its collection. Other fields are `INPUT_OUTPUT`.
 6. `@BookDefaults` sets defaults for a class or a package.
 
@@ -381,6 +382,60 @@ The cycle for each call:
 In `GetCustomerOrders`, `hasContinuation()` returns true when `moreData` is `"Y"`. The remote program sets the restart key in the same response.
 The client does not reset other fields. Set the restart key to its start value before you reuse an object.
 
+### Fixed collections
+
+A `@BookCollection` without `fixed` works like `OCCURS DEPENDING ON`: the book size changes with the number of items.
+Many books use a fixed table (`OCCURS n` without `DEPENDING ON`) instead. The area always holds `n` items, and the fields after it have a fixed offset:
+
+```cobol
+01  GET-ORDER.
+    05  ORDER-ID          PIC X(10).
+    05  RESTART-KEY       PIC X(4).
+    05  MORE-DATA         PIC X.
+    05  ORDER-LINE OCCURS 3.
+        10  PRODUCT-CODE  PIC X(8).
+        10  QUANTITY      PIC 9(5).
+        10  UNIT-PRICE    PIC S9(7)V99 COMP-3.
+    05  ORDER-TOTAL       PIC S9(9)V99 COMP-3.
+```
+
+Set `fixed = true` for this table:
+
+```java
+@BookCollection(order = 40, maxOccurs = 3, fixed = true)
+private List<OrderLine> lines;
+
+@BookField(order = 50, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
+private BigDecimal orderTotal;
+```
+
+The program tells the caller the number of used items in one of two ways. BookMap supports both.
+
+**LOW-VALUES mode** (no `dependsOn`). The unused slots contain LOW-VALUES (bytes `0x00`).
+
+- Write: the codec writes the items, then LOW-VALUES in the unused slots.
+- Read: a slot with only `0x00` bytes is empty. The list ends at the last slot with data. The check does not use the charset.
+- An empty slot before a slot with data causes a `MappingException`.
+- An item that encodes to only `0x00` bytes causes a `MappingException` on write. A read cannot find such an item.
+
+**Count mode** (`dependsOn` set). A count field before the table holds the number of used items:
+
+```java
+@BookCollection(order = 30, maxOccurs = 5, fixed = true, dependsOn = "shipmentCount")
+private List<ShipmentSummary> shipments;
+```
+
+- Write: the codec sets the count field to the list size. Then it writes the items and LOW-VALUES in the unused slots.
+- Read: the codec reads the number of items that the count field gives. It ignores the other slots.
+
+Do not rely on convention 4 for a fixed collection. The copybook does not tell which field is the count. A wrong count field gives wrong lists without an error.
+
+Rules for both modes:
+
+- The response must contain the full area. A response that ends in the area causes a `MappingException`.
+- Pagination, the reset of `OUTPUT` collections, and items with subtypes work as for a variable collection.
+- The full examples are `GetOrder` and `ListShipments` in `bookmap-examples`, package `pt.dazz.bookmap.examples.orders`.
+
 ### Subtypes (REDEFINES)
 
 A COBOL book can use `REDEFINES` to give one area more than one layout. A field in the book (the discriminator) tells which layout is valid:
@@ -493,7 +548,7 @@ Behavior:
 
 Compile errors:
 
-- The discriminator does not exist in the base class, has a type or converter that the rules do not permit, has direction `INPUT`, or comes after a collection.
+- The discriminator does not exist in the base class, has a type or converter that the rules do not permit, has direction `INPUT`, or comes after a variable collection. A discriminator after a fixed collection is permitted.
 - An empty list, a type that is not an instantiable subclass of the base class, or a type in the list two times.
 - A blank value, a value that is used two times, a value that is not a number for a numeric field, or a value that does not fit in the field.
 - `@BookSubTypes` on a subclass (subtypes in a subtype), `@BookOperation` on a subclass, or a subclass that extends another subclass in the list.
@@ -582,6 +637,7 @@ Then the `Transport` bean exists when the client condition runs. The core module
 - No `REDEFINES` without a discriminator. See [Subtypes](#subtypes-redefines).
 - No subtypes in a subtype, and no base fields after the redefined area.
 - No nested collections.
+- A fixed collection detects empty slots only through LOW-VALUES or a count field.
 - No `COMP-1` or `COMP-2`.
 - Single-byte charsets only.
 - Packed dates need a converter.
