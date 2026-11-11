@@ -56,6 +56,21 @@ public class BookCodecRegistryTest {
         assertThat(registry.codecFor(Invoice.class)).isSameAs(codec);
     }
 
+    /** A codec with an abstract base class: types() gives only the subclass. */
+    static class AbstractBaseCodec extends InvoiceCodec {
+        @Override public List<Class<? extends Invoice>> types() {
+            return List.of(CreditInvoice.class);
+        }
+    }
+
+    @Test
+    void findsTheCodecByTypeAlsoWhenTypesLeavesItOut() {
+        AbstractBaseCodec codec = new AbstractBaseCodec();
+        BookCodecRegistry registry = BookCodecRegistry.of(codec);
+        assertThat(registry.codecFor(Invoice.class)).isSameAs(codec);
+        assertThat(registry.codecFor(CreditInvoice.class)).isSameAs(codec);
+    }
+
     @Test
     void twoCodecsForOneSubtypeFail() {
         assertThatThrownBy(() -> BookCodecRegistry.of(new HierarchyCodec(), new CreditCodec()))

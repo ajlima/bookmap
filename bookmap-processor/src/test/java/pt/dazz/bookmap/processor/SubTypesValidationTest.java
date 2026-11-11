@@ -524,6 +524,44 @@ class SubTypesValidationTest {
     }
 
     @Test
+    void continuableSubtypeWithInputOutputBaseCollection() {
+        assertError(compile(base(STANDARD, ACCOUNT_ID, ACCOUNT_TYPE,
+                field("@BookField(order = 25, length = 2)", "int", "count"),
+                field("@BookCollection(order = 26, direction = Direction.INPUT_OUTPUT,"
+                    + " maxOccurs = 2)", "List<Entry>", "lines")),
+                source("CheckingAccount", "public class CheckingAccount extends GetAccount"
+                    + " implements Continuable {", CARD,
+                    "public boolean hasContinuation() { return false; }", "}"),
+                savings(),
+                source("Entry", "public class Entry {",
+                    field("@BookField(order = 1, length = 8)", "String", "reference"), "}")),
+            "GetAccount.lines (order 26): an INPUT_OUTPUT collection is not permitted in a"
+                + " Continuable class (CheckingAccount)");
+    }
+
+    @Test
+    void continuableSubtypeWithOutputBaseCollectionCompiles() {
+        CompilationSubject.assertThat(compile(base(STANDARD, ACCOUNT_ID, ACCOUNT_TYPE,
+                field("@BookField(order = 25, length = 2)", "int", "count"),
+                field("@BookCollection(order = 26, maxOccurs = 2)", "List<Entry>", "lines")),
+                source("CheckingAccount", "public class CheckingAccount extends GetAccount"
+                    + " implements Continuable {", CARD,
+                    "public boolean hasContinuation() { return false; }", "}"),
+                savings(),
+                source("Entry", "public class Entry {",
+                    field("@BookField(order = 1, length = 8)", "String", "reference"), "}")))
+            .succeededWithoutWarnings();
+    }
+
+    @Test
+    void continuableBaseCompiles() {
+        CompilationSubject.assertThat(compile(source("GetAccount", "@BookOperation " + STANDARD,
+                "public class GetAccount implements Continuable {", ACCOUNT_ID, ACCOUNT_TYPE,
+                "public boolean hasContinuation() { return false; }", "}"),
+            checking(), savings())).succeededWithoutWarnings();
+    }
+
+    @Test
     void subclassFieldError() {
         assertError(compile(standardBase(),
                 checking(field("@BookField(order = 30, length = 5, usage = Usage.COMP3)",

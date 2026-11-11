@@ -452,6 +452,17 @@ public abstract class StatementEntry {
 
 The full example is in `bookmap-examples`, package `pt.dazz.bookmap.examples.accounts`.
 
+In a test, use `registerResponder` to answer with a subclass:
+
+```java
+simulator.registerResponder(GetAccount.class, call -> {
+    SavingsAccount account = new SavingsAccount();
+    account.setInterestRate(new BigDecimal("0.0325"));
+    account.setMoreData("N");
+    return account;
+});
+```
+
 | Attribute | Meaning |
 |---|---|
 | `discriminator` | The name of the discriminator field. The base class or one of its superclasses declares it. |
@@ -540,6 +551,8 @@ simulator.register(GetCustomerOrders.class, call -> {
 ```
 
 - `register(String, SimulatedOperation)` works at the byte level.
+- `registerResponder(Class, SimulatedResponder)` lets a handler return a different object, for example a subclass of a class with `@BookSubTypes`. The simulator encodes the layout of the returned object.
+- For a class with subtypes, register the base class. Registration with a subclass throws `IllegalArgumentException`.
 - A handler can throw `SimulatedAbend("ASRA")`. The simulator changes it to `RemoteAbendException`.
 - A handler that is slower than the timeout (`builder().timeout(Duration)`) causes `TransportTimeoutException`.
 - A `BookmapException` from a handler goes to the caller unchanged. The simulator wraps other exceptions in `TransportException`.

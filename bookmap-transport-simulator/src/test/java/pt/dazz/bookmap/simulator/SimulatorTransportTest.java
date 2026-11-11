@@ -84,6 +84,29 @@ class SimulatorTransportTest {
         transport.register(Greeting.class, call -> call.message = "Hello");
     }
 
+    /** A codec for an abstract base: {@code types()} gives only {@link PoliteGreeting}. */
+    private static final class AbstractBaseCodec extends GreetingCodec {
+        AbstractBaseCodec() {
+            super("");
+        }
+
+        @Override
+        public List<Class<? extends Greeting>> types() {
+            return List.of(PoliteGreeting.class);
+        }
+    }
+
+    @Test
+    void registerAcceptsAnAbstractBase() {
+        SimulatorTransport transport = SimulatorTransport.builder()
+            .codecRegistry(BookCodecRegistry.of(new AbstractBaseCodec())).build();
+        transport.register(Greeting.class, call -> call.message = "Hello, " + call.name);
+
+        byte[] response = transport.exchange(request("Greet", "Ada".getBytes(EBCDIC)));
+
+        assertThat(response).isEqualTo("Hello, Ada".getBytes(EBCDIC));
+    }
+
     @Test
     void byteLevelOperation() {
         SimulatorTransport transport = SimulatorTransport.builder().build();
