@@ -503,6 +503,19 @@ public final class ModelBuilder {
                 }
             }
             boolean subtypeContinuable = implementsInterface(subtype, CONTINUABLE);
+            if (itemDirection == null && subtypeContinuable && !continuable) {
+                // The base collections were checked without Continuable.
+                for (MemberModel member : baseMembers) {
+                    if (member instanceof CollectionModel collection
+                        && collection.direction() == Direction.INPUT_OUTPUT) {
+                        baseAnnotated.stream()
+                            .filter(annotated -> annotated.name().equals(collection.name()))
+                            .forEach(annotated -> problems.error(annotated, "an INPUT_OUTPUT"
+                                + " collection is not permitted in a Continuable class ("
+                                + subtype.getSimpleName() + ")"));
+                    }
+                }
+            }
             Map<String, String> countUsers = new HashMap<>();
             for (AnnotatedMember member : own) {
                 if (member.collection() && itemDirection == null) {

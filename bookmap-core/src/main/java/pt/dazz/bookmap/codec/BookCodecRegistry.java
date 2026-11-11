@@ -2,15 +2,18 @@ package pt.dazz.bookmap.codec;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import pt.dazz.bookmap.exception.MappingException;
 import pt.dazz.bookmap.spi.BookCodec;
 
 /**
  * Finds the codec of a book class.
  * The registry finds the codec by the exact class. It does not search the superclasses.
- * A codec with subtypes is in the registry once for each class of {@link BookCodec#types()}.
+ * A codec with subtypes is in the registry once for each class of {@link BookCodec#types()},
+ * and once for {@link BookCodec#type()}.
  */
 public final class BookCodecRegistry {
 
@@ -56,7 +59,11 @@ public final class BookCodecRegistry {
     private static BookCodecRegistry index(Iterable<? extends BookCodec> codecs) {
         Map<Class<?>, BookCodec<?>> index = new HashMap<>();
         for (BookCodec<?> codec : codecs) {
-            for (Class<?> type : codec.types()) {
+            // An abstract base class is not in types(). The registry still finds the codec by
+            // the base class, for example for a simulated operation.
+            Set<Class<?>> types = new LinkedHashSet<>(codec.types());
+            types.add(codec.type());
+            for (Class<?> type : types) {
                 if (index.putIfAbsent(type, codec) != null) {
                     throw new IllegalStateException("More than one codec for " + type.getName());
                 }
