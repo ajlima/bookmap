@@ -21,16 +21,17 @@ Add the core library and the processor.
 
 ```kotlin
 dependencies {
-    implementation("pt.daaz.bookmap:bookmap-core:<version>")
-    annotationProcessor("pt.daaz.bookmap:bookmap-processor:<version>")
+    implementation("pt.daaz.bookmap:bookmap-core:0.1.0-SNAPSHOT")
+    annotationProcessor("pt.daaz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
 }
 ```
 
-The project is not published yet. It has no group and no version. The coordinates above are placeholders.
+The group is `pt.daaz.bookmap` and the version is `0.1.0-SNAPSHOT`. The project is not published yet.
 Inside this build, use `project(":bookmap-core")` and `project(":bookmap-processor")`.
 
 If you use Lombok, list Lombok before bookmap in `annotationProcessor`. This is the recommended order.
 The other order also works. The processor tests run both orders.
+The `bookmap-examples` build lists bookmap first on purpose, because that order is more difficult for the processor.
 
 ```kotlin
 dependencies {
@@ -47,7 +48,7 @@ Set the charset on the client: `BookmapClient.builder().charset(...)`.
 Set a charset for one book with `@BookDefaults(charset = "...")`.
 
 For a GraalVM native image, `bookmap-core` contains a `native-image.properties` file.
-It sets `-H:+AddAllCharsets`. No action is necessary.
+It sets `-H:+AddAllCharsets`. This configuration is included, but it is not tested yet.
 
 ## Quick start
 
@@ -139,6 +140,8 @@ GetCustomerOrders result = client.execute(request);   // the same object, filled
 
 A field needs `pic` or `length`. One exception exists: a date or time field with neither gets its length from the pattern.
 If you set `pic`, do not set `length`, `scale`, `signed`, or `usage` on the same field. This is a compile error.
+Do not set `signed` or `scale` on a `String` or a date and time field. This is a compile error.
+An operation class and an item class need at least one annotated field.
 
 ### @BookCollection (field of type `List<Item>`)
 
@@ -151,6 +154,16 @@ If you set `pic`, do not set `length`, `scale`, `signed`, or `usage` on the same
 
 The item class has `@BookField` fields without `direction`. They use the direction of the collection.
 The item class needs a public constructor without arguments.
+The digits of the count field must hold `maxOccurs`. For example, `9(1)` with `maxOccurs = 50` is a compile error.
+
+### Lombok
+
+The processor finds the Lombok annotations by name. It does not depend on Lombok.
+
+- `@Data`, `@Getter`, and `@Setter` give the accessors. `AccessLevel.PRIVATE` and `AccessLevel.NONE` give no accessor.
+- `AccessLevel.PACKAGE`, `AccessLevel.MODULE`, and `AccessLevel.PROTECTED` give an accessor only in the package of the operation class. The codec is in that package. For a superclass or an item class in another package, use public accessors.
+- `@AllArgsConstructor`, `@RequiredArgsConstructor`, and `@Builder` remove the default constructor. Add `@NoArgsConstructor` or a public constructor without arguments to the class.
+- `@NoArgsConstructor` must be public and must not have a `staticName`.
 
 ### @BookDefaults (class or package)
 
@@ -200,12 +213,16 @@ Use it when you want no `pic` string. `UpdateShipment` uses it.
 @BookOperation("UpdateShipment")
 public class UpdateShipment {
 
+    @Getter
+    @Setter
     @BookField(order = 10, length = 12, direction = INPUT)
     private String shipmentId;
 
     @BookField(order = 20, length = 9, scale = 2, signed = true, usage = Usage.COMP3, direction = INPUT)
     private BigDecimal weightKg;
 
+    @Getter
+    @Setter
     @BookField(order = 30, length = 3, direction = INPUT)
     private int lineCount;
 
@@ -214,6 +231,8 @@ public class UpdateShipment {
 
     @BookField(order = 50, length = 2, direction = OUTPUT)
     private String status;
+
+    // The other getters and setters are handwritten: see bookmap-examples
 }
 ```
 
@@ -271,12 +290,18 @@ The byte size comes from the usage and the length:
 
 Date patterns use `DateTimeFormatter` (for example `yyyyMMdd`, `yyMMdd`, `yyyyDDD`, `HHmmss`).
 The `length` must agree with the pattern. The formatters are strict and use `Locale.ROOT`.
+A two-digit year (`yy`) reads as a year from 2000 to 2099.
+On write, the codec reads the text again and compares it with the value.
+If the pattern cannot keep the value, the codec throws `MappingException`.
+Examples: the year 1975 with `yyMMdd`, or a time with seconds or nanoseconds with `HHmm`.
+Remove the extra precision before you set the value, for example with `truncatedTo(ChronoUnit.MINUTES)`.
 An incorrect combination is a compile error (for example `String` with `COMP3`, or `int` with `scale > 0`).
 
 Conversion rules:
 
 - Text, write: the codec adds spaces on the right.
 - Text, read: the codec changes low-values to spaces and removes the spaces on the right. An empty field becomes `""`, never `null`.
+- Read: a byte that the charset cannot decode throws `MappingException`. The codec never puts a replacement character in a value.
 - Number or date, read: a field with only spaces or low-values becomes `null` for a wrapper type and `0` for a primitive type.
 - Signed `DISPLAY` numbers use a trailing overpunch sign.
 - Too large a value (text, digits, or a negative value in an unsigned field) throws `MappingException`. The codec never truncates.
@@ -288,10 +313,12 @@ The converter class must be public and have a constructor without arguments. All
 
 Fields after a collection are permitted. The codec calculates the offsets at runtime.
 
-- Write: the codec sets the count field to the size of the list. A list larger than `maxOccurs` throws `MappingException`.
+- Write: the codec sets the count field to the size of the list. A `null` list writes the count 0. A list larger than `maxOccurs` throws `MappingException`.
 - Read: the codec reads the count field. A negative count, or a count larger than `maxOccurs`, throws `MappingException`.
-- At the start of each `execute()`, the client clears the `OUTPUT` collections.
-- On each page, the codec adds the decoded items to the list. The count field shows the last page.
+- At the start of each `execute()`, the client sets each `OUTPUT` collection to a new, empty `ArrayList`.
+- On each page, the codec makes a new `ArrayList` with the existing items and the decoded items. Then it calls the setter. The count field shows the last page.
+- The client does not reset an `INPUT_OUTPUT` collection. On read, the codec replaces it with a new `ArrayList` of the decoded items.
+- An `INPUT_OUTPUT` collection in a `Continuable` class is a compile error.
 
 Two interfaces control the execution cycle.
 
@@ -366,7 +393,7 @@ Declare it in this way:
 @AutoConfiguration(before = BookmapAutoConfiguration.class)
 ```
 
-Then the `Transport` bean exists when the client condition runs. Spring does not enter the core module.
+Then the `Transport` bean exists when the client condition runs. The core module has no Spring dependency.
 
 ## Error handling
 
