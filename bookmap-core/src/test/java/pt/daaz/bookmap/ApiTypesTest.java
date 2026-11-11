@@ -88,6 +88,20 @@ class ApiTypesTest {
     @Test void codecContextRejectsMultiByteCharset() {
         assertThatIllegalArgumentException().isThrownBy(() -> new CodecContext(StandardCharsets.UTF_8));
     }
+    @Test void codecContextRejectsCharsetThatCannotEncode() {
+        Charset decodeOnly = new Charset("X-DECODE-ONLY", null) {
+            @Override public boolean contains(Charset cs) { return false; }
+            @Override public java.nio.charset.CharsetDecoder newDecoder() {
+                return StandardCharsets.ISO_8859_1.newDecoder();
+            }
+            @Override public java.nio.charset.CharsetEncoder newEncoder() {
+                throw new UnsupportedOperationException();
+            }
+            @Override public boolean canEncode() { return false; }
+        };
+        assertThatIllegalArgumentException().isThrownBy(() -> new CodecContext(decodeOnly))
+            .withMessage("The charset must encode and decode: X-DECODE-ONLY");
+    }
     @Test void codecContextRejectsNullCharset() {
         assertThatNullPointerException().isThrownBy(() -> new CodecContext(null));
     }

@@ -90,6 +90,8 @@ public final class BookWriter {
      * @param value the date or time, or null
      * @param length the field length in bytes, equal to the length of the formatted text
      * @param formatter the formatter, from {@link Formats#of(String)}
+     * @throws MappingException if the pattern cannot keep the value (for example, a time with
+     *     seconds and the pattern {@code HHmm}), or the text does not fit the length
      */
     public void writeTemporal(String field, TemporalAccessor value, int length,
                               DateTimeFormatter formatter) {

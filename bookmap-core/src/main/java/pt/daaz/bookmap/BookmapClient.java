@@ -46,6 +46,7 @@ public final class BookmapClient {
 
     /**
      * Runs the operation of a book. The client fills the same object with the response.
+     * An exception from {@code validate()} or from the transport goes to the caller unchanged.
      *
      * @param request the book
      * @param <T> the book class

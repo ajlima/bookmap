@@ -1,5 +1,6 @@
 package pt.daaz.bookmap.codec.internal;
 
+import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
@@ -53,13 +54,15 @@ public final class TextCodec {
      * Decodes a field. The method changes {@code 0x00} to space
      * and removes the spaces on the right. It never returns null.
      *
+     * @param field the field descriptor, for error messages
      * @param bytes the buffer
      * @param from the index of the first byte
      * @param len the field length in bytes
      * @param cs the single-byte charset
      * @return the text
+     * @throws MappingException if the charset cannot decode a byte
      */
-    public static String decode(byte[] bytes, int from, int len, Charset cs) {
+    public static String decode(String field, byte[] bytes, int from, int len, Charset cs) {
         byte[] copy = Arrays.copyOfRange(bytes, from, from + len);
         byte space = Blank.space(cs);
         for (int i = 0; i < copy.length; i++) {
@@ -67,11 +70,36 @@ public final class TextCodec {
                 copy[i] = space;
             }
         }
-        String text = new String(copy, cs);
+        String text = decodeStrict(field, copy, 0, copy.length, cs);
         int end = text.length();
         while (end > 0 && text.charAt(end - 1) == ' ') {
             end--;
         }
         return text.substring(0, end);
+    }
+
+    /**
+     * Decodes bytes to text. The method does not replace a byte that the charset cannot
+     * decode. It throws an exception.
+     *
+     * @param field the field descriptor, for error messages
+     * @param bytes the buffer
+     * @param from the index of the first byte
+     * @param len the number of bytes
+     * @param cs the single-byte charset
+     * @return the text
+     * @throws MappingException if the charset cannot decode a byte
+     */
+    static String decodeStrict(String field, byte[] bytes, int from, int len, Charset cs) {
+        try {
+            return cs.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes, from, len))
+                .toString();
+        } catch (CharacterCodingException e) {
+            throw new MappingException(field + ": the field has a byte that charset "
+                + cs.name() + " cannot decode", e);
+        }
     }
 }

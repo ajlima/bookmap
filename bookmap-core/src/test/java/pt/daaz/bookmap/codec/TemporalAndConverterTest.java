@@ -137,6 +137,71 @@ class TemporalAndConverterTest {
             .isEqualTo(LocalTime.MIDNIGHT);
     }
 
+    // ---- R28: strict round trip on write ----
+
+    @Test void twoDigitYearOutsideTheWindowFails() {
+        var yearMonthDay = Formats.of("yyMMdd");
+        assertThatThrownBy(() -> write(LocalDate.of(1975, 3, 1), 6, yearMonthDay))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith(F + ": value 1975-03-01 cannot be represented by the pattern")
+            .hasMessageContaining("'750301'");
+    }
+
+    @Test void twoDigitYearInsideTheWindowRoundTrips() {
+        var yearMonthDay = Formats.of("yyMMdd");
+        byte[] bytes = write(LocalDate.of(2026, 3, 1), 6, yearMonthDay);
+        assertThat(bytes).isEqualTo(ebcdic("260301"));
+        assertThat(readDate(bytes, 6, yearMonthDay)).isEqualTo(LocalDate.of(2026, 3, 1));
+    }
+
+    @Test void timeWithSecondsInAPatternWithoutSecondsFails() {
+        assertThatThrownBy(() -> write(LocalTime.of(10, 15, 30), 4, Formats.of("HHmm")))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith(F + ": value 10:15:30 cannot be represented by the pattern");
+    }
+
+    @Test void timeWithoutSecondsInAPatternWithoutSecondsRoundTrips() {
+        var hoursMinutes = Formats.of("HHmm");
+        byte[] bytes = write(LocalTime.of(10, 15), 4, hoursMinutes);
+        assertThat(bytes).isEqualTo(ebcdic("1015"));
+        assertThat(new BookReader(bytes, EBCDIC).readTime(F, 4, hoursMinutes))
+            .isEqualTo(LocalTime.of(10, 15));
+    }
+
+    @Test void timeWithNanosecondsFails() {
+        assertThatThrownBy(() -> write(LocalTime.of(10, 15, 30, 500_000_000), 6, TIME))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith(F + ": value 10:15:30.500 cannot be represented by the pattern");
+    }
+
+    @Test void dateTimeWithSecondsInAPatternWithoutSecondsFails() {
+        assertThatThrownBy(() -> write(LocalDateTime.of(2026, 3, 15, 13, 45, 10), 12,
+                Formats.of("yyyyMMddHHmm")))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith(F + ": value 2026-03-15T13:45:10 cannot be represented");
+    }
+
+    @Test void textThatDoesNotParseBackFails() {
+        // The year has a variable width, so it takes all digits on read.
+        assertThatThrownBy(() -> write(LocalDate.of(2026, 12, 1), 7, Formats.of("yyyyMd")))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith(F + ": value 2026-12-01 cannot be represented by the pattern")
+            .hasCauseInstanceOf(java.time.DateTimeException.class);
+    }
+
+    // ---- I3: bytes that the charset cannot decode ----
+
+    @Test void undecodableByteInADateFails() {
+        var ascii = new CodecContext(StandardCharsets.US_ASCII);
+        byte[] data = "2026031".getBytes(StandardCharsets.US_ASCII);
+        byte[] withHighByte = Arrays.copyOf(data, 8);
+        withHighByte[7] = (byte) 0xB5;
+        assertThatThrownBy(() -> new BookReader(withHighByte, ascii).readDate(F, 8, DATE))
+            .isInstanceOf(MappingException.class)
+            .hasMessage(F + ": the field has a byte that charset US-ASCII cannot decode")
+            .hasCauseInstanceOf(java.nio.charset.CharacterCodingException.class);
+    }
+
     @Test void quotedLiteralIsNotChanged() {
         assertThat(Formats.of("yyyy'y'MMdd").format(LocalDate.of(2026, 3, 15)))
             .isEqualTo("2026y0315");

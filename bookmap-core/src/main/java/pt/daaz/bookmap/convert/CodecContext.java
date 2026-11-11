@@ -5,7 +5,7 @@ import java.util.Objects;
 
 /**
  * Holds the settings that a codec needs for one conversion.
- * Only single-byte charsets are valid.
+ * Only single-byte charsets that can encode and decode are valid.
  *
  * @param charset the charset of the text fields
  */
@@ -15,9 +15,15 @@ public record CodecContext(Charset charset) {
 
     /**
      * Creates the context and checks the charset.
+     *
+     * @throws IllegalArgumentException if the charset cannot encode or is not single-byte
      */
     public CodecContext {
         Objects.requireNonNull(charset, "charset");
+        if (!charset.canEncode()) {
+            throw new IllegalArgumentException(
+                "The charset must encode and decode: " + charset.name());
+        }
         if (charset.newEncoder().maxBytesPerChar() > 1) {
             throw new IllegalArgumentException(
                 "Only single-byte charsets are valid: " + charset.name());

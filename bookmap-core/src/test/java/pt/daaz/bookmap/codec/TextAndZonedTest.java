@@ -73,6 +73,23 @@ class TextAndZonedTest {
         assertThat(new BookReader(bytes(0, 0, 0, 0), EBCDIC).readText(F, 4)).isEmpty();
     }
 
+    @Test void undecodableByteInTextFails() {
+        var ascii = new CodecContext(StandardCharsets.US_ASCII);
+        var r = new BookReader(bytes('A', 0xE9, 'B'), ascii);
+        assertThatThrownBy(() -> r.readText(F, 3))
+            .isInstanceOf(MappingException.class)
+            .hasMessage(F + ": the field has a byte that charset US-ASCII cannot decode")
+            .hasCauseInstanceOf(java.nio.charset.CharacterCodingException.class);
+    }
+
+    @Test void undecodableByteInZonedNumberFails() {
+        var ascii = new CodecContext(StandardCharsets.US_ASCII);
+        assertThatThrownBy(() -> read(ascii, bytes('1', 0xB2, '3'), 3, 0, false))
+            .isInstanceOf(MappingException.class)
+            .hasMessage(F + ": the field has a byte that charset US-ASCII cannot decode")
+            .hasCauseInstanceOf(java.nio.charset.CharacterCodingException.class);
+    }
+
     @Test void signedZonedPositive() {
         assertThat(write(BigDecimal.valueOf(123), 3, 0, true))
             .containsExactly(bytes(0xF1, 0xF2, 0xC3));

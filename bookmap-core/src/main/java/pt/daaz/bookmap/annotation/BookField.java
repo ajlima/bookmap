@@ -67,6 +67,14 @@ public @interface BookField {
     /**
      * Gives the date or time pattern for date and time fields.
      *
+     * <p>The pattern uses {@link java.time.format.DateTimeFormatter} letters. The formatter is
+     * strict and uses {@link java.util.Locale#ROOT}. A two-digit year ({@code yy}) reads as a
+     * year from 2000 to 2099. On write, a value that the pattern cannot keep causes a
+     * {@link pt.daaz.bookmap.exception.MappingException}. Examples: the year 1975 with
+     * {@code yyMMdd}, or a time with seconds or nanoseconds with {@code HHmm}. Remove the
+     * extra precision before you set the value, for example with
+     * {@code LocalTime.truncatedTo(ChronoUnit.MINUTES)}.
+     *
      * @return the pattern
      */
     String pattern() default "yyyyMMdd";

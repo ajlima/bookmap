@@ -20,7 +20,7 @@ public final class BookCodecRegistry {
     }
 
     /**
-     * Loads the codecs with the {@link ServiceLoader} of the current class loader.
+     * Loads the codecs with the {@link ServiceLoader} of the thread context class loader.
      *
      * @return the registry
      * @throws IllegalStateException if two codecs have the same book class

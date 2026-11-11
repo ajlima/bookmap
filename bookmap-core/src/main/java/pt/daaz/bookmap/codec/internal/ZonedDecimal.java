@@ -62,7 +62,7 @@ public final class ZonedDecimal {
      * @param signed true if the field has a sign
      * @param cs the single-byte charset
      * @return the number, or null if the field is blank
-     * @throws MappingException if a byte is not valid
+     * @throws MappingException if a byte is not valid, or the charset cannot decode a byte
      */
     public static BigDecimal decode(String field, byte[] bytes, int from, int length, int scale,
                                     boolean signed, Charset cs) {
@@ -70,7 +70,7 @@ public final class ZonedDecimal {
             return null;
         }
         boolean ebcdic = isEbcdic(cs);
-        String text = ebcdic ? null : new String(bytes, from, length, cs);
+        String text = ebcdic ? null : TextCodec.decodeStrict(field, bytes, from, length, cs);
         StringBuilder digits = new StringBuilder(length);
         boolean negative = false;
         for (int i = 0; i < length; i++) {

@@ -147,6 +147,19 @@ class BookmapClientTest {
     }
 
     @Test
+    void decodeOnlyCodecCharsetFails() {
+        // The JDK can decode ISO-2022-CN, but it cannot encode it.
+        FakeCodec<Order> codec = new FakeCodec<>(Order.class, "ISO-2022-CN");
+        BookmapClient client = BookmapClient.builder().transport(transport)
+            .codecRegistry(BookCodecRegistry.of(codec)).build();
+        assertThatThrownBy(() -> client.execute(new Order()))
+            .isInstanceOf(MappingException.class)
+            .hasMessage("GETORDER: invalid charset ISO-2022-CN")
+            .hasCauseInstanceOf(IllegalArgumentException.class);
+        assertThat(transport.calls()).isZero();
+    }
+
+    @Test
     void requestCarriesOperationAndMaxResponseLength() {
         builder().build().execute(new Order());
         BookRequest request = transport.requests.get(0);

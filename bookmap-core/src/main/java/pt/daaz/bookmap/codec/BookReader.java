@@ -44,10 +44,11 @@ public final class BookReader {
      * @param field the field descriptor, for error messages
      * @param length the field length in bytes
      * @return the text, never null
+     * @throws MappingException if the response is too short or the charset cannot decode a byte
      */
     public String readText(String field, int length) {
         int from = take(field, length);
-        return TextCodec.decode(data, from, length, ctx.charset());
+        return TextCodec.decode(field, data, from, length, ctx.charset());
     }
 
     /**
