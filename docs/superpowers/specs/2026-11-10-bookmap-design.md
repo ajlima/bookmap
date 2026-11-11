@@ -338,7 +338,7 @@ Cycle:
 3. `encodeRequest` → `transport.exchange(BookRequest)` → `decodeResponse` on the same object.
 4. If the POJO is `Validatable`, the client calls `validate()`. An exception stops the execution and goes to the caller. Pagination does not continue.
 5. If the POJO is `Continuable`, the client calls `hasContinuation()`. If the result is `true`, the client goes back to step 3.
-6. If the number of calls is more than `maxCalls`, the client throws `ContinuationLimitException`.
+6. If `hasContinuation()` is still true after `maxCalls` calls, the client throws `ContinuationLimitException`.
 
 The client finds the codec by the exact class of the POJO. A subclass instance without its own `@BookOperation` causes "No codec".
 

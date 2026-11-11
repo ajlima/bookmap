@@ -310,7 +310,7 @@ The cycle for each call:
 1. The client encodes the request, sends it with the transport, and decodes the response into the same object.
 2. If the object is `Validatable`, the client calls `validate()`. An exception stops the execution.
 3. If the object is `Continuable`, the client calls `hasContinuation()`. If the result is `true`, the client goes back to step 1.
-4. If the number of calls is larger than `maxCalls`, the client throws `ContinuationLimitException`.
+4. If `hasContinuation()` is still true after `maxCalls` calls, the client throws `ContinuationLimitException`.
 
 In `GetCustomerOrders`, `hasContinuation()` returns true when `moreData` is `"Y"`. The remote program sets the restart key in the same response.
 The client does not reset other fields. Set the restart key to its start value before you reuse an object.
