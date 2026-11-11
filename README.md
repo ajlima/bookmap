@@ -14,6 +14,7 @@
   <img alt="Gradle 9" src="https://img.shields.io/badge/Gradle-9.9-02303A">
   <img alt="Coverage 100%" src="https://img.shields.io/badge/coverage-100%25-brightgreen">
   <img alt="Version 0.1.0-SNAPSHOT" src="https://img.shields.io/badge/version-0.1.0--SNAPSHOT-f89820">
+  <a href="LICENSE"><img alt="License Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-blue"></a>
 </p>
 
 <p align="center">
@@ -470,3 +471,8 @@ Then the `Transport` bean exists when the client condition runs. The core module
 BookMap is at version `0.1.0-SNAPSHOT`. It is not published to a Maven repository yet.
 The build enforces 100% line and branch coverage for the core, processor, simulator, and Spring Boot modules.
 Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transport SPI accepts them without a change to the core.
+
+## License
+
+BookMap is licensed under the [Apache License, Version 2.0](LICENSE).
+See the [NOTICE](NOTICE) file for the copyright notice.
