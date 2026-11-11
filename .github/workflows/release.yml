@@ -9,8 +9,8 @@
 #      refs/heads/main and only when a new version exists. It has read-only repository access;
 #      the Sonatype token and the signing key come from secrets (see RELEASING.md).
 #   3. The release job runs after a successful publish. It has write access, runs no project
-#      code, and creates the tag vX.Y.Z and a GitHub release with the module JARs that the
-#      build job produced.
+#      code, and creates the tag vX.Y.Z and a GitHub release with the JARs that the publish
+#      job sent to Maven Central (the same bytes).
 
 name: Build and release
 
@@ -68,32 +68,18 @@ jobs:
             ./gradlew build --no-daemon
           fi
 
-      - name: Collect the release JARs
-        if: steps.version.outputs.new_tag != ''
-        run: |
-          mkdir -p release
-          for module in bookmap-core bookmap-processor bookmap-transport-simulator bookmap-spring-boot; do
-            cp "$module"/build/libs/*.jar release/
-          done
-          ls -l release
-
-      - name: Upload the release JARs
-        if: steps.version.outputs.new_tag != ''
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: release-jars
-          path: release/*.jar
-          if-no-files-found: error
-          retention-days: 7
-
   publish:
     needs: build
     if: github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
     runs-on: ubuntu-latest
+    # The secrets of this job are environment secrets. Add required reviewers to the
+    # "maven-central" environment to approve each publication by hand (see RELEASING.md).
+    environment: maven-central
     steps:
-      - name: Check out the repository
+      - name: Check out the tested commit
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Set up Java 21
@@ -122,6 +108,23 @@ jobs:
           done
           ./gradlew publishAndReleaseToMavenCentral --no-daemon -PreleaseVersion="$NEW_VERSION"
 
+      # The GitHub release gets the same bytes that went to Maven Central.
+      - name: Collect the published JARs
+        run: |
+          mkdir -p published
+          for module in bookmap-core bookmap-processor bookmap-transport-simulator bookmap-spring-boot; do
+            cp "$module"/build/libs/*.jar published/
+          done
+          ls -l published
+
+      - name: Upload the published JARs
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: published-jars
+          path: published/*.jar
+          if-no-files-found: error
+          retention-days: 7
+
   release:
     needs: [build, publish]
     if: github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
@@ -129,10 +132,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download the release JARs
+      - name: Download the published JARs
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
-          name: release-jars
+          name: published-jars
           path: release
 
       - name: Create the tag and the GitHub release

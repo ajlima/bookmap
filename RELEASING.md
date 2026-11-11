@@ -12,8 +12,8 @@ The workflow `.github/workflows/release.yml` runs on each push to `main`.
    - `BREAKING CHANGE` in the commit body increases the major version.
    - Other types (`docs:`, `test:`, `build:`, `refactor:`, `ci:`) make no release.
 2. The `build` job builds and tests with that version. The build fails if coverage is less than 100%.
-3. The `publish` job signs the modules and publishes them to Maven Central.
-4. The `release` job creates the tag `vX.Y.Z` and a GitHub release with the module JARs.
+3. The `publish` job checks out the same commit, signs the modules, and publishes them to Maven Central.
+4. The `release` job creates the tag `vX.Y.Z` and a GitHub release. It attaches the same JAR files that went to Maven Central.
 
 The `release` job runs only after a successful `publish` job. Thus, each GitHub release is also on Maven Central.
 
@@ -56,26 +56,37 @@ Send the public key to a key server, so that Maven Central can verify the signat
 gpg --keyserver keyserver.ubuntu.com --send-keys <KEY_ID>
 ```
 
-### 4. Add the GitHub secrets
+### 4. Create the `maven-central` environment
+
+The `publish` job uses the GitHub environment `maven-central`. Its secrets are visible only to that job.
+
+```bash
+gh api --method PUT repos/ajlima/bookmap/environments/maven-central
+```
+
+Optional: add yourself as a required reviewer. Then each publication waits for your approval.
+Open **Settings** > **Environments** > **maven-central** > **Required reviewers**.
+
+### 5. Add the environment secrets
 
 Run these commands in the repository folder. Each command asks for the value. Do not put a secret value on the command line.
 
 ```bash
-gh secret set MAVEN_CENTRAL_USERNAME
+gh secret set MAVEN_CENTRAL_USERNAME --env maven-central
 ```
 
 ```bash
-gh secret set MAVEN_CENTRAL_PASSWORD
+gh secret set MAVEN_CENTRAL_PASSWORD --env maven-central
 ```
 
 ```bash
-gh secret set SIGNING_KEY_PASSWORD
+gh secret set SIGNING_KEY_PASSWORD --env maven-central
 ```
 
 For the signing key, send the exported private key directly to the secret:
 
 ```bash
-gpg --armor --export-secret-keys <KEY_ID> | gh secret set SIGNING_KEY
+gpg --armor --export-secret-keys <KEY_ID> | gh secret set SIGNING_KEY --env maven-central
 ```
 
 ## Make a release
@@ -91,3 +102,12 @@ Run this command to make the release artifacts in the local Maven repository, wi
 ```bash
 ./gradlew publishToMavenLocal -PreleaseVersion=0.0.0-local
 ```
+
+## Supply-chain protection
+
+- All GitHub Actions are pinned to a full commit SHA. Dependabot updates the pins every week.
+- The Gradle wrapper checks the SHA-256 of the Gradle distribution (`distributionSha256Sum`).
+  The `setup-gradle` action also validates the wrapper JAR.
+- Only the `publish` job sees the Maven Central token and the signing key, through the `maven-central` environment.
+- Not done yet: Gradle dependency verification (`gradle/verification-metadata.xml`). It pins the checksum of each plugin and library.
+  Add it when the dependency set is stable, because each Dependabot update then needs a new checksum.
