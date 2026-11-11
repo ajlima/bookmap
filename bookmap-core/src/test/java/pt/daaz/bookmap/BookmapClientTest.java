@@ -11,6 +11,7 @@ import pt.daaz.bookmap.FakeCodec.Order;
 import pt.daaz.bookmap.FakeCodec.PagedOrder;
 import pt.daaz.bookmap.FakeCodec.SpecialOrder;
 import pt.daaz.bookmap.codec.BookCodecRegistry;
+import pt.daaz.bookmap.codec.BookCodecRegistryTest;
 import pt.daaz.bookmap.exception.BusinessException;
 import pt.daaz.bookmap.exception.ContinuationLimitException;
 import pt.daaz.bookmap.exception.MappingException;
@@ -188,10 +189,11 @@ class BookmapClientTest {
     @Test
     void defaultRegistryLoadsServiceEntries() {
         BookmapClient client = BookmapClient.builder().transport(transport).build();
-        Order order = new Order();
-        assertThatThrownBy(() -> client.execute(new SpecialOrder()))
-            .isInstanceOf(MappingException.class);
-        assertThat(order.decoded).isZero();
+        client.execute(new BookCodecRegistryTest.Invoice());
+        assertThat(transport.calls()).isEqualTo(1);
+        BookRequest request = transport.requests.get(0);
+        assertThat(request.operation()).isEqualTo("INVOICE");
+        assertThat(request.maxResponseLength()).isEqualTo(10);
     }
 
     @Test

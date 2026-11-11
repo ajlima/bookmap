@@ -8,7 +8,7 @@ import pt.daaz.bookmap.exception.MappingException;
 import pt.daaz.bookmap.spi.BookCodec;
 import org.junit.jupiter.api.Test;
 
-class BookCodecRegistryTest {
+public class BookCodecRegistryTest {
 
     /** A book for the tests. */
     public static class Invoice {
