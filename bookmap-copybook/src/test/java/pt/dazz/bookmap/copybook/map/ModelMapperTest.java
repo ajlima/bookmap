@@ -252,8 +252,8 @@ class ModelMapperTest {
     void groupRedefinesNeedsADecision() {
         MapResult result = map("01 ORDER.", "05 A.", "10 X PIC X.", "05 B REDEFINES A.",
             "10 Y PIC X.");
-        assertThat(errors(result))
-            .containsExactly("REDEFINES of a group needs a direction or a subtype decision");
+        assertThat(errors(result)).singleElement().asString()
+            .startsWith("REDEFINES area A at line 2 needs a decision.");
     }
 
     @Test
