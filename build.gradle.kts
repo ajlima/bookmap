@@ -6,7 +6,8 @@ val catalog = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
 allprojects {
     group = "pt.dazz.bookmap"
-    version = "0.1.0-SNAPSHOT"
+    // The release workflow passes -PreleaseVersion=X.Y.Z. Local builds use the snapshot version.
+    version = providers.gradleProperty("releaseVersion").getOrElse("0.1.0-SNAPSHOT")
 }
 
 subprojects {
