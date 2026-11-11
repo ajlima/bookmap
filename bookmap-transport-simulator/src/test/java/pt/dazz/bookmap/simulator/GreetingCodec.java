@@ -5,7 +5,7 @@ import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.spi.BookCodec;
 
 /** Hand-written codec for {@link Greeting}: the payloads are plain text in the context charset. */
-final class GreetingCodec implements BookCodec<Greeting> {
+class GreetingCodec implements BookCodec<Greeting> {
 
     private final String charsetName;
 

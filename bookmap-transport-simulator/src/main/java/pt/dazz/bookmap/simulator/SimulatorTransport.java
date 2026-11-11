@@ -76,21 +76,50 @@ public final class SimulatorTransport implements Transport {
     /**
      * Registers a typed operation. The transport finds the codec for the type in the codec
      * registry and uses the operation name of the codec. The charset of the codec is used when it
-     * is not empty. Otherwise the charset of the simulator is used.
+     * is not empty. Otherwise the charset of the simulator is used. For a class with subtypes,
+     * register the base class. The decoded call is the subtype that the request selects.
      *
      * @param type the book type
      * @param handler the handler
      * @param <T> the book type
      * @return this transport
+     * @throws IllegalArgumentException if the type is a subtype of another book class
      */
     public <T> SimulatorTransport register(Class<T> type, SimulatedHandler<T> handler) {
         Objects.requireNonNull(handler, "handler");
-        BookCodec<T> codec = registry.codecFor(type);
-        CodecContext ctx = contextFor(codec);
-        return register(codec.operationName(), request -> {
-            T call = codec.decodeRequest(request, ctx);
+        return registerResponder(type, call -> {
             handler.handle(call);
-            return codec.encodeResponse(call, ctx);
+            return call;
+        });
+    }
+
+    /**
+     * Registers a typed operation that gives its own response object. The rules of
+     * {@link #register(Class, SimulatedHandler)} apply. The transport encodes the object that
+     * the responder gives, with the layout of its class.
+     *
+     * @param type the book type
+     * @param responder the responder
+     * @param <T> the book type
+     * @return this transport
+     * @throws IllegalArgumentException if the type is a subtype of another book class
+     */
+    public <T> SimulatorTransport registerResponder(Class<T> type,
+                                                    SimulatedResponder<T> responder) {
+        Objects.requireNonNull(responder, "responder");
+        BookCodec<T> codec = registry.codecFor(type);
+        if (codec.type() != type) {
+            throw new IllegalArgumentException(type.getName() + " is a subtype of "
+                + codec.type().getName() + ". Register " + codec.type().getName() + ".");
+        }
+        CodecContext ctx = contextFor(codec);
+        String operation = codec.operationName();
+        return register(operation, request -> {
+            T response = responder.respond(codec.decodeRequest(request, ctx));
+            if (response == null) {
+                throw new MappingException(operation + ": the responder returned null");
+            }
+            return codec.encodeResponse(response, ctx);
         });
     }
 
