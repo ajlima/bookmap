@@ -63,6 +63,8 @@ subprojects {
 
         tasks.withType<JacocoReport>().configureEach {
             dependsOn(tasks.withType<Test>())
+            // The XML report lists the missed lines and branches for each source file.
+            reports.xml.required = true
         }
 
         tasks.withType<JacocoCoverageVerification>().configureEach {
