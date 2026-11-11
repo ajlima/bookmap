@@ -40,6 +40,8 @@ Technical names (class names, annotation names, COBOL terms such as `PIC`, `COMP
 - Implement each implementation plan on its own branch, created from `main` (for example, `feat/bookmap-v1`).
 - Commit often on the branch (one commit for each plan task, at minimum).
 - Merge a branch into `main` only when the author approves it.
+- Merge through a Pull Request. A ruleset on `main` blocks direct pushes and force pushes, and requires the `build` check.
+- Use a merge commit or a rebase merge. Do not use a squash merge: the release version comes from each commit message (`feat:`, `fix:`).
 
 ## Technical rules
 

@@ -1,5 +1,8 @@
 # Build and release BookMap.
 #
+# On each pull request to main: only the build job runs (build, tests, 100% coverage).
+# The ruleset on main requires this check before a merge.
+#
 # On each push to main:
 #   1. The build job calculates the next version from the Conventional Commits since the last tag
 #      (feat -> minor, fix -> patch, BREAKING CHANGE -> major; other types -> no release),
@@ -17,14 +20,18 @@ name: Build and release
 on:
   push:
     branches: [main]
+  # Pull requests run only the build job. The ruleset on main requires it to pass.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-main
-  cancel-in-progress: false
+  group: release-${{ github.ref }}
+  # A new push to a pull request cancels its old run. Runs on main never cancel each other.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:

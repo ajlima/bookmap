@@ -97,7 +97,11 @@ gpg --armor --export-secret-keys <KEY_ID> | gh secret set SIGNING_KEY --env mave
 
 ## Make a release
 
+Open a Pull Request to `main`. The `build` check must pass before the merge.
 Merge a commit with the type `feat:` or `fix:` into `main`. The workflow does the rest.
+
+Use a merge commit or a rebase merge. Do not use a squash merge.
+A squash merge replaces the commit messages with one message, and the version comes from the commit messages.
 
 To run the workflow again (for example, after you add a missing secret), open **Actions** > **Build and release** > **Run workflow** on the `main` branch.
 
