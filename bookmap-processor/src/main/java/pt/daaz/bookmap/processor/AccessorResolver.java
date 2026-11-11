@@ -7,6 +7,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
@@ -25,7 +26,10 @@ import javax.lang.model.util.Elements;
  * {@code isActive} and {@code setActive}.
  * An annotation on the field has priority over an annotation on the class.
  * {@code AccessLevel.NONE} and {@code AccessLevel.PRIVATE} give no accessor, because the generated
- * codec cannot call them. A {@code final} field gets no setter. With
+ * codec cannot call them. {@code AccessLevel.PACKAGE}, {@code AccessLevel.MODULE}, and
+ * {@code AccessLevel.PROTECTED} give an accessor only if the class that declares the field is in
+ * the package of the codec. The codec is in the package of the operation class.
+ * A {@code final} field gets no setter. With
  * {@code lombok.experimental.Accessors}, the resolver does not assume names. The resolver finds
  * the Lombok annotations by name. It does not depend on Lombok.
  *
@@ -41,6 +45,7 @@ public final class AccessorResolver {
     private static final String DATA = "lombok.Data";
     private static final String ACCESSORS = "lombok.experimental.Accessors";
     private static final Set<String> NOT_CALLABLE = Set.of("NONE", "PRIVATE");
+    private static final String PUBLIC = "PUBLIC";
 
     private final Elements elements;
 
@@ -58,11 +63,13 @@ public final class AccessorResolver {
      *
      * @param owner the class that the generated code uses: the operation or item class
      * @param field the field, declared in the owner or in a superclass
+     * @param codecPackage the package of the generated codec
      * @return the getter name, or empty if no getter is available
      */
-    public Optional<String> getter(TypeElement owner, VariableElement field) {
+    public Optional<String> getter(TypeElement owner, VariableElement field,
+                                   PackageElement codecPackage) {
         String name = getterName(field);
-        if (lombokGenerates(field, GETTER)) {
+        if (lombokGenerates(field, GETTER, codecPackage)) {
             return Optional.of(name);
         }
         TypeMirror type = field.asType();
@@ -78,11 +85,14 @@ public final class AccessorResolver {
      *
      * @param owner the class that the generated code uses: the operation or item class
      * @param field the field, declared in the owner or in a superclass
+     * @param codecPackage the package of the generated codec
      * @return the setter name, or empty if no setter is available
      */
-    public Optional<String> setter(TypeElement owner, VariableElement field) {
+    public Optional<String> setter(TypeElement owner, VariableElement field,
+                                   PackageElement codecPackage) {
         String name = setterName(field);
-        if (!field.getModifiers().contains(Modifier.FINAL) && lombokGenerates(field, SETTER)) {
+        if (!field.getModifiers().contains(Modifier.FINAL)
+            && lombokGenerates(field, SETTER, codecPackage)) {
             return Optional.of(name);
         }
         TypeMirror type = field.asType();
@@ -131,7 +141,8 @@ public final class AccessorResolver {
         return Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 
-    private static boolean lombokGenerates(VariableElement field, String annotation) {
+    private boolean lombokGenerates(VariableElement field, String annotation,
+                                    PackageElement codecPackage) {
         Element declaringClass = field.getEnclosingElement();
         if (Mirrors.find(field, ACCESSORS).isPresent()
             || Mirrors.find(declaringClass, ACCESSORS).isPresent()) {
@@ -139,18 +150,24 @@ public final class AccessorResolver {
         }
         Optional<AnnotationMirror> onField = Mirrors.find(field, annotation);
         if (onField.isPresent()) {
-            return callable(onField.get());
+            return callable(onField.get(), declaringClass, codecPackage);
         }
         Optional<AnnotationMirror> onClass = Mirrors.find(declaringClass, annotation);
         if (onClass.isPresent()) {
-            return callable(onClass.get());
+            return callable(onClass.get(), declaringClass, codecPackage);
         }
         return Mirrors.find(declaringClass, DATA).isPresent();
     }
 
-    private static boolean callable(AnnotationMirror mirror) {
-        // The generated codec is in the same package, so only PRIVATE and NONE are not callable.
-        return !NOT_CALLABLE.contains(Mirrors.explicitValues(mirror).getOrDefault("value", ""));
+    private boolean callable(AnnotationMirror mirror, Element declaringClass,
+                             PackageElement codecPackage) {
+        Object level = Mirrors.explicitValues(mirror).getOrDefault("value", PUBLIC);
+        if (NOT_CALLABLE.contains(level)) {
+            return false;
+        }
+        // PACKAGE, MODULE, and PROTECTED: the codec can call the method only from the package
+        // of the declaring class. The codec is not a subclass.
+        return PUBLIC.equals(level) || elements.getPackageOf(declaringClass).equals(codecPackage);
     }
 
     private Optional<String> find(TypeElement owner, String name,

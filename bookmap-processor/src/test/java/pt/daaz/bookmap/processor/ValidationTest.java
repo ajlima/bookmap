@@ -465,6 +465,69 @@ class ValidationTest {
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
 
+    // ---- I4: layout errors that the processor can detect ----
+
+    @Test
+    void countFieldTooSmallForMaxOccurs() {
+        Compilation compilation = compile(order(
+            field("@BookField(order = 1, length = 1)", "int", "lineCount"),
+            field("@BookCollection(order = 2, maxOccurs = 50)", "List<Line>", "lines")),
+            source("Line", "public class Line {",
+                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+        assertError(compilation, "Order.lines (order 2)",
+            "dependsOn field 'lineCount' has 1 digits and cannot hold maxOccurs 50");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void countFieldDigitsThatHoldMaxOccursExactly() {
+        Compilation compilation = compile(order(
+            field("@BookField(order = 1, length = 1, usage = Usage.COMP3)", "int", "lineCount"),
+            field("@BookCollection(order = 2, maxOccurs = 9)", "List<Line>", "lines")),
+            source("Line", "public class Line {",
+                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    void operationClassWithoutMembers() {
+        Compilation compilation = compile(source("Order",
+            "@BookOperation public class Order {",
+            "private String id;",
+            "}"));
+        assertError(compilation, "Order",
+            "operation class must have at least one @BookField or @BookCollection");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void itemClassWithoutFields() {
+        Compilation compilation = compile(order(
+            field("@BookField(order = 1, length = 1)", "int", "lineCount"),
+            field("@BookCollection(order = 2, maxOccurs = 5)", "List<Line>", "lines")),
+            source("Line", "public class Line {", "private String sku;", "}"));
+        assertError(compilation, "Order.lines (order 2)",
+            "item class test.Line must have at least one @BookField");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void signedOrScaleOnTextOrDateField() {
+        Compilation compilation = compile(order(
+            field("@BookField(order = 1, length = 5, signed = true)", "String", "code"),
+            field("@BookField(order = 2, length = 5, scale = 0)", "String", "region"),
+            field("@BookField(order = 3, scale = 2)", "LocalDate", "shipDate"),
+            field("@BookField(order = 4, signed = false, pattern = \"HHmmss\")", "LocalTime",
+                "shipTime")));
+        assertError(compilation, "Order.code (order 1)", "signed is not permitted for String");
+        assertError(compilation, "Order.region (order 2)", "scale is not permitted for String");
+        assertError(compilation, "Order.shipDate (order 3)",
+            "scale is not permitted for LocalDate");
+        assertError(compilation, "Order.shipTime (order 4)",
+            "signed is not permitted for LocalTime");
+        CompilationSubject.assertThat(compilation).hadErrorCount(4);
+    }
+
     // ---- Lombok ----
 
     private Compilation compileWithLombok(ProcessorOrder order, JavaFileObject... files) {
@@ -1098,8 +1161,8 @@ class ValidationTest {
     @Test
     void duplicateOperationName() {
         Compilation compilation = compile(
-            source("GetOrder", "@BookOperation public class GetOrder { }"),
-            source("FindOrder", "@BookOperation(\"GetOrder\") public class FindOrder { }"));
+            source("GetOrder", "@BookOperation public class GetOrder { " + TestCompiler.ID_FIELD + " }"),
+            source("FindOrder", "@BookOperation(\"GetOrder\") public class FindOrder { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
             .hadErrorContaining("operation name 'GetOrder' is already used by test.");
@@ -1219,7 +1282,7 @@ class ValidationTest {
         // javac gives no new source in the last round, so a deferred class cannot become valid
         // there. This test calls the report method of the last round directly.
         Compilation compilation = compiler.compileWithProcessors(
-            List.of(new LastRoundReporter()), order());
+            List.of(new LastRoundReporter()), order(TestCompiler.ID_FIELD));
         assertError(compilation, "Order",
             "codec could not be generated: the type was completed only in the last processing"
                 + " round");
@@ -1363,7 +1426,7 @@ class ValidationTest {
     @Test
     void literalErrorTextAsOperationName() {
         Compilation compilation = compile(source("Order",
-            "@BookOperation(\"<error>\") public class Order { }"));
+            "@BookOperation(\"<error>\") public class Order { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().operationName()).isEqualTo("<error>");
     }

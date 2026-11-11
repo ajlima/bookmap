@@ -32,7 +32,7 @@ class ModelTest {
     @Test
     void publicConstructorBuildsModels() {
         Compilation compilation = Compiler.javac().withProcessors(new BookmapProcessor())
-            .compile(TestCompiler.source("Order", "@BookOperation public class Order { }"));
+            .compile(TestCompiler.source("Order", "@BookOperation public class Order { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
     }
 

@@ -30,7 +30,7 @@ class ConventionTest {
     @Test
     void operationNameDefaultsToSimpleClassName() {
         Compilation compilation = compiler.compile(source("GetCustomerOrders",
-            "@BookOperation public class GetCustomerOrders { }"));
+            "@BookOperation public class GetCustomerOrders { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().operationName()).isEqualTo("GetCustomerOrders");
     }
@@ -38,7 +38,7 @@ class ConventionTest {
     @Test
     void explicitOperationNameWins() {
         Compilation compilation = compiler.compile(source("GetCustomerOrders",
-            "@BookOperation(\"ORDLIST\") public class GetCustomerOrders { }"));
+            "@BookOperation(\"ORDLIST\") public class GetCustomerOrders { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().operationName()).isEqualTo("ORDLIST");
     }
@@ -368,7 +368,7 @@ class ConventionTest {
     @Test
     void charsetFromDefaults() {
         Compilation compilation = compiler.compile(source("Order",
-            "@BookDefaults(charset = \"IBM500\") @BookOperation public class Order { }"));
+            "@BookDefaults(charset = \"IBM500\") @BookOperation public class Order { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().charsetName()).isEqualTo("IBM500");
     }
@@ -377,8 +377,8 @@ class ConventionTest {
     void emptyClassCharsetOverridesPackageCharset() {
         Compilation compilation = compiler.compile(
             TestCompiler.packageInfo("test", "@BookDefaults(charset = \"IBM500\")"),
-            source("Order", "@BookDefaults(charset = \"\") @BookOperation public class Order { }"),
-            source("Invoice", "@BookOperation public class Invoice { }"));
+            source("Order", "@BookDefaults(charset = \"\") @BookOperation public class Order { " + TestCompiler.ID_FIELD + " }"),
+            source("Invoice", "@BookOperation public class Invoice { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.snapshots).extracting(ModelSnapshot::operationName,
                 ModelSnapshot::charsetName)

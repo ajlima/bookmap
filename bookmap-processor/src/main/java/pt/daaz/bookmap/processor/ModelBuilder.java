@@ -1,5 +1,6 @@
 package pt.daaz.bookmap.processor;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -120,6 +121,8 @@ public final class ModelBuilder {
     private final class Run {
 
         private final TypeElement type;
+        /** The package of the operation class and of the generated codec. */
+        private final PackageElement codecPackage;
         private final boolean continuable;
         private final Problems problems = new Problems();
         /** The operation class, its superclasses, the item classes, and their superclasses. */
@@ -127,13 +130,18 @@ public final class ModelBuilder {
 
         Run(TypeElement type) {
             this.type = type;
+            this.codecPackage = elements.getPackageOf(type);
             this.continuable = implementsInterface(type, CONTINUABLE);
         }
 
         OperationModel build() {
             checkOperationClass();
             String operationName = operationName();
+            int before = problems.count();
             List<AnnotatedMember> annotated = annotatedFields(type);
+            if (noMembers(annotated, before)) {
+                classError("operation class must have at least one @BookField or @BookCollection");
+            }
             checkDuplicateOrders(annotated);
             Map<String, AnnotatedMember> byName = new HashMap<>();
             Map<String, FieldModel> fields = new HashMap<>();
@@ -141,7 +149,8 @@ public final class ModelBuilder {
             for (AnnotatedMember member : annotated) {
                 byName.put(member.name(), member);
                 if (!member.collection()) {
-                    FieldModel field = fieldResolver.resolve(type, member, null, problems);
+                    FieldModel field = fieldResolver.resolve(type, member, null, codecPackage,
+                        problems);
                     if (field != null) {
                         fields.put(member.name(), field);
                         members.add(field);
@@ -188,7 +197,7 @@ public final class ModelBuilder {
             if (!Classes.topLevelOrStatic(type)) {
                 classError("operation class must be top-level or static");
             }
-            if (!Classes.hasPublicNoArgConstructor(type)) {
+            if (!Classes.hasPublicNoArgConstructor(type, elements)) {
                 classError("operation class must have a public no-argument constructor");
             }
         }
@@ -328,10 +337,10 @@ public final class ModelBuilder {
                     "an INPUT_OUTPUT collection is not permitted in a Continuable class");
             }
             ItemModel item = item(member, direction);
-            FieldModel count = countField(member, direction, annotated, byName, fields, members,
-                countUsers);
-            Optional<String> getter = fieldResolver.getter(type, member, problems);
-            Optional<String> setter = fieldResolver.setter(type, member, problems);
+            FieldModel count = countField(member, direction, maxOccurs, annotated, byName, fields,
+                members, countUsers);
+            Optional<String> getter = fieldResolver.getter(type, member, codecPackage, problems);
+            Optional<String> setter = fieldResolver.setter(type, member, codecPackage, problems);
             if (problems.count() != before || item == null || count == null || getter.isEmpty()
                 || setter.isEmpty()) {
                 return null;
@@ -347,7 +356,7 @@ public final class ModelBuilder {
                 return null;
             }
             int before = problems.count();
-            if (!Classes.instantiable(itemType)) {
+            if (!Classes.instantiable(itemType, elements)) {
                 problems.error(collection, "item class " + itemType.getQualifiedName()
                     + " must be a public class with a public no-argument constructor");
             }
@@ -355,7 +364,13 @@ public final class ModelBuilder {
                 problems.error(collection, "item class " + itemType.getQualifiedName()
                     + " must not have type parameters");
             }
+            int beforeFields = problems.count();
             List<AnnotatedMember> annotated = annotatedFields(itemType);
+            if (noMembers(annotated, beforeFields)) {
+                problems.error(collection, "item class " + itemType.getQualifiedName()
+                    + " must have at least one @BookField");
+                return null;
+            }
             if (annotated.stream().anyMatch(AnnotatedMember::collection)) {
                 problems.error(collection, "item class " + itemType.getQualifiedName()
                     + " must not contain a @BookCollection (nested collection)");
@@ -364,7 +379,8 @@ public final class ModelBuilder {
             checkDuplicateOrders(annotated);
             List<FieldModel> fields = new ArrayList<>();
             for (AnnotatedMember member : annotated) {
-                FieldModel field = fieldResolver.resolve(itemType, member, direction, problems);
+                FieldModel field = fieldResolver.resolve(itemType, member, direction,
+                    codecPackage, problems);
                 if (field != null) {
                     fields.add(field);
                 }
@@ -393,10 +409,10 @@ public final class ModelBuilder {
          * Finds the count field of a collection: the {@code dependsOn} field, else the member
          * immediately before the collection. A count field without an explicit direction gets
          * the direction of the collection. The method replaces it in {@code fields} and
-         * {@code members}.
+         * {@code members}. The digits of the count field must hold {@code maxOccurs}.
          */
         private FieldModel countField(AnnotatedMember collection, Direction direction,
-                                      List<AnnotatedMember> annotated,
+                                      int maxOccurs, List<AnnotatedMember> annotated,
                                       Map<String, AnnotatedMember> byName,
                                       Map<String, FieldModel> fields,
                                       List<MemberModel> members,
@@ -432,6 +448,11 @@ public final class ModelBuilder {
             if (count.order() >= collection.order()) {
                 problems.error(collection, prefix + "must come before the collection");
             }
+            BigInteger largestCount = BigInteger.TEN.pow(count.length()).subtract(BigInteger.ONE);
+            if (largestCount.compareTo(BigInteger.valueOf(maxOccurs)) < 0) {
+                problems.error(collection, prefix + "has " + count.length()
+                    + " digits and cannot hold maxOccurs " + maxOccurs);
+            }
             if (!target.values().containsKey("direction")) {
                 FieldModel old = count;
                 count = withDirection(old, direction);
@@ -452,6 +473,15 @@ public final class ModelBuilder {
         }
 
         // ---- helpers ----
+
+        /**
+         * Tells if a class has no annotated members, and no other problem explains it. A member
+         * with an unresolved value or with an error is not in the list.
+         */
+        private boolean noMembers(List<AnnotatedMember> annotated, int errorsBefore) {
+            return annotated.isEmpty() && !problems.unresolved
+                && problems.count() == errorsBefore;
+        }
 
         private static FieldModel withDirection(FieldModel field, Direction direction) {
             return new FieldModel(field.ownerSimpleName(), field.name(), field.order(),

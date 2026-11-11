@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.PrimitiveType;
@@ -66,6 +67,9 @@ final class FieldResolver {
     private static final List<String> PIC_ATTRIBUTES = List.of("length", "scale", "signed",
         "usage");
 
+    /** The attributes that only numeric fields and converted fields can use. */
+    private static final List<String> NUMERIC_ATTRIBUTES = List.of("signed", "scale");
+
     // The first sample has two-digit values. The second sample has one-digit values. A pattern
     // that gives different text lengths for them (such as "d", "M", or "H") has no fixed length.
     // With Locale.ROOT, month and day names ("MMMM", "EEEE") have three letters.
@@ -84,6 +88,7 @@ final class FieldResolver {
         JavaKind.LOCAL_TIME, LocalTime::from,
         JavaKind.LOCAL_DATE_TIME, LocalDateTime::from);
 
+    private final Elements elements;
     private final Types types;
     private final AccessorResolver accessors;
     private final DefaultsResolver defaultsResolver;
@@ -96,6 +101,7 @@ final class FieldResolver {
      * @param defaultsResolver the resolver of the {@code @BookDefaults} values
      */
     FieldResolver(Elements elements, Types types, DefaultsResolver defaultsResolver) {
+        this.elements = elements;
         this.types = types;
         this.accessors = new AccessorResolver(elements);
         this.defaultsResolver = defaultsResolver;
@@ -110,11 +116,12 @@ final class FieldResolver {
      * @param owner the class that the generated code uses for the accessors
      * @param member the annotated field
      * @param itemDirection the collection direction for an item field, or null
+     * @param codecPackage the package of the generated codec
      * @param problems the problems of the build
      * @return the model, or null if the field has problems
      */
     FieldModel resolve(TypeElement owner, AnnotatedMember member, Direction itemDirection,
-                       Problems problems) {
+                       PackageElement codecPackage, Problems problems) {
         int before = problems.count();
         Map<String, Object> values = member.values();
         Direction direction = direction(member, itemDirection, problems);
@@ -172,11 +179,16 @@ final class FieldResolver {
         if (scale < 0) {
             problems.error(member, "scale must not be negative");
         }
+        if (DISPLAY_ONLY.contains(kind)) {
+            NUMERIC_ATTRIBUTES.stream().filter(values::containsKey).forEach(attribute ->
+                problems.error(member, attribute + " is not permitted for "
+                    + simpleName(fieldType)));
+        }
         if (problems.count() == before) {
             checkTypeAndUsage(member, kind, fieldType, usage, length, scale, problems);
         }
-        Optional<String> getter = getter(owner, member, problems);
-        Optional<String> setter = setter(owner, member, problems);
+        Optional<String> getter = getter(owner, member, codecPackage, problems);
+        Optional<String> setter = setter(owner, member, codecPackage, problems);
         if (problems.count() != before || getter.isEmpty() || setter.isEmpty()) {
             return null;
         }
@@ -315,7 +327,7 @@ final class FieldResolver {
 
     private void checkConverter(AnnotatedMember member, TypeElement converter,
                                 TypeMirror fieldType, Problems problems) {
-        if (!Classes.instantiable(converter)) {
+        if (!Classes.instantiable(converter, elements)) {
             problems.error(member, "converter " + converter.getQualifiedName()
                 + " must be a public class with a public no-argument constructor");
         }
@@ -363,11 +375,13 @@ final class FieldResolver {
      *
      * @param owner the class that the generated code uses
      * @param member the member
+     * @param codecPackage the package of the generated codec
      * @param problems the problems of the build
      * @return the getter name, or empty
      */
-    Optional<String> getter(TypeElement owner, AnnotatedMember member, Problems problems) {
-        Optional<String> getter = accessors.getter(owner, member.field());
+    Optional<String> getter(TypeElement owner, AnnotatedMember member,
+                            PackageElement codecPackage, Problems problems) {
+        Optional<String> getter = accessors.getter(owner, member.field(), codecPackage);
         if (getter.isEmpty()) {
             problems.accessorError(member, "missing getter "
                 + AccessorResolver.getterName(member.field()));
@@ -380,11 +394,13 @@ final class FieldResolver {
      *
      * @param owner the class that the generated code uses
      * @param member the member
+     * @param codecPackage the package of the generated codec
      * @param problems the problems of the build
      * @return the setter name, or empty
      */
-    Optional<String> setter(TypeElement owner, AnnotatedMember member, Problems problems) {
-        Optional<String> setter = accessors.setter(owner, member.field());
+    Optional<String> setter(TypeElement owner, AnnotatedMember member,
+                            PackageElement codecPackage, Problems problems) {
+        Optional<String> setter = accessors.setter(owner, member.field(), codecPackage);
         if (setter.isEmpty()) {
             problems.accessorError(member, "missing setter "
                 + AccessorResolver.setterName(member.field()));
