@@ -138,6 +138,36 @@ public final class BookWriter {
     }
 
     /**
+     * Writes LOW-VALUES (bytes {@code 0x00}). A codec uses this method to fill the unused slots
+     * of a fixed collection.
+     *
+     * @param length the number of bytes
+     */
+    public void writeLowValues(int length) {
+        out.write(new byte[length], 0, length);
+    }
+
+    /**
+     * Tells if all bytes from {@code start} to the current position are LOW-VALUES. A codec
+     * uses this method to reject an item that a read would find empty.
+     *
+     * @param start the position of the first byte
+     * @return {@code true} if at least one byte is in the range and all bytes are {@code 0x00}
+     */
+    public boolean isLowValuesFrom(int start) {
+        byte[] bytes = out.toByteArray();
+        if (start >= bytes.length) {
+            return false;
+        }
+        for (int i = start; i < bytes.length; i++) {
+            if (bytes[i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Gives the number of bytes written so far.
      *
      * @return the current position
