@@ -12,6 +12,7 @@ import pt.dazz.bookmap.FakeCodec.PagedOrder;
 import pt.dazz.bookmap.FakeCodec.SpecialOrder;
 import pt.dazz.bookmap.codec.BookCodecRegistry;
 import pt.dazz.bookmap.codec.BookCodecRegistryTest;
+import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.exception.BusinessException;
 import pt.dazz.bookmap.exception.ContinuationLimitException;
 import pt.dazz.bookmap.exception.MappingException;
@@ -50,6 +51,66 @@ class BookmapClientTest {
     private BookmapClient.Builder builder() {
         return BookmapClient.builder().transport(transport)
             .codecRegistry(BookCodecRegistry.of(orderCodec, pagedCodec));
+    }
+
+    /** A subclass that the response selects. */
+    static class ChangedOrder extends PagedOrder {
+    }
+
+    /** A codec whose first response gives a new {@link ChangedOrder}. */
+    static class ChangingCodec extends FakeCodec<PagedOrder> {
+        final List<Object> encoded = new ArrayList<>();
+        ChangedOrder created;
+
+        ChangingCodec() {
+            super(PagedOrder.class, "");
+        }
+
+        @Override
+        public byte[] encodeRequest(PagedOrder value, CodecContext ctx) {
+            encoded.add(value);
+            return super.encodeRequest(value, ctx);
+        }
+
+        @Override
+        public PagedOrder readResponse(byte[] data, PagedOrder target, CodecContext ctx) {
+            events.add("read");
+            created = new ChangedOrder();
+            created.pagesWithMore = target.pagesWithMore;
+            created.decoded = target.decoded + 1;
+            return created;
+        }
+    }
+
+    @Test
+    void returnsTheObjectFromReadResponse() {
+        ChangingCodec codec = new ChangingCodec();
+        PagedOrder order = new PagedOrder();
+        PagedOrder result = BookmapClient.builder().transport(transport)
+            .codecRegistry(BookCodecRegistry.of(codec)).build().execute(order);
+        assertThat(result).isSameAs(codec.created).isNotSameAs(order);
+        assertThat(order.decoded).isZero();
+    }
+
+    @Test
+    void classChangeOnlyOnFirstPage() {
+        ChangingCodec codec = new ChangingCodec();
+        PagedOrder order = new PagedOrder();
+        order.pagesWithMore = 1;
+        PagedOrder result = BookmapClient.builder().transport(transport)
+            .codecRegistry(BookCodecRegistry.of(codec)).build().execute(order);
+        assertThat(codec.events).containsExactly("reset", "encode", "read", "encode", "decode");
+        assertThat(codec.encoded).containsExactly(order, codec.created);
+        assertThat(result).isSameAs(codec.created);
+        assertThat(result.decoded).isEqualTo(2);
+    }
+
+    @Test
+    void defaultReadResponseFillsTheTarget() {
+        PagedOrder order = new PagedOrder();
+        PagedOrder result = builder().build().execute(order);
+        assertThat(result).isSameAs(order);
+        assertThat(pagedCodec.events).containsExactly("reset", "encode", "decode");
     }
 
     @Test

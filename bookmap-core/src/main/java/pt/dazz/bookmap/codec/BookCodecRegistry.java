@@ -10,6 +10,7 @@ import pt.dazz.bookmap.spi.BookCodec;
 /**
  * Finds the codec of a book class.
  * The registry finds the codec by the exact class. It does not search the superclasses.
+ * A codec with subtypes is in the registry once for each class of {@link BookCodec#types()}.
  */
 public final class BookCodecRegistry {
 
@@ -55,9 +56,10 @@ public final class BookCodecRegistry {
     private static BookCodecRegistry index(Iterable<? extends BookCodec> codecs) {
         Map<Class<?>, BookCodec<?>> index = new HashMap<>();
         for (BookCodec<?> codec : codecs) {
-            if (index.putIfAbsent(codec.type(), codec) != null) {
-                throw new IllegalStateException(
-                    "More than one codec for " + codec.type().getName());
+            for (Class<?> type : codec.types()) {
+                if (index.putIfAbsent(type, codec) != null) {
+                    throw new IllegalStateException("More than one codec for " + type.getName());
+                }
             }
         }
         return new BookCodecRegistry(index);

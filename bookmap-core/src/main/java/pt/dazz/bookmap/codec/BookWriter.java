@@ -128,6 +128,25 @@ public final class BookWriter {
     }
 
     /**
+     * Writes spaces of the context charset. A codec uses this method to fill the end of a
+     * subtype that is shorter than the longest subtype.
+     *
+     * @param length the number of bytes
+     */
+    public void writeFiller(int length) {
+        writeText("filler", null, length);
+    }
+
+    /**
+     * Gives the number of bytes written so far.
+     *
+     * @return the current position
+     */
+    public int position() {
+        return out.size();
+    }
+
+    /**
      * Gives the bytes written so far.
      *
      * @return a copy of the bytes
