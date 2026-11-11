@@ -211,7 +211,7 @@ class LombokRulesTest {
                 "@BookField(order = 1, length = 5) private String id;",
                 "}"),
             source("Order", "@BookOperation public class Order extends Base {",
-                "@lombok.Getter(lombok.AccessLevel.MODULE) @lombok.Setter",
+                "@SuppressWarnings(\"deprecation\") @lombok.Getter(lombok.AccessLevel.MODULE) @lombok.Setter",
                 "@BookField(order = 2, length = 5) private String code;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
