@@ -66,6 +66,38 @@ public final class BookReader {
     }
 
     /**
+     * Counts the used slots of a fixed collection. A slot is empty if all its bytes are
+     * LOW-VALUES ({@code 0x00}). The check does not use the charset. The reader does not move.
+     *
+     * @param field the collection descriptor, for error messages
+     * @param slotLength the number of bytes of one slot
+     * @param slots the number of slots
+     * @return the index of the last slot that is not empty, plus 1, or 0 if all slots are empty
+     * @throws MappingException if the data ends before the end of the area, or if an empty slot
+     *     comes before a slot that is not empty
+     */
+    public int countUsedSlots(String field, int slotLength, int slots) {
+        if ((long) slotLength * slots > data.length - position) {
+            throw new MappingException(field + ": the response is too short for the fixed area");
+        }
+        int firstEmpty = -1;
+        for (int slot = 0; slot < slots; slot++) {
+            int start = position + slot * slotLength;
+            boolean empty = true;
+            for (int i = start; i < start + slotLength && empty; i++) {
+                empty = data[i] == 0;
+            }
+            if (empty && firstEmpty < 0) {
+                firstEmpty = slot;
+            } else if (!empty && firstEmpty >= 0) {
+                throw new MappingException(field + ": slot " + firstEmpty
+                    + " is empty, but slot " + slot + " after it has data");
+            }
+        }
+        return firstEmpty < 0 ? slots : firstEmpty;
+    }
+
+    /**
      * Reads a text field. The method removes spaces on the right.
      *
      * @param field the field descriptor, for error messages
