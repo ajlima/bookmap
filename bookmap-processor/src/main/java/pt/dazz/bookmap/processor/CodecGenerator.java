@@ -120,21 +120,22 @@ final class CodecGenerator {
     }
 
     /**
-     * Gives the layouts. Without subtypes, the one layout is the operation class. With
+     * Gives the layouts of an operation class or an item class. Without subtypes, the one
+     * layout is the class itself. With
      * subtypes, a base class that is not abstract and not in the list comes first, then the
      * listed classes in the order of the annotation.
      */
-    private static List<Layout> layouts(OperationModel model) {
-        SubTypesModel subTypes = model.subTypes();
+    private static List<Layout> layouts(TypeElement base, List<? extends MemberModel> members,
+                                        SubTypesModel subTypes) {
         List<Layout> result = new ArrayList<>();
         if (subTypes == null) {
-            result.add(new Layout(model.type(), null, model.members()));
+            result.add(new Layout(base, null, List.copyOf(members)));
             return result;
         }
         boolean baseListed = subTypes.variants().stream()
-            .anyMatch(variant -> variant.type().equals(model.type()));
+            .anyMatch(variant -> variant.type().equals(base));
         if (!subTypes.baseAbstract() && !baseListed) {
-            result.add(new Layout(model.type(), null, model.members()));
+            result.add(new Layout(base, null, List.copyOf(members)));
         }
         subTypes.variants().forEach(variant ->
             result.add(new Layout(variant.type(), variant.value(), variant.members())));
@@ -144,9 +145,10 @@ final class CodecGenerator {
     private CodecGenerator(OperationModel model) {
         this.model = model;
         this.type = ClassName.get(model.type());
-        this.layouts = layouts(model);
+        this.layouts = layouts(model.type(), model.members(), model.subTypes());
         // The local variables of the generated methods.
-        List.of("value", "target", "data", "ctx", "writer", "reader", "item", "i")
+        List.of("value", "target", "data", "ctx", "writer", "reader", "item", "i", "start",
+                "key", "selected", "copy")
             .forEach(allocator::newName);
     }
 
@@ -293,11 +295,108 @@ final class CodecGenerator {
 
     /** Adds the members of an item class and makes its write and read methods. */
     private ItemMethods addItemMembers(TypeSpec.Builder builder, ItemModel item) {
-        item.fields().forEach(field -> addFieldMembers(builder, field));
+        List<Layout> itemLayouts = layouts(item.type(), item.fields(), item.subTypes());
+        for (Layout layout : itemLayouts) {
+            for (MemberModel member : layout.members()) {
+                if (!names.containsKey((FieldModel) member)) {
+                    addFieldMembers(builder, (FieldModel) member);
+                }
+            }
+        }
         ClassName itemType = ClassName.get(item.type());
         String suffix = String.join("_", itemType.simpleNames());
         ItemMethods methods = new ItemMethods(allocator.newName("writeItem_" + suffix),
             allocator.newName("readItem_" + suffix));
+        if (item.subTypes() == null) {
+            addItemLayoutMethods(methods, item.type(), item.fields());
+            return methods;
+        }
+        Map<Layout, ItemMethods> layoutMethods = new HashMap<>();
+        for (Layout layout : itemLayouts) {
+            String layoutSuffix = String.join("_", ClassName.get(layout.type()).simpleNames());
+            ItemMethods names = new ItemMethods(allocator.newName("writeItem_" + layoutSuffix),
+                allocator.newName("readItem_" + layoutSuffix));
+            addItemLayoutMethods(names, layout.type(), layout.members().stream()
+                .map(FieldModel.class::cast).toList());
+            layoutMethods.put(layout, names);
+        }
+        FieldModel discriminator = item.subTypes().discriminator();
+        Discriminator key = new Discriminator(discriminator, itemLayouts, itemType);
+        itemMethods.add(key.typeOfMethod());
+        itemMethods.add(key.unknownValueMethod());
+        int offset = item.fields().stream()
+            .filter(field -> field.order() < discriminator.order())
+            .mapToInt(FieldModel::byteLength).sum();
+        String prefix = itemType.simpleName() + ": ";
+        // Write: select the layout by the exact class, then fill to the longest layout.
+        MethodSpec.Builder write = MethodSpec.methodBuilder(methods.write())
+            .addModifiers(Modifier.PRIVATE).addParameter(BOOK_WRITER, "writer")
+            .addParameter(itemType, "value").addParameter(CODEC_CONTEXT, "ctx")
+            .addStatement("int start = writer.position()");
+        String flow = "if";
+        for (Layout layout : itemLayouts) {
+            TypeName layoutType = ClassName.get(layout.type());
+            write.addCode(flow.equals("if") ? CodeBlock.builder()
+                    .beginControlFlow("if (value.getClass() == $T.class)", layoutType).build()
+                : CodeBlock.builder()
+                    .nextControlFlow("else if (value.getClass() == $T.class)", layoutType)
+                    .build());
+            flow = "else";
+            if (layout.value() != null) {
+                write.addStatement("value.$N($L)", discriminator.setter(),
+                    key.literal(layout.value()));
+            }
+            write.addStatement("$N(writer, $L, ctx)", layoutMethods.get(layout).write(),
+                layout.type().equals(item.type()) ? CodeBlock.of("value")
+                    : CodeBlock.of("($T) value", layoutType));
+        }
+        itemMethods.add(write.nextControlFlow("else")
+            .addStatement("throw new $T($S + value.getClass().getName())", MAPPING_EXCEPTION,
+                prefix + "unknown subclass ")
+            .endControlFlow()
+            .addStatement("writer.writeFiller($L - (writer.position() - start))",
+                item.byteLength())
+            .build());
+        // Read: read the discriminator, select the layout, then skip to the next entry.
+        MethodSpec.Builder read = MethodSpec.methodBuilder(methods.read())
+            .addModifiers(Modifier.PRIVATE).returns(itemType)
+            .addParameter(BOOK_READER, "reader").addParameter(CODEC_CONTEXT, "ctx")
+            .addStatement("int start = reader.position()")
+            .addStatement("$T key = $L", key.keyType(),
+                key.read(CodeBlock.of("reader.peek($L)", offset)))
+            .addStatement("$T selected = $N(key)", key.subtypeClass(), key.typeOf())
+            .beginControlFlow("if (selected == null)")
+            .addStatement("throw $N(key)", key.unknownValue())
+            .endControlFlow()
+            .addStatement("$T item", itemType);
+        flow = "if";
+        for (Layout layout : itemLayouts) {
+            if (layout.value() == null) {
+                // A base class that is not in the list is never read.
+                continue;
+            }
+            TypeName layoutType = ClassName.get(layout.type());
+            read.addCode(flow.equals("if") ? CodeBlock.builder()
+                    .beginControlFlow("if (selected == $T.class)", layoutType).build()
+                : CodeBlock.builder()
+                    .nextControlFlow("else if (selected == $T.class)", layoutType).build());
+            flow = "else";
+            read.addStatement("item = $N(reader, ctx)", layoutMethods.get(layout).read());
+        }
+        itemMethods.add(read.nextControlFlow("else")
+            .addStatement("throw new $T($S + selected.getName())", MAPPING_EXCEPTION,
+                prefix + "unknown subclass ")
+            .endControlFlow()
+            .addStatement("reader.skip($L - (reader.position() - start))", item.byteLength())
+            .addStatement("return item")
+            .build());
+        return methods;
+    }
+
+    /** Adds the methods that write and read one layout of an item class. */
+    private void addItemLayoutMethods(ItemMethods methods, TypeElement layoutClass,
+                                      List<FieldModel> fields) {
+        ClassName itemType = ClassName.get(layoutClass);
         MethodSpec.Builder write = MethodSpec.methodBuilder(methods.write())
             .addModifiers(Modifier.PRIVATE).addParameter(BOOK_WRITER, "writer")
             .addParameter(itemType, "value").addParameter(CODEC_CONTEXT, "ctx");
@@ -305,13 +404,12 @@ final class CodecGenerator {
             .addModifiers(Modifier.PRIVATE).returns(itemType)
             .addParameter(BOOK_READER, "reader").addParameter(CODEC_CONTEXT, "ctx")
             .addStatement("$T target = new $T()", itemType, itemType);
-        for (FieldModel field : item.fields()) {
+        for (FieldModel field : fields) {
             write.addStatement(write(field));
             read.addStatement("target.$N($L)", field.setter(), read(field));
         }
         itemMethods.add(write.build());
         itemMethods.add(read.addStatement("return target").build());
-        return methods;
     }
 
     /** Gives the maximum number of bytes of a member in the book. */
@@ -601,6 +699,104 @@ final class CodecGenerator {
     }
 
     /**
+     * Generates the code that reads a discriminator and selects a class: a {@code typeOf}
+     * method that gives the class of a value, and an {@code unknownValue} method that makes the
+     * exception for an unknown value.
+     */
+    private final class Discriminator {
+
+        private final FieldModel field;
+        private final List<Layout> layouts;
+        private final ClassName base;
+        private final boolean numeric;
+        private final String typeOf;
+        private final String unknownValue;
+
+        Discriminator(FieldModel field, List<Layout> layouts, ClassName base) {
+            this.field = field;
+            this.layouts = layouts;
+            this.base = base;
+            this.numeric = field.kind() != JavaKind.STRING;
+            String suffix = String.join("_", base.simpleNames());
+            this.typeOf = allocator.newName("typeOf_" + suffix);
+            this.unknownValue = allocator.newName("unknownValue_" + suffix);
+        }
+
+        String typeOf() {
+            return typeOf;
+        }
+
+        String unknownValue() {
+            return unknownValue;
+        }
+
+        /** Gives the type of a read value: {@code BigDecimal} or {@code String}. */
+        TypeName keyType() {
+            return numeric ? DECIMAL : ClassName.get(String.class);
+        }
+
+        /** Gives {@code Class<? extends Base>}. */
+        TypeName subtypeClass() {
+            return ParameterizedTypeName.get(ClassName.get(Class.class),
+                WildcardTypeName.subtypeOf(base));
+        }
+
+        /** Reads the value with a reader at the position of the discriminator. */
+        CodeBlock read(CodeBlock reader) {
+            String descriptor = names.get(field).descriptor();
+            return numeric
+                ? CodeBlock.of("$L.readNumber($N, $L)", reader, descriptor,
+                    numberAttributes(field))
+                : CodeBlock.of("$L.readText($N, $L)", reader, descriptor, field.length());
+        }
+
+        /** Gives a value as a Java literal for the setter of the discriminator. */
+        CodeBlock literal(String value) {
+            return switch (field.kind()) {
+                case STRING -> CodeBlock.of("$S", value);
+                case LONG, LONG_BOXED -> CodeBlock.of("$LL", value);
+                default -> CodeBlock.of("$L", value);
+            };
+        }
+
+        /** Gives the class of a discriminator value, or null for an unknown value. */
+        MethodSpec typeOfMethod() {
+            MethodSpec.Builder method = MethodSpec.methodBuilder(typeOf)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .returns(subtypeClass()).addParameter(keyType(), "key");
+            for (Layout layout : layouts) {
+                if (layout.value() != null) {
+                    if (numeric) {
+                        method.beginControlFlow("if (key != null && key.compareTo($T.valueOf($LL))"
+                            + " == 0)", DECIMAL, layout.value());
+                    } else {
+                        method.beginControlFlow("if (key.equals($S))", layout.value());
+                    }
+                    method.addStatement("return $T.class", ClassName.get(layout.type()))
+                        .endControlFlow();
+                }
+            }
+            return method.addStatement("return null").build();
+        }
+
+        /** Makes the exception for an unknown discriminator value. */
+        MethodSpec unknownValueMethod() {
+            String known = layouts.stream().map(Layout::value).filter(Objects::nonNull)
+                .collect(Collectors.joining(", "));
+            CodeBlock key = numeric
+                ? CodeBlock.of("(key == null ? $S : key.toPlainString())", "(blank)")
+                : CodeBlock.of("key");
+            return MethodSpec.methodBuilder(unknownValue)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .returns(MAPPING_EXCEPTION).addParameter(keyType(), "key")
+                .addStatement("return new $T($N + $S + $L + $S)", MAPPING_EXCEPTION,
+                    names.get(field).descriptor(), ": unknown discriminator value '", key,
+                    "'. Known values: " + known)
+                .build();
+        }
+    }
+
+    /**
      * Generates the methods of a codec with subtypes. Each layout gets private methods. The
      * public methods select the layout by the exact class of the object or by the value of the
      * discriminator.
@@ -609,14 +805,13 @@ final class CodecGenerator {
 
         private final SubTypesModel subTypes = model.subTypes();
         private final FieldModel discriminator = subTypes.discriminator();
-        private final boolean numeric = discriminator.kind() != JavaKind.STRING;
-        private final TypeName keyType = numeric ? DECIMAL : ClassName.get(String.class);
-        private final TypeName subtypeClass = ParameterizedTypeName.get(
-            ClassName.get(Class.class), WildcardTypeName.subtypeOf(type));
+        private final Discriminator key = new Discriminator(discriminator, layouts, type);
+        private final TypeName keyType = key.keyType();
+        private final TypeName subtypeClass = key.subtypeClass();
+        private final String typeOf = key.typeOf();
+        private final String unknownValue = key.unknownValue();
         private final String prefix = type.simpleName() + ": ";
         private final Map<Layout, LayoutMethods> methods = new HashMap<>();
-        private final String typeOf = allocator.newName("typeOf");
-        private final String unknownValue = allocator.newName("unknownValue");
         private final String unknownSubclass = allocator.newName("unknownSubclass");
         private final String selectResponse = allocator.newName("selectResponse");
         private final String decodeInto = allocator.newName("decodeInto");
@@ -664,8 +859,8 @@ final class CodecGenerator {
             builder.addMethod(selectResponse());
             builder.addMethod(decodeInto());
             builder.addMethod(newSubtype());
-            builder.addMethod(typeOf());
-            builder.addMethod(unknownValue());
+            builder.addMethod(key.typeOfMethod());
+            builder.addMethod(key.unknownValueMethod());
             builder.addMethod(unknownSubclass());
         }
 
@@ -709,7 +904,7 @@ final class CodecGenerator {
                 if (layout.value() != null && direction.test(discriminator.direction())) {
                     method.addStatement("$L.$N($L)", isBase(layout) ? CodeBlock.of("value")
                             : CodeBlock.of("(($T) value)", typeOf(layout)),
-                        discriminator.setter(), literal(layout.value()));
+                        discriminator.setter(), key.literal(layout.value()));
                 }
                 method.addStatement("return $N($L, ctx)",
                     request ? names.encodeRequest() : names.encodeResponse(),
@@ -719,27 +914,13 @@ final class CodecGenerator {
             return method.addStatement("throw $N(value)", unknownSubclass).build();
         }
 
-        private CodeBlock literal(String value) {
-            return switch (discriminator.kind()) {
-                case STRING -> CodeBlock.of("$S", value);
-                case LONG, LONG_BOXED -> CodeBlock.of("$LL", value);
-                default -> CodeBlock.of("$L", value);
-            };
-        }
-
         /** Reads the discriminator at its fixed offset in one direction. */
         private CodeBlock readKey(Predicate<Direction> direction) {
             int offset = model.members().stream()
                 .filter(member -> member.order() < discriminator.order())
                 .filter(member -> direction.test(member.direction()))
                 .mapToInt(CodecGenerator::maxByteLength).sum();
-            String descriptor = names.get(discriminator).descriptor();
-            CodeBlock reader = CodeBlock.of("new $T(data, ctx).peek($L)", BOOK_READER, offset);
-            return numeric
-                ? CodeBlock.of("$L.readNumber($N, $L)", reader, descriptor,
-                    numberAttributes(discriminator))
-                : CodeBlock.of("$L.readText($N, $L)", reader, descriptor,
-                    discriminator.length());
+            return key.read(CodeBlock.of("new $T(data, ctx).peek($L)", BOOK_READER, offset));
         }
 
         private MethodSpec readResponse() {
@@ -874,38 +1055,6 @@ final class CodecGenerator {
             }
             return method.addStatement("throw new $T($S + selected.getName())",
                 MAPPING_EXCEPTION, prefix + "unknown subclass ").build();
-        }
-
-        /** Gives the class of a discriminator value, or null for an unknown value. */
-        private MethodSpec typeOf() {
-            MethodSpec.Builder method = privateMethod(typeOf).addModifiers(Modifier.STATIC)
-                .returns(subtypeClass).addParameter(keyType, "key");
-            for (Layout layout : layouts) {
-                if (layout.value() != null) {
-                    if (numeric) {
-                        method.beginControlFlow("if (key != null && key.compareTo($T.valueOf($LL))"
-                            + " == 0)", DECIMAL, layout.value());
-                    } else {
-                        method.beginControlFlow("if (key.equals($S))", layout.value());
-                    }
-                    method.addStatement("return $T.class", typeOf(layout)).endControlFlow();
-                }
-            }
-            return method.addStatement("return null").build();
-        }
-
-        private MethodSpec unknownValue() {
-            String known = layouts.stream().map(Layout::value).filter(Objects::nonNull)
-                .collect(Collectors.joining(", "));
-            CodeBlock key = numeric
-                ? CodeBlock.of("(key == null ? $S : key.toPlainString())", "(blank)")
-                : CodeBlock.of("key");
-            return privateMethod(unknownValue).addModifiers(Modifier.STATIC)
-                .returns(MAPPING_EXCEPTION).addParameter(keyType, "key")
-                .addStatement("return new $T($N + $S + $L + $S)", MAPPING_EXCEPTION,
-                    names.get(discriminator).descriptor(), ": unknown discriminator value '", key,
-                    "'. Known values: " + known)
-                .build();
         }
 
         private MethodSpec unknownSubclass() {

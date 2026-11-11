@@ -24,7 +24,7 @@ class ModelTest {
             Usage.DISPLAY, 0, false, "yyyyMMdd", FieldModel.JavaKind.INT, null, "getLineCount",
             "setLineCount", null, 3);
         MemberModel lines = new CollectionModel("Order", "lines", 4, Direction.OUTPUT, count, 5,
-            new ItemModel(null, List.of(), 0), "getLines", "setLines");
+            new ItemModel(null, List.of(), 0, null), "getLines", "setLines");
         assertThat(count.descriptor()).isEqualTo("Order.lineCount (order 3)");
         assertThat(lines.descriptor()).isEqualTo("Order.lines (order 4)");
     }
