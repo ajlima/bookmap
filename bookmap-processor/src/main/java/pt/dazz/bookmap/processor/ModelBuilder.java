@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,8 @@ import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
 import pt.dazz.bookmap.processor.model.ItemModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 import pt.dazz.bookmap.processor.model.OperationModel;
+import pt.dazz.bookmap.processor.model.SubTypesModel;
+import pt.dazz.bookmap.processor.model.VariantModel;
 
 /**
  * Builds the {@link OperationModel} of an operation class and checks the mapping rules.
@@ -160,17 +163,19 @@ public final class ModelBuilder {
             Map<String, String> countUsers = new HashMap<>();
             for (AnnotatedMember member : annotated) {
                 if (member.collection()) {
-                    CollectionModel collection = collection(member, annotated, byName, fields,
-                        members, countUsers);
+                    CollectionModel collection = collection(type, continuable, member, annotated,
+                        byName, Set.of(), fields, members, countUsers);
                     if (collection != null) {
                         members.add(collection);
                     }
                 }
             }
             members.sort(Comparator.comparingInt(MemberModel::order));
+            SubTypesModel subTypes = SubTypesResolver.present(type)
+                ? subTypes(annotated, members) : null;
             String charsetName = charset();
             return new OperationModel(type, operationName, charsetName, List.copyOf(members),
-                continuable, implementsInterface(type, VALIDATABLE));
+                continuable, implementsInterface(type, VALIDATABLE), subTypes);
         }
 
         // ---- operation class ----
@@ -188,7 +193,10 @@ public final class ModelBuilder {
             if (!modifiers.contains(Modifier.PUBLIC)) {
                 classError("operation class must be public");
             }
-            if (modifiers.contains(Modifier.ABSTRACT)) {
+            // A base class with subtypes can be abstract. Then the caller sends a subtype.
+            boolean abstractBase = modifiers.contains(Modifier.ABSTRACT)
+                && SubTypesResolver.present(type);
+            if (modifiers.contains(Modifier.ABSTRACT) && !abstractBase) {
                 classError("operation class must not be abstract");
             }
             if (!type.getTypeParameters().isEmpty()) {
@@ -197,7 +205,7 @@ public final class ModelBuilder {
             if (!Classes.topLevelOrStatic(type)) {
                 classError("operation class must be top-level or static");
             }
-            if (!Classes.hasPublicNoArgConstructor(type, elements)) {
+            if (!abstractBase && !Classes.hasPublicNoArgConstructor(type, elements)) {
                 classError("operation class must have a public no-argument constructor");
             }
         }
@@ -255,10 +263,20 @@ public final class ModelBuilder {
 
         /** Gives the annotated fields of a class and its superclasses, superclass fields first. */
         private List<AnnotatedMember> annotatedFields(TypeElement owner) {
+            return annotatedFields(hierarchy(owner));
+        }
+
+        /** Gives a class and its superclasses, the top superclass first. */
+        private List<TypeElement> hierarchy(TypeElement owner) {
             List<TypeElement> hierarchy = new ArrayList<>();
             for (TypeElement current = owner; current != null; current = superclass(current)) {
                 hierarchy.add(0, current);
             }
+            return hierarchy;
+        }
+
+        /** Gives the annotated fields of the classes, in the order of the list. */
+        private List<AnnotatedMember> annotatedFields(List<TypeElement> hierarchy) {
             declaringClasses.addAll(hierarchy);
             List<AnnotatedMember> result = new ArrayList<>();
             for (TypeElement current : hierarchy) {
@@ -316,11 +334,243 @@ public final class ModelBuilder {
             }
         }
 
+        // ---- subtypes ----
+
+        /**
+         * Builds the subtypes of the operation class and checks the rules of
+         * {@code @BookSubTypes}.
+         *
+         * @param baseAnnotated the annotated members of the base class and its superclasses
+         * @param baseMembers the resolved members of the base class
+         * @return the subtypes, or null after an error
+         */
+        private SubTypesModel subTypes(List<AnnotatedMember> baseAnnotated,
+                                       List<MemberModel> baseMembers) {
+            Optional<SubTypesResolver.Declared> read = SubTypesResolver.read(type, problems);
+            if (read.isEmpty()) {
+                return null;
+            }
+            SubTypesResolver.Declared declared = read.get();
+            int before = problems.count();
+            boolean baseAbstract = type.getModifiers().contains(Modifier.ABSTRACT);
+            if (declared.entries().isEmpty()) {
+                classError("@BookSubTypes must list at least one type");
+            }
+            List<TypeElement> listed = new ArrayList<>();
+            List<String> values = new ArrayList<>();
+            List<List<MemberModel>> layouts = new ArrayList<>();
+            Set<String> ownNames = new HashSet<>();
+            for (SubTypesResolver.Entry entry : declared.entries()) {
+                TypeElement subtype = subtype(entry.type(), listed);
+                if (subtype != null) {
+                    listed.add(subtype);
+                    values.add(entry.value());
+                    layouts.add(subtype.equals(type) ? baseMembers
+                        : variantLayout(subtype, baseAnnotated, baseMembers, ownNames));
+                }
+            }
+            checkSubtypesDoNotExtendEachOther(listed);
+            AnnotatedMember discriminatorMember = discriminatorMember(declared.discriminator(),
+                baseAnnotated, ownNames);
+            FieldModel discriminator = discriminatorMember == null ? null
+                : discriminator(discriminatorMember, baseMembers, baseAbstract);
+            if (discriminator == null || problems.count() != before) {
+                return null;
+            }
+            List<VariantModel> variants = new ArrayList<>();
+            Map<String, TypeElement> byValue = new HashMap<>();
+            for (int i = 0; i < listed.size(); i++) {
+                TypeElement subtype = listed.get(i);
+                Optional<String> value = SubTypesResolver.normalize(discriminator,
+                    discriminatorMember, values.get(i), problems);
+                if (value.isPresent()) {
+                    TypeElement previous = byValue.putIfAbsent(value.get(), subtype);
+                    if (previous != null) {
+                        problems.error(discriminatorMember, "discriminator value '" + value.get()
+                            + "' is used by " + previous.getSimpleName() + " and "
+                            + subtype.getSimpleName());
+                    }
+                    variants.add(new VariantModel(subtype, value.get(), layouts.get(i)));
+                }
+            }
+            return problems.count() == before
+                ? new SubTypesModel(discriminator, List.copyOf(variants), baseAbstract) : null;
+        }
+
+        /**
+         * Checks one listed type. It must be an instantiable subclass of the base class, listed
+         * once, without {@code @BookOperation}, and without {@code @BookSubTypes} below the base.
+         *
+         * @return the subtype, or null after an error
+         */
+        private TypeElement subtype(TypeMirror mirror, List<TypeElement> listed) {
+            TypeElement subtype = mirror.getKind() == TypeKind.DECLARED
+                ? (TypeElement) types.asElement(mirror) : null;
+            // Only a class can extend the base class.
+            if (subtype == null || !types.isSubtype(types.erasure(mirror),
+                types.erasure(type.asType()))) {
+                classError(mirror + " is not a subclass of " + type.getSimpleName());
+                return null;
+            }
+            if (!Classes.instantiable(subtype, elements)
+                || !subtype.getTypeParameters().isEmpty()) {
+                classError("type " + subtype.getSimpleName() + " must be public, not abstract,"
+                    + " not generic, and have a public no-argument constructor");
+                return null;
+            }
+            if (listed.contains(subtype)) {
+                classError("type " + subtype.getSimpleName() + " is listed more than once");
+                return null;
+            }
+            int before = problems.count();
+            if (!subtype.equals(type) && Mirrors.find(subtype, BOOK_OPERATION).isPresent()) {
+                problems.classError(subtype, "a subtype must not have @BookOperation");
+            }
+            for (TypeElement current : below(subtype)) {
+                if (SubTypesResolver.present(current)) {
+                    problems.classError(current, "subtypes in a subtype are not supported");
+                }
+            }
+            return problems.count() == before ? subtype : null;
+        }
+
+        /** Gives the classes between the base class (excluded) and a subtype (included). */
+        private List<TypeElement> below(TypeElement subtype) {
+            List<TypeElement> hierarchy = hierarchy(subtype);
+            return hierarchy.subList(hierarchy(type).size(), hierarchy.size());
+        }
+
+        private void checkSubtypesDoNotExtendEachOther(List<TypeElement> listed) {
+            for (TypeElement subtype : listed) {
+                for (TypeElement other : listed) {
+                    if (!other.equals(type) && !other.equals(subtype)
+                        && types.isSubtype(subtype.asType(), other.asType())) {
+                        problems.classError(subtype, "a subtype must not extend another subtype");
+                    }
+                }
+            }
+        }
+
+        /**
+         * Builds the full layout of a subtype: the base members, then the members of the classes
+         * below the base class.
+         *
+         * @param ownNames receives the names of the members below the base class
+         */
+        private List<MemberModel> variantLayout(TypeElement subtype,
+                                                List<AnnotatedMember> baseAnnotated,
+                                                List<MemberModel> baseMembers,
+                                                Set<String> ownNames) {
+            List<AnnotatedMember> own = annotatedFields(below(subtype));
+            int lastBaseOrder = baseAnnotated.stream().mapToInt(AnnotatedMember::order).max()
+                .orElse(Integer.MIN_VALUE);
+            for (AnnotatedMember member : own) {
+                ownNames.add(member.name());
+                if (member.order() <= lastBaseOrder) {
+                    problems.error(member, "a subtype member must come after all base members");
+                }
+            }
+            checkDuplicateOrders(own);
+            Set<String> baseNames = new HashSet<>();
+            baseAnnotated.forEach(member -> baseNames.add(member.name()));
+            Map<String, AnnotatedMember> byName = new HashMap<>();
+            Map<String, FieldModel> fields = new HashMap<>();
+            List<MemberModel> members = new ArrayList<>();
+            for (AnnotatedMember member : own) {
+                byName.put(member.name(), member);
+                if (!member.collection()) {
+                    FieldModel field = fieldResolver.resolve(subtype, member, null, codecPackage,
+                        problems);
+                    if (field != null) {
+                        fields.put(member.name(), field);
+                        members.add(field);
+                    }
+                }
+            }
+            boolean subtypeContinuable = implementsInterface(subtype, CONTINUABLE);
+            Map<String, String> countUsers = new HashMap<>();
+            for (AnnotatedMember member : own) {
+                if (member.collection()) {
+                    CollectionModel collection = collection(subtype, subtypeContinuable, member,
+                        own, byName, baseNames, fields, members, countUsers);
+                    if (collection != null) {
+                        members.add(collection);
+                    }
+                }
+            }
+            List<MemberModel> layout = new ArrayList<>(baseMembers);
+            layout.addAll(members);
+            layout.sort(Comparator.comparingInt(MemberModel::order));
+            return List.copyOf(layout);
+        }
+
+        /** Finds the annotated discriminator in the base members. */
+        private AnnotatedMember discriminatorMember(String name,
+                                                    List<AnnotatedMember> baseAnnotated,
+                                                    Set<String> ownNames) {
+            Optional<AnnotatedMember> member = baseAnnotated.stream()
+                .filter(candidate -> candidate.name().equals(name)).findFirst();
+            if (member.isEmpty()) {
+                classError("discriminator field '" + name + "' " + (ownNames.contains(name)
+                    ? "must be in the base class or its superclasses" : "does not exist"));
+                return null;
+            }
+            return member.get();
+        }
+
+        /**
+         * Checks the discriminator: its type, its converter, its direction, and its position.
+         *
+         * @return the discriminator field, or null after an error
+         */
+        private FieldModel discriminator(AnnotatedMember member, List<MemberModel> baseMembers,
+                                         boolean baseAbstract) {
+            Optional<FieldModel> resolved = baseMembers.stream()
+                .filter(candidate -> candidate.name().equals(member.name()))
+                .filter(FieldModel.class::isInstance).map(FieldModel.class::cast).findFirst();
+            if (member.collection()) {
+                problems.error(member, "discriminator must be String, int, Integer, long, or Long");
+                return null;
+            }
+            if (resolved.isEmpty()) {
+                // The field has its own errors.
+                return null;
+            }
+            FieldModel field = resolved.get();
+            int before = problems.count();
+            if (field.kind() == JavaKind.CONVERTED) {
+                problems.error(member, "discriminator must not have a converter");
+            } else if (field.kind() != JavaKind.STRING
+                && !SubTypesResolver.NUMERIC_KINDS.contains(field.kind())) {
+                problems.error(member, "discriminator must be String, int, Integer, long, or Long");
+            }
+            if (!field.direction().isOutput()) {
+                problems.error(member,
+                    "discriminator must have direction OUTPUT or INPUT_OUTPUT");
+            } else if (baseAbstract && !field.direction().isInput()) {
+                classError("an abstract base class needs an INPUT_OUTPUT discriminator");
+            }
+            if (baseMembers.stream().anyMatch(candidate -> candidate instanceof CollectionModel
+                && candidate.order() < field.order())) {
+                problems.error(member, "discriminator must not come after a collection");
+            }
+            return problems.count() == before ? field : null;
+        }
+
         // ---- collections ----
 
-        private CollectionModel collection(AnnotatedMember member,
+        /**
+         * Builds a collection model.
+         *
+         * @param owner the class that the generated code uses for the accessors
+         * @param continuable {@code true} if the owner implements {@code Continuable}
+         * @param outside the names of members that the layout cannot use as a count field
+         */
+        private CollectionModel collection(TypeElement owner, boolean continuable,
+                                           AnnotatedMember member,
                                            List<AnnotatedMember> annotated,
                                            Map<String, AnnotatedMember> byName,
+                                           Set<String> outside,
                                            Map<String, FieldModel> fields,
                                            List<MemberModel> members,
                                            Map<String, String> countUsers) {
@@ -337,10 +587,10 @@ public final class ModelBuilder {
                     "an INPUT_OUTPUT collection is not permitted in a Continuable class");
             }
             ItemModel item = item(member, direction);
-            FieldModel count = countField(member, direction, maxOccurs, annotated, byName, fields,
-                members, countUsers);
-            Optional<String> getter = fieldResolver.getter(type, member, codecPackage, problems);
-            Optional<String> setter = fieldResolver.setter(type, member, codecPackage, problems);
+            FieldModel count = countField(member, direction, maxOccurs, annotated, byName, outside,
+                fields, members, countUsers);
+            Optional<String> getter = fieldResolver.getter(owner, member, codecPackage, problems);
+            Optional<String> setter = fieldResolver.setter(owner, member, codecPackage, problems);
             if (problems.count() != before || item == null || count == null || getter.isEmpty()
                 || setter.isEmpty()) {
                 return null;
@@ -414,6 +664,7 @@ public final class ModelBuilder {
         private FieldModel countField(AnnotatedMember collection, Direction direction,
                                       int maxOccurs, List<AnnotatedMember> annotated,
                                       Map<String, AnnotatedMember> byName,
+                                      Set<String> outside,
                                       Map<String, FieldModel> fields,
                                       List<MemberModel> members,
                                       Map<String, String> countUsers) {
@@ -431,6 +682,10 @@ public final class ModelBuilder {
             }
             AnnotatedMember target = byName.get(name);
             String prefix = "dependsOn field '" + name + "' ";
+            if (target == null && outside.contains(name)) {
+                problems.error(collection, prefix + "must be in the subtype layout");
+                return null;
+            }
             if (target == null) {
                 problems.error(collection, prefix + "does not exist");
                 return null;

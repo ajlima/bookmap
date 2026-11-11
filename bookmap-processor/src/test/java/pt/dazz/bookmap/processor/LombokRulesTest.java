@@ -50,6 +50,28 @@ class LombokRulesTest {
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
 
+    // ---- subtypes ----
+
+    @ParameterizedTest
+    @EnumSource(ProcessorOrder.class)
+    void subclassWithLombokData(ProcessorOrder order) {
+        Compilation compilation = compile(order,
+            source("GetAccount",
+                "@lombok.Getter @lombok.Setter @BookOperation",
+                "@BookSubTypes(discriminator = \"accountType\", value = {",
+                "    @BookSubTypes.Type(value = \"01\", type = test.accounts.CheckingAccount.class)})",
+                "public class GetAccount {",
+                "@BookField(order = 1, length = 5) private String id;",
+                "@BookField(order = 2, length = 2) private int accountType;",
+                "}"),
+            sourceIn("test.accounts", "CheckingAccount",
+                "@lombok.Data @lombok.EqualsAndHashCode(callSuper = true)",
+                "public class CheckingAccount extends test.GetAccount {",
+                "@BookField(order = 3, length = 19) private String cardNumberMask;",
+                "}"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+    }
+
     // ---- I2: constructors ----
 
     @ParameterizedTest

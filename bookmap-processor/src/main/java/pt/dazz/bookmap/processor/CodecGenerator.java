@@ -161,8 +161,14 @@ final class CodecGenerator {
             .addStatement("return $L", model.members().stream()
                 .filter(member -> member.direction().isOutput())
                 .mapToInt(CodecGenerator::maxByteLength).sum()).build());
-        builder.addMethod(override("newInstance").returns(type)
-            .addStatement("return new $T()", type).build());
+        MethodSpec.Builder newInstance = override("newInstance").returns(type);
+        if (model.type().getModifiers().contains(Modifier.ABSTRACT)) {
+            newInstance.addStatement("throw new $T($S)", MAPPING_EXCEPTION,
+                type.simpleName() + ": the base class is abstract");
+        } else {
+            newInstance.addStatement("return new $T()", type);
+        }
+        builder.addMethod(newInstance.build());
         builder.addMethod(encode("encodeRequest", Direction::isInput));
         builder.addMethod(override("decodeResponse")
             .addParameter(BYTES, "data").addParameter(type, "target")
