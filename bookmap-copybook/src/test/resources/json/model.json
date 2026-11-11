@@ -1,0 +1,94 @@
+{
+  "formatVersion" : 1,
+  "sourceName" : "ACCOUNT.cpy",
+  "classes" : [ {
+    "name" : "GetAccount",
+    "kind" : "OPERATION",
+    "subTypes" : {
+      "discriminator" : "accountType",
+      "types" : [ {
+        "value" : "01",
+        "className" : "CheckingData"
+      }, {
+        "value" : "02",
+        "className" : "SavingsAccount"
+      } ]
+    },
+    "members" : [ {
+      "kind" : "FIELD",
+      "name" : "accountId",
+      "javaType" : "STRING",
+      "order" : 10,
+      "pic" : "X(12)",
+      "direction" : "INPUT_OUTPUT",
+      "cobolName" : "ACCOUNT-ID",
+      "declaration" : "05 ACCOUNT-ID PIC X(12)."
+    }, {
+      "kind" : "FIELD",
+      "name" : "accountType",
+      "javaType" : "INT",
+      "order" : 20,
+      "pic" : "9(2)",
+      "direction" : "INPUT_OUTPUT",
+      "cobolName" : "ACCOUNT-TYPE",
+      "declaration" : "05 ACCOUNT-TYPE PIC 9(2)."
+    }, {
+      "kind" : "COLLECTION",
+      "name" : "holder",
+      "order" : 30,
+      "direction" : "INPUT_OUTPUT",
+      "maxOccurs" : 2,
+      "fixed" : true,
+      "itemClass" : "Holder",
+      "cobolName" : "HOLDER",
+      "declaration" : "05 HOLDER OCCURS 2."
+    } ]
+  }, {
+    "name" : "Holder",
+    "kind" : "ITEM",
+    "members" : [ {
+      "kind" : "FIELD",
+      "name" : "holderName",
+      "javaType" : "STRING",
+      "order" : 10,
+      "pic" : "X(30)",
+      "direction" : "INPUT_OUTPUT",
+      "cobolName" : "HOLDER-NAME",
+      "declaration" : "10 HOLDER-NAME PIC X(30)."
+    } ]
+  }, {
+    "name" : "CheckingData",
+    "kind" : "SUBTYPE",
+    "superclass" : "GetAccount",
+    "members" : [ {
+      "kind" : "FIELD",
+      "name" : "overdraftLimit",
+      "javaType" : "BIG_DECIMAL",
+      "order" : 40,
+      "pic" : "S9(9)V99 COMP-3",
+      "direction" : "OUTPUT",
+      "cobolName" : "OVERDRAFT-LIMIT",
+      "declaration" : "10 OVERDRAFT-LIMIT PIC S9(9)V99 COMP-3."
+    }, {
+      "kind" : "FIELD",
+      "name" : "entryCount",
+      "javaType" : "LONG",
+      "order" : 50,
+      "pic" : "9(10)",
+      "direction" : "OUTPUT",
+      "cobolName" : "ENTRY-COUNT",
+      "declaration" : "10 ENTRY-COUNT PIC 9(10)."
+    }, {
+      "kind" : "COLLECTION",
+      "name" : "entry",
+      "order" : 60,
+      "direction" : "OUTPUT",
+      "maxOccurs" : 10,
+      "fixed" : false,
+      "dependsOn" : "entryCount",
+      "itemClass" : "Entry",
+      "cobolName" : "ENTRY",
+      "declaration" : "10 ENTRY OCCURS 0 TO 10 DEPENDING ON ENTRY-COUNT."
+    } ]
+  } ]
+}
