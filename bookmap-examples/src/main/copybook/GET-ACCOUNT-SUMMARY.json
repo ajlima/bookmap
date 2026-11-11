@@ -1,0 +1,9 @@
+{
+  "subTypes": {
+    "CARD-SUMMARY": {
+      "discriminator": "ACCOUNT-KIND",
+      "values": { "CARD-SUMMARY": "C", "LOAN-SUMMARY": "L" },
+      "classNames": { "CARD-SUMMARY": "CardAccount", "LOAN-SUMMARY": "LoanAccount" }
+    }
+  }
+}
