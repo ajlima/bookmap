@@ -52,12 +52,13 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
      * @param converter the qualified converter class name, or {@code ""}
      * @param countField the name of the count field, or {@code ""}
      * @param maxOccurs the maximum number of entries, or 0
+     * @param fixed {@code true} for a fixed collection
      * @param itemFields the fields of one entry
      */
     record Member(String owner, String name, int order, String direction, int length, int scale,
         boolean signed, String usage, String pattern, int byteLength, String javaKind,
         String getter, String setter, String converter, String countField, int maxOccurs,
-        List<Member> itemFields) {
+        boolean fixed, List<Member> itemFields) {
     }
 
     /**
@@ -83,8 +84,9 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
             case CollectionModel collection -> new Member(collection.ownerSimpleName(),
                 collection.name(), collection.order(), collection.direction().name(), 0, 0, false,
                 "", "", collection.item().byteLength(), "", collection.getter(),
-                collection.setter(), "", collection.countField().name(), collection.maxOccurs(),
-                collection.item().fields().stream().map(ModelSnapshot::field).toList());
+                collection.setter(), "",
+                collection.countField() == null ? "" : collection.countField().name(),
+                collection.maxOccurs(), collection.fixed(), collection.item().fields().stream().map(ModelSnapshot::field).toList());
         };
     }
 
@@ -94,6 +96,6 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
             field.usage().name(), field.pattern(), field.byteLength(), field.kind().name(),
             field.getter(), field.setter(),
             field.converter() == null ? "" : field.converter().getQualifiedName().toString(), "", 0,
-            List.of());
+            false, List.of());
     }
 }

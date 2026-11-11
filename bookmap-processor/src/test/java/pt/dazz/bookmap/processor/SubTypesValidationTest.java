@@ -275,6 +275,18 @@ class SubTypesValidationTest {
     }
 
     @Test
+    void fixedCollectionBeforeDiscriminatorIsPermitted() {
+        CompilationSubject.assertThat(compile(base(STANDARD,
+                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true)", "List<Entry>",
+                    "lines"),
+                ACCOUNT_TYPE),
+            checking(), savings(),
+            source("Entry", "public class Entry {",
+                field("@BookField(order = 1, length = 8)", "String", "reference"), "}")))
+            .succeededWithoutWarnings();
+    }
+
+    @Test
     void collectionBeforeDiscriminator() {
         assertError(compile(base(STANDARD,
                 field("@BookField(order = 5, length = 2)", "int", "count"),
@@ -283,7 +295,7 @@ class SubTypesValidationTest {
             checking(), savings(),
             source("Entry", "public class Entry {",
                 field("@BookField(order = 1, length = 8)", "String", "reference"), "}")),
-            "GetAccount.accountType (order 20): discriminator must not come after a collection");
+            "GetAccount.accountType (order 20): discriminator must not come after a variable collection");
     }
 
     // ---- types ----

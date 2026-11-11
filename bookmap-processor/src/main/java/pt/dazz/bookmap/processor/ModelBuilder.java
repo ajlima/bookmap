@@ -582,9 +582,9 @@ public final class ModelBuilder {
                 problems.classError(base,
                     "an abstract base class needs an INPUT_OUTPUT discriminator");
             }
-            if (baseMembers.stream().anyMatch(candidate -> candidate instanceof CollectionModel
-                && candidate.order() < field.order())) {
-                problems.error(member, "discriminator must not come after a collection");
+            if (baseMembers.stream().anyMatch(candidate -> candidate instanceof CollectionModel c
+                && !c.fixed() && c.order() < field.order())) {
+                problems.error(member, "discriminator must not come after a variable collection");
             }
             return problems.count() == before ? field : null;
         }
@@ -619,16 +619,20 @@ public final class ModelBuilder {
                     "an INPUT_OUTPUT collection is not permitted in a Continuable class");
             }
             ItemModel item = item(member, direction);
-            FieldModel count = countField(member, direction, maxOccurs, annotated, byName, outside,
-                fields, members, countUsers);
+            boolean fixed = (Boolean) values.getOrDefault("fixed", false);
+            // A fixed collection without dependsOn has no count field: no convention applies.
+            boolean counted = !fixed || !((String) values.getOrDefault("dependsOn", "")).isEmpty();
+            FieldModel count = counted ? countField(member, direction, maxOccurs, annotated,
+                byName, outside, fields, members, countUsers) : null;
             Optional<String> getter = fieldResolver.getter(owner, member, codecPackage, problems);
             Optional<String> setter = fieldResolver.setter(owner, member, codecPackage, problems);
-            if (problems.count() != before || item == null || count == null || getter.isEmpty()
+            if (problems.count() != before || item == null || counted && count == null
+                || getter.isEmpty()
                 || setter.isEmpty()) {
                 return null;
             }
             return new CollectionModel(member.owner(), member.name(), member.order(), direction,
-                count, maxOccurs, item, getter.get(), setter.get());
+                count, maxOccurs, fixed, item, getter.get(), setter.get());
         }
 
         private ItemModel item(AnnotatedMember collection, Direction direction) {

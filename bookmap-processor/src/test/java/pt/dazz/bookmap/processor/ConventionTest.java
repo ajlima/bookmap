@@ -95,7 +95,7 @@ class ConventionTest {
             .containsExactly("day", "amount");
         assertThat(model.members().get(1)).isEqualTo(new ModelSnapshot.Member("Order", "amount", 5,
             "INPUT", 15, 2, true, "COMP3", "yyyyMMdd", 8, "BIG_DECIMAL", "getAmount",
-            "setAmount", "", "", 0, List.of()));
+            "setAmount", "", "", 0, false, List.of()));
         assertThat(model.members().get(0).pattern()).isEqualTo("yyMMdd");
         assertThat(model.members().get(0).direction()).isEqualTo("INPUT_OUTPUT");
     }
@@ -288,6 +288,55 @@ class ConventionTest {
             line());
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(member(compiler.only(), "orders").countField()).isEqualTo("orderCount");
+    }
+
+    @Test
+    void fixedCollectionWithoutDependsOnHasNoCountField() {
+        Compilation compilation = compiler.compile(
+            source("Order", "@BookOperation public class Order {",
+                "@BookField(order = 10, length = 2) private int lineCount;",
+                accessors("int", "lineCount"),
+                "@BookCollection(order = 20, maxOccurs = 20, fixed = true) private List<Line> lines;",
+                accessors("List<Line>", "lines"),
+                "}"),
+            line());
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        ModelSnapshot model = compiler.only();
+        assertThat(member(model, "lines").fixed()).isTrue();
+        assertThat(member(model, "lines").countField()).isEmpty();
+        assertThat(member(model, "lineCount").direction()).isEqualTo("INPUT_OUTPUT");
+    }
+
+    @Test
+    void fixedCollectionWithDependsOnUsesTheCountField() {
+        Compilation compilation = compiler.compile(
+            source("Order", "@BookOperation public class Order {",
+                "@BookField(order = 10, length = 2) private int lineCount;",
+                accessors("int", "lineCount"),
+                "@BookCollection(order = 20, maxOccurs = 20, fixed = true, dependsOn = \"lineCount\")",
+                "private List<Line> lines;",
+                accessors("List<Line>", "lines"),
+                "}"),
+            line());
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        ModelSnapshot model = compiler.only();
+        assertThat(member(model, "lines").fixed()).isTrue();
+        assertThat(member(model, "lines").countField()).isEqualTo("lineCount");
+        assertThat(member(model, "lineCount").direction()).isEqualTo("OUTPUT");
+    }
+
+    @Test
+    void variableCollectionIsNotFixed() {
+        Compilation compilation = compiler.compile(
+            source("Order", "@BookOperation public class Order {",
+                "@BookField(order = 10, length = 2) private int lineCount;",
+                accessors("int", "lineCount"),
+                "@BookCollection(order = 20, maxOccurs = 20) private List<Line> lines;",
+                accessors("List<Line>", "lines"),
+                "}"),
+            line());
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(member(compiler.only(), "lines").fixed()).isFalse();
     }
 
     @Test
