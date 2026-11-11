@@ -24,6 +24,7 @@ Follow ASD-STE100 for approximately 80% of all documentation. The most important
 - Do not use phrasal verbs when a single verb is available ("remove", not "take out").
 - Keep paragraphs short: one topic in each paragraph, six sentences maximum.
 - Write warnings and cautions as a clear command, followed by the risk.
+- Do not add any Claude signature on any commit message our in any other place
 
 Technical names (class names, annotation names, COBOL terms such as `PIC`, `COMP-3`, `OCCURS DEPENDING ON`) are permitted as they are.
 
