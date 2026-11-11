@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 120" width="760" height="240" role="img" aria-label="BookMap">
+  <title>BookMap</title>
+  <path d="M75 30 C55 20 25 20 8 26 V96 C25 90 55 90 75 100 Z" fill="#e8eefc" stroke="#0f62fe" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M75 30 C95 20 125 20 142 26 V96 C125 90 95 90 75 100 Z" fill="#fff3e3" stroke="#f89820" stroke-width="2.5" stroke-linejoin="round"/>
+  <g fill="#0f62fe">
+    <rect x="18" y="40" width="22" height="6" rx="1"/><rect x="43" y="40" width="22" height="6" rx="1"/>
+    <rect x="18" y="52" width="40" height="6" rx="1"/><rect x="61" y="52" width="6" height="6" rx="1"/>
+    <rect x="18" y="64" width="14" height="6" rx="1"/><rect x="35" y="64" width="30" height="6" rx="1"/>
+    <rect x="18" y="76" width="47" height="6" rx="1"/>
+  </g>
+  <g stroke="#f89820" stroke-width="2.5" stroke-linecap="round">
+    <line x1="95" y1="45" x2="120" y2="58"/><line x1="95" y1="45" x2="96" y2="78"/><line x1="120" y1="58" x2="128" y2="82"/>
+  </g>
+  <g fill="#f89820">
+    <circle cx="95" cy="45" r="6"/><circle cx="120" cy="58" r="5"/><circle cx="96" cy="78" r="5"/><circle cx="128" cy="82" r="4"/>
+  </g>
+  <text x="165" y="76" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-weight="800" font-size="46" letter-spacing="-0.5"><tspan fill="#0f62fe">Book</tspan><tspan fill="#f89820">Map</tspan></text>
+</svg>

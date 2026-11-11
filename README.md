@@ -1,54 +1,44 @@
-# bookmap
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bookmap-logo-dark.svg">
+    <img src="docs/assets/bookmap-logo-light.svg" alt="BookMap" width="380">
+  </picture>
+</p>
 
-bookmap maps COBOL books (COMMAREA layouts) to Java classes. You add annotations to a class.
+<p align="center">
+  <strong>Map COBOL books to Java objects. No reflection. No middleware lock-in.</strong>
+</p>
+
+<p align="center">
+  <img alt="Java 21" src="https://img.shields.io/badge/Java-21-0f62fe">
+  <img alt="Gradle 9" src="https://img.shields.io/badge/Gradle-9.9-02303A">
+  <img alt="Coverage 100%" src="https://img.shields.io/badge/coverage-100%25-brightgreen">
+  <img alt="Version 0.1.0-SNAPSHOT" src="https://img.shields.io/badge/version-0.1.0--SNAPSHOT-f89820">
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#reference">Reference</a> ·
+  <a href="#transports-and-the-simulator">Transports</a> ·
+  <a href="#spring-boot">Spring Boot</a>
+</p>
+
+---
+
+BookMap maps COBOL books (COMMAREA layouts) to Java classes. You add annotations to a class.
 A compile-time annotation processor generates the codec. The runtime does not use reflection.
 
-The framework needs Java 21. The core and processor modules have no dependency on Spring or on any middleware library.
+BookMap needs Java 21. The core and processor modules have no dependency on Spring or on any middleware library.
 
-## Modules
+## Why BookMap
 
-| Module | Purpose |
-|---|---|
-| `bookmap-core` | Annotations, `BookmapClient`, the transport SPI, exceptions, and the codec runtime. |
-| `bookmap-processor` | The annotation processor. It generates one codec for each `@BookOperation` class. |
-| `bookmap-transport-simulator` | A transport for tests. It runs handlers in the same JVM. |
-| `bookmap-spring-boot` | Spring Boot 4.0.x auto-configuration for `BookmapClient`. |
-| `bookmap-examples` | Working examples. This README uses them. |
-
-## Gradle setup
-
-Add the core library and the processor.
-
-```kotlin
-dependencies {
-    implementation("pt.daaz.bookmap:bookmap-core:0.1.0-SNAPSHOT")
-    annotationProcessor("pt.daaz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
-}
-```
-
-The group is `pt.daaz.bookmap` and the version is `0.1.0-SNAPSHOT`. The project is not published yet.
-Inside this build, use `project(":bookmap-core")` and `project(":bookmap-processor")`.
-
-If you use Lombok, list Lombok before bookmap in `annotationProcessor`. This is the recommended order.
-The other order also works. The processor tests run both orders.
-The `bookmap-examples` build lists bookmap first on purpose, because that order is more difficult for the processor.
-
-```kotlin
-dependencies {
-    compileOnly("org.projectlombok:lombok:<version>")
-    annotationProcessor("org.projectlombok:lombok:<version>")
-    annotationProcessor("pt.daaz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
-}
-```
-
-## Charsets
-
-Only single-byte charsets are permitted. The default charset is `IBM037` (EBCDIC).
-Set the charset on the client: `BookmapClient.builder().charset(...)`.
-Set a charset for one book with `@BookDefaults(charset = "...")`.
-
-For a GraalVM native image, `bookmap-core` contains a `native-image.properties` file.
-It sets `-H:+AddAllCharsets`. This configuration is included, but it is not tested yet.
+- **No reflection.** The processor generates the codec at compile time. The runtime does not use reflection on your classes.
+- **Errors at compile time.** An incorrect layout, `pic`, or type combination stops the build, not production.
+- **Few annotations.** Conventions and `pic` strings keep each field to one line, close to the copybook.
+- **Automatic pagination.** The client calls the program again until `hasContinuation()` returns `false`, and returns the full list.
+- **No middleware lock-in.** A transport is one interface. The simulator lets you test without a mainframe.
+- **No silent data loss.** A value that does not fit causes an exception. The codec never truncates or rounds.
 
 ## Quick start
 
@@ -116,15 +106,62 @@ GetCustomerOrders result = client.execute(request);   // the same object, filled
 
 `BookmapClient` is immutable and thread-safe. The request object is not thread-safe. It belongs to the caller.
 
-## Annotations
+## Installation
 
-### @BookOperation (class)
+Add the core library and the processor.
+
+```kotlin
+dependencies {
+    implementation("pt.daaz.bookmap:bookmap-core:0.1.0-SNAPSHOT")
+    annotationProcessor("pt.daaz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
+}
+```
+
+The group is `pt.daaz.bookmap` and the version is `0.1.0-SNAPSHOT`. The project is not published yet.
+Inside this build, use `project(":bookmap-core")` and `project(":bookmap-processor")`.
+
+If you use Lombok, list Lombok before BookMap in `annotationProcessor`. This is the recommended order.
+The other order also works. The processor tests run both orders.
+The `bookmap-examples` build lists BookMap first on purpose, because that order is more difficult for the processor.
+
+```kotlin
+dependencies {
+    compileOnly("org.projectlombok:lombok:<version>")
+    annotationProcessor("org.projectlombok:lombok:<version>")
+    annotationProcessor("pt.daaz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
+}
+```
+
+### Charsets and native image
+
+Only single-byte charsets are permitted. The default charset is `IBM037` (EBCDIC).
+Set the charset on the client: `BookmapClient.builder().charset(...)`.
+Set a charset for one book with `@BookDefaults(charset = "...")`.
+
+For a GraalVM native image, `bookmap-core` contains a `native-image.properties` file.
+It sets `-H:+AddAllCharsets`. This configuration is included, but it is not tested yet.
+
+## Modules
+
+| Module | Purpose |
+|---|---|
+| `bookmap-core` | Annotations, `BookmapClient`, the transport SPI, exceptions, and the codec runtime. |
+| `bookmap-processor` | The annotation processor. It generates one codec for each `@BookOperation` class. |
+| `bookmap-transport-simulator` | A transport for tests. It runs handlers in the same JVM. |
+| `bookmap-spring-boot` | Spring Boot 4.0.x auto-configuration for `BookmapClient`. |
+| `bookmap-examples` | Working examples. This README uses them. |
+
+## Reference
+
+### Annotations
+
+#### @BookOperation (class)
 
 | Attribute | Meaning | Default |
 |---|---|---|
 | `value` | The logical operation name. | The simple class name. |
 
-### @BookField (field)
+#### @BookField (field)
 
 | Attribute | Meaning | Default |
 |---|---|---|
@@ -143,7 +180,7 @@ If you set `pic`, do not set `length`, `scale`, `signed`, or `usage` on the same
 Do not set `signed` or `scale` on a `String` or a date and time field. This is a compile error.
 An operation class and an item class need at least one annotated field.
 
-### @BookCollection (field of type `List<Item>`)
+#### @BookCollection (field of type `List<Item>`)
 
 | Attribute | Meaning | Default |
 |---|---|---|
@@ -156,17 +193,17 @@ The item class has `@BookField` fields without `direction`. They use the directi
 The item class needs a public constructor without arguments.
 The digits of the count field must hold `maxOccurs`. For example, `9(1)` with `maxOccurs = 50` is a compile error.
 
-### Lombok
+#### Lombok
 
 The processor finds the Lombok annotations by name. It does not depend on Lombok.
 
 - `@Data`, `@Getter`, and `@Setter` give the accessors. `AccessLevel.PRIVATE` and `AccessLevel.NONE` give no accessor.
 - `AccessLevel.PACKAGE`, `AccessLevel.MODULE`, and `AccessLevel.PROTECTED` give an accessor only in the package of the operation class. The codec is in that package. For a superclass or an item class in another package, use public accessors.
 - `@AllArgsConstructor`, `@RequiredArgsConstructor`, and `@Builder` remove the default constructor. Add `@NoArgsConstructor` or a public constructor without arguments to the class.
-- `@Data` on a class with a `final` or `@NonNull` field without a value also removes the default constructor. Add `@NoArgsConstructor` to such a class (`@NoArgsConstructor(force = true)` for a `final` field). If bookmap runs before Lombok, the processor cannot detect this case, and javac reports the error in the generated codec.
+- `@Data` on a class with a `final` or `@NonNull` field without a value also removes the default constructor. Add `@NoArgsConstructor` to such a class (`@NoArgsConstructor(force = true)` for a `final` field). If BookMap runs before Lombok, the processor cannot detect this case, and javac reports the error in the generated codec.
 - `@NoArgsConstructor` must be public and must not have a `staticName`.
 
-### @BookDefaults (class or package)
+#### @BookDefaults (class or package)
 
 Use `package-info.java` to set defaults for a package. The billing example does this.
 
@@ -191,7 +228,7 @@ The priority is, from high to low:
 
 The `usage` and `signed` defaults apply only to numeric Java types. Text and date fields ignore them.
 
-## Conventions
+### Conventions
 
 The framework uses few attributes. Six conventions reduce the work:
 
@@ -204,7 +241,7 @@ The framework uses few attributes. Six conventions reduce the work:
 
 These attributes stay mandatory: `order`, `maxOccurs`, and the size of text and numeric fields.
 
-### Convention style and explicit style
+#### Convention style and explicit style
 
 The convention style is the first choice. `GetCustomerOrders` uses it.
 The explicit style sets `length`, `scale`, `signed`, `usage`, and `dependsOn` one by one.
@@ -255,7 +292,7 @@ public class Invoice {
 }
 ```
 
-## PIC syntax
+### PIC syntax
 
 The processor parses `pic` at compile time. An incorrect or unsupported `pic` is a compile error.
 
@@ -279,7 +316,7 @@ The byte size comes from the usage and the length:
 - `COMP3`: `length / 2 + 1` bytes.
 - `COMP`: 2 bytes for 1 to 4 digits, 4 bytes for 5 to 9 digits, 8 bytes for 10 to 18 digits.
 
-## Type mapping
+### Type mapping
 
 | Java type | COBOL definition |
 |---|---|
@@ -310,7 +347,7 @@ Conversion rules:
 Packed dates (for example `S9(7) COMP-3` in the format `0CYYDDD`) have no built-in support. Write a `FieldConverter` for them.
 The converter class must be public and have a constructor without arguments. All threads share one instance, so it must be thread-safe.
 
-## Collections and pagination
+### Collections and pagination
 
 Fields after a collection are permitted. The codec calculates the offsets at runtime.
 
@@ -342,6 +379,29 @@ The cycle for each call:
 
 In `GetCustomerOrders`, `hasContinuation()` returns true when `moreData` is `"Y"`. The remote program sets the restart key in the same response.
 The client does not reset other fields. Set the restart key to its start value before you reuse an object.
+
+### Error handling
+
+All exceptions are unchecked.
+
+```
+BookmapException
+├── MappingException              (layout, conversion, missing codec)
+├── ContinuationLimitException
+├── BusinessException             (base class for your exceptions in validate())
+└── TransportException
+    ├── RemoteAbendException      (the remote program stopped abnormally)
+    ├── TransportTimeoutException
+    ├── ConnectionException
+    └── OperationNotFoundException
+```
+
+Extend `BusinessException` for errors that the remote program reports in the response.
+The example `OrderQueryException` does this. `GetCustomerOrders.validate()` throws it when the return code is not `"0000"`.
+
+If the client finds no codec for a class, it throws `MappingException`. Check the annotation processor configuration.
+The client uses the exact class of the object. A subclass without its own `@BookOperation` has no codec.
+If a response is shorter than the layout, the codec throws `MappingException`. The codec ignores extra bytes at the end.
 
 ## Transports and the simulator
 
@@ -387,7 +447,7 @@ when a `Transport` bean exists.
 | `bookmap.charset` | `IBM037` | The charset of the client. |
 | `bookmap.max-calls` | `1000` | The maximum number of calls for one execution. |
 
-A transport auto-configuration must run before the bookmap auto-configuration.
+A transport auto-configuration must run before the BookMap auto-configuration.
 Declare it in this way:
 
 ```java
@@ -395,29 +455,6 @@ Declare it in this way:
 ```
 
 Then the `Transport` bean exists when the client condition runs. The core module has no Spring dependency.
-
-## Error handling
-
-All exceptions are unchecked.
-
-```
-BookmapException
-├── MappingException              (layout, conversion, missing codec)
-├── ContinuationLimitException
-├── BusinessException             (base class for your exceptions in validate())
-└── TransportException
-    ├── RemoteAbendException      (the remote program stopped abnormally)
-    ├── TransportTimeoutException
-    ├── ConnectionException
-    └── OperationNotFoundException
-```
-
-Extend `BusinessException` for errors that the remote program reports in the response.
-The example `OrderQueryException` does this. `GetCustomerOrders.validate()` throws it when the return code is not `"0000"`.
-
-If the client finds no codec for a class, it throws `MappingException`. Check the annotation processor configuration.
-The client uses the exact class of the object. A subclass without its own `@BookOperation` has no codec.
-If a response is shorter than the layout, the codec throws `MappingException`. The codec ignores extra bytes at the end.
 
 ## Known limitations
 
@@ -427,3 +464,9 @@ If a response is shorter than the layout, the codec throws `MappingException`. T
 - Single-byte charsets only.
 - Packed dates need a converter.
 - Edited pictures (`Z`, `*`, `,`, `+`, `-`, `CR`, `DB`) are rejected at compile time.
+
+## Project status
+
+BookMap is at version `0.1.0-SNAPSHOT`. It is not published to a Maven repository yet.
+The build enforces 100% line and branch coverage for the core, processor, simulator, and Spring Boot modules.
+Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transport SPI accepts them without a change to the core.

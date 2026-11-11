@@ -15,3 +15,6 @@ bin/
 
 # macOS
 .DS_Store
+
+# Superpowers scratch (brainstorm mockups, SDD workspaces)
+.superpowers/
