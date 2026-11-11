@@ -8,7 +8,6 @@ spring-boot = "4.1.2"
 jacoco = "0.8.13"
 maven-publish = "0.37.0"
 jackson = "2.19.2"
-picocli = "4.7.7"
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -19,7 +18,6 @@ javapoet = { module = "com.palantir.javapoet:javapoet", version.ref = "javapoet"
 compile-testing = { module = "com.google.testing.compile:compile-testing", version.ref = "compile-testing" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
-picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 
 [plugins]

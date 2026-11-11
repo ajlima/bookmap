@@ -11,6 +11,13 @@ public final class Diagnostics {
     private final List<Diagnostic> all = new ArrayList<>();
 
     /**
+     * Creates an empty collection.
+     */
+    public Diagnostics() {
+        // No diagnostics at the start.
+    }
+
+    /**
      * Adds an error.
      *
      * @param source the source name

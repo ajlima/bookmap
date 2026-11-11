@@ -16,6 +16,7 @@ val publishedModules = mapOf(
     "bookmap-transport-simulator" to "BookMap in-memory transport for tests.",
     "bookmap-spring-boot" to "BookMap Spring Boot auto-configuration.",
     "bookmap-copybook" to "BookMap copybook generator: parses COBOL copybooks and generates BookMap classes.",
+    "bookmap-copybook-cli" to "BookMap copybook generator command-line program.",
 )
 
 allprojects {

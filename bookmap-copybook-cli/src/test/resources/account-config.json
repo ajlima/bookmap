@@ -1,0 +1,10 @@
+{
+  "subTypes": {
+    "CHECKING-DATA": {
+      "discriminator": "ACCOUNT-TYPE",
+      "values": { "CHECKING-DATA": "01", "SAVINGS-DATA": "02" },
+      "classNames": { "SAVINGS-DATA": "SavingsAccount" }
+    }
+  },
+  "package": "com.example.accounts"
+}
