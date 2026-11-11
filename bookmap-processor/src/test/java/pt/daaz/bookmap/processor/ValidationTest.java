@@ -1387,6 +1387,20 @@ class ValidationTest {
     }
 
     @Test
+    void operationClassCharsetOverridesThePackageForItsPackage() {
+        Compilation compilation = compile(
+            TestCompiler.packageInfo("test", "@BookDefaults(charset = \"IBM500\")"),
+            source("Order", "@BookDefaults(charset = \"IBM037\") @BookOperation",
+                "public class Order {",
+                field("@BookField(order = 1, length = 3)", "int", "count"),
+                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+                "}"),
+            line());
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().charsetName()).isEqualTo("IBM037");
+    }
+
+    @Test
     void unresolvedDefaultsValueIsLeftToJavac() {
         Compilation compilation = compile(source("Order",
             "@BookDefaults(charset = MISSING) @BookOperation public class Order {",

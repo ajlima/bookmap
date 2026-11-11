@@ -58,6 +58,17 @@ public final class DefaultsResolver {
     }
 
     /**
+     * Gives the charset of {@code @BookDefaults} on the class only, without its package.
+     *
+     * @param type the class
+     * @return the explicit charset of the class, or empty
+     */
+    Optional<String> classCharset(TypeElement type) {
+        return Optional.ofNullable(explicit(type).get("charset"))
+            .filter(String.class::isInstance).map(String.class::cast);
+    }
+
+    /**
      * Tells what is wrong with a charset name. The codec needs a single-byte charset that can
      * encode text.
      *

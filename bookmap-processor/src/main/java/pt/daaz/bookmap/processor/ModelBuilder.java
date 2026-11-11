@@ -14,6 +14,7 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -112,8 +113,7 @@ public final class ModelBuilder {
     }
 
     private void report(Problems.Problem problem) {
-        messager.printMessage(Diagnostic.Kind.ERROR, problem.message(), problem.element(),
-            problem.annotation());
+        messager.printMessage(Diagnostic.Kind.ERROR, problem.message(), problem.element());
     }
 
     /** The state of one call of {@link #build}. */
@@ -216,7 +216,9 @@ public final class ModelBuilder {
 
         /**
          * Gives the charset of the operation: the {@code @BookDefaults} charset of the class or
-         * its package. Each other declaring class must not set a different charset.
+         * its package. Each other declaring class must not set a different charset. For a class
+         * in the package of the operation class, only its own {@code @BookDefaults} counts: the
+         * operation class can override the package charset.
          */
         private String charset() {
             for (TypeElement declaring : declaringClasses) {
@@ -227,9 +229,12 @@ public final class ModelBuilder {
                 DefaultsResolver.charsetProblem(name).ifPresent(this::classError);
             }
             String operationCharset = name.isEmpty() ? "(none)" : "'" + name + "'";
+            PackageElement operationPackage = elements.getPackageOf(type);
             for (TypeElement declaring : declaringClasses) {
-                defaultsResolver.forDeclaringClass(declaring).charset()
-                    .filter(other -> !other.equals(name))
+                Optional<String> charset = elements.getPackageOf(declaring).equals(operationPackage)
+                    ? defaultsResolver.classCharset(declaring)
+                    : defaultsResolver.forDeclaringClass(declaring).charset();
+                charset.filter(other -> !other.equals(name))
                     .ifPresent(other -> classError("charset '" + other + "' of "
                         + declaring.getQualifiedName()
                         + " is different from the operation charset " + operationCharset));

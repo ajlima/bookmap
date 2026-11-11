@@ -2,7 +2,6 @@ package pt.daaz.bookmap.processor;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 
@@ -16,10 +15,9 @@ final class Problems {
      * Gives one problem.
      *
      * @param element the element that gets the message
-     * @param annotation the annotation on the element that gets the message, or null
      * @param message the full message
      */
-    record Problem(Element element, AnnotationMirror annotation, String message) {
+    record Problem(Element element, String message) {
     }
 
     final List<Problem> errors = new ArrayList<>();
@@ -33,7 +31,7 @@ final class Problems {
      * @param message the problem
      */
     void error(AnnotatedMember member, String message) {
-        errors.add(new Problem(member.field(), null, member.descriptor() + ": " + message));
+        errors.add(new Problem(member.field(), member.descriptor() + ": " + message));
     }
 
     /**
@@ -43,7 +41,7 @@ final class Problems {
      * @param message the problem
      */
     void classError(TypeElement type, String message) {
-        errors.add(new Problem(type, null, type.getSimpleName() + ": " + message));
+        errors.add(new Problem(type, type.getSimpleName() + ": " + message));
     }
 
     /**
@@ -53,8 +51,7 @@ final class Problems {
      * @param message the problem
      */
     void accessorError(AnnotatedMember member, String message) {
-        accessorErrors.add(new Problem(member.field(), null,
-            member.descriptor() + ": " + message));
+        accessorErrors.add(new Problem(member.field(), member.descriptor() + ": " + message));
     }
 
     /**
