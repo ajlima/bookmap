@@ -97,6 +97,7 @@ public final class ModelMapper {
     record Placed(ClassBuilder owner, FieldMember field, DataItem item, Usage usage) {
     }
 
+    final String sourceName;
     final MappingOptions options;
     final Names names;
     final ItemIndex index;
@@ -107,6 +108,7 @@ public final class ModelMapper {
     private final RedefinesResolver redefines;
 
     private ModelMapper(Copybook copybook, MappingOptions options) {
+        this.sourceName = copybook.sourceName();
         this.options = options;
         this.names = new Names(options.stripPrefixes());
         this.index = new ItemIndex(copybook);
@@ -131,6 +133,7 @@ public final class ModelMapper {
             mapper.walk(record.children(), operation,
                 new Context(usage, Direction.INPUT_OUTPUT, null, List.of()));
         }
+        mapper.redefines.checkSubTypeAreas();
         BookModel model = new BookModel(BookModel.FORMAT_VERSION, copybook.sourceName(),
             mapper.classes.stream().map(ClassBuilder::build).toList());
         return new MapResult(mapper.diagnostics.hasErrors() ? null : model,
@@ -229,7 +232,7 @@ public final class ModelMapper {
         }
         String dependsOn = null;
         if (item.occurs().dependingOn() != null) {
-            dependsOn = countField(item, owner);
+            dependsOn = countField(item, owner, context.direction());
             if (dependsOn == null) {
                 return;
             }
@@ -258,7 +261,7 @@ public final class ModelMapper {
     }
 
     /** Resolves the {@code DEPENDING ON} item. Gives its field name, or {@code null}. */
-    private String countField(DataItem table, ClassBuilder owner) {
+    private String countField(DataItem table, ClassBuilder owner, Direction direction) {
         String target = table.occurs().dependingOn().toString();
         return switch (index.find(table.occurs().dependingOn())) {
             case ItemIndex.NotFound notFound -> {
@@ -275,6 +278,11 @@ public final class ModelMapper {
                 if (count == null || count.owner() != owner) {
                     error(table, "DEPENDING ON item " + target
                         + " must be in the same class, before the table");
+                    yield null;
+                }
+                if (count.field().direction() != direction) {
+                    error(table, "count field " + target + " is outside the REDEFINES area of"
+                        + " collection " + table.name());
                     yield null;
                 }
                 if (count.field().javaType() != JavaType.INT
