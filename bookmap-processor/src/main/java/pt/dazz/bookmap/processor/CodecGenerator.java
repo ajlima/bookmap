@@ -11,17 +11,20 @@ import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
 import com.palantir.javapoet.TypeVariableName;
+import com.palantir.javapoet.WildcardTypeName;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
@@ -31,6 +34,7 @@ import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
 import pt.dazz.bookmap.processor.model.ItemModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 import pt.dazz.bookmap.processor.model.OperationModel;
+import pt.dazz.bookmap.processor.model.SubTypesModel;
 
 /**
  * Generates the {@code BookCodec} implementation of one operation class.
@@ -101,10 +105,46 @@ final class CodecGenerator {
     private final Map<String, ItemMethods> items = new HashMap<>();
     private final List<MethodSpec> itemMethods = new ArrayList<>();
     private final Set<Helper> helpers = EnumSet.noneOf(Helper.class);
+    /** The layouts of the codec: one without subtypes, else one for each class. */
+    private final List<Layout> layouts;
+
+    /**
+     * One layout of the codec.
+     *
+     * @param type the class of the layout
+     * @param value the normalized discriminator value, or null for a base class that is not
+     *     in the list
+     * @param members the members, sorted by order
+     */
+    private record Layout(TypeElement type, String value, List<MemberModel> members) {
+    }
+
+    /**
+     * Gives the layouts. Without subtypes, the one layout is the operation class. With
+     * subtypes, a base class that is not abstract and not in the list comes first, then the
+     * listed classes in the order of the annotation.
+     */
+    private static List<Layout> layouts(OperationModel model) {
+        SubTypesModel subTypes = model.subTypes();
+        List<Layout> result = new ArrayList<>();
+        if (subTypes == null) {
+            result.add(new Layout(model.type(), null, model.members()));
+            return result;
+        }
+        boolean baseListed = subTypes.variants().stream()
+            .anyMatch(variant -> variant.type().equals(model.type()));
+        if (!subTypes.baseAbstract() && !baseListed) {
+            result.add(new Layout(model.type(), null, model.members()));
+        }
+        subTypes.variants().forEach(variant ->
+            result.add(new Layout(variant.type(), variant.value(), variant.members())));
+        return result;
+    }
 
     private CodecGenerator(OperationModel model) {
         this.model = model;
         this.type = ClassName.get(model.type());
+        this.layouts = layouts(model);
         // The local variables of the generated methods.
         List.of("value", "target", "data", "ctx", "writer", "reader", "item", "i")
             .forEach(allocator::newName);
@@ -141,10 +181,15 @@ final class CodecGenerator {
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addOriginatingElement(model.type())
             .addSuperinterface(ParameterizedTypeName.get(BOOK_CODEC, type));
-        for (MemberModel member : model.members()) {
-            switch (member) {
-                case FieldModel field -> addFieldMembers(builder, field);
-                case CollectionModel collection -> addCollectionMembers(builder, collection);
+        Set<MemberModel> added = new HashSet<>();
+        for (Layout layout : layouts) {
+            for (MemberModel member : layout.members()) {
+                if (added.add(member)) {
+                    switch (member) {
+                        case FieldModel field -> addFieldMembers(builder, field);
+                        case CollectionModel collection -> addCollectionMembers(builder, collection);
+                    }
+                }
             }
         }
         builder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC)
@@ -158,9 +203,11 @@ final class CodecGenerator {
         builder.addMethod(override("charsetName").returns(String.class)
             .addStatement("return $S", model.charsetName()).build());
         builder.addMethod(override("maxResponseLength").returns(int.class)
-            .addStatement("return $L", model.members().stream()
-                .filter(member -> member.direction().isOutput())
-                .mapToInt(CodecGenerator::maxByteLength).sum()).build());
+            .addStatement("return $L", layouts.stream()
+                .mapToInt(layout -> layout.members().stream()
+                    .filter(member -> member.direction().isOutput())
+                    .mapToInt(CodecGenerator::maxByteLength).sum())
+                .max().orElseThrow()).build());
         MethodSpec.Builder newInstance = override("newInstance").returns(type);
         if (model.type().getModifiers().contains(Modifier.ABSTRACT)) {
             newInstance.addStatement("throw new $T($S)", MAPPING_EXCEPTION,
@@ -169,18 +216,26 @@ final class CodecGenerator {
             newInstance.addStatement("return new $T()", type);
         }
         builder.addMethod(newInstance.build());
-        builder.addMethod(encode("encodeRequest", Direction::isInput));
-        builder.addMethod(override("decodeResponse")
-            .addParameter(BYTES, "data").addParameter(type, "target")
-            .addParameter(CODEC_CONTEXT, "ctx")
-            .addCode(decode(Direction::isOutput, true)).build());
-        builder.addMethod(override("decodeRequest").returns(type)
-            .addParameter(BYTES, "data").addParameter(CODEC_CONTEXT, "ctx")
-            .addStatement("$T target = newInstance()", type)
-            .addCode(decode(Direction::isInput, false))
-            .addStatement("return target").build());
-        builder.addMethod(encode("encodeResponse", Direction::isOutput));
-        builder.addMethod(resetOutputCollections());
+        if (model.subTypes() == null) {
+            List<MemberModel> members = model.members();
+            builder.addMethod(encode(override("encodeRequest"), type, members,
+                Direction::isInput));
+            builder.addMethod(override("decodeResponse")
+                .addParameter(BYTES, "data").addParameter(type, "target")
+                .addParameter(CODEC_CONTEXT, "ctx")
+                .addCode(decode(members, Direction::isOutput, true)).build());
+            builder.addMethod(override("decodeRequest").returns(type)
+                .addParameter(BYTES, "data").addParameter(CODEC_CONTEXT, "ctx")
+                .addStatement("$T target = newInstance()", type)
+                .addCode(decode(members, Direction::isInput, false))
+                .addStatement("return target").build());
+            builder.addMethod(encode(override("encodeResponse"), type, members,
+                Direction::isOutput));
+            builder.addMethod(resetOutputCollections(override("resetOutputCollections"), type,
+                members));
+        } else {
+            new SubTypesGenerator().addMethods(builder);
+        }
         builder.addMethods(itemMethods);
         helpers.forEach(helper -> builder.addMethod(helper(helper)));
         return JavaFile.builder(codec.packageName(), builder.build()).build();
@@ -290,11 +345,11 @@ final class CodecGenerator {
      * Makes an encode method. First, the method sets the count field of each collection to the
      * list size. Then it writes the members in order.
      */
-    private MethodSpec encode(String name, Predicate<Direction> direction) {
-        List<MemberModel> members = model.members().stream()
+    private MethodSpec encode(MethodSpec.Builder method, TypeName valueType,
+                              List<MemberModel> layout, Predicate<Direction> direction) {
+        List<MemberModel> members = layout.stream()
             .filter(member -> direction.test(member.direction())).toList();
-        MethodSpec.Builder method = override(name).returns(BYTES)
-            .addParameter(type, "value").addParameter(CODEC_CONTEXT, "ctx");
+        method.returns(BYTES).addParameter(valueType, "value").addParameter(CODEC_CONTEXT, "ctx");
         for (MemberModel member : members) {
             if (member instanceof CollectionModel collection) {
                 method.addCode(setCount(collection));
@@ -350,10 +405,11 @@ final class CodecGenerator {
      * @param response {@code true} for {@code decodeResponse}, which adds the items of an
      *     {@code OUTPUT} collection to a new list with the existing items
      */
-    private CodeBlock decode(Predicate<Direction> direction, boolean response) {
+    private CodeBlock decode(List<MemberModel> layout, Predicate<Direction> direction,
+                             boolean response) {
         CodeBlock.Builder code = CodeBlock.builder()
             .addStatement("$T reader = new $T(data, ctx)", BOOK_READER, BOOK_READER);
-        for (MemberModel member : model.members()) {
+        for (MemberModel member : layout) {
             if (direction.test(member.direction())) {
                 switch (member) {
                     case FieldModel field ->
@@ -392,10 +448,10 @@ final class CodecGenerator {
         return items.get(collection.item().type().getQualifiedName().toString());
     }
 
-    private MethodSpec resetOutputCollections() {
-        MethodSpec.Builder method = override("resetOutputCollections")
-            .addParameter(type, "value");
-        for (MemberModel member : model.members()) {
+    private MethodSpec resetOutputCollections(MethodSpec.Builder method, TypeName valueType,
+                                              List<MemberModel> layout) {
+        method.addParameter(valueType, "value");
+        for (MemberModel member : layout) {
             if (member instanceof CollectionModel collection
                 && collection.direction() == Direction.OUTPUT) {
                 method.addStatement("value.$N(new $T<>())", collection.setter(), ArrayList.class);
@@ -542,5 +598,322 @@ final class CodecGenerator {
             .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(DECIMAL)
             .addParameter(parameter, "value")
             .addStatement("return value == null ? null : $T.valueOf(value)", DECIMAL).build();
+    }
+
+    /**
+     * Generates the methods of a codec with subtypes. Each layout gets private methods. The
+     * public methods select the layout by the exact class of the object or by the value of the
+     * discriminator.
+     */
+    private final class SubTypesGenerator {
+
+        private final SubTypesModel subTypes = model.subTypes();
+        private final FieldModel discriminator = subTypes.discriminator();
+        private final boolean numeric = discriminator.kind() != JavaKind.STRING;
+        private final TypeName keyType = numeric ? DECIMAL : ClassName.get(String.class);
+        private final TypeName subtypeClass = ParameterizedTypeName.get(
+            ClassName.get(Class.class), WildcardTypeName.subtypeOf(type));
+        private final String prefix = type.simpleName() + ": ";
+        private final Map<Layout, LayoutMethods> methods = new HashMap<>();
+        private final String typeOf = allocator.newName("typeOf");
+        private final String unknownValue = allocator.newName("unknownValue");
+        private final String unknownSubclass = allocator.newName("unknownSubclass");
+        private final String selectResponse = allocator.newName("selectResponse");
+        private final String decodeInto = allocator.newName("decodeInto");
+        private final String newSubtype = allocator.newName("newSubtype");
+
+        /** The names of the private methods of one layout. */
+        private record LayoutMethods(String encodeRequest, String encodeResponse,
+                                     String decodeResponse, String decodeRequest, String reset) {
+        }
+
+        void addMethods(TypeSpec.Builder builder) {
+            for (Layout layout : layouts) {
+                String suffix = String.join("_", ClassName.get(layout.type()).simpleNames());
+                LayoutMethods names = new LayoutMethods(
+                    allocator.newName("encodeRequest_" + suffix),
+                    allocator.newName("encodeResponse_" + suffix),
+                    allocator.newName("decodeResponse_" + suffix),
+                    allocator.newName("decodeRequest_" + suffix),
+                    allocator.newName("resetOutputCollections_" + suffix));
+                methods.put(layout, names);
+                TypeName layoutType = ClassName.get(layout.type());
+                builder.addMethod(encode(privateMethod(names.encodeRequest()), layoutType,
+                    layout.members(), Direction::isInput));
+                builder.addMethod(encode(privateMethod(names.encodeResponse()), layoutType,
+                    layout.members(), Direction::isOutput));
+                builder.addMethod(privateMethod(names.decodeResponse())
+                    .addParameter(BYTES, "data").addParameter(layoutType, "target")
+                    .addParameter(CODEC_CONTEXT, "ctx")
+                    .addCode(decode(layout.members(), Direction::isOutput, true)).build());
+                builder.addMethod(privateMethod(names.decodeRequest()).returns(layoutType)
+                    .addParameter(BYTES, "data").addParameter(CODEC_CONTEXT, "ctx")
+                    .addStatement("$T target = new $T()", layoutType, layoutType)
+                    .addCode(decode(layout.members(), Direction::isInput, false))
+                    .addStatement("return target").build());
+                builder.addMethod(resetOutputCollections(privateMethod(names.reset()),
+                    layoutType, layout.members()));
+            }
+            builder.addMethod(types());
+            builder.addMethod(encodeDispatch("encodeRequest", Direction::isInput, true));
+            builder.addMethod(encodeDispatch("encodeResponse", Direction::isOutput, false));
+            builder.addMethod(readResponse());
+            builder.addMethod(decodeResponse());
+            builder.addMethod(decodeRequest());
+            builder.addMethod(resetDispatch());
+            builder.addMethod(selectResponse());
+            builder.addMethod(decodeInto());
+            builder.addMethod(newSubtype());
+            builder.addMethod(typeOf());
+            builder.addMethod(unknownValue());
+            builder.addMethod(unknownSubclass());
+        }
+
+        private MethodSpec.Builder privateMethod(String name) {
+            return MethodSpec.methodBuilder(name).addModifiers(Modifier.PRIVATE);
+        }
+
+        private TypeName typeOf(Layout layout) {
+            return ClassName.get(layout.type());
+        }
+
+        private boolean isBase(Layout layout) {
+            return layout.type().equals(model.type());
+        }
+
+        /** Gives a variable, with a cast to the layout class if it is not the base class. */
+        private CodeBlock cast(Layout layout, String variable) {
+            return isBase(layout) ? CodeBlock.of("$N", variable)
+                : CodeBlock.of("($T) $N", typeOf(layout), variable);
+        }
+
+        private MethodSpec types() {
+            return override("types")
+                .returns(ParameterizedTypeName.get(ClassName.get(List.class), subtypeClass))
+                .addStatement("return $T.of($L)", List.class, CodeBlock.join(layouts.stream()
+                    .map(layout -> CodeBlock.of("$T.class", typeOf(layout))).toList(), ", "))
+                .build();
+        }
+
+        /**
+         * Makes a public encode method. It selects the layout by the exact class. For a listed
+         * class, it first sets the discriminator, if the discriminator is in the direction.
+         */
+        private MethodSpec encodeDispatch(String name, Predicate<Direction> direction,
+                                          boolean request) {
+            MethodSpec.Builder method = override(name).returns(BYTES)
+                .addParameter(type, "value").addParameter(CODEC_CONTEXT, "ctx");
+            for (Layout layout : layouts) {
+                LayoutMethods names = methods.get(layout);
+                method.beginControlFlow("if (value.getClass() == $T.class)", typeOf(layout));
+                if (layout.value() != null && direction.test(discriminator.direction())) {
+                    method.addStatement("$L.$N($L)", isBase(layout) ? CodeBlock.of("value")
+                            : CodeBlock.of("(($T) value)", typeOf(layout)),
+                        discriminator.setter(), literal(layout.value()));
+                }
+                method.addStatement("return $N($L, ctx)",
+                    request ? names.encodeRequest() : names.encodeResponse(),
+                    cast(layout, "value"))
+                    .endControlFlow();
+            }
+            return method.addStatement("throw $N(value)", unknownSubclass).build();
+        }
+
+        private CodeBlock literal(String value) {
+            return switch (discriminator.kind()) {
+                case STRING -> CodeBlock.of("$S", value);
+                case LONG, LONG_BOXED -> CodeBlock.of("$LL", value);
+                default -> CodeBlock.of("$L", value);
+            };
+        }
+
+        /** Reads the discriminator at its fixed offset in one direction. */
+        private CodeBlock readKey(Predicate<Direction> direction) {
+            int offset = model.members().stream()
+                .filter(member -> member.order() < discriminator.order())
+                .filter(member -> direction.test(member.direction()))
+                .mapToInt(CodecGenerator::maxByteLength).sum();
+            String descriptor = names.get(discriminator).descriptor();
+            CodeBlock reader = CodeBlock.of("new $T(data, ctx).peek($L)", BOOK_READER, offset);
+            return numeric
+                ? CodeBlock.of("$L.readNumber($N, $L)", reader, descriptor,
+                    numberAttributes(discriminator))
+                : CodeBlock.of("$L.readText($N, $L)", reader, descriptor,
+                    discriminator.length());
+        }
+
+        private MethodSpec readResponse() {
+            MethodSpec.Builder method = override("readResponse").returns(type)
+                .addParameter(BYTES, "data").addParameter(type, "target")
+                .addParameter(CODEC_CONTEXT, "ctx")
+                .addStatement("$T selected = $N(data, ctx)", subtypeClass, selectResponse)
+                .beginControlFlow("if (selected == target.getClass())")
+                .addStatement("$N(data, target, ctx)", decodeInto)
+                .addStatement("return target")
+                .endControlFlow();
+            if (!subTypes.baseAbstract()) {
+                method.beginControlFlow("if (target.getClass() == $T.class)", type)
+                    .addStatement("$T copy = $N(selected)", type, newSubtype);
+                for (MemberModel member : model.members()) {
+                    method.addStatement("copy.$N(target.$N())", setter(member), getter(member));
+                }
+                method.addStatement("$N(data, copy, ctx)", decodeInto)
+                    .addStatement("return copy")
+                    .endControlFlow();
+            }
+            return method.addStatement("throw new $T($S + selected.getSimpleName() + $S"
+                    + " + target.getClass().getSimpleName())", MAPPING_EXCEPTION,
+                prefix + "the response has type ", ", which is not a ").build();
+        }
+
+        private static String setter(MemberModel member) {
+            return switch (member) {
+                case FieldModel field -> field.setter();
+                case CollectionModel collection -> collection.setter();
+            };
+        }
+
+        private static String getter(MemberModel member) {
+            return switch (member) {
+                case FieldModel field -> field.getter();
+                case CollectionModel collection -> collection.getter();
+            };
+        }
+
+        private MethodSpec decodeResponse() {
+            return override("decodeResponse")
+                .addParameter(BYTES, "data").addParameter(type, "target")
+                .addParameter(CODEC_CONTEXT, "ctx")
+                .addStatement("$T selected = $N(data, ctx)", subtypeClass, selectResponse)
+                .beginControlFlow("if (selected != target.getClass())")
+                .addStatement("throw new $T($S + selected.getSimpleName() + $S"
+                        + " + target.getClass().getSimpleName() + $S)", MAPPING_EXCEPTION,
+                    prefix + "the response has type ", ", but the object has type ",
+                    ". Only the first response can change the type")
+                .endControlFlow()
+                .addStatement("$N(data, target, ctx)", decodeInto).build();
+        }
+
+        private MethodSpec decodeRequest() {
+            MethodSpec.Builder method = override("decodeRequest").returns(type)
+                .addParameter(BYTES, "data").addParameter(CODEC_CONTEXT, "ctx");
+            if (!discriminator.direction().isInput()) {
+                // The request has no discriminator. The base class is not abstract.
+                Layout base = layouts.stream().filter(this::isBase).findFirst().orElseThrow();
+                return method.addStatement("return $N(data, ctx)",
+                    methods.get(base).decodeRequest()).build();
+            }
+            method.addStatement("$T key = $L", keyType, readKey(Direction::isInput))
+                .addStatement("$T selected = $N(key)", subtypeClass, typeOf)
+                .beginControlFlow("if (selected == null)");
+            if (subTypes.baseAbstract()) {
+                method.addStatement("throw $N(key)", unknownValue);
+            } else {
+                method.addStatement("selected = $T.class", type);
+            }
+            method.endControlFlow();
+            for (Layout layout : layouts) {
+                method.beginControlFlow("if (selected == $T.class)", typeOf(layout))
+                    .addStatement("return $N(data, ctx)", methods.get(layout).decodeRequest())
+                    .endControlFlow();
+            }
+            return method.addStatement("throw new $T($S + selected.getName())",
+                MAPPING_EXCEPTION, prefix + "unknown subclass ").build();
+        }
+
+        private MethodSpec resetDispatch() {
+            MethodSpec.Builder method = override("resetOutputCollections")
+                .addParameter(type, "value");
+            for (Layout layout : layouts) {
+                method.beginControlFlow("if (value.getClass() == $T.class)", typeOf(layout))
+                    .addStatement("$N($L)", methods.get(layout).reset(), cast(layout, "value"))
+                    .addStatement("return")
+                    .endControlFlow();
+            }
+            return method.addStatement("throw $N(value)", unknownSubclass).build();
+        }
+
+        /** Reads the discriminator of a response and gives the class. */
+        private MethodSpec selectResponse() {
+            return privateMethod(selectResponse).addModifiers(Modifier.STATIC)
+                .returns(subtypeClass)
+                .addParameter(BYTES, "data").addParameter(CODEC_CONTEXT, "ctx")
+                .addStatement("$T key = $L", keyType, readKey(Direction::isOutput))
+                .addStatement("$T selected = $N(key)", subtypeClass, typeOf)
+                .beginControlFlow("if (selected == null)")
+                .addStatement("throw $N(key)", unknownValue)
+                .endControlFlow()
+                .addStatement("return selected").build();
+        }
+
+        /** Decodes a response into an object of a known class. */
+        private MethodSpec decodeInto() {
+            MethodSpec.Builder method = privateMethod(decodeInto)
+                .addParameter(BYTES, "data").addParameter(type, "target")
+                .addParameter(CODEC_CONTEXT, "ctx");
+            for (Layout layout : layouts) {
+                method.beginControlFlow("if (target.getClass() == $T.class)", typeOf(layout))
+                    .addStatement("$N(data, $L, ctx)", methods.get(layout).decodeResponse(),
+                        cast(layout, "target"))
+                    .addStatement("return")
+                    .endControlFlow();
+            }
+            return method.addStatement("throw $N(target)", unknownSubclass).build();
+        }
+
+        /** Creates an instance of a listed subtype. */
+        private MethodSpec newSubtype() {
+            MethodSpec.Builder method = privateMethod(newSubtype).addModifiers(Modifier.STATIC)
+                .returns(type).addParameter(subtypeClass, "selected");
+            for (Layout layout : layouts) {
+                if (!isBase(layout)) {
+                    method.beginControlFlow("if (selected == $T.class)", typeOf(layout))
+                        .addStatement("return new $T()", typeOf(layout))
+                        .endControlFlow();
+                }
+            }
+            return method.addStatement("throw new $T($S + selected.getName())",
+                MAPPING_EXCEPTION, prefix + "unknown subclass ").build();
+        }
+
+        /** Gives the class of a discriminator value, or null for an unknown value. */
+        private MethodSpec typeOf() {
+            MethodSpec.Builder method = privateMethod(typeOf).addModifiers(Modifier.STATIC)
+                .returns(subtypeClass).addParameter(keyType, "key");
+            for (Layout layout : layouts) {
+                if (layout.value() != null) {
+                    if (numeric) {
+                        method.beginControlFlow("if (key != null && key.compareTo($T.valueOf($LL))"
+                            + " == 0)", DECIMAL, layout.value());
+                    } else {
+                        method.beginControlFlow("if (key.equals($S))", layout.value());
+                    }
+                    method.addStatement("return $T.class", typeOf(layout)).endControlFlow();
+                }
+            }
+            return method.addStatement("return null").build();
+        }
+
+        private MethodSpec unknownValue() {
+            String known = layouts.stream().map(Layout::value).filter(Objects::nonNull)
+                .collect(Collectors.joining(", "));
+            CodeBlock key = numeric
+                ? CodeBlock.of("(key == null ? $S : key.toPlainString())", "(blank)")
+                : CodeBlock.of("key");
+            return privateMethod(unknownValue).addModifiers(Modifier.STATIC)
+                .returns(MAPPING_EXCEPTION).addParameter(keyType, "key")
+                .addStatement("return new $T($N + $S + $L + $S)", MAPPING_EXCEPTION,
+                    names.get(discriminator).descriptor(), ": unknown discriminator value '", key,
+                    "'. Known values: " + known)
+                .build();
+        }
+
+        private MethodSpec unknownSubclass() {
+            return privateMethod(unknownSubclass).addModifiers(Modifier.STATIC)
+                .returns(MAPPING_EXCEPTION).addParameter(Object.class, "value")
+                .addStatement("return new $T($S + value.getClass().getName())",
+                    MAPPING_EXCEPTION, prefix + "unknown subclass ")
+                .build();
+        }
     }
 }
