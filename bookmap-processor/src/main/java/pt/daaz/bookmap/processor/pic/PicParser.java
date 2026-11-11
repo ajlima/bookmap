@@ -73,29 +73,25 @@ public final class PicParser {
 
     private PicSpec scanPicture() {
         boolean signed = accept('S');
-        PicSpec spec;
-        if (!signed && peek('X')) {
-            spec = new PicSpec(Category.TEXT, toLength(run('X')), 0, false, Optional.empty());
-        } else {
-            long integerDigits = run('9');
-            long decimalDigits = 0;
-            if (accept('V')) {
-                decimalDigits = run('9');
-                if (decimalDigits == 0) {
-                    throw error("a 'V' must have decimal digits after it");
-                }
-            }
-            if (integerDigits + decimalDigits == 0) {
-                throw error("the picture has no digits");
-            }
-            spec = new PicSpec(Category.NUMBER, toLength(integerDigits + decimalDigits),
-                (int) decimalDigits, signed, Optional.empty());
-        }
+        boolean text = !signed && peek('X');
+        long digits = run(text ? 'X' : '9');
+        boolean hasPoint = !text && accept('V');
+        long decimalDigits = hasPoint ? run('9') : 0;
+        // Check the leftover character first. Thus, the message names an unsupported symbol.
         if (pos < picture.length()) {
             throw error("unexpected or unsupported character '" + picture.charAt(pos)
                 + "' in the picture");
         }
-        return spec;
+        if (hasPoint && decimalDigits == 0) {
+            throw error("a 'V' must have decimal digits after it");
+        }
+        if (digits + decimalDigits == 0) {
+            throw error("the picture has no digits");
+        }
+        int length = toLength(digits + decimalDigits);
+        return text
+            ? new PicSpec(Category.TEXT, length, 0, false, Optional.empty())
+            : new PicSpec(Category.NUMBER, length, (int) decimalDigits, signed, Optional.empty());
     }
 
     private Optional<Usage> scanUsage(String[] words, int start) {
