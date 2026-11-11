@@ -43,8 +43,9 @@ import pt.daaz.bookmap.processor.model.OperationModel;
  *
  * <p>Each item class of a collection has one private method that writes an item and one private
  * method that reads an item. The encode methods set the count field of each collection to the
- * list size. The {@code decodeResponse} method adds the items of an {@code OUTPUT} collection to
- * the list and replaces the list of an {@code INPUT_OUTPUT} collection. The
+ * list size. For an {@code OUTPUT} collection, the {@code decodeResponse} method sets a new list
+ * with the existing items and the decoded items. It replaces the list of an
+ * {@code INPUT_OUTPUT} collection. The
  * {@code decodeRequest} method always makes a new list. The fields after a collection use the
  * current position of the reader and the writer.
  */

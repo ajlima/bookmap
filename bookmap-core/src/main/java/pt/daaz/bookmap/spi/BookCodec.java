@@ -55,7 +55,9 @@ public interface BookCodec<T> {
     byte[] encodeRequest(T value, CodecContext ctx);
 
     /**
-     * Reads the output fields from the response bytes into the book.
+     * Reads the output fields from the response bytes into the book. For an {@code OUTPUT}
+     * collection, the codec sets a new list with the existing items and the decoded items.
+     * For an {@code INPUT_OUTPUT} collection, the codec sets a new list with the decoded items.
      *
      * @param data the response bytes
      * @param target the book that receives the values
@@ -82,7 +84,7 @@ public interface BookCodec<T> {
     byte[] encodeResponse(T value, CodecContext ctx);
 
     /**
-     * Clears the output collections of the book.
+     * Sets each {@code OUTPUT} collection of the book to a new, empty list.
      *
      * @param value the book
      */

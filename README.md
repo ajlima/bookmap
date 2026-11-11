@@ -37,7 +37,7 @@ The `bookmap-examples` build lists bookmap first on purpose, because that order 
 dependencies {
     compileOnly("org.projectlombok:lombok:<version>")
     annotationProcessor("org.projectlombok:lombok:<version>")
-    annotationProcessor("pt.daaz.bookmap:bookmap-processor:<version>")
+    annotationProcessor("pt.daaz.bookmap:bookmap-processor:0.1.0-SNAPSHOT")
 }
 ```
 
@@ -163,6 +163,7 @@ The processor finds the Lombok annotations by name. It does not depend on Lombok
 - `@Data`, `@Getter`, and `@Setter` give the accessors. `AccessLevel.PRIVATE` and `AccessLevel.NONE` give no accessor.
 - `AccessLevel.PACKAGE`, `AccessLevel.MODULE`, and `AccessLevel.PROTECTED` give an accessor only in the package of the operation class. The codec is in that package. For a superclass or an item class in another package, use public accessors.
 - `@AllArgsConstructor`, `@RequiredArgsConstructor`, and `@Builder` remove the default constructor. Add `@NoArgsConstructor` or a public constructor without arguments to the class.
+- `@Data` on a class with a `final` or `@NonNull` field without a value also removes the default constructor. Add `@NoArgsConstructor` to such a class (`@NoArgsConstructor(force = true)` for a `final` field). If bookmap runs before Lombok, the processor cannot detect this case, and javac reports the error in the generated codec.
 - `@NoArgsConstructor` must be public and must not have a `staticName`.
 
 ### @BookDefaults (class or package)
@@ -316,7 +317,7 @@ Fields after a collection are permitted. The codec calculates the offsets at run
 - Write: the codec sets the count field to the size of the list. A `null` list writes the count 0. A list larger than `maxOccurs` throws `MappingException`.
 - Read: the codec reads the count field. A negative count, or a count larger than `maxOccurs`, throws `MappingException`.
 - At the start of each `execute()`, the client sets each `OUTPUT` collection to a new, empty `ArrayList`.
-- On each page, the codec makes a new `ArrayList` with the existing items and the decoded items. Then it calls the setter. The count field shows the last page.
+- On each page, the codec makes a new `ArrayList` with the existing items and the decoded items. Then it calls the setter. A `null` list starts as an empty `ArrayList`. The count field shows the last page.
 - The client does not reset an `INPUT_OUTPUT` collection. On read, the codec replaces it with a new `ArrayList` of the decoded items.
 - An `INPUT_OUTPUT` collection in a `Continuable` class is a compile error.
 
