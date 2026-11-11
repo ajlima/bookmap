@@ -256,10 +256,54 @@ class CollectionGenerationTest {
         codec.decodeResponse(concat(bytes("002"), FIRST_INVOICE, SECOND_INVOICE, bytes("END ")),
             target, LATIN);
 
-        assertThat(list(target, "invoices")).isSameAs(existing)
+        assertThat(list(target, "invoices")).isNotSameAs(existing)
             .extracting(i -> CompiledCodec.get(i, "invoiceNumber"))
             .containsExactly("INV-0000", "INV-0001", "INV-0002");
+        assertThat(existing).hasSize(1);
         assertThat(CompiledCodec.get(target, "invoiceCount")).isEqualTo(2);
+    }
+
+    @Test
+    void decodeAppendsToAnUnmodifiableList() {
+        BookCodec<Object> codec = listInvoicesCodec();
+        Object target = codec.newInstance();
+        CompiledCodec.set(target, "invoices", List.of(invoice(codec, "INV-0000", "1.00")));
+
+        codec.decodeResponse(concat(bytes("001"), FIRST_INVOICE, bytes("END ")), target, LATIN);
+
+        assertThat(list(target, "invoices"))
+            .extracting(i -> CompiledCodec.get(i, "invoiceNumber"))
+            .containsExactly("INV-0000", "INV-0001");
+    }
+
+    /** A getter that returns a copy of the list, as some defensive classes do. */
+    private static JavaFileObject listCopiedInvoices() {
+        return source("ListCopiedInvoices",
+            "import test.billing.Invoice;",
+            "@BookOperation public class ListCopiedInvoices {",
+            "@BookField(order = 1, length = 1) private int invoiceCount;",
+            "@BookCollection(order = 2, maxOccurs = 2) private List<Invoice> invoices;",
+            accessors("int", "invoiceCount"),
+            "public List<Invoice> getInvoices() {",
+            "  return invoices == null ? null : new java.util.ArrayList<>(invoices);",
+            "}",
+            "public void setInvoices(List<Invoice> v) { this.invoices = v; }",
+            "}");
+    }
+
+    @Test
+    void decodeKeepsTheItemsWhenTheGetterReturnsACopy() {
+        BookCodec<Object> codec = CompiledCodec.load(compile(listCopiedInvoices(), invoice()),
+            "test.ListCopiedInvoices");
+        Object target = codec.newInstance();
+        codec.resetOutputCollections(target);
+
+        codec.decodeResponse(concat(bytes("1"), FIRST_INVOICE), target, LATIN);
+        codec.decodeResponse(concat(bytes("1"), SECOND_INVOICE), target, LATIN);
+
+        assertThat(list(target, "invoices"))
+            .extracting(i -> CompiledCodec.get(i, "invoiceNumber"))
+            .containsExactly("INV-0001", "INV-0002");
     }
 
     @Test

@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import javax.lang.model.element.Modifier;
@@ -340,7 +341,7 @@ final class CodecGenerator {
      *
      * @param direction the members to read
      * @param response {@code true} for {@code decodeResponse}, which adds the items of an
-     *     {@code OUTPUT} collection to the existing list
+     *     {@code OUTPUT} collection to a new list with the existing items
      */
     private CodeBlock decode(Predicate<Direction> direction, boolean response) {
         CodeBlock.Builder code = CodeBlock.builder()
@@ -365,23 +366,19 @@ final class CodecGenerator {
                 CodeBlock.of("target.$N()", collection.countField().getter()),
                 CodeBlock.of("$N", n.descriptor()), CodeBlock.of("$L", collection.maxOccurs())));
         if (append) {
-            code.addStatement("$T $N = target.$N()", listOf(collection), n.list(),
-                    collection.getter())
-                .beginControlFlow("if ($N == null)", n.list())
-                .addStatement("$N = new $T<>()", n.list(), ArrayList.class)
-                .addStatement("target.$N($N)", collection.setter(), n.list())
-                .endControlFlow();
+            // A new list: the getter can return a copy or an unmodifiable list.
+            code.addStatement("$T $N = new $T<>($T.requireNonNullElse(target.$N(), $T.of()))",
+                listOf(collection), n.list(), ArrayList.class, Objects.class,
+                collection.getter(), List.class);
         } else {
             code.addStatement("$T $N = new $T<>($N)", listOf(collection), n.list(),
                 ArrayList.class, n.count());
         }
-        code.beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
+        return code.beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
             .addStatement("$N.add($N(reader, ctx))", n.list(), itemMethodsOf(collection).read())
-            .endControlFlow();
-        if (!append) {
-            code.addStatement("target.$N($N)", collection.setter(), n.list());
-        }
-        return code.build();
+            .endControlFlow()
+            .addStatement("target.$N($N)", collection.setter(), n.list())
+            .build();
     }
 
     private ItemMethods itemMethodsOf(CollectionModel collection) {

@@ -522,6 +522,7 @@ class GenerationTest {
     void generatedCodeUsesNoReflection() {
         Compilation compilation = compiler.compile(allTypes(), flagConverter(), digitConverter());
 
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(sourceOf(compilation, "test.AllTypes_BookCodec"))
             .doesNotContain("java.lang.reflect")
             .doesNotContain("getDeclaredField")
