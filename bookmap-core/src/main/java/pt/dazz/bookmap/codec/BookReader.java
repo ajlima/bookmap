@@ -34,8 +34,35 @@ public final class BookReader {
      * @param ctx the codec context
      */
     public BookReader(byte[] data, CodecContext ctx) {
+        this(data, ctx, 0);
+    }
+
+    private BookReader(byte[] data, CodecContext ctx, int position) {
         this.data = data;
         this.ctx = ctx;
+        this.position = position;
+    }
+
+    /**
+     * Gives a new reader on the same bytes, at {@code offset} bytes after the current position.
+     * This reader does not move. A codec uses this method to read a discriminator before the
+     * layout is known.
+     *
+     * @param offset the number of bytes after the current position
+     * @return the new reader
+     */
+    public BookReader peek(int offset) {
+        return new BookReader(data, ctx, position + offset);
+    }
+
+    /**
+     * Moves the position forward. The method does not check the length of the data. The next
+     * read checks it.
+     *
+     * @param length the number of bytes to skip
+     */
+    public void skip(int length) {
+        position += length;
     }
 
     /**

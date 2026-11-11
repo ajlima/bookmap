@@ -3,6 +3,8 @@ package pt.dazz.bookmap.codec;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
+
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.exception.MappingException;
 import pt.dazz.bookmap.spi.BookCodec;
@@ -26,6 +28,46 @@ public class BookCodecRegistryTest {
         @Override public Invoice decodeRequest(byte[] data, CodecContext ctx) { return new Invoice(); }
         @Override public byte[] encodeResponse(Invoice value, CodecContext ctx) { return new byte[0]; }
         @Override public void resetOutputCollections(Invoice value) { }
+    }
+
+    /** A subclass of the book for the tests. */
+    public static class CreditInvoice extends Invoice {
+    }
+
+    /** A codec for a hierarchy: it handles the base class and one subclass. */
+    static class HierarchyCodec extends InvoiceCodec {
+        @Override public List<Class<? extends Invoice>> types() {
+            return List.of(Invoice.class, CreditInvoice.class);
+        }
+    }
+
+    /** A codec that handles only the subclass. */
+    static class CreditCodec extends InvoiceCodec {
+        @Override public List<Class<? extends Invoice>> types() {
+            return List.of(CreditInvoice.class);
+        }
+    }
+
+    @Test
+    void indexesAllTypesOfACodec() {
+        HierarchyCodec codec = new HierarchyCodec();
+        BookCodecRegistry registry = BookCodecRegistry.of(codec);
+        assertThat(registry.codecFor(CreditInvoice.class)).isSameAs(codec);
+        assertThat(registry.codecFor(Invoice.class)).isSameAs(codec);
+    }
+
+    @Test
+    void twoCodecsForOneSubtypeFail() {
+        assertThatThrownBy(() -> BookCodecRegistry.of(new HierarchyCodec(), new CreditCodec()))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("More than one codec for " + CreditInvoice.class.getName());
+    }
+
+    @Test
+    void defaultReadResponseDecodesIntoTheTarget() {
+        Invoice target = new Invoice();
+        assertThat(new InvoiceCodec().readResponse(new byte[0], target, CodecContext.defaults()))
+            .isSameAs(target);
     }
 
     @Test

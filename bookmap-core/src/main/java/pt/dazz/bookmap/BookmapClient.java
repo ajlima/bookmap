@@ -45,12 +45,15 @@ public final class BookmapClient {
     }
 
     /**
-     * Runs the operation of a book. The client fills the same object with the response.
+     * Runs the operation of a book and gives the response object. Without subtypes, this is the
+     * request object, filled with the response. With subtypes, the first response can select a
+     * subtype of the request class: then the client gives a new instance of that subtype. The
+     * next pages use the object of the first response.
      * An exception from {@code validate()} or from the transport goes to the caller unchanged.
      *
      * @param request the book
      * @param <T> the book class
-     * @return the same book
+     * @return the response object
      * @throws MappingException if there is no codec or the response is empty
      * @throws ContinuationLimitException if the remote program has more data after the last allowed call
      */
@@ -61,27 +64,33 @@ public final class BookmapClient {
         CodecContext ctx = contextFor(codec);
         String operation = codec.operationName();
         codec.resetOutputCollections(request);
+        T current = request;
         int calls = 0;
         boolean more;
         do {
             calls++;
-            byte[] payload = codec.encodeRequest(request, ctx);
+            byte[] payload = codec.encodeRequest(current, ctx);
             byte[] response = transport.exchange(
                 new BookRequest(operation, payload, codec.maxResponseLength()));
             if (response == null) {
                 throw new MappingException(operation + ": empty response from transport");
             }
-            codec.decodeResponse(response, request, ctx);
-            if (request instanceof Validatable validatable) {
+            if (calls == 1) {
+                // Only the first response can select a subtype of the request class.
+                current = codec.readResponse(response, current, ctx);
+            } else {
+                codec.decodeResponse(response, current, ctx);
+            }
+            if (current instanceof Validatable validatable) {
                 validatable.validate();
             }
-            more = request instanceof Continuable continuable && continuable.hasContinuation();
+            more = current instanceof Continuable continuable && continuable.hasContinuation();
             if (more && calls >= maxCalls) {
                 throw new ContinuationLimitException(operation
                     + ": the remote program has more data after " + maxCalls + " calls");
             }
         } while (more);
-        return request;
+        return current;
     }
 
     private CodecContext contextFor(BookCodec<?> codec) {
