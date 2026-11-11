@@ -11,9 +11,12 @@
 #   2. The publish job signs the modules and publishes them to Maven Central. It runs only for
 #      refs/heads/main and only when a new version exists. It has read-only repository access;
 #      the Sonatype token and the signing key come from secrets (see RELEASING.md).
-#   3. The release job runs after a successful publish. It has write access, runs no project
-#      code, and creates the tag vX.Y.Z and a GitHub release with the JARs that the publish
-#      job sent to Maven Central (the same bytes).
+#   3. The release job runs after a successful publish. It has write access and runs no Gradle
+#      build. It creates the tag vX.Y.Z and a GitHub release with the JARs that the publish
+#      job sent to Maven Central (the same bytes). Then it sets the new version in README.md
+#      (scripts/set-readme-version.sh) and pushes the commit "docs: set the README version to
+#      X.Y.Z" to main. A docs commit gives no new release. The ruleset on main must let
+#      GitHub Actions bypass it (see RELEASING.md).
 
 name: Build and release
 
@@ -163,3 +166,29 @@ jobs:
           body: ${{ needs.build.outputs.changelog }}
           files: release/*.jar
           fail_on_unmatched_files: true
+
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          path: repository
+
+      - name: Set the version in README.md
+        working-directory: repository
+        env:
+          NEW_VERSION: ${{ needs.build.outputs.new_version }}
+        run: |
+          scripts/set-readme-version.sh "$NEW_VERSION"
+          if git diff --quiet; then
+            echo "README.md already has version $NEW_VERSION"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --all --message "docs: set the README version to $NEW_VERSION"
+          if ! git push origin HEAD:main; then
+            echo "::error::Cannot push the README update to main. The release $NEW_VERSION is complete." \
+              "Add GitHub Actions as a bypass actor of the main ruleset, or run" \
+              "scripts/set-readme-version.sh $NEW_VERSION in a pull request. See RELEASING.md."
+            exit 1
+          fi

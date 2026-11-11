@@ -14,6 +14,7 @@ The workflow `.github/workflows/release.yml` runs on each push to `main`.
 2. The `build` job builds and tests with that version. The build fails if coverage is less than 100%.
 3. The `publish` job checks out the same commit, signs the modules, and publishes them to Maven Central.
 4. The `release` job creates the tag `vX.Y.Z` and a GitHub release. It attaches the same JAR files that went to Maven Central.
+5. The `release` job sets the new version in `README.md` with `scripts/set-readme-version.sh`. Then it pushes the commit `docs: set the README version to X.Y.Z` to `main`. A `docs:` commit makes no release.
 
 The `release` job runs only after a successful `publish` job. Thus, each GitHub release is also on Maven Central.
 
@@ -93,6 +94,23 @@ For the signing key, send the exported private key directly to the secret:
 
 ```bash
 gpg --armor --export-secret-keys <KEY_ID> | gh secret set SIGNING_KEY --env maven-central
+```
+
+### 6. Let GitHub Actions push the README update
+
+The ruleset on `main` blocks direct pushes. Add GitHub Actions to its bypass list, so that the `release` job can push the README update:
+
+1. Open **Settings** > **Rules** > **Rulesets** > **Protect main**.
+2. In **Bypass list**, click **Add bypass**.
+3. Select **GitHub Actions**, with the mode **Always allow**.
+4. Click **Save changes**.
+
+Caution: Each workflow job with `contents: write` can then push to `main`. Keep `contents: read` as the default permission of all workflows.
+
+Without this step, the release still completes, but the `release` job fails at the README update. Then update the README in a pull request:
+
+```bash
+scripts/set-readme-version.sh X.Y.Z
 ```
 
 ## Make a release
