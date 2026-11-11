@@ -1,0 +1,136 @@
+package pt.daaz.bookmap.processor;
+
+import com.google.testing.compile.Compilation;
+import com.google.testing.compile.Compiler;
+import com.google.testing.compile.JavaFileObjects;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.Processor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.TypeElement;
+import javax.tools.JavaFileObject;
+
+/**
+ * Compiles test sources with the bookmap processor and collects the model snapshots.
+ */
+final class TestCompiler {
+
+    private static final String HEADER = String.join("\n",
+        "package test;",
+        "import java.math.BigDecimal;",
+        "import java.time.LocalDate;",
+        "import java.time.LocalDateTime;",
+        "import java.time.LocalTime;",
+        "import java.util.List;",
+        "import pt.daaz.bookmap.Continuable;",
+        "import pt.daaz.bookmap.Validatable;",
+        "import pt.daaz.bookmap.annotation.*;",
+        "import pt.daaz.bookmap.convert.FieldContext;",
+        "import pt.daaz.bookmap.convert.FieldConverter;",
+        "import pt.daaz.bookmap.convert.NoConverter;");
+
+    final List<ModelSnapshot> snapshots = new ArrayList<>();
+
+    private TestCompiler() {
+    }
+
+    static TestCompiler create() {
+        return new TestCompiler();
+    }
+
+    /**
+     * Makes a source file in the package {@code test} with the common imports.
+     */
+    static JavaFileObject source(String simpleName, String... lines) {
+        return JavaFileObjects.forSourceString("test." + simpleName,
+            HEADER + "\n" + String.join("\n", lines));
+    }
+
+    /**
+     * Gives a public getter and setter for a field.
+     */
+    static String accessors(String type, String name) {
+        String cap = Character.toUpperCase(name.charAt(0)) + name.substring(1);
+        return "public " + type + " get" + cap + "() { return " + name + "; } "
+            + "public void set" + cap + "(" + type + " v) { this." + name + " = v; }";
+    }
+
+    Compilation compile(JavaFileObject... files) {
+        return compile(List.of(), files);
+    }
+
+    Compilation compile(List<Processor> others, JavaFileObject... files) {
+        List<Processor> processors = new ArrayList<>(others);
+        processors.add(new BookmapProcessor(snapshots::add));
+        return Compiler.javac().withProcessors(processors).compile(files);
+    }
+
+    Compilation compileWithProcessors(List<Processor> processors, JavaFileObject... files) {
+        return Compiler.javac().withProcessors(processors).compile(files);
+    }
+
+    BookmapProcessor processor() {
+        return new BookmapProcessor(snapshots::add);
+    }
+
+    ModelSnapshot only() {
+        if (snapshots.size() != 1) {
+            throw new AssertionError("expected one snapshot, got " + snapshots);
+        }
+        return snapshots.get(0);
+    }
+
+    static Processor lombok() {
+        try {
+            return (Processor) Class.forName(
+                    "lombok.launch.AnnotationProcessorHider$AnnotationProcessor")
+                .getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * A test processor that generates source files in the first round, as another code
+     * generator does.
+     */
+    static final class GeneratingProcessor extends AbstractProcessor {
+
+        private final Map<String, String> sources;
+        private boolean done;
+
+        GeneratingProcessor(Map<String, String> sources) {
+            this.sources = sources;
+        }
+
+        @Override
+        public Set<String> getSupportedAnnotationTypes() {
+            return Set.of("*");
+        }
+
+        @Override
+        public SourceVersion getSupportedSourceVersion() {
+            return SourceVersion.latestSupported();
+        }
+
+        @Override
+        public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
+            if (!done) {
+                done = true;
+                sources.forEach((name, text) -> {
+                    try (var writer = processingEnv.getFiler().createSourceFile(name).openWriter()) {
+                        writer.write(HEADER + "\n" + text);
+                    } catch (IOException e) {
+                        throw new IllegalStateException(e);
+                    }
+                });
+            }
+            return false;
+        }
+    }
+}

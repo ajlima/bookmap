@@ -5,4 +5,5 @@ dependencies {
     implementation(libs.javapoet)
 
     testImplementation(libs.compile.testing)
+    testImplementation(libs.lombok)
 }
