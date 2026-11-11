@@ -4,6 +4,11 @@ plugins {
 
 val catalog = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
+allprojects {
+    group = "pt.daaz.bookmap"
+    version = "0.1.0-SNAPSHOT"
+}
+
 subprojects {
     apply(plugin = "java-library")
 
