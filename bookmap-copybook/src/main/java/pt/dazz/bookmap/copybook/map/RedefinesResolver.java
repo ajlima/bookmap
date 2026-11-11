@@ -132,11 +132,19 @@ final class RedefinesResolver {
      * Handles an item with {@code REDEFINES}. An elementary item is skipped. A group is part of
      * the area of the item that it redefines.
      */
-    void redefiningItem(DataItem item, List<DataItem> siblings) {
+    void redefiningItem(DataItem item, List<DataItem> siblings, Usage usage) {
         DataItem base = siblings.stream()
             .filter(sibling -> sibling.name().equals(item.redefines().name()))
             .findFirst().orElse(null);
-        if (!item.isGroup()) {
+        if (!item.isGroup() && base != null && base.isGroup()) {
+            mapper.error(item, item.name() + " is an elementary item that redefines the group "
+                + base.name() + ". BookMap does not support this.");
+        } else if (!item.isGroup() && base != null
+            && length(item, usage) > length(base, usage)) {
+            mapper.error(item, item.name() + " redefines " + base.name() + " and is longer than "
+                + base.name() + ". BookMap keeps " + base.name()
+                + ", so the items after it would move.");
+        } else if (!item.isGroup()) {
             mapper.warning(item, item.name() + " redefines " + item.redefines()
                 + " and is skipped");
         } else if (base == null || !base.isGroup()) {
@@ -148,6 +156,10 @@ final class RedefinesResolver {
     /** Maps a group {@code REDEFINES} area. */
     void area(DataItem base, List<DataItem> redefiners, List<DataItem> following,
               ModelMapper.ClassBuilder owner, ModelMapper.Context context) {
+        if (redefiners.stream().anyMatch(item -> !item.isGroup())) {
+            // redefiningItem reports the elementary alternative.
+            return;
+        }
         List<DataItem> all = new ArrayList<>();
         all.add(base);
         all.addAll(redefiners);
@@ -164,7 +176,6 @@ final class RedefinesResolver {
                 return;
             }
         }
-        List<DataItem> rest = following.stream().filter(item -> !contains(all, item)).toList();
         SubTypeDecision decision = subTypes.get(base);
         if (decision != null) {
             subTypes(base, all, decision, owner, context);
@@ -179,7 +190,14 @@ final class RedefinesResolver {
                     + " Use subtypes, or edit the class by hand.");
                 return;
             }
-            split(all, resolved, rest, owner, context);
+            for (DataItem alternative : all) {
+                if (hasVariableTable(alternative)) {
+                    mapper.error(alternative, "the REDEFINES alternative " + alternative.name()
+                        + " has OCCURS DEPENDING ON. A direction split needs a fixed size.");
+                    return;
+                }
+            }
+            split(all, resolved, owner, context);
             return;
         }
         String first = all.get(0).name();
@@ -212,7 +230,17 @@ final class RedefinesResolver {
         return input ? Direction.INPUT : output ? Direction.OUTPUT : null;
     }
 
-    private void split(List<DataItem> all, List<Direction> resolved, List<DataItem> rest,
+    private static boolean hasVariableTable(DataItem item) {
+        return item.occurs() != null && item.occurs().dependingOn() != null
+            || item.children().stream().anyMatch(RedefinesResolver::hasVariableTable);
+    }
+
+    /**
+     * Maps a direction split. The shorter alternative always gets a filler, so the items after
+     * the area have the COBOL offsets in both directions. The items can come after the
+     * enclosing group, so the filler does not depend on the siblings of the area.
+     */
+    private void split(List<DataItem> all, List<Direction> resolved,
                        ModelMapper.ClassBuilder owner, ModelMapper.Context context) {
         int[] lengths = all.stream().mapToInt(item -> length(item, context.usage())).toArray();
         int longest = Math.max(lengths[0], lengths[1]);
@@ -221,7 +249,7 @@ final class RedefinesResolver {
             Usage usage = usageOf(alternative, context.usage());
             mapper.walk(alternative.children(), owner,
                 context.withGroup(alternative, usage).withDirection(resolved.get(i)));
-            if (!rest.isEmpty() && lengths[i] < longest) {
+            if (lengths[i] < longest) {
                 int pad = longest - lengths[i];
                 DataItem other = all.get(1 - i);
                 owner.members.add(new FieldMember(

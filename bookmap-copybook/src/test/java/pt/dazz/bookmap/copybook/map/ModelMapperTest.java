@@ -207,6 +207,21 @@ class ModelMapperTest {
     }
 
     @Test
+    void elementaryRedefinesOfAMissingItemIsSkipped() {
+        MapResult result = map("01 ORDER.", "05 A PIC X(2).", "05 B REDEFINES NOWHERE PIC X.");
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+            .containsExactly(Severity.WARNING);
+    }
+
+    @Test
+    void longerElementaryRedefinesIsAnError() {
+        MapResult result = map("01 ORDER.", "05 A PIC X(2).", "05 B REDEFINES A PIC X(6).",
+            "05 C PIC X.");
+        assertThat(errors(result)).containsExactly("B redefines A and is longer than A."
+            + " BookMap keeps A, so the items after it would move.");
+    }
+
+    @Test
     void groupRedefiningAnElementaryItemIsAnError() {
         MapResult result = map("01 ORDER.", "05 ORDER-DATE PIC 9(8).",
             "05 PARTS REDEFINES ORDER-DATE.", "10 YEAR PIC 9(4).", "10 REST PIC 9(4).");
