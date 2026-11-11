@@ -346,4 +346,72 @@ class FixedCollectionGenerationTest {
         assertThat(list(target, "entries")).extracting(e -> e.getClass().getSimpleName())
             .containsExactly("CardEntry", "WireEntry");
     }
+
+    // ---- fixed collections in subtypes ----
+
+    /**
+     * Base: tags (fixed, maxOccurs 2, 3 bytes each), accountType (2). Checking: entries
+     * (LOW-VALUES mode, maxOccurs 2). Savings: entryCount (1), entries (count mode, maxOccurs 2).
+     */
+    private static JavaFileObject[] accountSources() {
+        return new JavaFileObject[] {
+            source("Tag", "public class Tag {",
+                field("@BookField(order = 1, pic = \"X(3)\")", "String", "code"), "}"),
+            source("GetAccount",
+                "@BookOperation",
+                "@BookSubTypes(discriminator = \"accountType\", value = {",
+                "  @BookSubTypes.Type(value = \"01\", type = Checking.class),",
+                "  @BookSubTypes.Type(value = \"02\", type = Savings.class)})",
+                "public class GetAccount {",
+                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true,"
+                    + " direction = Direction.INPUT_OUTPUT)", "List<Tag>", "tags"),
+                field("@BookField(order = 20, pic = \"9(2)\")", "int", "accountType"),
+                "}"),
+            source("Checking", "public class Checking extends GetAccount {",
+                field("@BookCollection(order = 30, maxOccurs = 2, fixed = true)",
+                    "List<OrderLine>", "entries"),
+                "}"),
+            source("Savings", "public class Savings extends GetAccount {",
+                field("@BookField(order = 30, pic = \"9(1)\")", "int", "entryCount"),
+                field("@BookCollection(order = 40, maxOccurs = 2, fixed = true,"
+                    + " dependsOn = \"entryCount\")", "List<OrderLine>", "entries"),
+                "}"),
+            orderLine()
+        };
+    }
+
+    @Test
+    void discriminatorAfterAFixedCollectionSelectsTheSubtype() {
+        BookCodec<Object> codec = codec("GetAccount", accountSources());
+        byte[] response = concat(bytes("TG1"), new byte[3], bytes("01"), bytes("P001005"),
+            EMPTY_LINE);
+        Object result = codec.readResponse(response, codec.newInstance(), LATIN);
+        assertThat(result.getClass().getSimpleName()).isEqualTo("Checking");
+        assertThat(list(result, "tags")).hasSize(1);
+        assertThat(list(result, "entries")).extracting(l -> CompiledCodec.get(l, "productCode"))
+            .containsExactly("P001");
+    }
+
+    @Test
+    void countModeInASubtypeUsesItsCountField() {
+        BookCodec<Object> codec = codec("GetAccount", accountSources());
+        byte[] response = concat(new byte[6], bytes("02"), bytes("1"), bytes("P001005"),
+            bytes("P002010"));
+        Object result = codec.readResponse(response, codec.newInstance(), LATIN);
+        assertThat(result.getClass().getSimpleName()).isEqualTo("Savings");
+        assertThat(list(result, "tags")).isEmpty();
+        assertThat(list(result, "entries")).hasSize(1);
+    }
+
+    @Test
+    void countModeInASubtypeNeedsTheCountFieldInTheSubtype() {
+        JavaFileObject[] sources = accountSources();
+        sources[3] = source("Savings", "public class Savings extends GetAccount {",
+            field("@BookCollection(order = 40, maxOccurs = 2, fixed = true,"
+                + " dependsOn = \"accountType\")", "List<OrderLine>", "entries"),
+            "}");
+        Compilation compilation = compiler.compile(sources);
+        CompilationSubject.assertThat(compilation)
+            .hadErrorContaining("dependsOn field 'accountType' must be in the subtype layout");
+    }
 }
