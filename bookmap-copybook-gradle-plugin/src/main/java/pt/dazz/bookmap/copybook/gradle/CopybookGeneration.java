@@ -3,6 +3,7 @@ package pt.dazz.bookmap.copybook.gradle;
 import com.palantir.javapoet.JavaFile;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -10,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import javax.lang.model.SourceVersion;
 import pt.dazz.bookmap.copybook.Copybooks;
 import pt.dazz.bookmap.copybook.config.GeneratorConfig;
 import pt.dazz.bookmap.copybook.config.GeneratorConfigJson;
@@ -156,8 +158,16 @@ final class CopybookGeneration {
         } catch (ModelJsonException e) {
             log.error(optionsFile(copybook) + ": " + e.getMessage());
             return null;
+        } catch (IOException e) {
+            log.error(optionsFile(copybook) + ": cannot read the file: " + e.getMessage());
+            return null;
         }
         String packageName = packageName(settings, copybook, config);
+        if (!SourceVersion.isName(packageName)) {
+            log.error(relative(settings.sourceDir(), copybook) + ": the package '" + packageName
+                + "' is not a valid Java package name");
+            return null;
+        }
         boolean lombok = config != null && config.lombok() != null ? config.lombok()
             : settings.lombok();
         ParseOptions fileParse = config == null ? ParseOptions.defaults() : config.parse();
@@ -195,14 +205,21 @@ final class CopybookGeneration {
             settings.packagePerCopybook());
     }
 
-    /** Reads the options file of a copybook. Gives {@code null} if the file does not exist. */
+    /**
+     * Reads the options file of a copybook. Gives {@code null} if the file does not exist. An
+     * invalid path in {@code copyDirs} gives a {@link ModelJsonException}.
+     */
     private static GeneratorConfig readConfig(Path copybook) throws IOException {
         Path file = optionsFile(copybook);
         if (!Files.isRegularFile(file)) {
             return null;
         }
-        return GeneratorConfigJson.read(Files.readString(file),
-            file.toAbsolutePath().getParent());
+        String text = Files.readString(file);
+        try {
+            return GeneratorConfigJson.read(text, file.toAbsolutePath().getParent());
+        } catch (InvalidPathException e) {
+            throw new ModelJsonException("a path in copyDirs is not valid: " + e.getMessage());
+        }
     }
 
     private static void checkCollisions(List<Generated> generated) {

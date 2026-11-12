@@ -24,6 +24,12 @@ class PackageNamesTest {
     }
 
     @Test
+    void emptySegmentIsValid() {
+        assertThat(PackageNames.segment("")).isEqualTo("__");
+        assertThat(PackageNames.segment("_")).isEqualTo("__");
+    }
+
+    @Test
     void segmentPrefixesALeadingDigit() {
         assertThat(PackageNames.segment("2026")).isEqualTo("_2026");
     }

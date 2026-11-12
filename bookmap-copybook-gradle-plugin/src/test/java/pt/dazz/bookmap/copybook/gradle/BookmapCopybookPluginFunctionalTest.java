@@ -223,6 +223,25 @@ class BookmapCopybookPluginFunctionalTest {
     }
 
     @Test
+    void removedCopybookIsAlsoRemovedFromCache() throws IOException {
+        tree();
+        javaBuild(TREE);
+        Path order = dir.resolve("tree/orders/ORDER.cpy");
+        String text = Files.readString(order);
+        Path orderClass = dir.resolve(OUT + "com/example/mainframe/orders/Order.java");
+        assertThat(generate("--build-cache")).isEqualTo(TaskOutcome.SUCCESS);
+        Files.delete(order);
+        assertThat(generate("--build-cache")).isEqualTo(TaskOutcome.SUCCESS);
+        Files.writeString(order, text);
+        assertThat(generate("--build-cache")).isEqualTo(TaskOutcome.FROM_CACHE);
+        assertThat(orderClass).exists();
+        Files.delete(order);
+        assertThat(generate("--build-cache")).isEqualTo(TaskOutcome.FROM_CACHE);
+        assertThat(orderClass).doesNotExist();
+        assertThat(dir.resolve(OUT + "com/example/invoicing/Invoice.java")).exists();
+    }
+
+    @Test
     void configurationCacheIsReused() throws IOException {
         tree();
         javaBuild(TREE);
@@ -313,10 +332,13 @@ class BookmapCopybookPluginFunctionalTest {
     }
 
     @Test
-    void noSourceDirPasses() throws IOException {
+    void noSourceDirPassesAndDeletesOldFiles() throws IOException {
         javaBuild("");
-        assertThat(build("build").task(TASK).getOutcome()).isIn(TaskOutcome.SUCCESS,
-            TaskOutcome.UP_TO_DATE, TaskOutcome.NO_SOURCE);
+        Path stale = dir.resolve(OUT + "com/example/old/Stale.java");
+        Files.createDirectories(stale.getParent());
+        Files.writeString(stale, "class Stale {}");
+        assertThat(build("build").task(TASK).getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(stale).doesNotExist();
     }
 
     @Test

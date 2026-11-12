@@ -103,6 +103,8 @@ The plugin changes each directory name, and the copybook name in rule 3, to a va
 3. It adds `_` before a name that starts with a digit.
 4. It adds `_` after a Java keyword, and after `true`, `false`, and `null`.
 
+If the final package is not a valid Java package name, the build fails for that copybook. For example, `"package": "com.my-co"` in an options file, or an empty `packageName`, gives this error: `ORDER.cpy: the package 'com.my-co' is not a valid Java package name`.
+
 Examples, with `packageName = "com.example.mainframe"`:
 
 | Copybook in `sourceDir` | Package |
@@ -132,7 +134,7 @@ These rules apply:
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file. Without a file, the plugin uses the defaults of the generator.
 
-If the file is not valid JSON, or if it has an unknown key, the build fails. The message starts with the path of the file.
+If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The message starts with the path of the file.
 
 ## 6. Class name collisions and `packagePerCopybook`
 

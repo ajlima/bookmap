@@ -13,7 +13,8 @@ final class PackageNames {
     }
 
     /**
-     * Converts a directory name or a copybook name to one Java package segment.
+     * Converts a directory name or a copybook name to one Java package segment. An empty name
+     * gives {@code __}, because {@code _} is a keyword.
      *
      * <ol>
      *   <li>Change the name to lower case.</li>
@@ -32,7 +33,7 @@ final class PackageNames {
             boolean valid = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
             segment.append(valid ? c : '_');
         }
-        if (Character.isDigit(segment.charAt(0))) {
+        if (segment.isEmpty() || Character.isDigit(segment.charAt(0))) {
             segment.insert(0, '_');
         }
         if (SourceVersion.isKeyword(segment)) {

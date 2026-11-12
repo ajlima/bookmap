@@ -150,6 +150,62 @@ class CopybookGenerationTest {
             .startsWith(work.resolve("badjson/SHIPMENT.json") + ": ");
     }
 
+    private Path shipment(byte[] options) throws IOException {
+        Path source = TestCopybooks.copy("badjson", work);
+        Files.write(source.resolve("SHIPMENT.json"), options);
+        return source;
+    }
+
+    @Test
+    void unreadableOptionsFileGivesTheFilePath() throws IOException {
+        Path source = shipment(new byte[] {'{', (byte) 0xFF, '}'});
+        assertThatThrownBy(() -> CopybookGeneration.run(
+            settings(source, List.of(), BASE, false, false),
+            List.of(source.resolve("SHIPMENT.cpy")), output, log))
+            .isInstanceOf(CopybookGenerationException.class)
+            .hasMessage("1 copybook(s) have errors. See the messages above.");
+        assertThat(log.errors).singleElement().asString()
+            .startsWith(source.resolve("SHIPMENT.json") + ": cannot read the file: ");
+        assertThat(CopybookGeneration.configCopyDirs(List.of(source.resolve("SHIPMENT.cpy"))))
+            .isEmpty();
+    }
+
+    @Test
+    void invalidCopyDirPathGivesTheFilePath() throws IOException {
+        Path source = shipment("{\"copyDirs\": [\"lib\\u0000x\"]}".getBytes());
+        assertThat(CopybookGeneration.configCopyDirs(List.of(source.resolve("SHIPMENT.cpy"))))
+            .isEmpty();
+        assertThatThrownBy(() -> CopybookGeneration.run(
+            settings(source, List.of(), BASE, false, false),
+            List.of(source.resolve("SHIPMENT.cpy")), output, log))
+            .isInstanceOf(CopybookGenerationException.class);
+        assertThat(log.errors).singleElement().asString()
+            .startsWith(source.resolve("SHIPMENT.json") + ": a path in copyDirs is not valid: ");
+    }
+
+    @Test
+    void invalidPackageInTheOptionsFileFails() throws IOException {
+        Path source = shipment("{\"package\": \"com.my-co.shipping\"}".getBytes());
+        assertThatThrownBy(() -> CopybookGeneration.run(
+            settings(source, List.of(), BASE, false, false),
+            List.of(source.resolve("SHIPMENT.cpy")), output, log))
+            .isInstanceOf(CopybookGenerationException.class)
+            .hasMessage("1 copybook(s) have errors. See the messages above.");
+        assertThat(log.errors).containsExactly("SHIPMENT.cpy: the package 'com.my-co.shipping'"
+            + " is not a valid Java package name");
+    }
+
+    @Test
+    void emptyBasePackageFails() {
+        Path source = TestCopybooks.copy("tree", work);
+        assertThatThrownBy(() -> CopybookGeneration.run(
+            settings(source, List.of(copylib), "", false, false),
+            List.of(source.resolve("orders/ORDER.cpy")), output, log))
+            .isInstanceOf(CopybookGenerationException.class);
+        assertThat(log.errors).containsExactly("orders/ORDER.cpy: the package '.orders'"
+            + " is not a valid Java package name");
+    }
+
     @Test
     void collisionFails() {
         assertThatThrownBy(() -> run("collision", List.of(copylib), BASE, false, false))
