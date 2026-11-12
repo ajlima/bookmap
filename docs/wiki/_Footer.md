@@ -1,0 +1,1 @@
+The source of this page is in [`docs/wiki/`](https://github.com/ajlima/bookmap/tree/main/docs/wiki) (the Roadmap page: [`ROADMAP.md`](https://github.com/ajlima/bookmap/blob/main/ROADMAP.md)). Do not edit the wiki directly: the next publication replaces your change. See [Contributing](Contributing#edit-this-wiki).

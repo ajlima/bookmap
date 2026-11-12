@@ -23,7 +23,8 @@
   <a href="#reference">Reference</a> ·
   <a href="#copybook-generator">Copybook generator</a> ·
   <a href="#transports-and-the-simulator">Transports</a> ·
-  <a href="#spring-boot">Spring Boot</a>
+  <a href="#spring-boot">Spring Boot</a> ·
+  <a href="https://github.com/ajlima/bookmap/wiki">Wiki</a>
 </p>
 
 ---
@@ -870,6 +871,7 @@ See [RELEASING.md](RELEASING.md) for the release cycle and the one-time setup.
 The build enforces 100% line and branch coverage for all modules except the examples.
 Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transport SPI accepts them without a change to the core.
 See [ROADMAP.md](ROADMAP.md) for the planned features and their priority.
+The [wiki](https://github.com/ajlima/bookmap/wiki) has the same documentation in separate pages. Its source is the folder `docs/wiki/`.
 
 ## License
 

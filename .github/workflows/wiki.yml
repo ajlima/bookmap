@@ -1,0 +1,44 @@
+# Publish the wiki.
+#
+# On each push to main that changes docs/wiki/ or ROADMAP.md, this workflow copies the pages
+# to the GitHub wiki of the repository (scripts/publish-wiki.sh). docs/wiki/ is the only source:
+# the script deletes the wiki pages that are not in docs/wiki/, and replaces the edits in the web UI.
+#
+# The job needs contents: write to push to the wiki repository. It runs no Gradle build and no
+# third-party action. The checkout keeps no credential: the token goes only to the wiki URL.
+
+name: Publish the wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/wiki/**"
+      - "ROADMAP.md"
+      - "scripts/publish-wiki.sh"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Publish the pages to the wiki
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/publish-wiki.sh "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
