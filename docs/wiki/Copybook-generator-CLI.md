@@ -143,7 +143,7 @@ bookmap-copybook generate GET-INVOICE.cpy --package com.example.billing --output
 ```
 
 The classes get `@Data` and `@NoArgsConstructor`, and no getters and setters.
-Add Lombok to your build. See [Getting started](Getting-started#lombok).
+Add Lombok to your build. See [Lombok with Gradle](Getting-started#lombok-with-gradle) or [Lombok with Maven](Getting-started#lombok-with-maven).
 
 ### Set the direction of a REDEFINES alternative
 
