@@ -137,7 +137,8 @@ jobs:
         run: |
           mkdir -p published
           for module in bookmap-core bookmap-processor bookmap-transport-simulator bookmap-spring-boot \
-                        bookmap-copybook bookmap-copybook-cli bookmap-copybook-gradle-plugin; do
+                        bookmap-copybook bookmap-copybook-cli bookmap-copybook-gradle-plugin \
+                        bookmap-copybook-maven-plugin; do
             cp "$module"/build/libs/*.jar published/
           done
           ls -l published
