@@ -43,15 +43,32 @@ The `build` check of a pull request runs all these builds.
 - Use JavaPoet for code generation in the annotation processor.
 - The core and processor modules must not depend on Spring, Quarkus, Guice, or any middleware library.
 - Write examples and test data in English. Use an international business domain, for example orders, invoices, or shipments.
+- Do not use identifiers that are specific to one country, for example a national tax ID.
+- Keep the line and branch coverage of each module at 100%.
 
 ## Rules for the documentation
 
-Write all documentation in English, in ASD-STE100 (Simplified Technical English) style:
+Write all documentation in English, in ASD-STE100 (Simplified Technical English) style. Follow these rules for approximately 80% of the text:
 
 - Use short sentences: 20 words maximum for an instruction, 25 words maximum for a description.
 - Write one instruction in each sentence. Use the imperative form.
 - Use the active voice.
-- Use one word for one meaning.
+- Use one word for one meaning. For example, always write "field", never "attribute", for the same thing.
+- Use only simple verb forms. Do not use "-ing" forms as verbs.
+- Use articles ("a", "an", "the") where possible.
+- Do not use a phrasal verb when a single verb is available ("remove", not "take out").
+- Write one topic in each paragraph, with six sentences maximum.
+- Write a warning or a caution as a clear command, followed by the risk.
+
+You can use technical names as they are: class names, annotation names, and COBOL terms such as `PIC`, `COMP-3`, and `OCCURS DEPENDING ON`.
+
+## Design documents
+
+Write a design spec before a large change. Put it in `docs/design/`, with the name `YYYY-MM-DD-<topic>-design.md`.
+
+Put a `Status:` line under the `Date:` line of the spec. When the feature is released, change the status to `implemented in vX.Y.Z.`
+
+Start with the main design: [`2026-11-10-bookmap-design.md`](https://github.com/ajlima/bookmap/blob/main/docs/design/2026-11-10-bookmap-design.md).
 
 ## Branches and pull requests
 
