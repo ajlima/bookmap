@@ -6,6 +6,13 @@ The annotations are in the package `pt.dazz.bookmap.annotation`. The processor r
 |---|---|---|
 | `value` | The logical operation name. | The simple class name. |
 
+Rules for an operation class (each rule gives a compile error):
+
+- The class is public, and top-level or static.
+- The class is not a record, not abstract, and not generic. An abstract base class with `@BookSubTypes` is permitted.
+- The class has a public constructor without arguments.
+- The operation name is not blank.
+
 The transport maps the operation name to its destination. See [Transports and simulator](Transports-and-simulator).
 
 ## @BookField (field)
@@ -15,17 +22,49 @@ The transport maps the operation name to its destination. See [Transports and si
 | `order` | Position in the book. Gaps are permitted. | Mandatory. |
 | `pic` | A COBOL `PIC` string with an optional usage clause. It replaces `length`, `scale`, `signed`, and `usage`. | None. |
 | `length` | Number of characters for text. Total number of digits for numbers (`S9(13)V99` is `length = 15`). | Mandatory without `pic`. |
-| `direction` | `INPUT`, `OUTPUT`, or `INPUT_OUTPUT`. | `INPUT_OUTPUT`. A count field takes the direction of its collection. |
+| `direction` | `INPUT`, `OUTPUT`, or `INPUT_OUTPUT`. | `INPUT_OUTPUT`. A count field without `direction` takes the direction of its collection. |
 | `usage` | `DISPLAY`, `COMP3`, or `COMP`. | From `@BookDefaults`, else `DISPLAY`. |
 | `scale` | Number of implied decimal places (`V99` is 2). | 0. |
 | `signed` | `true` if the field has a sign (`S9`). | From `@BookDefaults`, else `false`. |
-| `pattern` | Date or time format. | From `@BookDefaults`, else `yyyyMMdd`. |
+| `pattern` | Date or time format. | From `@BookDefaults`, else `yyyyMMdd`. Set a pattern on each `LocalTime` and `LocalDateTime` field. |
 | `converter` | A custom `FieldConverter` class. | None. |
 
 A field needs `pic` or `length`. One exception exists: a date or time field with neither gets its length from the pattern.
 If you set `pic`, do not set `length`, `scale`, `signed`, or `usage` on the same field. This is a compile error.
 Do not set `signed` or `scale` on a `String` or a date and time field. This is a compile error.
 An operation class and an item class need at least one annotated field.
+
+### Rules for annotated fields
+
+- The processor reads the annotated fields of the class and of all its superclasses.
+- Each `order` is unique in that hierarchy. A duplicate gives `duplicate order, also used by <Class>.<field>`.
+- An annotated field is not `static`.
+- A field does not have both `@BookField` and `@BookCollection`.
+- Each field has a public getter `getName()` that returns the field type, and a public setter `setName(T)`. The methods can be in a superclass.
+- A primitive `boolean` field (only with a converter) uses `isName()`.
+- A `final` field has no setter. Thus, it gives the compile error `missing setter setName`.
+
+Example of inheritance, from the billing example: `ListInvoices` gets the field `accountId` (order 10) from its superclass `BaseRequest`.
+
+```java
+@Getter
+@Setter
+public class BaseRequest {
+    @BookField(order = 10, pic = "X(10)")
+    private String accountId;
+}
+
+@Data
+@EqualsAndHashCode(callSuper = true)
+@BookOperation("ListInvoices")
+public class ListInvoices extends BaseRequest {
+    @BookField(order = 20, pic = "9(3)", direction = OUTPUT)
+    private int invoiceCount;
+
+    @BookCollection(order = 30, maxOccurs = 10)
+    private List<Invoice> invoices;
+}
+```
 
 See [PIC syntax and type mapping](PIC-syntax-and-type-mapping) for the `pic` string and the Java types.
 
@@ -45,9 +84,57 @@ public interface FieldConverter<J> {
 }
 ```
 
-`FieldContext` gives the field name, `length`, `scale`, `signed`, `usage`, `pattern`, the length in bytes, and the charset.
-The converter class must be public and have a constructor without arguments.
-All threads share one instance, so it must be thread-safe.
+`FieldContext` is a record with these components:
+
+| Component | Meaning |
+|---|---|
+| `field` | The Java field name. |
+| `length` | The number of digits or characters. |
+| `scale` | The number of decimal places. |
+| `signed` | `true` if the field has a sign. |
+| `usage` | The usage. Without `pic` and `usage`, a converter field has `DISPLAY`. |
+| `pattern` | The pattern. It is `yyyyMMdd` if the field sets no pattern. |
+| `byteLength` | The length of the field in bytes. For `DISPLAY`, it is `length`. |
+| `charset` | The charset of the codec at run time. |
+
+Rules for a converter class (each rule gives a compile error):
+
+- The class is public, concrete, and top-level or static. It has a public constructor without arguments.
+- The class has no type parameters.
+- The class implements `FieldConverter<J>` with a type argument. `J` is the field type, or the wrapper type for a primitive field.
+
+Rules at run time:
+
+- `decode` gets exactly `byteLength` bytes.
+- `encode` must return exactly `byteLength` bytes. Otherwise, the codec throws `MappingException`.
+- For a `null` value, `encode` gets `null`.
+- For a primitive field, `decode` must not return `null`.
+- The codec wraps a `RuntimeException` of the converter in a `MappingException`. A `BookmapException` goes to the caller unchanged.
+
+Each codec makes one instance of each converter class. All threads use it. Thus, make the converter thread-safe.
+
+Example: a `Y`/`N` flag as a `boolean`.
+
+```java
+public class FlagConverter implements FieldConverter<Boolean> {
+
+    @Override
+    public Boolean decode(byte[] bytes, FieldContext context) {
+        String text = new String(bytes, context.charset());
+        return text.equals("Y") ? Boolean.TRUE : text.equals("N") ? Boolean.FALSE : null;
+    }
+
+    @Override
+    public byte[] encode(Boolean value, FieldContext context) {
+        return (value == null ? " " : value ? "Y" : "N").getBytes(context.charset());
+    }
+}
+```
+
+```java
+@BookField(order = 40, length = 1, converter = FlagConverter.class)
+private boolean express;   // accessors: isExpress() and setExpress(boolean)
+```
 
 ## @BookCollection (field of type `List<Item>`)
 
@@ -76,7 +163,7 @@ package pt.dazz.bookmap.examples.billing;
 
 | Attribute | Meaning |
 |---|---|
-| `charset` | The charset name for the codec. It must be single-byte. Default: the client charset. |
+| `charset` | The charset name for the codec. It must exist and be single-byte. Default: the client charset (`IBM037`, unless the builder sets another charset). |
 | `usage` | The default usage of numeric fields without a usage in the `pic` and without an explicit `usage`. |
 | `signed` | The default sign of numeric fields without `pic` and without an explicit `signed`. |
 | `pattern` | The default date or time pattern. |
@@ -84,11 +171,15 @@ package pt.dazz.bookmap.examples.billing;
 The priority is, from high to low:
 
 1. An explicit attribute on the field.
-2. `@BookDefaults` on the class that declares the field.
-3. `@BookDefaults` on the package of that class.
-4. The built-in default.
+2. The `pic` of the field.
+3. `@BookDefaults` on the class that declares the field.
+4. `@BookDefaults` on the package of that class.
+5. The built-in default.
 
-The `usage` and `signed` defaults apply only to numeric Java types. Text and date fields ignore them.
+The `usage` and `signed` defaults apply only to numeric types. The `pattern` default applies only to date and time types. Fields with a converter ignore all three.
+
+- The processor does not use the `@BookDefaults` of an enclosing class or of a superclass. A field in a superclass uses the defaults of the superclass and of its package.
+- All classes of one operation (superclasses and item classes) must use the same charset. A different charset is a compile error.
 
 ## @BookSubTypes (class)
 

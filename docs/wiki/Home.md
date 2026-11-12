@@ -15,7 +15,7 @@
 # BookMap
 
 BookMap maps COBOL books (COMMAREA layouts) to Java classes. You add annotations to a class.
-A compile-time annotation processor generates the codec. The runtime does not use reflection.
+A compile-time annotation processor generates the codec. The runtime does not use reflection on your classes.
 
 BookMap needs Java 21. The core and processor modules have no dependency on Spring or on any middleware library.
 The base package is `pt.dazz.bookmap`. The license is MIT.
@@ -58,7 +58,7 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 | `bookmap-core` | Annotations, `BookmapClient`, the transport SPI, exceptions, and the codec runtime. |
 | `bookmap-processor` | The annotation processor. It generates one codec for each `@BookOperation` class. |
 | `bookmap-transport-simulator` | A transport for tests. It runs handlers in the same JVM. |
-| `bookmap-spring-boot` | Spring Boot 4.0.x auto-configuration for `BookmapClient`. |
+| `bookmap-spring-boot` | Spring Boot 4 auto-configuration for `BookmapClient` (built and tested with 4.1.2). |
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
 | `bookmap-copybook-cli` | The command line of the copybook generator. |
 | `bookmap-copybook-gradle-plugin` | The Gradle plugin of the copybook generator (`pt.dazz.bookmap.copybook`). |

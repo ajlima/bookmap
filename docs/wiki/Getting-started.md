@@ -22,7 +22,7 @@ Replace `<version>` with the latest version: ![Maven Central](https://img.shield
 | `bookmap-core` | Compile and runtime | The annotations, `BookmapClient`, the transport SPI, and the exceptions. Always necessary. |
 | `bookmap-processor` | Annotation processor only | The generation of the codecs at compile time. Always necessary. Do not put it on the runtime classpath. |
 | `bookmap-transport-simulator` | Test | The tests without a mainframe. |
-| `bookmap-spring-boot` | Compile and runtime | The auto-configuration of `BookmapClient` in Spring Boot 4.0.x. It includes `bookmap-core`. See [Spring Boot](Spring-Boot). |
+| `bookmap-spring-boot` | Compile and runtime | The auto-configuration of `BookmapClient` in Spring Boot 4 (built and tested with 4.1.2). It includes `bookmap-core`. See [Spring Boot](Spring-Boot). |
 
 To generate the classes from copybooks, see [Copybook generator](Copybook-generator).
 

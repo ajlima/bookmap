@@ -2,9 +2,9 @@ The framework uses few attributes. Six conventions reduce the work:
 
 1. `@BookOperation` without a value uses the simple class name.
 2. `pic` replaces `length`, `scale`, `signed`, and `usage`.
-3. A date or time field without `length` and `pic` gets its length from the pattern.
+3. A date or time field without `length` and `pic` gets its length from the pattern. An explicit `length` must agree with the pattern.
 4. Without `dependsOn`, the count field of a variable collection is the member immediately before it. A fixed collection without `dependsOn` has no count field.
-5. A collection is `OUTPUT` by default. The count field takes the direction of its collection. Other fields are `INPUT_OUTPUT`.
+5. A collection is `OUTPUT` by default. The count field takes the direction of its collection, unless the count field sets a direction. Other fields are `INPUT_OUTPUT`.
 6. `@BookDefaults` sets defaults for a class or a package.
 
 These attributes stay mandatory: `order`, `maxOccurs`, and the size of text and numeric fields.
@@ -33,7 +33,7 @@ public class UpdateShipment {
     private int lineCount;
 
     @BookCollection(order = 40, direction = INPUT, dependsOn = "lineCount", maxOccurs = 20)
-    private List<ShipmentLine> lines;
+    private List<ShipmentLine> lines;   // lineCount is INPUT: it agrees with the INPUT collection
 
     @BookField(order = 50, length = 2, direction = OUTPUT)
     private String status;
@@ -51,7 +51,8 @@ The billing package shows `@BookDefaults` with a Lombok class. The package sets 
 package pt.dazz.bookmap.examples.billing;
 ```
 
-`amount` gets its sign from the `pic`. `tax` gets `COMP3` and the sign from the package defaults.
+Both numeric fields get `COMP3` from the package defaults, because their `pic` has no usage clause. `amount` gets its sign from the `pic`. `tax` gets its sign from the package defaults.
+`invoiceNumber` is a text field. It ignores the `usage` and `signed` defaults.
 
 ```java
 @Data
