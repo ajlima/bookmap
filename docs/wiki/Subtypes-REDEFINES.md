@@ -18,7 +18,7 @@ A COBOL book can use `REDEFINES` to give one area more than one layout. A field 
 
 ## Map the layouts
 
-Map each layout to a subclass. Put `@BookSubTypes` on the base class. The base class declares the common fields and the discriminator:
+Map each layout to a subclass. Put `@BookSubTypes` on the base class. The base class (or one of its superclasses) declares the common fields and the discriminator:
 
 ```java
 @BookOperation
@@ -52,6 +52,16 @@ GetAccount request = new GetAccount();
 request.setAccountId("ACC-0000001");
 request.setRestartKey("");
 GetAccount result = client.execute(request);   // a CheckingAccount or a SavingsAccount
+```
+
+**CAUTION:** Use the return value of `execute()`. If the response selects a subclass, the client gives a new object. The request object does not get the response.
+
+```java
+if (result instanceof CheckingAccount checking) {
+    List<StatementEntry> entries = checking.getEntries();
+} else if (result instanceof SavingsAccount savings) {
+    BigDecimal rate = savings.getInterestRate();
+}
 ```
 
 ## Subtypes in collection items
@@ -101,20 +111,22 @@ See [Transports and simulator](Transports-and-simulator).
 - For a numeric discriminator, `"001"` and `"1"` are the same value. For a text discriminator, the spaces on the right have no effect.
 - In an operation class, the discriminator is `OUTPUT` or `INPUT_OUTPUT`. An abstract base class needs an `INPUT_OUTPUT` discriminator.
 - Each member of a subclass must have an `order` greater than all members of the base class. Thus, the redefined area is the end of the layout. Two subclasses can use the same `order` values.
-- A collection in a subclass needs a count field in the same subclass.
+- A variable collection in a subclass, or a fixed collection with `dependsOn`, needs its count field in the same subclass. A fixed collection without `dependsOn` needs no count field.
 - The subclasses do not have `@BookOperation`. They use the operation name of the base class.
 - The base class can be abstract. Then the caller always sends a subclass.
 - The base class can be in the list with its own value.
 
 ## Behavior
 
-- Write: for a subclass in the list, the codec sets the discriminator to the value of the subclass. Then it writes the layout of the subclass.
-- Read: the codec reads the discriminator and selects the subclass. An unknown value throws `MappingException`. The message contains the value and the known values.
-- Class change: if the first response selects a subclass of the request class, the client creates the subclass. The client copies the annotated members of the base class from the request to the new object. Then it decodes the response into the new object. Fields without an annotation are not copied.
-- The next pages use the object of the first response. A later page that selects a different class throws `MappingException`.
-- If the request is a subclass and the response selects a different subclass, the client throws `MappingException`.
-- Items: each item occupies the length of the longest subclass. The codec writes spaces at the end of a shorter item.
-- `maxResponseLength()` is the length of the longest layout.
+- Write: for a class in the list, the codec sets the discriminator to the value of that class, if the discriminator is in the direction. Then it writes the layout of the class. For a request, the discriminator must thus be `INPUT_OUTPUT`.
+- Read: the codec reads the discriminator and selects the subclass. An unknown value throws `MappingException`, for example `GetAccount.accountType (order 40): unknown discriminator value '7'. Known values: 1, 2`.
+- Class change: if the first response selects a subclass of the request class, the client creates the subclass. The client copies the annotated members of the base class from the request to the new object. Then it decodes the response into the new object. The copy uses the getter and the setter of each member. A list goes to the new object as the same instance. Fields without an annotation are not copied.
+- The next pages use the object of the first response. The next requests thus contain the discriminator value of the new class.
+- A later page that selects a different class throws `MappingException`: `GetAccount: the response has type X, but the object has type Y. Only the first response can change the type`.
+- If the request is a subclass and the response selects a different subclass, the client throws `MappingException`: `GetAccount: the response has type SavingsAccount, which is not a CheckingAccount`.
+- With an abstract base class, the response must select the class of the request.
+- Items: each item occupies the length of the longest layout. The longest layout includes a base class that is not abstract. The codec writes spaces at the end of a shorter item. On read, it skips to the end of the slot.
+- `maxResponseLength()` is the length of the longest response layout. A collection counts with `maxOccurs` items. The client gives this value to the transport in `BookRequest`.
 
 ## Compile errors
 
@@ -122,4 +134,5 @@ See [Transports and simulator](Transports-and-simulator).
 - An empty list, a type that is not an instantiable subclass of the base class, or a type in the list two times.
 - A blank value, a value that is used two times, a value that is not a number for a numeric field, or a value that does not fit in the field.
 - `@BookSubTypes` on a subclass (subtypes in a subtype), `@BookOperation` on a subclass, or a subclass that extends another subclass in the list.
-- A subclass member with an `order` that is not greater than all base members, or a collection in a subclass with a count field in the base class.
+- A subclass member with an `order` that is not greater than all base members, or a collection in a subclass with a count field in the base class. The message is `dependsOn field '<name>' must be in the subtype layout`.
+- A discriminator in a subclass: `discriminator field '<name>' must be in the base class or its superclasses`.

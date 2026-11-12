@@ -2,19 +2,39 @@ This page tells how to build BookMap, how to propose a change, and how a release
 
 ## Build
 
-BookMap needs JDK 21 or later. The build uses the Gradle wrapper.
+Install JDK 21. The build uses a Java 21 toolchain, and it does not download a JDK. The Gradle wrapper uses Gradle 9.9.1.
 
 ```bash
 ./gradlew build
 ```
 
-The build runs all tests. It fails if the line or branch coverage of a module is less than 100%. The examples are not included in this rule.
+The build runs all tests. It fails if the line or branch coverage of a module is less than 100%. The module `bookmap-examples` is not included in this rule.
+
+Run the tests of one module:
+
+```bash
+./gradlew :bookmap-core:test
+```
+
+Each module writes a JaCoCo coverage report in `build/reports/jacoco/` (HTML and XML).
 
 Build the standalone example of the Gradle plugin:
 
 ```bash
 ./gradlew -p bookmap-examples-gradle-plugin build
 ```
+
+Build the standalone example of the Maven plugin. It uses the snapshot version in the local Maven repository:
+
+```bash
+./gradlew publishToMavenLocal
+```
+
+```bash
+bookmap-examples-maven-plugin/mvnw -B -f bookmap-examples-maven-plugin/pom.xml verify
+```
+
+The `build` check of a pull request runs all these builds.
 
 ## Rules for the code
 
@@ -105,7 +125,7 @@ scripts/set-readme-version.sh X.Y.Z
 
 The source of the wiki pages is the folder [`docs/wiki/`](https://github.com/ajlima/bookmap/tree/main/docs/wiki) in the main repository.
 The Roadmap page comes from [`ROADMAP.md`](https://github.com/ajlima/bookmap/blob/main/ROADMAP.md).
-A GitHub Action publishes them to the wiki after each merge to `main`.
+A GitHub Action publishes them to the wiki after each push to `main` that changes `docs/wiki/` or `ROADMAP.md`. The Action deletes each wiki page that is not in `docs/wiki/`.
 
 1. Change the files in `docs/wiki/` or `ROADMAP.md` on a branch.
 2. Do not start a page with a level-1 title (`# Title`). The wiki shows the file name as the title. A file name such as `Getting-started.md` gives the title "Getting started".
