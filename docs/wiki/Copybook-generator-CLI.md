@@ -42,7 +42,7 @@ bookmap-copybook --help
 | `parse <copybook> --output <model.json>` | Writes the model JSON. It writes no Java. |
 | `generate <copybook> --package <name> --output-dir <dir>` | Writes the Java classes of a copybook. |
 | `generate <model.json> --package <name> --output-dir <dir>` | Writes the Java classes of a model JSON file. |
-| `--help`, `-h` | Shows the usage. |
+| `--help`, `-h` | Shows the usage, with the exit code 0. The option works at any position. |
 
 A `generate` input that ends with `.json` is a model. Each other input is a copybook.
 `generate` writes the classes in package directories under `--output-dir`. It replaces the existing files with the same name. It does not delete other files.
@@ -55,26 +55,28 @@ A `generate` input that ends with `.json` is a model. Each other input is a copy
 | `--package <name>` | `generate` | The Java package of the classes. Mandatory, unless the options file sets `package`. |
 | `--output-dir <dir>` | `generate` | The root directory for the Java files. Mandatory for `generate`. |
 | `--lombok` | `generate` | Write Lombok annotations (`@Data`, `@NoArgsConstructor`) instead of getters and setters. |
-| `--format fixed\|free` | both | The reference format. Default: `fixed` (columns 7 to 72). |
+| `--format fixed\|free` | both | The reference format. Default: `fixed`. See [Source format](Copybook-generator#source-format). |
 | `--charset <name>` | both | The charset of the copybook files. Default: UTF-8. |
 | `--copy-dir <dir>` | both | A directory with `COPY` members. Repeat the option for more directories. |
 | `--record-name <name>` | both | The record name for a copybook without level `01`. Default: the file name. |
 | `--strip-prefix <prefix>` | both | A prefix to remove from names, for example `WS-`. Repeat the option for more prefixes. |
-| `--input-marker <word>` | both | A name part that marks an input alternative. Repeat the option for more words. |
-| `--output-marker <word>` | both | A name part that marks an output alternative. Repeat the option for more words. |
-| `--direction <name>=<direction>` | both | The direction (`INPUT` or `OUTPUT`) of a `REDEFINES` alternative. Repeat the option for more alternatives. |
+| `--input-marker <word>` | both | A name part that marks an input alternative. Write it in upper case. Repeat the option for more words. |
+| `--output-marker <word>` | both | A name part that marks an output alternative. Write it in upper case. Repeat the option for more words. |
+| `--direction <name>=<direction>` | both | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`) of a `REDEFINES` alternative. The direction is not case-sensitive. Repeat the option for more alternatives. |
 | `--config <file.json>` | both | An [options file](Copybook-generator#options-file) with all options. |
 
 With a model input, the parse and mapping options (`--format` to `--direction`) are not permitted. The model already contains their result.
+With a model input, the generator uses only `package` and `lombok` from the options file. It ignores the other keys.
+If you give a single-value option two times, the last value applies.
 
 ### Options file and command line together
 
 The command line and the options file work together in this way:
 
 - A single value on the command line (`--format`, `--charset`, `--record-name`, `--package`) has priority over the value in the file.
-- A repeated option (`--copy-dir`, `--strip-prefix`, `--input-marker`, `--output-marker`) adds its values after the values of the file.
+- A repeated option (`--copy-dir`, `--strip-prefix`, `--input-marker`, `--output-marker`) adds its values after the values of the file. `--input-marker` and `--output-marker` add words to the default list. To replace the default list, use `inputMarkers` or `outputMarkers` in the options file.
 - `--direction` adds a decision. For the same alternative, the command line has priority.
-- `--lombok` sets `lombok`. Without `--lombok`, the value of the file applies.
+- `--lombok` sets `lombok`. Without `--lombok`, the value of the file applies. The command line cannot set `lombok` to `false`.
 - Subtype decisions come only from the file.
 
 A relative copy directory in the file starts at the directory of the file. A relative `--copy-dir` starts at the current directory.
@@ -85,6 +87,7 @@ On success, the command writes one line to the standard output:
 
 ```
 wrote 2 classes to src/main/java
+wrote the model of GET-ORDER.cpy to model/GET-ORDER.json
 ```
 
 The command writes each diagnostic to the standard error, in the format `<file>:<line>:<column>: <severity>: <message>`:
@@ -98,12 +101,43 @@ The generator reports all problems of a copybook before it stops.
 | Exit code | Meaning |
 |---|---|
 | `0` | Success. Warnings and info diagnostics are permitted. |
-| `1` | A diagnostic with the severity `error`. The command wrote no Java file. |
-| `2` | An incorrect command line, for example a missing option or an unknown option. |
+| `1` | A diagnostic with the severity `error`, an incorrect model JSON, or a file that cannot be read or written. The command wrote no Java file and no model file. |
+| `2` | An incorrect command line, or an incorrect options file. |
+
+Examples of exit code 1:
+
+```
+missing.cpy:1:1: error: cannot read missing.cpy: java.nio.file.NoSuchFileException: missing.cpy
+v2.json: error: unsupported formatVersion 2. This reader supports 1.
+error: nodir/GET-ORDER.json
+```
+
+For exit code 2, the command writes `error: <message>` and then `Run bookmap-copybook --help for the options.` to the standard error:
+
+| Message | Cause |
+|---|---|
+| `the command is missing` | No `parse` or `generate`. |
+| `unknown command 'frob'. Use parse or generate.` | An unknown command. |
+| `the input file is missing` | No copybook or model file. |
+| `only one input file is permitted` | More than one input file. |
+| `the option --x needs a value` | An option without its value. |
+| `unknown option --bogus` | An unknown option. |
+| `the option --lombok is only for generate` | `--lombok` with `parse`. |
+| `the option --package is missing` | `generate` without `--package`, and no `package` in the options file. |
+| `the option --output-dir is missing` | `generate` without `--output-dir`. |
+| `the option --output is missing` | `parse` without `--output`. |
+| `unknown format 'fre'. Use fixed or free.` | An incorrect `--format`. |
+| `unknown charset 'x'` | An incorrect `--charset`. |
+| `--direction needs NAME=DIRECTION, not 'X'` | `--direction` without `=`. |
+| `unknown direction in 'X=both'. Use INPUT, OUTPUT, or INPUT_OUTPUT.` | An incorrect direction. |
+| `parse and mapping options are not permitted with a model input` | A parse or mapping option with a model input. |
+| `bad.json: unknown key 'foo' in $` | An unknown key in the options file. |
+
+**CAUTION:** If almost each line gives `an entry must start with a level number`, check the format. For example, `--format free` on a fixed-format copybook gives this error.
 
 ## Examples
 
-The examples use the copybooks of [`bookmap-examples-gradle-plugin`](https://github.com/ajlima/bookmap/tree/main/bookmap-examples-gradle-plugin/src/main).
+Most examples use the copybooks of [`bookmap-examples-gradle-plugin`](https://github.com/ajlima/bookmap/tree/main/bookmap-examples-gradle-plugin/src/main). The example of a `REDEFINES` direction shows its own copybook.
 
 ### Generate the classes of one copybook
 
@@ -113,6 +147,15 @@ bookmap-copybook generate GET-ORDER.cpy --package com.example.orders --output-di
 
 The command writes `src/main/java/com/example/orders/GetOrder.java` and `OrderLine.java`.
 See the generated class in [Copybook generator](Copybook-generator#example).
+
+### See the errors
+
+```
+$ bookmap-copybook generate GET-INVOICE.cpy --package com.example.billing --output-dir out
+GET-INVOICE.cpy:5:12: error: copy member 'ADDRESS' not found: no copy directory is set
+$ echo $?
+1
+```
 
 ### Use COPY members and an options file
 
@@ -147,8 +190,20 @@ Add Lombok to your build. See [Lombok with Gradle](Getting-started#lombok-with-g
 
 ### Set the direction of a REDEFINES alternative
 
-`QUERY-INVOICE.cpy` has a group `INVOICE-QUERY` and a group `INVOICE-DETAIL REDEFINES INVOICE-QUERY`.
-The names have no input or output marker. Thus, give the directions:
+This copybook is not in the examples. The names `INVOICE-QUERY` and `INVOICE-DETAIL` have no input or output marker:
+
+```cobol
+       01  GET-INVOICE.
+           05  RETURN-CODE          PIC X(4).
+           05  INVOICE-QUERY.
+               10  INVOICE-ID       PIC X(12).
+           05  INVOICE-DETAIL REDEFINES INVOICE-QUERY.
+               10  INVOICE-AMOUNT   PIC S9(7)V99 COMP-3.
+               10  DUE-DATE         PIC 9(8).
+           05  TRAILER              PIC X(10).
+```
+
+Without a decision, the command stops with exit code 1 and the error `REDEFINES area INVOICE-QUERY at line 3 needs a decision. ...`. Give the directions:
 
 ```bash
 bookmap-copybook generate QUERY-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
@@ -159,7 +214,7 @@ See [Directions](Copybook-generator#directions).
 
 ### Keep the model and compare it
 
-Write the model JSON. Keep it in version control:
+Create the directory `model`. Then write the model JSON, and keep it in version control:
 
 ```bash
 bookmap-copybook parse GET-ORDER.cpy --output model/GET-ORDER.json

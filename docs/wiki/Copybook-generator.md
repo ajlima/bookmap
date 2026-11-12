@@ -73,23 +73,99 @@ All keys are optional. An unknown key is an error.
 
 | Key | Type | Meaning | Default |
 |---|---|---|---|
-| `format` | `"fixed"` or `"free"` | The reference format. `fixed` reads the columns 7 to 72. | `fixed` |
-| `charset` | text | The charset of the copybook files. | `UTF-8` |
+| `format` | `"fixed"` or `"free"` | The reference format. See [Source format](#source-format). | `fixed` |
+| `charset` | text | The charset of the copybook and of its `COPY` members. | `UTF-8` |
 | `copyDirs` | list of paths | The directories with the `COPY` members, in search order. A relative path starts at the directory of the options file. | empty |
-| `recordName` | text | The record name for a copybook without level `01`. | The file name. |
-| `stripPrefixes` | list of texts | The prefixes to remove from names, for example `WS-`. | empty |
-| `inputMarkers` | list of texts | The name parts that mark an input alternative. The list replaces the default list. | `INPUT`, `IN`, `REQUEST`, `REQ` |
-| `outputMarkers` | list of texts | The name parts that mark an output alternative. The list replaces the default list. | `OUTPUT`, `OUT`, `RESPONSE`, `RESP` |
-| `directions` | map | The direction (`INPUT` or `OUTPUT`) of each `REDEFINES` alternative. See [Directions](#directions). | empty |
+| `recordName` | text | The record name for a copybook whose first item is not level `01`. | The file name without the extension, in upper case. |
+| `stripPrefixes` | list of texts | The prefixes to remove from the Java names, for example `WS-`. See [Names](#names). | empty |
+| `inputMarkers` | list of texts | The name parts that mark an input alternative. Write them in upper case. The list replaces the default list. | `INPUT`, `IN`, `REQUEST`, `REQ` |
+| `outputMarkers` | list of texts | The name parts that mark an output alternative. Write them in upper case. The list replaces the default list. | `OUTPUT`, `OUT`, `RESPONSE`, `RESP` |
+| `directions` | map | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`, in upper case) of each `REDEFINES` alternative. See [Directions](#directions). | empty |
 | `subTypes` | map | The subtype decisions. See [Subtypes](#subtypes). | empty |
 | `package` | text | The Java package of the classes. | The tool gives it. |
 | `lombok` | boolean | Write Lombok annotations instead of getters and setters. | `false` |
 
-A name in an option can be qualified, for example `CITY OF BILLING-ADDRESS`. A name that matches more than one item is an error.
+A name in an option can be qualified with `OF` or `IN`, for example `CITY OF BILLING-ADDRESS`. The qualifier can be any group around the item, not only the parent.
+The names in the options are not case-sensitive. A name that matches more than one item is an error.
+Write the options file in UTF-8.
+
+## Source format
+
+### Fixed format
+
+The default format is `fixed`, the classic layout of a COBOL source line:
+
+| Columns | Area | Use |
+|---|---|---|
+| 1 to 6 | Sequence area | The generator ignores it. |
+| 7 | Indicator | See the next table. |
+| 8 to 72 | Code | The data entries. |
+| 73 and after | Identification area | The generator ignores it. |
+
+| Indicator (column 7) | Meaning |
+|---|---|
+| space | A normal line. |
+| `*` or `/` | A comment line. |
+| `D` or `d` | A debugging line. The generator ignores it. |
+| `-` | A continuation of a literal from the line before. Start the continued text with a quote. |
+| Another character | An error: `unknown indicator 'X' in column 7`. |
+
+- Do not use tab characters. A tab is an error: `a tab character makes the columns unclear. Replace tabs with spaces.`
+- `*>` does not start a comment in fixed format. Remove the inline comments, or use the free format.
+
+### Free format
+
+Set `format` to `free` (or `--format free`) for a copybook without columns.
+
+- `*>` starts a comment to the end of the line.
+- A `*` in column 1 is not a comment.
+- A literal cannot continue on the next line.
+
+In both formats, lower case is permitted. The generator changes the names and the pictures to upper case.
+
+**CAUTION:** If almost each line gives `an entry must start with a level number`, the format is wrong. Check the `format` option.
+
+## Data entries
+
+### Levels
+
+- Levels 01 to 49 and 88 are permitted. Each level `01` gives one class with `@BookOperation`.
+- One copybook can have more than one level `01`. Each one gives its own class.
+- If the first item is not level `01`, the generator adds a record. The record name comes from `recordName`.
+- Level 66 and level 77 are errors: `level 66 is not supported by BookMap`. Another level is an error, for example `level 50 is not valid`.
+- A level `01` with `REDEFINES` gives a warning: `record OTHER-REC redefines record MAIN-REC. Both records are kept.`
+- A group with a `PIC` is an error: `GRP is a group and must not have a PIC`. An elementary item without a `PIC` is an error: `NOPIC has no PIC`.
+- A level 88 must follow an item: `a level 88 condition needs an item before it`.
+
+### Clauses
+
+| Clause | Result |
+|---|---|
+| `PIC` or `PICTURE [IS]` with `X`, `9`, `S` (first), `V`, and repeat counts | Accepted. |
+| `USAGE [IS]` with `DISPLAY`, `COMP`, `COMPUTATIONAL`, `COMP-4`, `COMPUTATIONAL-4`, `BINARY`, `COMP-3`, `COMPUTATIONAL-3`, `PACKED-DECIMAL` | Accepted. A usage on a group applies to its items. |
+| `OCCURS n [TIMES]` | Accepted: a fixed collection. |
+| `OCCURS m TO n [TIMES] DEPENDING [ON] name [OF\|IN group]` | Accepted: a variable collection. |
+| `REDEFINES` | Accepted. See [Directions](#directions) and [Subtypes](#subtypes). |
+| `SIGN [IS] TRAILING`, `TRAILING` | Accepted. It is the default sign of BookMap. |
+| `VALUE`, `VALUES` | Ignored, without a diagnostic. |
+| Level 88 | Ignored, with an `info` diagnostic: `condition CARD-ACCOUNT is ignored`. |
+| `INDEXED BY`, `ASCENDING KEY`, `DESCENDING KEY` | Ignored, with an `info` diagnostic, for example `INDEXED is ignored`. |
+| `LEADING`, `SEPARATE`, `SYNC`, `SYNCHRONIZED`, `JUST`, `JUSTIFIED`, `BLANK`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL` | Error, for example `LEADING is not supported by BookMap`. |
+| Edited pictures with `Z * , . + - B 0 / CR DB` | Error, for example `edited picture ZZ9 is not supported by BookMap`. |
+| Pictures with `P`, `A`, or `N` | Error, for example `picture symbol A is not supported by BookMap`. |
+| A picture with an incorrect form, for example `X9` | Error: `picture X9 is not valid`. |
+| Another word | Error, for example `unknown clause FOO`. |
+
+Other errors:
+
+- `A12 has a text picture and must not have COMP or COMP-3`
+- `A13: COMP supports at most 18 digits`
+
+The diagnostic of a level 88 gives the line of its parent item, not the line of the level 88.
 
 ## COPY members
 
-The parser expands each `COPY` statement with the member from a copy directory. `COPY ... REPLACING` is supported.
+The parser expands each `COPY` statement with the member from a copy directory.
 
 - The tools do not search for members. Declare the copy directories (`copyDirs`, or `--copy-dir`).
 - The search in each directory is not recursive. A member in a subdirectory of a copy directory is not found.
@@ -97,6 +173,43 @@ The parser expands each `COPY` statement with the member from a copy directory. 
 - If one directory has more than one of these files, the first name in alphabetical order wins. Keep only one file for each member.
 - The first directory that has the member wins. Thus, the order of the directories is important.
 - If no directory has the member, the generator reports an error, for example `copy member 'ADDRESS' not found in /work/src/main/copylib`.
+- Without a copy directory, the message is `copy member 'ADDRESS' not found: no copy directory is set`.
+- A copy directory that does not exist is not an error. The search skips it.
+- The parser reads a member with the format and the charset of the copybook.
+
+### The COPY statement
+
+- Write the member name as a word or a literal: `COPY ADDRESS.` or `COPY 'ADDRESS'.`
+- The generator ignores a library name in `COPY member OF library` or `COPY member IN library`.
+- A member can contain `COPY`. The generator expands it with the same copy directories.
+- A cycle is an error, for example `COPY cycle: LOOPA -> LOOPB -> LOOPA`.
+- A member can give two items with the same name. The second field gets a number, for example `email2`.
+
+### REPLACING
+
+- A `REPLACING` operand is pseudo-text (`==...==`), a word, a literal, or a number. Give one or more `operand BY operand` pairs.
+- The generator compares pseudo-text token by token. The number of spaces is not important.
+- A pseudo-text such as `==:PFX:==` is a tag. It also replaces text inside words: `:PFX:-NAME` gives `SENDER-NAME`.
+- To replace a picture string, put `PIC` in the pseudo-text: `==PIC S9(5)V99== BY ==PIC S9(7)V99==`.
+- The generator applies the replacements one time. It does not scan the replaced text again.
+- `REPLACING LEADING` and `REPLACING TRAILING` are not supported. They give `REPLACING needs BY`.
+- The `REPLACE` statement is an error: `the REPLACE statement is not supported by BookMap`.
+
+```
+      * lib/PARTY.cpy
+           05  :PFX:-NAME        PIC X(20).
+           05  :PFX:-PHONE       PIC X(15).
+```
+
+```cobol
+       01  SHIPMENT.
+           COPY PARTY REPLACING ==:PFX:== BY ==SENDER==.
+           COPY PARTY REPLACING ==:PFX:== BY ==RECEIVER==.
+```
+
+The class `Shipment` gets the fields `senderName`, `senderPhone`, `receiverName`, and `receiverPhone`.
+
+Other messages of the `COPY` statement: `COPY needs a member name`, `REPLACING needs a value after BY`, `the COPY statement has an unknown word X`, `the COPY statement has no closing period`, `the pseudo-text has no closing ==`, and `the literal has no closing quote`.
 
 ## Mapping
 
@@ -106,12 +219,13 @@ The parser expands each `COPY` statement with the member from a copy directory. 
 | A group without `OCCURS` | No class. Its items go into the class of the parent. |
 | `OCCURS n` | `@BookCollection(fixed = true)` and an item class. |
 | `OCCURS m TO n DEPENDING ON X` | `@BookCollection(dependsOn = "x")` and an item class. |
+| `OCCURS m TO n` without `DEPENDING ON` | `@BookCollection(maxOccurs = n, fixed = true)`. |
 | An elementary item with `OCCURS` | An item class with one field `value`. |
 | An elementary item | A `@BookField` with `pic`, for example `pic = "S9(7)V99 COMP-3"`. |
-| `FILLER` | A field `filler1`, `filler2`, ... |
-| `REDEFINES` of an elementary item | The first definition. The other item is skipped, with a warning. |
+| `FILLER` | A field `filler1`, `filler2`, ... See [FILLER](#filler). |
+| `REDEFINES` of an elementary item | The first definition. The other item is skipped, with a warning: `E2 redefines E1 and is skipped`. See [REDEFINES of an elementary item](#redefines-of-an-elementary-item). |
 | `REDEFINES` of a group | A direction split or subtypes. See the next sections. |
-| Level `88`, `VALUE` | Ignored. |
+| Level `88`, `VALUE` | Ignored. A level 88 gives an `info` diagnostic. |
 
 | Picture | Java type |
 |---|---|
@@ -120,12 +234,63 @@ The parser expands each `COPY` statement with the member from a copy directory. 
 | `9(n)` with 10 to 18 digits | `long` |
 | Decimals, or more than 18 digits | `BigDecimal` |
 
-Names: `GET-CUSTOMER-ORDERS` gives the class `GetCustomerOrders`, and `ORDER-AMOUNT` gives the field `orderAmount`.
-A Java keyword gets the suffix `Value`. If two items in one class have the same name, the second name starts with its group name.
-The `order` values are 10, 20, 30, ... in each class. Each field has a Javadoc comment with its COBOL declaration.
+The `order` values are 10, 20, 30, ... in each class.
+
+### Names
+
+- `GET-CUSTOMER-ORDERS` gives the class `GetCustomerOrders`. `ORDER-AMOUNT` gives the field `orderAmount`. `-` and `_` separate the name parts.
+- A Java keyword gets the suffix `Value`, for example `class` gives `classValue`.
+- A field name that starts with a digit gets the prefix `field`: `1ST-DATE` gives `field1stDate`.
+- A class name that starts with a digit gets the prefix `Record`. A class name equal to a `java.lang` class gets the suffix `Record`: `STRING OCCURS 5` gives `StringRecord`.
+
+`stripPrefixes` removes a prefix from the Java names:
+
+- The generator compares the prefixes without case. It removes only the first prefix that matches.
+- It does not remove a prefix that is the full name.
+- It applies to the field names and to the class names, also to the record class: `WS-LIST-ORDERS` gives `ListOrders`.
+- It does not change the Javadoc, or the COBOL names in the options.
+
+### Name collisions
+
+If a field name is already in use in the class:
+
+1. The generator adds the name of the nearest group in front of it, for example `addressCity`.
+2. If that name is also in use, it tries the next outer group.
+3. If all names are in use, it adds a number: `city2`, `city3`.
+
+The class names are compared without case. If an item class name is in use, the generator adds the name of the parent class in front of it, for example `GetRouteLegs`. Then it adds a number. A record name in use gets a number, for example `Item2`.
+
+### FILLER
+
+- The number of `fillerN` restarts in each class.
+- A `FILLER` group without `OCCURS` gives no field. Its items go into the class.
+- A `FILLER` with `OCCURS` gives a collection `fillerN` and an item class `Filler`.
+
+### OCCURS DEPENDING ON
+
+- `dependsOn` contains the Java name of the count field, for example `dependsOn = "orderCount"`.
+- The count field stays a normal `@BookField`, with the direction `INPUT_OUTPUT`.
+- `maxOccurs` is the maximum. The generator does not keep the minimum.
+- The count item must be an integer in the same class, before the table.
+
+| Message | Cause |
+|---|---|
+| `DEPENDING ON item NOPE does not exist` | No item has this name. |
+| `DEPENDING ON item X is ambiguous. Qualify it: ...` | More than one item has this name. Add `OF group`. |
+| `DEPENDING ON item LATER must be in the same class, before the table` | The count item is after the table, or in another class. |
+| `DEPENDING ON item CNTX must be an integer` | The count item is text, or has decimals. |
+| `DEPENDING ON item CNT has 1 digits and cannot hold 20` | The count item is too small for the maximum. |
+| `OCCURS T4B is inside OCCURS T4. BookMap does not support nested collections.` | A table in a table. |
 
 A fixed `OCCURS` has no `dependsOn`, because the copybook does not tell which field is the count.
 Add `dependsOn` by hand if the program has a count field. See [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#fixed-collections).
+
+### REDEFINES of an elementary item
+
+The generator keeps the first definition and skips the other item, with the warning `E2 redefines E1 and is skipped`. Two cases are errors:
+
+- The redefining item is longer: `E3 redefines E1 and is longer than E1. BookMap keeps E1, so the items after it would move.`
+- An elementary item redefines a group: `... is an elementary item that redefines the group ... BookMap does not support this.`
 
 ### Example
 
@@ -141,7 +306,7 @@ This copybook:
                10  QUANTITY             PIC 9(5).
 ```
 
-gives two classes, `GetOrder` and `OrderLine`. This is `GetOrder`, without the getters and setters:
+gives two classes, `GetOrder` and `OrderLine`. This is `GetOrder`, shortened: without the `package` and `import` lines and the getters and setters. The generator writes each annotation member on its own line.
 
 ```java
 /**
@@ -152,24 +317,45 @@ public class GetOrder {
     /**
      * {@code 05 ORDER-ID PIC X(10).}
      */
-    @BookField(order = 10, pic = "X(10)")
+    @BookField(
+            order = 10,
+            pic = "X(10)"
+    )
     private String orderId;
 
     /**
      * {@code 05 ORDER-TOTAL PIC S9(7)V99 COMP-3.}
      */
-    @BookField(order = 20, pic = "S9(7)V99 COMP-3")
+    @BookField(
+            order = 20,
+            pic = "S9(7)V99 COMP-3"
+    )
     private BigDecimal orderTotal;
 
     /**
      * {@code 05 ORDER-LINE OCCURS 3 TIMES.}
      */
-    @BookCollection(order = 30, maxOccurs = 3, direction = Direction.INPUT_OUTPUT, fixed = true)
+    @BookCollection(
+            order = 30,
+            maxOccurs = 3,
+            direction = Direction.INPUT_OUTPUT,
+            fixed = true
+    )
     private List<OrderLine> orderLine;
 
     // getters and setters
 }
 ```
+
+### The generated classes
+
+- Each class gets the Javadoc `Generated by the BookMap copybook generator from {@code GET-ORDER.cpy}.`
+- Each field gets a Javadoc with its declaration, after `COPY REPLACING`, with single spaces and without `VALUE`.
+- `@BookCollection` always has `direction`. `@BookField` has `direction` only if it is not `INPUT_OUTPUT`.
+- A usage on a group shows in the `pic` of each item, for example `pic = "S9(5)V99 COMP-3"`. The Javadoc shows the declaration as written.
+- The item classes have no class annotation.
+- Without Lombok, each class gets a public getter and a public setter for each field.
+- With Lombok, each class gets `@Data` and `@NoArgsConstructor`. A subclass also gets `@EqualsAndHashCode(callSuper = true)` and `@ToString(callSuper = true)`.
 
 ## Directions
 
@@ -190,16 +376,41 @@ Inside a `REDEFINES` area, the input alternative and the output alternative shar
     05  TRAILER              PIC X(10).
 ```
 
-`invoiceId` is `INPUT`. `invoiceAmount` and `dueDate` are `OUTPUT`. `returnCode` and `trailer` are `INPUT_OUTPUT`.
+The generator gives these fields:
+
+| Field | `pic` | Direction | `order` |
+|---|---|---|---|
+| `returnCode` | `X(4)` | `INPUT_OUTPUT` | 10 |
+| `invoiceId` | `X(12)` | `INPUT` | 20 |
+| `filler1` | `X(1)` | `INPUT` | 30 |
+| `invoiceAmount` | `S9(7)V99 COMP-3` | `OUTPUT` | 40 |
+| `dueDate` | `9(8)` | `OUTPUT` | 50 |
+| `trailer` | `X(10)` | `INPUT_OUTPUT` | 60 |
+
 The request alternative is 1 byte shorter. The generator adds a 1-byte `INPUT` filler, so `trailer` has the COBOL offset in both directions.
+The Javadoc of the filler is `FILLER PIC X(1). Added to give INVOICE-REQUEST the length of INVOICE-RESPONSE.`
 
-The generator finds the direction of an alternative in this order:
+The generator decides what to do with a `REDEFINES` area in this order:
 
-1. A direction decision (`--direction` or `directions`).
-2. A marker in the group name. The default input markers are `INPUT`, `IN`, `REQUEST`, and `REQ`. The default output markers are `OUTPUT`, `OUT`, `RESPONSE`, and `RESP`.
-3. A subtype decision makes subtypes instead (next section).
+1. A subtype decision. The area becomes subtypes. The generator ignores the directions and the markers of the area (next section).
+2. A direction decision (`--direction` or `directions`).
+3. A marker in the group name. The default input markers are `INPUT`, `IN`, `REQUEST`, and `REQ`. The default output markers are `OUTPUT`, `OUT`, `RESPONSE`, and `RESP`.
 
-If none applies, the generator does not guess. It reports an error with an example of each decision.
+A marker must be equal to one full part of the name, between hyphens. Thus, `REQUEST` marks `INVOICE-REQUEST`, but not `INVOICEREQUEST`. The markers are case-sensitive: write them in upper case.
+
+If none applies, the generator does not guess. It reports an error with an example of each decision:
+
+```
+QUERY-INVOICE.cpy:3:12: error: REDEFINES area INVOICE-QUERY at line 3 needs a decision. Add a direction for each alternative, for example "directions": {"INVOICE-QUERY": "INPUT", "INVOICE-DETAIL": "OUTPUT"}. Or add a subtype decision, for example "subTypes": {"INVOICE-QUERY": {"discriminator": "...", "values": {"INVOICE-QUERY": "01", "INVOICE-DETAIL": "02"}}}.
+```
+
+Rules for a direction split:
+
+- A direction split needs exactly two alternatives: one `INPUT` and one `OUTPUT`. For three or more alternatives, use subtypes.
+- A name with an input marker and an output marker gives a warning: `INVOICE-RESPONSE has an input marker and an output marker. Its direction is not clear.`
+- A split is an error inside an `OCCURS`, with `OCCURS DEPENDING ON` in an alternative, or with `OCCURS` on an alternative.
+- Set the decision on the alternative group. A decision on an item inside it is an error: `direction decision: INVOICE-ID is inside a REDEFINES alternative. Set the decision on the alternative group.`
+- A decision on an item outside a `REDEFINES` area is an error: `direction decision: RETURN-CODE is not a REDEFINES alternative. ...`
 
 ## Subtypes
 
@@ -225,9 +436,75 @@ The class that holds the area gets `@BookSubTypes`. Each alternative becomes a s
 | `values` | The discriminator value of each alternative. |
 | `classNames` | Optional. The class name of an alternative. Default: the class name from the name of the alternative. |
 
+Rules for subtypes:
+
+- The discriminator must be an item before the area, in the same class. It must be text or an integer.
+- Give a value for each alternative. Otherwise, the error is `the REDEFINES alternative SAVING-DATA has no discriminator value`.
+- The area must be at the end of the class: `TRAILER comes after the REDEFINES area CARD-DATA. BookMap needs the redefined area at the end of the layout.`
+- `@BookSubTypes(discriminator = ...)` contains the Java field name, for example `accountKind`.
+- Each subclass extends the class that holds the area. Its `order` values continue after the base class.
+
+With the example options above, `GET-ACCOUNT-SUMMARY.cpy` (in `bookmap-examples`) gives this base class:
+
+```java
+@BookOperation
+@BookSubTypes(
+        discriminator = "accountKind",
+        value = {
+                @BookSubTypes.Type(value = "C", type = CardAccount.class),
+                @BookSubTypes.Type(value = "L", type = LoanAccount.class)
+        }
+)
+public class GetAccountSummary {
+```
+
+## Model JSON
+
+The `parse` command writes the model as JSON. The `generate` command reads it again.
+
+- The root keys are `formatVersion` (now `1`), `sourceName`, and `classes`.
+- A class has `name`, `kind` (`OPERATION`, `ITEM`, or `SUBTYPE`), an optional `superclass`, optional `subTypes` (`discriminator`, and `types` with `value` and `className`), and `members`.
+- A field member has `kind: FIELD`, `name`, `javaType` (`STRING`, `INT`, `LONG`, or `BIG_DECIMAL`), `order`, `pic`, `direction`, `cobolName`, and `declaration`.
+- A collection member has `kind: COLLECTION`, `name`, `order`, `direction`, `maxOccurs`, `fixed`, an optional `dependsOn`, `itemClass`, `cobolName`, and `declaration`.
+- The reader rejects an unknown key, and another `formatVersion`: `unsupported formatVersion 2. This reader supports 1.`
+- The generator does not check a model that you edit by hand. It writes the classes as the model gives them.
+
+```json
+{
+  "formatVersion" : 1,
+  "sourceName" : "GET-ORDER.cpy",
+  "classes" : [ {
+    "name" : "GetOrder",
+    "kind" : "OPERATION",
+    "members" : [ {
+      "kind" : "FIELD",
+      "name" : "orderId",
+      "javaType" : "STRING",
+      "order" : 10,
+      "pic" : "X(10)",
+      "direction" : "INPUT_OUTPUT",
+      "cobolName" : "ORDER-ID",
+      "declaration" : "05 ORDER-ID PIC X(10)."
+    }, {
+      "kind" : "COLLECTION",
+      "name" : "orderLine",
+      "order" : 30,
+      "direction" : "INPUT_OUTPUT",
+      "maxOccurs" : 3,
+      "fixed" : true,
+      "itemClass" : "OrderLine",
+      "cobolName" : "ORDER-LINE",
+      "declaration" : "05 ORDER-LINE OCCURS 3 TIMES."
+    } ]
+  } ]
+}
+```
+
+This excerpt is shortened: the real model also has the field `orderTotal` and the class `OrderLine`.
+
 ## Diagnostics
 
-The generator reports all problems of a copybook before it stops. Each diagnostic has the format `<file>:<line>:<column>: <severity>: <message>`:
+Each diagnostic has the format `<file>:<line>:<column>: <severity>: <message>`:
 
 ```
 GET-INVOICE.cpy:5:12: error: copy member 'ADDRESS' not found: no copy directory is set
@@ -235,11 +512,15 @@ GET-INVOICE.cpy:5:12: error: copy member 'ADDRESS' not found: no copy directory 
 
 The severity is `error`, `warning`, or `info`. Only an `error` stops the generation.
 
+- The generator reports all problems of one step before it stops.
+- If the parse step has errors, the mapping step does not run. Correct the parse errors first, then run the generator again. The mapping errors can then show.
+- An error in a direction decision or a subtype decision has the position `<file>:1:1`.
+
 ## Limitations of the generator
 
 - The generator does not detect dates. A `PIC 9(8)` date stays an `int`.
 - The generated operation classes do not implement `Continuable` or `Validatable`. In scaffold mode, add them by hand.
-- A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives a note.
+- A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Add dependsOn if the program has a count field.`
 - These items are errors: level `66` and `77`, `SIGN LEADING`, `SEPARATE`, `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL`, edited pictures, `P`, `A`, `N`, `REPLACE`, an `OCCURS` in an `OCCURS`, and a `REDEFINES` area in another one.
 
 The [Roadmap](Roadmap) lists the plan for these limitations.
