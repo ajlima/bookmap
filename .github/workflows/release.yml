@@ -14,7 +14,7 @@
 #      the Sonatype token and the signing key come from secrets (see RELEASING.md).
 #   3. The release job runs after a successful publish. It has write access and runs no Gradle
 #      build. It creates the tag vX.Y.Z and a GitHub release with the JARs that the publish
-#      job sent to Maven Central (the same bytes). Then it sets the new version in README.md
+#      job sent to Maven Central (the same bytes). Then it sets the new version in the README files
 #      (scripts/set-readme-version.sh) and pushes the commit "docs: set the README version to
 #      X.Y.Z" to main. A docs commit gives no new release. The ruleset on main must let
 #      GitHub Actions bypass it (see RELEASING.md).
@@ -179,7 +179,7 @@ jobs:
           ref: main
           path: repository
 
-      - name: Set the version in README.md
+      - name: Set the version in the README files
         working-directory: repository
         env:
           NEW_VERSION: ${{ needs.build.outputs.new_version }}
