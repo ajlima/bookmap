@@ -869,6 +869,7 @@ BookMap is at version `0.5.0`. GitHub Actions builds each release and publishes 
 See [RELEASING.md](RELEASING.md) for the release cycle and the one-time setup.
 The build enforces 100% line and branch coverage for all modules except the examples.
 Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transport SPI accepts them without a change to the core.
+See [ROADMAP.md](ROADMAP.md) for the planned features and their priority.
 
 ## License
 
