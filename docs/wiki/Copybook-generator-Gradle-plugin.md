@@ -75,7 +75,13 @@ The `compileJava` task runs the generation. You can also run it alone:
 ./gradlew generateCopybookClasses
 ```
 
-The generated files are in `build/generated/sources/copybook/main`. Your IDE adds this directory as a source directory when it imports the Gradle project.
+The generated files are in `build/generated/sources/copybook/main`. The plugin adds this directory to the `main` source set.
+Run `generateCopybookClasses` before you open the generated classes in the IDE.
+
+`./gradlew tasks` shows the task in the group "Build tasks", with the description `Generates the BookMap classes from the COBOL copybooks.`
+
+The plugin adds the generated classes only to the `main` source set. It has no task for test copybooks. See [Copybooks for tests](#copybooks-for-tests).
+Without the `java` plugin, no task depends on `generateCopybookClasses`. Then run it yourself.
 
 ## The DSL
 
@@ -100,10 +106,12 @@ bookmap {
 | `lombok` | `false` | Write Lombok annotations instead of getters and setters. |
 | `packagePerCopybook` | `false` | Add one package segment from the copybook name. See [Class name collisions](#class-name-collisions). |
 | `outputDir` | `build/generated/sources/copybook/main` | The directory for the generated Java files. |
-| `include(...)` | `**/*.cpy` | The patterns of the copybook files in `sourceDir`. Your patterns replace the default. |
-| `exclude(...)` | none | The patterns of the files in `sourceDir` that are not copybooks. |
+| `include(...)` | `**/*.cpy` | The patterns of the copybook files in `sourceDir`. Your patterns replace the default. Each call adds patterns to the list `includes`. |
+| `exclude(...)` | none | The patterns of the files in `sourceDir` that are not copybooks. Each call adds patterns to the list `excludes`. |
 
-If `sourceDir` does not exist, or if it has no copybook, the task does nothing. It also deletes the old generated files.
+The patterns use the Ant style, and they are relative to `sourceDir`. You can also set the lists directly, for example `includes = listOf("**/*.cpy", "**/*.cob")`.
+
+If `sourceDir` does not exist, or if it has no copybook, the task generates no class. It deletes the old files in `outputDir`.
 If `packageName` is necessary and not set, the build fails with this message: `Set bookmap.copybooks.packageName.`
 
 **WARNING:** Do not set `outputDir` to a directory that contains other files, for example `src/main/java`. Each run deletes all files in `outputDir`, and you can lose your source files.
@@ -123,7 +131,7 @@ The plugin changes each directory name, and the copybook name in rule 3, to a va
 3. It adds `_` before a name that starts with a digit.
 4. It adds `_` after a Java keyword, and after `true`, `false`, and `null`.
 
-If the final package is not a valid Java package name, the build fails for that copybook. For example, `"package": "com.my-co"` in an options file gives this error: `ORDER.cpy: the package 'com.my-co' is not a valid Java package name`.
+If the final package is not a valid Java package name, the task logs an error for that copybook. It checks the other copybooks, and then the build fails. For example, `"package": "com.my-co"` in an options file gives this error: `ORDER.cpy: the package 'com.my-co' is not a valid Java package name`.
 
 Examples, with `packageName = "com.example.mainframe"`:
 
@@ -154,7 +162,11 @@ These rules apply:
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file. Without a file, the plugin uses the defaults of the generator.
 
-If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The message starts with the path of the file.
+If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails.
+The task logs an error line that starts with the path of the options file, for example `/work/src/main/copybook/ORDER.json: cannot read the file: ...`.
+
+Set the charset of a copybook with `charset` in its options file. The default is UTF-8. The `COPY` members of the copybook use the same charset and the same format.
+Write the options file in UTF-8.
 
 ## Class name collisions
 
@@ -218,11 +230,76 @@ bookmap {
 
 ## Up-to-date checks, the build cache, and the configuration cache
 
-- The task is up to date when its inputs do not change. The inputs are the copybooks, the options files, the copy directories (of the extension and of the options files), the order of the copy directories, and the properties of the extension.
-- The inputs use relative paths. Thus, two checkouts in different directories share the entries of the build cache.
+- The task is up to date when its inputs do not change. The inputs are:
+  - the copybooks and all `.json` files below `sourceDir`, with their paths relative to `sourceDir`. The `exclude` patterns do not apply to the `.json` files;
+  - all files in the copy directories, of the extension and of the options files;
+  - the order of the copy directories;
+  - `include`, `exclude`, `packageName`, `lombok`, and `packagePerCopybook`.
+- The inputs use relative paths. Thus, two checkouts in different directories share the entries of the build cache. One exception exists: a copy directory on another drive than `sourceDir` gives an absolute path.
 - The task is cacheable. With `--build-cache`, a clean build can take the generated files from the cache.
 - The task supports the configuration cache.
 - Each run deletes the old files in `outputDir` first. A removed copybook removes its classes.
+
+## Messages and build failures
+
+The task writes each diagnostic of the generator to the build log, in the format `<file>:<line>:<column>: <severity>: <message>`.
+The file is the name of the copybook or of the `COPY` member, without the directory.
+
+- Errors have the level ERROR. Warnings and infos both have the level WARN. Thus, an `info:` line also shows in the normal output.
+- The task checks all copybooks before it fails. Then the build fails with this message: `N copybook(s) have errors. See the messages above.`
+- The task checks for class name collisions only when no copybook has an error.
+- A missing `packageName` stops the task at once, with `Set bookmap.copybooks.packageName.`
+- If the task cannot write a file, the message is `Cannot write the generated classes: <detail>`.
+
+The task deletes the old files in `outputDir` before it reads the copybooks. If a copybook has an error, the task writes no file.
+Thus, after a failure, `outputDir` is empty, and `compileJava` cannot use old classes.
+
+## Groovy DSL
+
+The examples on this page use the Kotlin DSL. The tests of the plugin use only the Kotlin DSL. This Groovy DSL `build.gradle` uses the same API, but it is not tested:
+
+```groovy
+plugins {
+    id 'java'
+    id 'pt.dazz.bookmap.copybook' version '<version>'
+}
+
+dependencies {
+    implementation 'pt.dazz.bookmap:bookmap-core:<version>'
+    annotationProcessor 'pt.dazz.bookmap:bookmap-processor:<version>'
+}
+
+bookmap {
+    copybooks {
+        packageName = 'com.example.mainframe'
+        copyDirs.from('src/main/copylib')
+    }
+}
+```
+
+## Copybooks for tests
+
+The plugin generates only the classes of the `main` source set. For test copybooks, register a second task of the type `GenerateCopybookClasses`.
+A task that you register yourself gets no default values from the extension. Thus, set all properties. This example is not tested:
+
+```kotlin
+import pt.dazz.bookmap.copybook.gradle.GenerateCopybookClasses
+
+val generateTestCopybookClasses by tasks.registering(GenerateCopybookClasses::class) {
+    sourceDir = layout.projectDirectory.dir("src/test/copybook")
+    copyDirs.from("src/test/copylib")
+    packageName = "com.example.mainframe.test"
+    lombok = false
+    packagePerCopybook = false
+    outputDir = layout.buildDirectory.dir("generated/sources/copybook/test")
+}
+
+sourceSets.test { java.srcDir(generateTestCopybookClasses) }
+
+dependencies {
+    testAnnotationProcessor("pt.dazz.bookmap:bookmap-processor:<version>")
+}
+```
 
 ## Example project
 
@@ -252,6 +329,9 @@ It takes the plugin and the libraries from the source of the repository. Run it 
 | `Plugin [id: 'pt.dazz.bookmap.copybook', ...] was not found` | Add `mavenCentral()` to `pluginManagement.repositories` in `settings.gradle.kts`. |
 | `Set bookmap.copybooks.packageName.` | Set `packageName` in the extension, or `package` in each options file. |
 | `copy member '...' not found in ...` | Add the directory of the member to `copyDirs`. The search is not recursive. |
+| `copy member '...' not found: no copy directory is set` | Set `copyDirs` in the extension or in the options file. |
+| `N copybook(s) have errors. See the messages above.` | Read the `error:` lines above the failure. Each line gives the file, the line, and the column. |
+| `Cannot write the generated classes: ...` | Check that `outputDir` is a directory that you can write to. |
 | `Two copybooks generate the same class` | See [Class name collisions](#class-name-collisions). |
 | The build fails on a file that is not a copybook | Add an `exclude(...)` pattern for the file. |
 | The generated classes do not compile | Add `bookmap-core` to `implementation`. If you set `lombok = true`, add Lombok to the build. |

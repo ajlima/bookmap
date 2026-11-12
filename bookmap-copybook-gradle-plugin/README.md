@@ -81,10 +81,16 @@ bookmap {
 | `lombok` | `false` | Write Lombok annotations instead of getters and setters. |
 | `packagePerCopybook` | `false` | Add one package segment from the copybook name. See [section 6](#6-class-name-collisions-and-packagepercopybook). |
 | `outputDir` | `build/generated/sources/copybook/main` | The directory for the generated Java files. |
-| `include(...)` | `**/*.cpy` | The patterns of the copybook files in `sourceDir`. Your patterns replace the default. |
+| `include(...)` | `**/*.cpy` | The Ant-style patterns of the copybook files, relative to `sourceDir`. Your patterns replace the default. |
 | `exclude(...)` | none | The patterns of the files in `sourceDir` that are not copybooks. |
 
-If `sourceDir` does not exist, or if it has no copybook, the task does nothing. It also deletes the old generated files.
+If `sourceDir` does not exist, or if it has no copybook, the task generates no class. It deletes the old files in `outputDir`.
+
+The task writes each diagnostic of the generator to the build log, in the format `<file>:<line>:<column>: <severity>: <message>`.
+Errors have the level ERROR. Warnings and infos both have the level WARN.
+The task checks all copybooks before it fails. Then the build fails with `N copybook(s) have errors. See the messages above.`
+The task checks for class name collisions only when no copybook has an error.
+If a copybook has an error, the task writes no file. Thus, after a failure, `outputDir` is empty.
 
 **WARNING:** Do not set `outputDir` to a directory that contains other files, for example `src/main/java`. Each run deletes all files in `outputDir`, and you can lose your source files.
 If `packageName` is necessary and not set, the build fails with this message: `Set bookmap.copybooks.packageName.`
@@ -104,7 +110,7 @@ The plugin changes each directory name, and the copybook name in rule 3, to a va
 3. It adds `_` before a name that starts with a digit.
 4. It adds `_` after a Java keyword, and after `true`, `false`, and `null`.
 
-If the final package is not a valid Java package name, the build fails for that copybook. For example, `"package": "com.my-co"` in an options file, or an empty `packageName`, gives this error: `ORDER.cpy: the package 'com.my-co' is not a valid Java package name`.
+If the final package is not a valid Java package name, the task logs an error for that copybook. It checks the other copybooks, and then the build fails. For example, `"package": "com.my-co"` in an options file, or an empty `packageName`, gives this error: `ORDER.cpy: the package 'com.my-co' is not a valid Java package name`.
 
 Examples, with `packageName = "com.example.mainframe"`:
 
@@ -135,7 +141,9 @@ These rules apply:
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file. Without a file, the plugin uses the defaults of the generator.
 
-If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The message starts with the path of the file.
+If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The task logs an error line that starts with the path of the file.
+
+The copybook and its `COPY` members use the `charset` and the `format` of the options file. The default charset is UTF-8. Write the options file in UTF-8.
 
 ## 6. Class name collisions and `packagePerCopybook`
 
@@ -224,8 +232,8 @@ bookmap {
 
 ## 8. Up-to-date checks, the build cache, and the configuration cache
 
-- The task is up to date when its inputs do not change. The inputs are the copybooks, the options files, the copy directories (of the extension and of the options files), the order of the copy directories, and the properties of the extension.
-- The inputs use relative paths. Thus, two checkouts in different directories share the entries of the build cache.
+- The task is up to date when its inputs do not change. The inputs are the copybooks and all `.json` files below `sourceDir` (the `exclude` patterns do not apply to the `.json` files), all files in the copy directories (of the extension and of the options files), the order of the copy directories, and `include`, `exclude`, `packageName`, `lombok`, and `packagePerCopybook`.
+- The inputs use relative paths. Thus, two checkouts in different directories share the entries of the build cache. One exception exists: a copy directory on another drive than `sourceDir` gives an absolute path.
 - The task is cacheable. With `--build-cache`, a clean build can take the generated files from the cache.
 - The task supports the configuration cache.
 - Each run deletes the old files in `outputDir` first. A removed copybook removes its classes.

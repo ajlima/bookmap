@@ -11,7 +11,7 @@ For the mapping rules, the options, and the limitations of the generator, see th
 
 - The goal `generate` scans `src/main/copybook` recursively for `.cpy` files.
 - It generates the classes of each copybook into `target/generated-sources/copybook`.
-- It adds that directory to the compile source roots. The compiler then compiles the classes with the other sources of the module.
+- It adds that directory to the main compile source roots. The compiler then compiles the classes with the other sources of the module. It has no option for test sources.
 - It skips the generation when no input changed (see [section 8](#8-up-to-date-check-and-skip)).
 - The plugin does not add dependencies to your project. Add `bookmap-core` and `bookmap-processor` yourself.
 
@@ -90,7 +90,7 @@ The short form `mvn bookmap-copybook:generate` works only if `pt.dazz.bookmap` i
 | `lombok` | `bookmap.copybook.lombok` | `false` | Write Lombok annotations instead of getters and setters. |
 | `packagePerCopybook` | `bookmap.copybook.packagePerCopybook` | `false` | Add one package segment from the copybook name. See [section 6](#6-class-name-collisions-and-packagepercopybook). |
 | `outputDir` | `bookmap.copybook.outputDir` | `${project.build.directory}/generated-sources/copybook` | The directory for the generated Java files. |
-| `includes` | none | `**/*.cpy` | The patterns of the copybook files in `sourceDir`. Your patterns replace the default. |
+| `includes` | none | `**/*.cpy` | The patterns of the copybook files in `sourceDir`. Your patterns replace the default. An empty list uses the default. |
 | `excludes` | none | none | The patterns of the files in `sourceDir` that are not copybooks. |
 | `skip` | `bookmap.copybook.skip` | `false` | Do not generate the classes. |
 
@@ -104,6 +104,11 @@ The patterns use the Ant style, relative to `sourceDir`. For example:
 ```
 
 If `packageName` is necessary and not set, the build fails with this message: `Set the packageName parameter of bookmap-copybook-maven-plugin.`
+A user property has an effect only when the POM does not set the parameter.
+
+The goal writes each diagnostic of the generator to the Maven log as `[ERROR]` or `[WARNING]`. An `info:` diagnostic also shows as `[WARNING]`.
+The goal checks all copybooks before it fails. Then the build fails with `N copybook(s) have errors. See the messages above.`
+If a copybook has an error, the goal writes no file. Thus, after a failure, `outputDir` is empty.
 
 **WARNING:** Do not set `outputDir` to a directory that contains other files, for example `src/main/java`. Each run deletes all files in `outputDir`, and you can lose your source files.
 
@@ -115,7 +120,7 @@ The goal gives each copybook a package in this order:
 2. Otherwise, it uses `packageName` plus one segment for each directory between `sourceDir` and the copybook.
 3. If `packagePerCopybook` is `true`, it adds one more segment from the copybook name. Rule 1 has priority over this rule.
 
-The goal changes each name to a valid package segment: lower case, `_` for each character that is not an ASCII letter or digit, `_` before a leading digit, and `_` after a Java keyword.
+The goal changes each name to a valid package segment: lower case, `_` for each character that is not an ASCII letter, an ASCII digit, or `_`, `_` before a leading digit, and `_` after a Java keyword, `true`, `false`, or `null`.
 For the full rules and the examples, see "Packages from directories" in the [Gradle plugin README](../bookmap-copybook-gradle-plugin/README.md#4-packages-from-directories). The rules are the same.
 
 | Copybook in `sourceDir` | Package, with `packageName` = `com.example.mainframe` |
@@ -124,7 +129,7 @@ For the full rules and the examples, see "Packages from directories" in the [Gra
 | `orders/ORDER.cpy` | `com.example.mainframe.orders` |
 | `Billing/Open-Invoices/INVOICE.cpy` | `com.example.mainframe.billing.open_invoices` |
 
-If the final package is not a valid Java package name, the build fails for that copybook.
+If the final package is not a valid Java package name, the goal logs an error for that copybook. It checks the other copybooks, and then the build fails.
 
 ## 5. Options files
 
@@ -137,7 +142,9 @@ The file has the format of the `--config` file of the command line. See "Options
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file.
 
-If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The message starts with the path of the file.
+If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The goal logs an error line that starts with the path of the file.
+
+The copybook and its `COPY` members use the `charset` and the `format` of the options file. The default charset is UTF-8. The goal does not use `project.build.sourceEncoding`. Write the options file in UTF-8.
 
 ## 6. Class name collisions and `packagePerCopybook`
 
@@ -202,16 +209,17 @@ If you must keep the members inside `sourceDir`, exclude them:
 
 Maven has no input and output tracking. The goal does its own check:
 
-- After a successful run, the goal stores a SHA-256 fingerprint of all inputs in `target/bookmap-copybook/`. Each `outputDir` has its own fingerprint file.
-- The inputs are the copybooks, the options files, the files in the copy directories (of the parameter and of the options files), the order of the copy directories, the parameters, and the plugin version.
+- After a successful run, the goal stores a SHA-256 fingerprint of all inputs in `${project.build.directory}/bookmap-copybook/`. Each `outputDir` has its own fingerprint file.
+- The inputs are the copybooks and all `.json` files below `sourceDir` (the `excludes` do not apply to the `.json` files), the files directly in each copy directory (not in its subdirectories), the order of the copy directories, the parameters `packageName`, `lombok`, `packagePerCopybook`, `outputDir`, `includes`, and `excludes`, and the plugin version.
 - In the next build, if the fingerprint is the same and `outputDir` exists, the goal logs `The generated classes are up to date.` and does not generate again.
 - A changed, added, or removed file, or a changed parameter, makes the goal generate again. Each run deletes the old files in `outputDir` first, so a removed copybook removes its classes.
 - If the goal fails, it stores no fingerprint. The next build runs the goal again.
-- `mvn clean` removes the fingerprint and the generated files.
+- `mvn clean` removes the fingerprint. It removes the generated files only if `outputDir` is below `target`, as the default is.
+- The goal does not check the files in `outputDir`, only that the directory exists. If you delete a generated file, delete `target/bookmap-copybook/` or run `mvn clean`.
 
 **WARNING:** Give each execution of the goal in one module its own `outputDir`. Each run deletes all files in its `outputDir`, so two executions with the same `outputDir` remove the classes of each other.
 
-With `skip` (`-Dbookmap.copybook.skip=true`), the goal does not generate. It still adds `outputDir` to the source roots, so the classes of an earlier run stay available to the compiler.
+With `skip` (`-Dbookmap.copybook.skip=true`), the goal does not generate, and it logs `Skipped.` It still adds `outputDir` to the source roots, so the classes of an earlier run stay available to the compiler.
 
 ## 9. Multi-module projects
 

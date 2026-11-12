@@ -70,13 +70,13 @@ dependencies {
 
 ## Installation with Maven
 
-Add the modules and the processor to `pom.xml`.
+Add the modules and the processor to `pom.xml`. Replace `x.y.z` with the version.
 The processor goes in `annotationProcessorPaths` of the `maven-compiler-plugin`, not in `<dependencies>`.
 
 ```xml
 <properties>
   <maven.compiler.release>21</maven.compiler.release>
-  <bookmap.version><version></bookmap.version>
+  <bookmap.version>x.y.z</bookmap.version>   <!-- the latest BookMap version -->
 </properties>
 
 <dependencies>
@@ -126,7 +126,7 @@ Put Lombok before BookMap in `annotationProcessorPaths`. Add Lombok also as a `p
   <dependency>
     <groupId>org.projectlombok</groupId>
     <artifactId>lombok</artifactId>
-    <version><lombok-version></version>
+    <version>x.y.z</version>   <!-- the Lombok version -->
     <scope>provided</scope>
   </dependency>
 </dependencies>
@@ -137,7 +137,7 @@ Put Lombok before BookMap in `annotationProcessorPaths`. Add Lombok also as a `p
   <path>
     <groupId>org.projectlombok</groupId>
     <artifactId>lombok</artifactId>
-    <version><lombok-version></version>
+    <version>x.y.z</version>   <!-- the Lombok version -->
   </path>
   <path>
     <groupId>pt.dazz.bookmap</groupId>
