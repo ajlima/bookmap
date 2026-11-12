@@ -34,7 +34,7 @@ Apply the plugin and add the BookMap libraries in `build.gradle.kts`. Use the sa
 ```kotlin
 plugins {
     java
-    id("pt.dazz.bookmap.copybook") version "<version>"
+    id("pt.dazz.bookmap.copybook") version "0.5.0"
 }
 
 repositories {
@@ -42,8 +42,8 @@ repositories {
 }
 
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-core:<version>")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:<version>")
+    implementation("pt.dazz.bookmap:bookmap-core:0.5.0")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.5.0")
 }
 
 bookmap {
