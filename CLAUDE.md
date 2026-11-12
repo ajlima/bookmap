@@ -2,7 +2,14 @@
 
 Java 21+ framework that maps COBOL books (copybooks) to Java POJOs with annotations. The core is independent of middleware and of DI containers. Base package: `pt.dazz.bookmap`. Build: Gradle.
 
-Design spec: `docs/superpowers/specs/2026-11-10-bookmap-design.md`.
+Design spec: `docs/design/2026-11-10-bookmap-design.md`.
+
+## Design documents and plans
+
+- Write each design spec in `docs/design/`, with the name `YYYY-MM-DD-<topic>-design.md`. Commit the specs.
+- Put a `Status:` line under the `Date:` line of each spec. When the feature is released, change the status to `implemented in vX.Y.Z.`
+- Write implementation plans in `docs/superpowers/plans/`. Do not commit the plans: they are local work files, excluded in `.git/info/exclude`.
+- Do not refer to a plan from a committed file. A plan is not available to other contributors.
 
 ## Language rules
 
