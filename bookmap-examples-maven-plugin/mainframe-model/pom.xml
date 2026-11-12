@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>pt.dazz.bookmap.examples</groupId>
+    <artifactId>bookmap-examples-maven-plugin</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>mainframe-model</artifactId>
+
+  <dependencies>
+    <dependency>
+      <groupId>pt.dazz.bookmap</groupId>
+      <artifactId>bookmap-core</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <!-- The processor generates the codecs of the generated classes. -->
+          <annotationProcessorPaths>
+            <path>
+              <groupId>pt.dazz.bookmap</groupId>
+              <artifactId>bookmap-processor</artifactId>
+              <version>${bookmap.version}</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+      <!-- src/main/copybook/orders/GET-ORDER.cpy goes to pt.dazz.bookmap.examples.maven.orders. -->
+      <plugin>
+        <groupId>pt.dazz.bookmap</groupId>
+        <artifactId>bookmap-copybook-maven-plugin</artifactId>
+        <configuration>
+          <packageName>pt.dazz.bookmap.examples.maven</packageName>
+          <copyDirs>
+            <copyDir>src/main/copylib</copyDir>
+          </copyDirs>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

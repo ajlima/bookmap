@@ -1,0 +1,5 @@
+      * GET-INVOICE: READ ONE INVOICE AND ITS BILLING ADDRESS.
+       01  GET-INVOICE.
+           05  INV-INVOICE-ID           PIC X(12).
+           05  INV-AMOUNT-DUE           PIC S9(7)V99 COMP-3.
+           COPY ADDRESS.

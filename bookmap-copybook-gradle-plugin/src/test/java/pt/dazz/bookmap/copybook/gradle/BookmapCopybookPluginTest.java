@@ -16,6 +16,7 @@ import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import pt.dazz.bookmap.copybook.tree.TestCopybooks;
 
 class BookmapCopybookPluginTest {
 

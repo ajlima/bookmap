@@ -1,4 +1,4 @@
-package pt.dazz.bookmap.copybook.gradle;
+package pt.dazz.bookmap.copybook.tree;
 
 import com.palantir.javapoet.JavaFile;
 import java.io.IOException;
@@ -24,12 +24,12 @@ import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.parse.ParseOptions;
 
 /**
- * Runs the copybook generator for a list of copybooks in a source directory. This class does
- * not use the Gradle API.
+ * Runs the copybook generator for a list of copybooks in a directory tree. The build plugins
+ * (Gradle and Maven) use this class. It uses no build tool API.
  */
-final class CopybookGeneration {
+public final class CopybookTree {
 
-    private CopybookGeneration() {
+    private CopybookTree() {
     }
 
     /**
@@ -40,9 +40,14 @@ final class CopybookGeneration {
      * @param basePackage the base package, or {@code null} if it is not set
      * @param lombok {@code true} to generate Lombok classes
      * @param packagePerCopybook {@code true} to add a package segment from the copybook name
+     * @param missingPackageMessage the message if the base package is necessary and not set,
+     *     in the words of the build tool
+     * @param packagePerCopybookHint the setting that turns on {@code packagePerCopybook}, in
+     *     the syntax of the build tool, for the collision message
      */
-    record Settings(Path sourceDir, List<Path> copyDirs, String basePackage, boolean lombok,
-                    boolean packagePerCopybook) {
+    public record Settings(Path sourceDir, List<Path> copyDirs, String basePackage,
+                           boolean lombok, boolean packagePerCopybook,
+                           String missingPackageMessage, String packagePerCopybookHint) {
 
         /**
          * Creates the settings.
@@ -52,14 +57,16 @@ final class CopybookGeneration {
          * @param basePackage the base package
          * @param lombok the Lombok setting
          * @param packagePerCopybook the package-per-copybook setting
+         * @param missingPackageMessage the missing-package message
+         * @param packagePerCopybookHint the package-per-copybook hint
          */
-        Settings {
+        public Settings {
             copyDirs = List.copyOf(copyDirs);
         }
     }
 
     /** Receives the messages of a generation. */
-    interface Log {
+    public interface Log {
 
         /**
          * Writes a warning.
@@ -89,10 +96,10 @@ final class CopybookGeneration {
      * @param outputDir the directory for the Java files
      * @param log the receiver of the diagnostics
      * @throws IOException if a file cannot be read or written
-     * @throws CopybookGenerationException if a copybook has an error, or if two copybooks
+     * @throws CopybookTreeException if a copybook has an error, or if two copybooks
      *     generate the same class
      */
-    static void run(Settings settings, List<Path> copybooks, Path outputDir, Log log)
+    public static void run(Settings settings, List<Path> copybooks, Path outputDir, Log log)
         throws IOException {
         clean(outputDir);
         List<Path> sorted = copybooks.stream()
@@ -108,10 +115,10 @@ final class CopybookGeneration {
             }
         }
         if (failed > 0) {
-            throw new CopybookGenerationException(failed
+            throw new CopybookTreeException(failed
                 + " copybook(s) have errors. See the messages above.");
         }
-        checkCollisions(generated);
+        checkCollisions(settings, generated);
         for (Generated result : generated) {
             JavaClassGenerator.writeTo(result.files(), outputDir);
         }
@@ -124,7 +131,7 @@ final class CopybookGeneration {
      * @param copybooks the copybook files
      * @return the copy directories, as absolute paths
      */
-    static List<Path> configCopyDirs(List<Path> copybooks) {
+    public static List<Path> configCopyDirs(List<Path> copybooks) {
         List<Path> dirs = new ArrayList<>();
         for (Path copybook : copybooks) {
             try {
@@ -145,7 +152,7 @@ final class CopybookGeneration {
      * @param copybook the copybook file
      * @return the options file, which can be missing
      */
-    static Path optionsFile(Path copybook) {
+    public static Path optionsFile(Path copybook) {
         return copybook.resolveSibling(baseName(copybook) + ".json");
     }
 
@@ -197,7 +204,7 @@ final class CopybookGeneration {
             return config.packageName();
         }
         if (settings.basePackage() == null) {
-            throw new CopybookGenerationException("Set bookmap.copybooks.packageName.");
+            throw new CopybookTreeException(settings.missingPackageMessage());
         }
         Path relativeDir = settings.sourceDir().relativize(copybook).getParent();
         return PackageNames.packageOf(settings.basePackage(),
@@ -222,7 +229,7 @@ final class CopybookGeneration {
         }
     }
 
-    private static void checkCollisions(List<Generated> generated) {
+    private static void checkCollisions(Settings settings, List<Generated> generated) {
         Map<String, String> owners = new LinkedHashMap<>();
         List<String> collisions = new ArrayList<>();
         for (Generated result : generated) {
@@ -236,9 +243,9 @@ final class CopybookGeneration {
             }
         }
         if (!collisions.isEmpty()) {
-            throw new CopybookGenerationException("Two copybooks generate the same class:\n  "
+            throw new CopybookTreeException("Two copybooks generate the same class:\n  "
                 + String.join("\n  ", collisions)
-                + "\nSet bookmap.copybooks.packagePerCopybook = true, set \"package\" in an"
+                + "\nSet " + settings.packagePerCopybookHint() + ", set \"package\" in an"
                 + " options file, or put the copybooks in different directories.");
         }
     }
@@ -255,6 +262,24 @@ final class CopybookGeneration {
                 }
             }
         }
+    }
+
+    /**
+     * Gives the path of a file relative to a base directory, with {@code /} separators. A
+     * relative path keeps the build caches of the plugins valid in another checkout. If the
+     * file has another root than the base (for example another drive or a network share on
+     * Windows), no relative path exists, and the method gives the absolute path.
+     *
+     * @param base the base directory
+     * @param file the file or directory
+     * @return the relative path, or the absolute path if the roots are different
+     */
+    public static String relativePath(Path base, Path file) {
+        Path from = base.toAbsolutePath().normalize();
+        Path to = file.toAbsolutePath().normalize();
+        Path path = java.util.Objects.equals(from.getRoot(), to.getRoot())
+            ? from.relativize(to) : to;
+        return path.toString().replace('\\', '/');
     }
 
     private static String relative(Path sourceDir, Path copybook) {

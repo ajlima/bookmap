@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>pt.dazz.bookmap.examples</groupId>
+    <artifactId>bookmap-examples-maven-plugin</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>orders-service</artifactId>
+
+  <dependencies>
+    <!-- The generated classes and codecs come from mainframe-model. -->
+    <dependency>
+      <groupId>pt.dazz.bookmap.examples</groupId>
+      <artifactId>mainframe-model</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>pt.dazz.bookmap</groupId>
+      <artifactId>bookmap-transport-simulator</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

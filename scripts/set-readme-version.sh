@@ -3,10 +3,12 @@
 #
 # Usage: scripts/set-readme-version.sh X.Y.Z
 #
-# The script changes these places in README.md and bookmap-copybook-gradle-plugin/README.md:
+# The script changes these places in README.md and in the READMEs of the two build plugins:
 #   - the version badge;
 #   - each dependency "pt.dazz.bookmap:<module>:<version>";
 #   - each plugin declaration id("pt.dazz.bookmap.copybook") version "<version>";
+#   - each <version> line directly after an <artifactId>bookmap-...</artifactId> line,
+#     and each command line pt.dazz.bookmap:bookmap-copybook-maven-plugin:<version>:generate;
 #   - the texts "the version is `...`" and "at version `...`".
 # The script fails if one of these places is missing, so that a change to a README
 # cannot stop the update without an error.
@@ -15,13 +17,14 @@ set -euo pipefail
 version="${1:?Usage: $0 X.Y.Z}"
 root="README.md"
 plugin="bookmap-copybook-gradle-plugin/README.md"
+maven="bookmap-copybook-maven-plugin/README.md"
 
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "error: '$version' is not a release version (X.Y.Z)" >&2
   exit 1
 fi
 
-for file in "$root" "$plugin"; do
+for file in "$root" "$plugin" "$maven"; do
   # sed -i.bak works with GNU sed (Linux) and BSD sed (macOS).
   sed -E -i.bak \
     -e "s#(alt=\"Version )[^\"]+\"#\1${version}\"#" \
@@ -29,6 +32,8 @@ for file in "$root" "$plugin"; do
     -e "s#(pt\.dazz\.bookmap:bookmap-[a-z-]+:)[^\"]+\"#\1${version}\"#g" \
     -e "s#(id\(\"pt\.dazz\.bookmap\.copybook\"\) version \")[^\"]+\"#\1${version}\"#g" \
     -e "s#(version is |at version )\`[^\`]+\`#\1\`${version}\`#g" \
+    -e "s#(bookmap-copybook-maven-plugin:)[0-9][^:]*(:generate)#\1${version}\2#g" \
+    -e "/<artifactId>bookmap-[a-z-]+<\/artifactId>/{n;s#<version>[^<]*</version>#<version>${version}</version>#;}" \
     "$file"
   rm -f "$file.bak"
 done
@@ -49,4 +54,7 @@ check "$root" "version is \`${version}\`" 1
 check "$root" "at version \`${version}\`" 1
 check "$plugin" ":${version}\"" 2
 check "$plugin" "id(\"pt.dazz.bookmap.copybook\") version \"${version}\"" 1
+check "$root" "<version>${version}</version>" 1
+check "$maven" "<version>${version}</version>" 4
+check "$maven" "bookmap-copybook-maven-plugin:${version}:generate" 1
 echo "README version set to ${version}"
