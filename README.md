@@ -14,7 +14,7 @@
   <img alt="Gradle 9" src="https://img.shields.io/badge/Gradle-9.9-02303A">
   <img alt="Coverage 100%" src="https://img.shields.io/badge/coverage-100%25-brightgreen">
   <img alt="Version 0.5.0" src="https://img.shields.io/badge/version-0.5.0-f89820">
-  <a href="LICENSE"><img alt="License Apache 2.0" src="https://img.shields.io/badge/license-Apache%202.0-blue"></a>
+  <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
 <p align="center">
@@ -842,5 +842,6 @@ Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transp
 
 ## License
 
-BookMap is licensed under the [Apache License, Version 2.0](LICENSE).
-See the [NOTICE](NOTICE) file for the copyright notice.
+BookMap is licensed under the [MIT License](LICENSE). Copyright (c) 2026 Alexandre Lima.
+Keep the copyright notice and the license text in all copies or substantial portions of the software.
+Versions 0.1.0 to 0.5.0 were published under the Apache License, Version 2.0, and these versions keep that license.

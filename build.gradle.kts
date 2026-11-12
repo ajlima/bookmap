@@ -126,8 +126,8 @@ subprojects {
                 url.set("https://github.com/ajlima/bookmap")
                 licenses {
                     license {
-                        this.name.set("Apache License, Version 2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                        this.name.set("MIT License")
+                        url.set("https://opensource.org/license/mit")
                         distribution.set("repo")
                     }
                 }
