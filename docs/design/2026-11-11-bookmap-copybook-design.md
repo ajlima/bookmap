@@ -1,6 +1,7 @@
 # bookmap — Copybook generator (design)
 
 Date: 2026-11-11
+Status: implemented in v0.4.0.
 Base package: `pt.dazz.bookmap.copybook`
 Parent spec: `2026-11-10-bookmap-design.md`
 Depends on: `2026-11-11-bookmap-fixed-occurs-design.md`. Implement and merge the fixed `OCCURS` feature first, on its own branch and PR. Start the copybook branch from `main` after that merge (or from the fixed `OCCURS` branch, and rebase it after the merge).

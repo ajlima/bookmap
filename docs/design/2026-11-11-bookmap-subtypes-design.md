@@ -1,6 +1,7 @@
 # bookmap — Subtypes for `REDEFINES` (design)
 
 Date: 2026-11-11
+Status: implemented in v0.2.0.
 Base package: `pt.dazz.bookmap`
 Parent spec: `2026-11-10-bookmap-design.md`
 

@@ -21,3 +21,6 @@ bin/
 
 # Superpowers scratch (brainstorm mockups, SDD workspaces)
 .superpowers/
+
+# Local instructions for Claude Code
+CLAUDE.local.md

@@ -1,8 +1,9 @@
 # BookMap copybook Gradle plugin: design
 
-Date: 2026-11-12. Status: draft for the approval of the author.
+Date: 2026-11-12
+Status: implemented in v0.5.0.
 
-Related documents: `docs/superpowers/specs/2026-11-11-bookmap-copybook-design.md` (the generator), `CLAUDE.md` (project rules).
+Related documents: `docs/design/2026-11-11-bookmap-copybook-design.md` (the generator), `CLAUDE.md` (project rules).
 
 ## 1. Intent
 
