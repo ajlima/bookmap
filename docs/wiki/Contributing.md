@@ -62,6 +62,47 @@ The commit messages follow [Conventional Commits](https://www.conventionalcommit
 GitHub Actions makes each release from `main`. It builds and tests the commit, publishes the modules to Maven Central, and creates the tag and the GitHub release.
 See [RELEASING.md](https://github.com/ajlima/bookmap/blob/main/RELEASING.md) for the release cycle and the one-time setup.
 
+### The release jobs
+
+The workflow `.github/workflows/release.yml` has three jobs:
+
+| Job | Runs on | Access | Result |
+|---|---|---|---|
+| `build` | Each pull request and each push to `main`. | Read-only. | The next version, the build, the tests, and the coverage check. |
+| `publish` | A push to `main` with a new version. | Read-only. The `maven-central` environment gives the Sonatype token and the signing key. | The signed modules on Maven Central. |
+| `release` | After a successful `publish`. | `contents: write`. The `readme-update` environment gives the key of the release app. | The tag, the GitHub release, and the README version commit. |
+
+These modules go to Maven Central: `bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-spring-boot`, `bookmap-copybook`, `bookmap-copybook-cli`, `bookmap-copybook-gradle-plugin`, and `bookmap-copybook-maven-plugin`.
+
+### The release app
+
+After a release, the `release` job sets the new version in the README files with `scripts/set-readme-version.sh`. Then it pushes the commit `docs: set the README version to X.Y.Z` to `main`.
+
+The ruleset on `main` blocks direct pushes, also from the `GITHUB_TOKEN`. A repository of a personal account cannot add GitHub Actions to the bypass list of a ruleset.
+Thus, the `release` job pushes with the token of a GitHub App that the owner of the repository creates: the release app.
+
+| Item | Value |
+|---|---|
+| App permissions | **Contents: Read and write** only. No webhook. No events. |
+| Installation | Only on the `bookmap` repository. |
+| Ruleset | The app is a bypass actor of the ruleset "Protect main". |
+| Environment | `readme-update`. Only the `release` job uses it. |
+| Environment variable | `RELEASE_APP_CLIENT_ID`: the Client ID of the app. |
+| Environment secret | `RELEASE_APP_PRIVATE_KEY`: the private key of the app. |
+| Token | `actions/create-github-app-token` makes a token with only `contents: write`. The token is revoked at the end of the job. |
+
+The tag and the GitHub release use the `GITHUB_TOKEN`. Only the README push uses the token of the app.
+For the steps to create and install the app, see "6. Let the release app push the README update" in [RELEASING.md](https://github.com/ajlima/bookmap/blob/main/RELEASING.md).
+
+**CAUTION:** Do not use the secret `RELEASE_APP_PRIVATE_KEY` in another job or another environment. The key can push to `main` through the bypass of the ruleset.
+
+If the variable or the secret is missing, the release still completes. The `release` job then fails at the README update with a clear error.
+In that case, set the version in a pull request:
+
+```bash
+scripts/set-readme-version.sh X.Y.Z
+```
+
 ## Edit this wiki
 
 The source of the wiki pages is the folder [`docs/wiki/`](https://github.com/ajlima/bookmap/tree/main/docs/wiki) in the main repository.
