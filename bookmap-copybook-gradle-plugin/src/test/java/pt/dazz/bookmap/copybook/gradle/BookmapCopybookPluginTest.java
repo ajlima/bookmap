@@ -97,6 +97,13 @@ class BookmapCopybookPluginTest {
     }
 
     @Test
+    void copyDirOrderIsRelativeToTheSourceDir() {
+        GenerateCopybookClasses task = task();
+        spec().getCopyDirs().from("libb", "src/main/copybook/members");
+        assertThat(task.getCopyDirOrder()).containsExactly("../../../libb", "members");
+    }
+
+    @Test
     void withoutJavaAddsNoSourceDir() {
         task();
         assertThat(project.getExtensions().findByType(SourceSetContainer.class)).isNull();

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.Callable;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
@@ -70,6 +71,20 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
     public abstract ConfigurableFileCollection getCopyDirs();
+
+    /**
+     * Gives the search order of the copy directories, as paths relative to the source
+     * directory. The file fingerprint of {@link #getCopyDirs()} ignores the order, but the
+     * first match wins in the search. Relative paths keep the build cache relocatable.
+     *
+     * @return the copy directories, in search order
+     */
+    @Input
+    public List<String> getCopyDirOrder() {
+        Path source = getSourceDir().get().getAsFile().toPath();
+        return paths(getCopyDirs()).stream()
+            .map(dir -> source.relativize(dir).toString().replace('\\', '/')).toList();
+    }
 
     /**
      * Gives the base package.
@@ -149,7 +164,7 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
     @PathSensitive(PathSensitivity.RELATIVE)
     public FileCollection getConfigCopyDirs() {
         FileTree copybooks = getCopybookFiles();
-        return getObjects().fileCollection().from((java.util.concurrent.Callable<List<File>>)
+        return getObjects().fileCollection().from((Callable<List<File>>)
             () -> CopybookGeneration.configCopyDirs(paths(copybooks)).stream()
                 .map(Path::toFile).toList());
     }

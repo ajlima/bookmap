@@ -84,6 +84,8 @@ bookmap {
 | `exclude(...)` | none | The patterns of the files in `sourceDir` that are not copybooks. |
 
 If `sourceDir` does not exist, or if it has no copybook, the task does nothing. It also deletes the old generated files.
+
+**WARNING:** Do not set `outputDir` to a directory that contains other files, for example `src/main/java`. Each run deletes all files in `outputDir`, and you can lose your source files.
 If `packageName` is necessary and not set, the build fails with this message: `Set bookmap.copybooks.packageName.`
 
 ## 4. Packages from directories
@@ -218,7 +220,7 @@ bookmap {
 
 ## 8. Up-to-date checks, the build cache, and the configuration cache
 
-- The task is up to date when its inputs do not change. The inputs are the copybooks, the options files, the copy directories (of the extension and of the options files), and the properties of the extension.
+- The task is up to date when its inputs do not change. The inputs are the copybooks, the options files, the copy directories (of the extension and of the options files), the order of the copy directories, and the properties of the extension.
 - The inputs use relative paths. Thus, two checkouts in different directories share the entries of the build cache.
 - The task is cacheable. With `--build-cache`, a clean build can take the generated files from the cache.
 - The task supports the configuration cache.

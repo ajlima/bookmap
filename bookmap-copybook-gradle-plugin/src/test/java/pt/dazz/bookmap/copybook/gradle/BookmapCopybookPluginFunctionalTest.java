@@ -178,6 +178,30 @@ class BookmapCopybookPluginFunctionalTest {
     }
 
     @Test
+    void copyDirOrderChangeRunsTaskAgain() throws IOException {
+        TestCopybooks.copy("tree", dir);
+        for (String lib : new String[] {"liba", "libb"}) {
+            Files.createDirectories(dir.resolve(lib));
+            Files.writeString(dir.resolve(lib + "/ADDRESS.cpy"), """
+                           05  ADDRESS.
+                               10  CITY-%s               PIC X(20).
+                """.formatted(lib.substring(3).toUpperCase()));
+        }
+        String copybooks = """
+                    sourceDir = layout.projectDirectory.dir("tree")
+                    packageName = "com.example.mainframe"
+            """;
+        javaBuild(copybooks + "            copyDirs.from(\"liba\", \"libb\")\n");
+        generate();
+        assertThat(dir.resolve(OUT + "com/example/invoicing/Invoice.java")).content()
+            .contains("cityA");
+        javaBuild(copybooks + "            copyDirs.from(\"libb\", \"liba\")\n");
+        assertThat(generate()).isEqualTo(TaskOutcome.SUCCESS);
+        assertThat(dir.resolve(OUT + "com/example/invoicing/Invoice.java")).content()
+            .contains("cityB");
+    }
+
+    @Test
     void removedCopybookRemovesItsClasses() throws IOException {
         tree();
         javaBuild(TREE);
