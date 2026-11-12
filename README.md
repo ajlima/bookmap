@@ -154,7 +154,9 @@ It sets `-H:+AddAllCharsets`. This configuration is included, but it is not test
 | `bookmap-spring-boot` | Spring Boot 4.0.x auto-configuration for `BookmapClient`. |
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
 | `bookmap-copybook-cli` | The command line of the copybook generator. |
+| `bookmap-copybook-gradle-plugin` | The Gradle plugin of the copybook generator (`pt.dazz.bookmap.copybook`). |
 | `bookmap-examples` | Working examples. This README uses them. |
+| `bookmap-examples-gradle-plugin` | A standalone build that uses the Gradle plugin. |
 
 ## Reference
 
@@ -588,7 +590,7 @@ The classes compile with the BookMap processor without a change.
 Use it in two ways:
 
 - **Scaffold.** Generate the classes one time. Then keep them by hand.
-- **Build.** Generate the classes again from the copybook in each build. `bookmap-examples` does this.
+- **Build.** Generate the classes again from the copybook in each build. Use the [Gradle plugin](#gradle-plugin). `bookmap-examples` does this with the command line.
 
 ### Pipeline
 
@@ -658,6 +660,40 @@ Relative copy directories start at the directory of the configuration file.
 A name in an option can be qualified, for example `CITY OF BILLING-ADDRESS`. A name that matches more than one item is an error.
 
 The library has the same steps as a Java API. The entry point is `pt.dazz.bookmap.copybook.Copybooks`.
+
+### Gradle plugin
+
+The plugin `pt.dazz.bookmap.copybook` generates the classes of a directory tree of copybooks in each build, before `compileJava`.
+The directories of the tree give the subpackages. A file `<NAME>.json` next to `<NAME>.cpy` holds the options of that copybook.
+The plugin is on Maven Central only. Add `mavenCentral()` to the plugin repositories:
+
+```kotlin
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+```
+
+```kotlin
+// build.gradle.kts
+plugins {
+    java
+    id("pt.dazz.bookmap.copybook") version "<version>"
+}
+
+bookmap {
+    copybooks {
+        packageName = "com.example.mainframe"   // src/main/copybook/orders/ORDER.cpy -> com.example.mainframe.orders
+        copyDirs.from("src/main/copylib")       // the COPY members
+    }
+}
+```
+
+Declare the directories of the `COPY` members in `copyDirs`. The plugin does not search the tree for them.
+For all options, the package rules, the class name collisions, and the location of the `COPY` members, see the [plugin README](bookmap-copybook-gradle-plugin/README.md).
 
 ### Mapping
 
@@ -729,7 +765,7 @@ The class that holds the area gets `@BookSubTypes`. Each alternative becomes a s
 - The generated operation classes do not implement `Continuable` or `Validatable`. In scaffold mode, add them by hand.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives a note.
 - These items are errors: level `66` and `77`, `SIGN LEADING`, `SEPARATE`, `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL`, edited pictures, `P`, `A`, `N`, `REPLACE`, an `OCCURS` in an `OCCURS`, and a `REDEFINES` area in another one.
-- No Gradle plugin and no Maven plugin yet. Use the command line or the library.
+- No Maven plugin yet. Use the Gradle plugin, the command line, or the library.
 
 ## Transports and the simulator
 
