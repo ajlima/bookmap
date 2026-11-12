@@ -844,4 +844,3 @@ Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transp
 
 BookMap is licensed under the [MIT License](LICENSE). Copyright (c) 2026 Alexandre Lima.
 Keep the copyright notice and the license text in all copies or substantial portions of the software.
-Versions 0.1.0 to 0.5.0 were published under the Apache License, Version 2.0, and these versions keep that license.
