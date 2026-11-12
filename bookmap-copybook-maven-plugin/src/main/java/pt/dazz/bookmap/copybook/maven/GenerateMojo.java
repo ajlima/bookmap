@@ -2,6 +2,7 @@ package pt.dazz.bookmap.copybook.maven;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,6 +66,12 @@ public class GenerateMojo extends AbstractMojo {
     /** Do not generate the classes. The goal still adds the output directory as a source root. */
     boolean skip;
 
+    /** The build directory of the project. The goal stores the fingerprint below it. */
+    File buildDirectory;
+
+    /** The version of this plugin. It is part of the fingerprint. */
+    String pluginVersion;
+
     /**
      * Creates the goal. Maven calls this constructor.
      */
@@ -79,6 +86,20 @@ public class GenerateMojo extends AbstractMojo {
             return;
         }
         List<Path> copybooks = copybooks();
+        Path fingerprintFile = buildDirectory.toPath().resolve("bookmap-copybook/fingerprint");
+        String fingerprint;
+        try {
+            fingerprint = fingerprint(copybooks);
+            if (outputDir.isDirectory() && Files.isRegularFile(fingerprintFile)
+                && Files.readString(fingerprintFile).equals(fingerprint)) {
+                getLog().info("The generated classes are up to date.");
+                return;
+            }
+            Files.deleteIfExists(fingerprintFile);
+        } catch (IOException e) {
+            throw new MojoExecutionException("Cannot read the inputs of the generation: "
+                + e.getMessage(), e);
+        }
         CopybookTree.Settings settings = new CopybookTree.Settings(sourceDir.toPath(),
             copyDirs == null ? List.of() : copyDirs.stream().map(File::toPath).toList(),
             packageName, lombok, packagePerCopybook, MISSING_PACKAGE, PACKAGE_PER_COPYBOOK_HINT);
@@ -95,6 +116,8 @@ public class GenerateMojo extends AbstractMojo {
                     log.error(message);
                 }
             });
+            Files.createDirectories(fingerprintFile.getParent());
+            Files.writeString(fingerprintFile, fingerprint);
         } catch (CopybookTreeException e) {
             throw new MojoFailureException(e.getMessage());
         } catch (IOException e) {
@@ -103,17 +126,36 @@ public class GenerateMojo extends AbstractMojo {
         }
     }
 
-    /** Gives the copybook files that the patterns select, as absolute paths. */
+    /** Computes the fingerprint of all inputs of the generation. */
+    private String fingerprint(List<Path> copybooks) throws IOException {
+        List<Path> dirs = new ArrayList<>();
+        if (copyDirs != null) {
+            copyDirs.forEach(dir -> dirs.add(dir.toPath()));
+        }
+        dirs.addAll(CopybookTree.configCopyDirs(copybooks));
+        List<String> parameters = Arrays.asList(packageName, Boolean.toString(lombok),
+            Boolean.toString(packagePerCopybook), outputDir.getAbsolutePath(),
+            String.valueOf(includes), String.valueOf(excludes));
+        return Fingerprint.of(pluginVersion, parameters, sourceDir.toPath(), copybooks,
+            scan(List.of("**/*.json"), null), dirs);
+    }
+
+    /** Gives the copybook files that the include and exclude patterns select. */
     List<Path> copybooks() {
+        return scan(includes == null || includes.isEmpty() ? List.of(DEFAULT_INCLUDE) : includes,
+            excludes);
+    }
+
+    /** Gives the files in the source directory that the patterns select, sorted. */
+    private List<Path> scan(List<String> include, List<String> exclude) {
         if (!sourceDir.isDirectory()) {
             return List.of();
         }
         DirectoryScanner scanner = new DirectoryScanner();
         scanner.setBasedir(sourceDir);
-        scanner.setIncludes(includes == null || includes.isEmpty()
-            ? new String[] {DEFAULT_INCLUDE} : includes.toArray(String[]::new));
-        if (excludes != null) {
-            scanner.setExcludes(excludes.toArray(String[]::new));
+        scanner.setIncludes(include.toArray(String[]::new));
+        if (exclude != null) {
+            scanner.setExcludes(exclude.toArray(String[]::new));
         }
         scanner.scan();
         List<Path> files = new ArrayList<>();

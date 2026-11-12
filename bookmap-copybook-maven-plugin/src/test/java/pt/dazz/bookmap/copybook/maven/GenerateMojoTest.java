@@ -37,6 +37,8 @@ class GenerateMojoTest {
         mojo.copyDirs = new ArrayList<>();
         mojo.outputDir = dir.resolve("target/generated-sources/copybook").toFile();
         mojo.packageName = BASE;
+        mojo.buildDirectory = dir.resolve("target").toFile();
+        mojo.pluginVersion = "1.0.0";
         mojo.setLog(log);
     }
 
@@ -165,6 +167,94 @@ class GenerateMojoTest {
             .hasMessage("2 copybook(s) have errors. See the messages above.");
         assertThat(log.warnings).anySatisfy(w -> assertThat(w).contains("is skipped"));
         assertThat(log.errors).hasSize(2);
+    }
+
+    private Path fingerprint() {
+        return dir.resolve("target/bookmap-copybook/fingerprint");
+    }
+
+    @Test
+    void secondRunIsUpToDate() throws Exception {
+        tree();
+        mojo.execute();
+        assertThat(fingerprint()).exists();
+        Path marker = out("Marker.java");
+        Files.writeString(marker, "class Marker {}");
+        mojo.execute();
+        assertThat(log.infos).contains("The generated classes are up to date.");
+        assertThat(marker).exists();
+    }
+
+    @Test
+    void changeRunsAgain() throws Exception {
+        tree();
+        mojo.execute();
+        Path marker = out("Marker.java");
+        Files.writeString(marker, "class Marker {}");
+        mojo.lombok = true;
+        mojo.execute();
+        assertThat(log.infos).doesNotContain("The generated classes are up to date.");
+        assertThat(marker).doesNotExist();
+    }
+
+    @Test
+    void memberInJsonCopyDirChangesTheFingerprint() throws Exception {
+        mojo.sourceDir = TestCopybooks.copy("jsoncopy", dir).toFile();
+        Path lib = TestCopybooks.copy("jsoncopylib", dir);
+        mojo.execute();
+        String before = Files.readString(fingerprint());
+        Files.writeString(lib.resolve("BANK-ADDRESS.cpy"), Files.readString(
+            lib.resolve("BANK-ADDRESS.cpy")) + "               10  BANK-COUNTRY         PIC X(2).\n");
+        mojo.execute();
+        assertThat(Files.readString(fingerprint())).isNotEqualTo(before);
+        assertThat(out("com/example/mainframe/Account.java")).content()
+            .contains("bankCountry");
+    }
+
+    @Test
+    void failedRunStoresNoFingerprint() throws Exception {
+        tree();
+        mojo.execute();
+        assertThat(fingerprint()).exists();
+        mojo.packageName = null;
+        mojo.excludes = List.of("billing/**");
+        assertThatThrownBy(mojo::execute).isInstanceOf(MojoFailureException.class);
+        assertThat(fingerprint()).doesNotExist();
+    }
+
+    @Test
+    void missingFingerprintRunsAgain() throws Exception {
+        tree();
+        mojo.execute();
+        Files.delete(fingerprint());
+        mojo.execute();
+        assertThat(log.infos).doesNotContain("The generated classes are up to date.");
+        assertThat(fingerprint()).exists();
+    }
+
+    @Test
+    void missingOutputDirRunsAgain() throws Exception {
+        tree();
+        mojo.execute();
+        Files.walk(mojo.outputDir.toPath()).sorted(java.util.Comparator.reverseOrder())
+            .forEach(p -> p.toFile().delete());
+        mojo.execute();
+        assertThat(log.infos).doesNotContain("The generated classes are up to date.");
+        assertThat(out("com/example/mainframe/orders/Order.java")).exists();
+    }
+
+    @Test
+    void unreadableInputIsAnExecutionException() throws Exception {
+        tree();
+        mojo.excludes = List.of("billing/**");
+        Path copybook = mojo.sourceDir.toPath().resolve("orders/ORDER.cpy");
+        assertThat(copybook.toFile().setReadable(false)).isTrue();
+        try {
+            assertThatThrownBy(mojo::execute).isExactlyInstanceOf(MojoExecutionException.class)
+                .hasMessageStartingWith("Cannot read the inputs of the generation: ");
+        } finally {
+            copybook.toFile().setReadable(true);
+        }
     }
 
     /** A log that records the messages. */

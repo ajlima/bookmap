@@ -100,6 +100,20 @@
           <editable>true</editable>
           <description>Do not generate the classes. The goal still adds the output directory as a source root.</description>
         </parameter>
+        <parameter>
+          <name>buildDirectory</name>
+          <type>java.io.File</type>
+          <required>false</required>
+          <editable>false</editable>
+          <description>The build directory of the project. The goal stores the fingerprint below it.</description>
+        </parameter>
+        <parameter>
+          <name>pluginVersion</name>
+          <type>java.lang.String</type>
+          <required>false</required>
+          <editable>false</editable>
+          <description>The version of this plugin. It is part of the fingerprint.</description>
+        </parameter>
       </parameters>
       <configuration>
         <project implementation="org.apache.maven.project.MavenProject">${project}</project>
@@ -109,6 +123,8 @@
         <packagePerCopybook implementation="boolean" default-value="false">${bookmap.copybook.packagePerCopybook}</packagePerCopybook>
         <outputDir implementation="java.io.File" default-value="${project.build.directory}/generated-sources/copybook">${bookmap.copybook.outputDir}</outputDir>
         <skip implementation="boolean" default-value="false">${bookmap.copybook.skip}</skip>
+        <buildDirectory implementation="java.io.File">${project.build.directory}</buildDirectory>
+        <pluginVersion implementation="java.lang.String">${plugin.version}</pluginVersion>
       </configuration>
     </mojo>
   </mojos>

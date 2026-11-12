@@ -95,14 +95,16 @@ class PluginDescriptorTest {
         expected.put("outputDir", "${bookmap.copybook.outputDir}|"
             + "${project.build.directory}/generated-sources/copybook");
         expected.put("skip", "${bookmap.copybook.skip}|false");
+        expected.put("buildDirectory", "${project.build.directory}");
+        expected.put("pluginVersion", "${plugin.version}");
         Map<String, String> actual = new LinkedHashMap<>();
         for (var node = configuration.getFirstChild(); node != null;
              node = node.getNextSibling()) {
             if (node instanceof Element e) {
                 String value = e.getTextContent().trim();
                 String defaultValue = e.getAttribute("default-value");
-                actual.put(e.getTagName(), e.getTagName().equals("project") ? value
-                    : value + "|" + defaultValue);
+                actual.put(e.getTagName(), e.hasAttribute("default-value")
+                    || e.getTagName().equals("packageName") ? value + "|" + defaultValue : value);
             }
         }
         assertThat(actual).isEqualTo(expected);
@@ -110,12 +112,15 @@ class PluginDescriptorTest {
     }
 
     @Test
-    void projectIsReadOnlyAndRequired() {
+    void readOnlyAndRequiredParameters() {
         NodeList nodes = mojo.getElementsByTagName("parameter");
         for (int i = 0; i < nodes.getLength(); i++) {
             Element parameter = (Element) nodes.item(i);
-            boolean project = child(parameter, "name").equals("project");
-            assertThat(child(parameter, "editable")).isEqualTo(project ? "false" : "true");
+            String name = child(parameter, "name");
+            boolean project = name.equals("project");
+            boolean readOnly = project || name.equals("buildDirectory")
+                || name.equals("pluginVersion");
+            assertThat(child(parameter, "editable")).isEqualTo(readOnly ? "false" : "true");
             assertThat(child(parameter, "required")).isEqualTo(project ? "true" : "false");
             assertThat(child(parameter, "description")).isNotBlank();
         }
