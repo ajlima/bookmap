@@ -10,6 +10,7 @@ maven-publish = "0.37.0"
 jackson = "2.19.2"
 maven-api = "3.6.3"
 plexus-utils = "4.1.0"
+jimfs = "1.3.2"
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -22,6 +23,7 @@ lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 maven-plugin-api = { module = "org.apache.maven:maven-plugin-api", version.ref = "maven-api" }
 maven-core = { module = "org.apache.maven:maven-core", version.ref = "maven-api" }
+jimfs = { module = "com.google.jimfs:jimfs", version.ref = "jimfs" }
 plexus-utils = { module = "org.codehaus.plexus:plexus-utils", version.ref = "plexus-utils" }
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 

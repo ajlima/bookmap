@@ -169,8 +169,11 @@ class GenerateMojoTest {
         assertThat(log.errors).hasSize(2);
     }
 
-    private Path fingerprint() {
-        return dir.resolve("target/bookmap-copybook/fingerprint");
+    private Path fingerprint() throws IOException {
+        try (var files = Files.list(dir.resolve("target/bookmap-copybook"))) {
+            return files.filter(f -> f.getFileName().toString().startsWith("fingerprint-"))
+                .findFirst().orElse(dir.resolve("target/bookmap-copybook/missing"));
+        }
     }
 
     @Test
@@ -183,6 +186,8 @@ class GenerateMojoTest {
         mojo.execute();
         assertThat(log.infos).contains("The generated classes are up to date.");
         assertThat(marker).exists();
+        assertThat(mojo.project.getCompileSourceRoots())
+            .contains(mojo.outputDir.getAbsolutePath());
     }
 
     @Test
@@ -220,6 +225,30 @@ class GenerateMojoTest {
         mojo.excludes = List.of("billing/**");
         assertThatThrownBy(mojo::execute).isInstanceOf(MojoFailureException.class);
         assertThat(fingerprint()).doesNotExist();
+    }
+
+    @Test
+    void twoExecutionsKeepTheirOwnFingerprint() throws Exception {
+        tree();
+        GenerateMojo other = new GenerateMojo();
+        other.project = mojo.project;
+        other.sourceDir = TestCopybooks.copy("jsoncopy", dir).toFile();
+        TestCopybooks.copy("jsoncopylib", dir);
+        other.outputDir = dir.resolve("target/generated-sources/banking").toFile();
+        other.packageName = BASE;
+        other.buildDirectory = mojo.buildDirectory;
+        other.pluginVersion = mojo.pluginVersion;
+        RecordingLog otherLog = new RecordingLog();
+        other.setLog(otherLog);
+        mojo.execute();
+        other.execute();
+        mojo.execute();
+        other.execute();
+        assertThat(log.infos).containsExactly("The generated classes are up to date.");
+        assertThat(otherLog.infos).containsExactly("The generated classes are up to date.");
+        assertThat(out("com/example/mainframe/orders/Order.java")).exists();
+        assertThat(mojo.project.getCompileSourceRoots()).containsExactlyInAnyOrder(
+            mojo.outputDir.getAbsolutePath(), other.outputDir.getAbsolutePath());
     }
 
     @Test

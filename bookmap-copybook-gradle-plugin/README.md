@@ -185,8 +185,9 @@ The packages before and after `packagePerCopybook = true`:
 - Declare the directories in `copyDirs`, in the extension or in an options file.
 - The search order is: first the `copyDirs` of the options file of the copybook, then the `copyDirs` of the extension, in the order that you give.
 - The search in each directory is not recursive. A member in a subdirectory of a copy directory is not found.
-- For `COPY ADDRESS.`, the generator looks for the file `ADDRESS`, then `ADDRESS.cpy`, then `ADDRESS.cbl`, then `ADDRESS.cob`, in each directory.
-- The first match wins. Thus, the order of the directories is important if two directories have a member with the same name.
+- For `COPY ADDRESS.`, the generator looks in each directory for a file `ADDRESS`, `ADDRESS.cbl`, `ADDRESS.cob`, or `ADDRESS.cpy`. The case of the name is not important.
+- If one directory has more than one of these files, the first name in alphabetical order wins: `ADDRESS`, then `ADDRESS.cbl`, then `ADDRESS.cob`, then `ADDRESS.cpy`. Keep only one file for each member.
+- The first directory that has the member wins. Thus, the order of the directories is important if two directories have a member with the same name.
 - If no directory has the member, the build fails. The message gives the member and the searched directories, for example: `copy member 'ADDRESS' not found in /work/orders/src/main/copylib`.
 - A change in a member makes the task run again, also in a directory that only an options file declares.
 

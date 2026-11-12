@@ -86,7 +86,8 @@ public class GenerateMojo extends AbstractMojo {
             return;
         }
         List<Path> copybooks = copybooks();
-        Path fingerprintFile = buildDirectory.toPath().resolve("bookmap-copybook/fingerprint");
+        Path fingerprintFile = buildDirectory.toPath().resolve("bookmap-copybook")
+            .resolve("fingerprint-" + Fingerprint.key(outputDir.getAbsolutePath()));
         String fingerprint;
         try {
             fingerprint = fingerprint(copybooks);

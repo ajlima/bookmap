@@ -11,6 +11,7 @@ dependencies {
     testImplementation(project(":bookmap-processor"))
     testImplementation(libs.compile.testing)
     testImplementation(libs.lombok)
+    testImplementation(libs.jimfs)
 }
 
 // The test fixtures (test copybooks for the build plugins) are not published.

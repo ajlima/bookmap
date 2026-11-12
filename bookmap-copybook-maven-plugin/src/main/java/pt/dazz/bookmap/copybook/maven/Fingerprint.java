@@ -9,6 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Stream;
+import pt.dazz.bookmap.copybook.tree.CopybookTree;
 
 /**
  * Computes a SHA-256 hash over all inputs of the generation. The goal stores the hash, and
@@ -36,6 +37,18 @@ final class Fingerprint {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    /**
+     * Gives a short key for a text, for example the output directory. Each execution of the
+     * goal in one module has its own output directory, and thus its own fingerprint file.
+     *
+     * @param text the text
+     * @return the first 16 hexadecimal characters of the SHA-256 hash of the text
+     */
+    static String key(String text) {
+        return HexFormat.of().formatHex(digest("SHA-256")
+            .digest(text.getBytes(StandardCharsets.UTF_8))).substring(0, 16);
     }
 
     /**
@@ -100,7 +113,6 @@ final class Fingerprint {
     }
 
     private static String relative(Path base, Path file) {
-        return base.toAbsolutePath().normalize().relativize(file.toAbsolutePath().normalize())
-            .toString().replace('\\', '/');
+        return CopybookTree.relativePath(base, file);
     }
 }

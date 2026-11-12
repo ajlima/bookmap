@@ -169,8 +169,9 @@ The message lists all collisions of the build, not only the first. Use one of th
 - Declare the directories in the `copyDirs` parameter, or in an options file.
 - The search order is: first the `copyDirs` of the options file of the copybook, then the `copyDirs` parameter, in the order that you give.
 - The search in each directory is not recursive. A member in a subdirectory of a copy directory is not found.
-- For `COPY ADDRESS.`, the generator looks for the file `ADDRESS`, then `ADDRESS.cpy`, then `ADDRESS.cbl`, then `ADDRESS.cob`, in each directory.
-- The first match wins. Thus, the order of the directories is important if two directories have a member with the same name.
+- For `COPY ADDRESS.`, the generator looks in each directory for a file `ADDRESS`, `ADDRESS.cbl`, `ADDRESS.cob`, or `ADDRESS.cpy`. The case of the name is not important.
+- If one directory has more than one of these files, the first name in alphabetical order wins: `ADDRESS`, then `ADDRESS.cbl`, then `ADDRESS.cob`, then `ADDRESS.cpy`. Keep only one file for each member.
+- The first directory that has the member wins. Thus, the order of the directories is important if two directories have a member with the same name.
 - If no directory has the member, the build fails. The message gives the member and the searched directories, for example: `copy member 'ADDRESS' not found in /work/mainframe-model/src/main/copylib`.
 
 The recommended layout keeps the members out of `sourceDir`:
@@ -201,12 +202,14 @@ If you must keep the members inside `sourceDir`, exclude them:
 
 Maven has no input and output tracking. The goal does its own check:
 
-- After a successful run, the goal stores a SHA-256 fingerprint of all inputs in `target/bookmap-copybook/fingerprint`.
+- After a successful run, the goal stores a SHA-256 fingerprint of all inputs in `target/bookmap-copybook/`. Each `outputDir` has its own fingerprint file.
 - The inputs are the copybooks, the options files, the files in the copy directories (of the parameter and of the options files), the order of the copy directories, the parameters, and the plugin version.
 - In the next build, if the fingerprint is the same and `outputDir` exists, the goal logs `The generated classes are up to date.` and does not generate again.
 - A changed, added, or removed file, or a changed parameter, makes the goal generate again. Each run deletes the old files in `outputDir` first, so a removed copybook removes its classes.
 - If the goal fails, it stores no fingerprint. The next build runs the goal again.
 - `mvn clean` removes the fingerprint and the generated files.
+
+**WARNING:** Give each execution of the goal in one module its own `outputDir`. Each run deletes all files in its `outputDir`, so two executions with the same `outputDir` remove the classes of each other.
 
 With `skip` (`-Dbookmap.copybook.skip=true`), the goal does not generate. It still adds `outputDir` to the source roots, so the classes of an earlier run stay available to the compiler.
 

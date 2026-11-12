@@ -85,7 +85,7 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
     public List<String> getCopyDirOrder() {
         Path source = getSourceDir().get().getAsFile().toPath();
         return paths(getCopyDirs()).stream()
-            .map(dir -> source.relativize(dir).toString().replace('\\', '/')).toList();
+            .map(dir -> CopybookTree.relativePath(source, dir)).toList();
     }
 
     /**

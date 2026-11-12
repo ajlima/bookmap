@@ -269,6 +269,27 @@ class CopybookTreeTest {
     }
 
     @Test
+    void relativePathBelowTheBase() {
+        assertThat(CopybookTree.relativePath(work, work.resolve("lib/members")))
+            .isEqualTo("lib/members");
+        assertThat(CopybookTree.relativePath(work.resolve("a"), work.resolve("b")))
+            .isEqualTo("../b");
+    }
+
+    @Test
+    void relativePathWithAnotherRootIsAbsolute() throws IOException {
+        try (java.nio.file.FileSystem windows = com.google.common.jimfs.Jimfs.newFileSystem(
+            com.google.common.jimfs.Configuration.windows().toBuilder()
+                .setRoots("C:\\", "D:\\").build())) {
+            Path base = windows.getPath("C:\\work\\model\\src\\main\\copybook");
+            Path lib = windows.getPath("D:\\copylib");
+            assertThat(CopybookTree.relativePath(base, lib)).isEqualTo("D:/copylib");
+            assertThat(CopybookTree.relativePath(base, windows.getPath("C:\\work\\lib")))
+                .isEqualTo("../../../../lib");
+        }
+    }
+
+    @Test
     void optionsFileName() {
         assertThat(CopybookTree.optionsFile(Path.of("a/ORDER.cpy")))
             .isEqualTo(Path.of("a/ORDER.json"));

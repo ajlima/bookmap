@@ -264,6 +264,24 @@ public final class CopybookTree {
         }
     }
 
+    /**
+     * Gives the path of a file relative to a base directory, with {@code /} separators. A
+     * relative path keeps the build caches of the plugins valid in another checkout. If the
+     * file has another root than the base (for example another drive or a network share on
+     * Windows), no relative path exists, and the method gives the absolute path.
+     *
+     * @param base the base directory
+     * @param file the file or directory
+     * @return the relative path, or the absolute path if the roots are different
+     */
+    public static String relativePath(Path base, Path file) {
+        Path from = base.toAbsolutePath().normalize();
+        Path to = file.toAbsolutePath().normalize();
+        Path path = java.util.Objects.equals(from.getRoot(), to.getRoot())
+            ? from.relativize(to) : to;
+        return path.toString().replace('\\', '/');
+    }
+
     private static String relative(Path sourceDir, Path copybook) {
         return sourceDir.relativize(copybook).toString().replace('\\', '/');
     }
