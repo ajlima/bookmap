@@ -1,0 +1,220 @@
+package pt.dazz.bookmap.copybook.gradle;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class CopybookGenerationTest {
+
+    private static final String BASE = "com.example.mainframe";
+
+    @TempDir
+    Path work;
+
+    private Path output;
+    private Path copylib;
+    private final RecordingLog log = new RecordingLog();
+
+    @BeforeEach
+    void setUp() {
+        output = work.resolve("out");
+        copylib = TestCopybooks.copy("copylib", work);
+    }
+
+    private CopybookGeneration.Settings settings(Path sourceDir, List<Path> copyDirs,
+                                                 String base, boolean lombok,
+                                                 boolean perCopybook) {
+        return new CopybookGeneration.Settings(sourceDir, copyDirs, base, lombok, perCopybook);
+    }
+
+    private void run(String name, List<Path> copyDirs, String base, boolean lombok,
+                     boolean perCopybook) throws IOException {
+        Path source = TestCopybooks.copy(name, work);
+        CopybookGeneration.run(settings(source, copyDirs, base, lombok, perCopybook),
+            TestCopybooks.copybooks(source), output, log);
+    }
+
+    @Test
+    void generatesIntoDerivedPackages() throws IOException {
+        run("tree", List.of(copylib), BASE, false, false);
+        assertThat(output.resolve("com/example/mainframe/orders/Order.java")).exists();
+        assertThat(output.resolve("com/example/invoicing/Invoice.java")).exists();
+        assertThat(output.resolve("com/example/invoicing/Invoice.java")).content()
+            .contains("street");
+    }
+
+    @Test
+    void optionsFileLombokWins() throws IOException {
+        run("tree", List.of(copylib), BASE, false, false);
+        assertThat(output.resolve("com/example/invoicing/Invoice.java")).content()
+            .contains("lombok");
+        assertThat(output.resolve("com/example/mainframe/orders/Order.java")).content()
+            .doesNotContain("lombok");
+    }
+
+    @Test
+    void extensionLombokApplies() throws IOException {
+        run("tree", List.of(copylib), BASE, true, false);
+        assertThat(output.resolve("com/example/mainframe/orders/Order.java")).content()
+            .contains("lombok");
+    }
+
+    @Test
+    void perCopybookAddsASegment() throws IOException {
+        run("tree", List.of(copylib), BASE, false, true);
+        assertThat(output.resolve("com/example/mainframe/orders/order/Order.java")).exists();
+        assertThat(output.resolve("com/example/invoicing/Invoice.java")).exists();
+    }
+
+    @Test
+    void missingPackageNameFails() {
+        Path source = TestCopybooks.copy("tree", work);
+        assertThatThrownBy(() -> CopybookGeneration.run(
+            settings(source, List.of(copylib), null, false, false),
+            List.of(source.resolve("orders/ORDER.cpy")), output, log))
+            .isInstanceOf(CopybookGenerationException.class)
+            .hasMessage("Set bookmap.copybooks.packageName.");
+        assertThat(output).isEmptyDirectory();
+    }
+
+    @Test
+    void missingPackageNameIsNoErrorWhenTheFileSetsIt() throws IOException {
+        Path source = TestCopybooks.copy("tree", work);
+        CopybookGeneration.run(settings(source, List.of(copylib), null, false, false),
+            List.of(source.resolve("billing/INVOICE.cpy")), output, log);
+        assertThat(output.resolve("com/example/invoicing/Invoice.java")).exists();
+    }
+
+    @Test
+    void noCopybookCleansTheOutput() throws IOException {
+        Files.createDirectories(output.resolve("old/pkg"));
+        Files.writeString(output.resolve("old/pkg/Stale.java"), "class Stale {}");
+        Files.writeString(output.resolve("Top.java"), "class Top {}");
+        CopybookGeneration.run(settings(work, List.of(), BASE, false, false), List.of(), output,
+            log);
+        assertThat(output).isEmptyDirectory();
+    }
+
+    @Test
+    void createsAMissingOutputDirectory() throws IOException {
+        CopybookGeneration.run(settings(work, List.of(), BASE, false, false), List.of(), output,
+            log);
+        assertThat(output).isEmptyDirectory();
+    }
+
+    @Test
+    void missingCopyMemberFails() {
+        Path source = TestCopybooks.copy("tree", work);
+        assertThatThrownBy(() -> CopybookGeneration.run(
+            settings(source, List.of(), BASE, false, false),
+            List.of(source.resolve("billing/INVOICE.cpy")), output, log))
+            .isInstanceOf(CopybookGenerationException.class)
+            .hasMessage("1 copybook(s) have errors. See the messages above.");
+        assertThat(log.errors).anySatisfy(e -> assertThat(e)
+            .contains("copy member 'ADDRESS' not found"));
+    }
+
+    @Test
+    void reportsErrorsOfAllCopybooks() {
+        assertThatThrownBy(() -> run("broken", List.of(), BASE, false, false))
+            .isInstanceOf(CopybookGenerationException.class)
+            .hasMessage("2 copybook(s) have errors. See the messages above.");
+        assertThat(log.errors).anySatisfy(e -> assertThat(e).contains("BAD.cpy"));
+        assertThat(log.errors).anySatisfy(e -> assertThat(e).contains("WORSE.cpy"));
+        assertThat(output).isEmptyDirectory();
+    }
+
+    @Test
+    void warningsGoToWarn() throws IOException {
+        run("warning", List.of(), BASE, false, false);
+        assertThat(log.warnings).singleElement().asString()
+            .contains("PAYMENT-NUMBER redefines PAYMENT-ID and is skipped");
+        assertThat(log.errors).isEmpty();
+        assertThat(output.resolve("com/example/mainframe/Payment.java")).exists();
+    }
+
+    @Test
+    void invalidJsonGivesTheFilePath() {
+        assertThatThrownBy(() -> run("badjson", List.of(), BASE, false, false))
+            .isInstanceOf(CopybookGenerationException.class)
+            .hasMessage("1 copybook(s) have errors. See the messages above.");
+        assertThat(log.errors).singleElement().asString()
+            .startsWith(work.resolve("badjson/SHIPMENT.json") + ": ");
+    }
+
+    @Test
+    void collisionFails() {
+        assertThatThrownBy(() -> run("collision", List.of(copylib), BASE, false, false))
+            .isInstanceOf(CopybookGenerationException.class)
+            .hasMessageContaining("class com.example.mainframe.OrderLine comes from"
+                + " CUSTOMER-ORDER.cpy and CUSTOMER-RETURN.cpy")
+            .hasMessageContaining("packagePerCopybook = true");
+        assertThat(output).isEmptyDirectory();
+    }
+
+    @Test
+    void reportsAllCollisions() {
+        assertThatThrownBy(() -> run("collision2", List.of(copylib), BASE, false, false))
+            .isInstanceOf(CopybookGenerationException.class)
+            .hasMessageContaining("class com.example.mainframe.OrderLine comes from")
+            .hasMessageContaining("class com.example.mainframe.Contact comes from");
+    }
+
+    @Test
+    void perCopybookRemovesTheCollision() throws IOException {
+        run("collision", List.of(copylib), BASE, false, true);
+        assertThat(output.resolve("com/example/mainframe/customer_order/OrderLine.java")).exists();
+        assertThat(output.resolve("com/example/mainframe/customer_return/OrderLine.java"))
+            .exists();
+    }
+
+    @Test
+    void jsonCopyDirsAreSearchedFirst() throws IOException {
+        TestCopybooks.copy("jsoncopylib", work);
+        run("jsoncopy", List.of(copylib), BASE, false, false);
+        assertThat(output.resolve("com/example/mainframe/Account.java")).content()
+            .contains("bankName");
+    }
+
+    @Test
+    void configCopyDirsReadsTheOptionsFiles() {
+        Path account = TestCopybooks.copy("jsoncopy", work);
+        Path tree = TestCopybooks.copy("tree", work);
+        Path badjson = TestCopybooks.copy("badjson", work);
+        assertThat(CopybookGeneration.configCopyDirs(List.of(account.resolve("ACCOUNT.cpy"))))
+            .containsExactly(account.resolve("../jsoncopylib"));
+        assertThat(CopybookGeneration.configCopyDirs(List.of(tree.resolve("orders/ORDER.cpy"),
+            badjson.resolve("SHIPMENT.cpy")))).isEmpty();
+    }
+
+    @Test
+    void optionsFileName() {
+        assertThat(CopybookGeneration.optionsFile(Path.of("a/ORDER.cpy")))
+            .isEqualTo(Path.of("a/ORDER.json"));
+        assertThat(CopybookGeneration.optionsFile(Path.of("ORDER")))
+            .isEqualTo(Path.of("ORDER.json"));
+    }
+
+    private static final class RecordingLog implements CopybookGeneration.Log {
+        final List<String> warnings = new ArrayList<>();
+        final List<String> errors = new ArrayList<>();
+
+        @Override
+        public void warn(String message) {
+            warnings.add(message);
+        }
+
+        @Override
+        public void error(String message) {
+            errors.add(message);
+        }
+    }
+}
