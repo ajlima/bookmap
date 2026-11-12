@@ -1,4 +1,4 @@
-package pt.dazz.bookmap.copybook.gradle;
+package pt.dazz.bookmap.copybook.tree;
 
 import java.nio.file.Path;
 import java.util.Locale;
@@ -6,8 +6,9 @@ import javax.lang.model.SourceVersion;
 
 /**
  * Derives the Java package of a copybook from a base package and the directory of the copybook.
+ * The build plugins use this class.
  */
-final class PackageNames {
+public final class PackageNames {
 
     private PackageNames() {
     }
@@ -27,7 +28,7 @@ final class PackageNames {
      * @param name the name
      * @return the package segment
      */
-    static String segment(String name) {
+    public static String segment(String name) {
         StringBuilder segment = new StringBuilder();
         for (char c : name.toLowerCase(Locale.ROOT).toCharArray()) {
             boolean valid = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
@@ -52,7 +53,7 @@ final class PackageNames {
      * @param perCopybook {@code true} to add a segment from the copybook name
      * @return the package
      */
-    static String packageOf(String basePackage, Path relativeDir, String copybookName,
+    public static String packageOf(String basePackage, Path relativeDir, String copybookName,
                             boolean perCopybook) {
         StringBuilder name = new StringBuilder(basePackage);
         for (Path part : relativeDir) {

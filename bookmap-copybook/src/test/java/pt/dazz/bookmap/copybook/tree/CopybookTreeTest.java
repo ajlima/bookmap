@@ -1,4 +1,4 @@
-package pt.dazz.bookmap.copybook.gradle;
+package pt.dazz.bookmap.copybook.tree;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,7 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-class CopybookGenerationTest {
+class CopybookTreeTest {
 
     private static final String BASE = "com.example.mainframe";
 
@@ -29,16 +29,18 @@ class CopybookGenerationTest {
         copylib = TestCopybooks.copy("copylib", work);
     }
 
-    private CopybookGeneration.Settings settings(Path sourceDir, List<Path> copyDirs,
+    private CopybookTree.Settings settings(Path sourceDir, List<Path> copyDirs,
                                                  String base, boolean lombok,
                                                  boolean perCopybook) {
-        return new CopybookGeneration.Settings(sourceDir, copyDirs, base, lombok, perCopybook);
+        return new CopybookTree.Settings(sourceDir, copyDirs, base, lombok, perCopybook,
+            "Set bookmap.copybooks.packageName.",
+            "bookmap.copybooks.packagePerCopybook = true");
     }
 
     private void run(String name, List<Path> copyDirs, String base, boolean lombok,
                      boolean perCopybook) throws IOException {
         Path source = TestCopybooks.copy(name, work);
-        CopybookGeneration.run(settings(source, copyDirs, base, lombok, perCopybook),
+        CopybookTree.run(settings(source, copyDirs, base, lombok, perCopybook),
             TestCopybooks.copybooks(source), output, log);
     }
 
@@ -77,10 +79,10 @@ class CopybookGenerationTest {
     @Test
     void missingPackageNameFails() {
         Path source = TestCopybooks.copy("tree", work);
-        assertThatThrownBy(() -> CopybookGeneration.run(
+        assertThatThrownBy(() -> CopybookTree.run(
             settings(source, List.of(copylib), null, false, false),
             List.of(source.resolve("orders/ORDER.cpy")), output, log))
-            .isInstanceOf(CopybookGenerationException.class)
+            .isInstanceOf(CopybookTreeException.class)
             .hasMessage("Set bookmap.copybooks.packageName.");
         assertThat(output).isEmptyDirectory();
     }
@@ -88,7 +90,7 @@ class CopybookGenerationTest {
     @Test
     void missingPackageNameIsNoErrorWhenTheFileSetsIt() throws IOException {
         Path source = TestCopybooks.copy("tree", work);
-        CopybookGeneration.run(settings(source, List.of(copylib), null, false, false),
+        CopybookTree.run(settings(source, List.of(copylib), null, false, false),
             List.of(source.resolve("billing/INVOICE.cpy")), output, log);
         assertThat(output.resolve("com/example/invoicing/Invoice.java")).exists();
     }
@@ -98,14 +100,14 @@ class CopybookGenerationTest {
         Files.createDirectories(output.resolve("old/pkg"));
         Files.writeString(output.resolve("old/pkg/Stale.java"), "class Stale {}");
         Files.writeString(output.resolve("Top.java"), "class Top {}");
-        CopybookGeneration.run(settings(work, List.of(), BASE, false, false), List.of(), output,
+        CopybookTree.run(settings(work, List.of(), BASE, false, false), List.of(), output,
             log);
         assertThat(output).isEmptyDirectory();
     }
 
     @Test
     void createsAMissingOutputDirectory() throws IOException {
-        CopybookGeneration.run(settings(work, List.of(), BASE, false, false), List.of(), output,
+        CopybookTree.run(settings(work, List.of(), BASE, false, false), List.of(), output,
             log);
         assertThat(output).isEmptyDirectory();
     }
@@ -113,10 +115,10 @@ class CopybookGenerationTest {
     @Test
     void missingCopyMemberFails() {
         Path source = TestCopybooks.copy("tree", work);
-        assertThatThrownBy(() -> CopybookGeneration.run(
+        assertThatThrownBy(() -> CopybookTree.run(
             settings(source, List.of(), BASE, false, false),
             List.of(source.resolve("billing/INVOICE.cpy")), output, log))
-            .isInstanceOf(CopybookGenerationException.class)
+            .isInstanceOf(CopybookTreeException.class)
             .hasMessage("1 copybook(s) have errors. See the messages above.");
         assertThat(log.errors).anySatisfy(e -> assertThat(e)
             .contains("copy member 'ADDRESS' not found"));
@@ -125,7 +127,7 @@ class CopybookGenerationTest {
     @Test
     void reportsErrorsOfAllCopybooks() {
         assertThatThrownBy(() -> run("broken", List.of(), BASE, false, false))
-            .isInstanceOf(CopybookGenerationException.class)
+            .isInstanceOf(CopybookTreeException.class)
             .hasMessage("2 copybook(s) have errors. See the messages above.");
         assertThat(log.errors).anySatisfy(e -> assertThat(e).contains("BAD.cpy"));
         assertThat(log.errors).anySatisfy(e -> assertThat(e).contains("WORSE.cpy"));
@@ -144,7 +146,7 @@ class CopybookGenerationTest {
     @Test
     void invalidJsonGivesTheFilePath() {
         assertThatThrownBy(() -> run("badjson", List.of(), BASE, false, false))
-            .isInstanceOf(CopybookGenerationException.class)
+            .isInstanceOf(CopybookTreeException.class)
             .hasMessage("1 copybook(s) have errors. See the messages above.");
         assertThat(log.errors).singleElement().asString()
             .startsWith(work.resolve("badjson/SHIPMENT.json") + ": ");
@@ -159,26 +161,26 @@ class CopybookGenerationTest {
     @Test
     void unreadableOptionsFileGivesTheFilePath() throws IOException {
         Path source = shipment(new byte[] {'{', (byte) 0xFF, '}'});
-        assertThatThrownBy(() -> CopybookGeneration.run(
+        assertThatThrownBy(() -> CopybookTree.run(
             settings(source, List.of(), BASE, false, false),
             List.of(source.resolve("SHIPMENT.cpy")), output, log))
-            .isInstanceOf(CopybookGenerationException.class)
+            .isInstanceOf(CopybookTreeException.class)
             .hasMessage("1 copybook(s) have errors. See the messages above.");
         assertThat(log.errors).singleElement().asString()
             .startsWith(source.resolve("SHIPMENT.json") + ": cannot read the file: ");
-        assertThat(CopybookGeneration.configCopyDirs(List.of(source.resolve("SHIPMENT.cpy"))))
+        assertThat(CopybookTree.configCopyDirs(List.of(source.resolve("SHIPMENT.cpy"))))
             .isEmpty();
     }
 
     @Test
     void invalidCopyDirPathGivesTheFilePath() throws IOException {
         Path source = shipment("{\"copyDirs\": [\"lib\\u0000x\"]}".getBytes());
-        assertThat(CopybookGeneration.configCopyDirs(List.of(source.resolve("SHIPMENT.cpy"))))
+        assertThat(CopybookTree.configCopyDirs(List.of(source.resolve("SHIPMENT.cpy"))))
             .isEmpty();
-        assertThatThrownBy(() -> CopybookGeneration.run(
+        assertThatThrownBy(() -> CopybookTree.run(
             settings(source, List.of(), BASE, false, false),
             List.of(source.resolve("SHIPMENT.cpy")), output, log))
-            .isInstanceOf(CopybookGenerationException.class);
+            .isInstanceOf(CopybookTreeException.class);
         assertThat(log.errors).singleElement().asString()
             .startsWith(source.resolve("SHIPMENT.json") + ": a path in copyDirs is not valid: ");
     }
@@ -186,10 +188,10 @@ class CopybookGenerationTest {
     @Test
     void invalidPackageInTheOptionsFileFails() throws IOException {
         Path source = shipment("{\"package\": \"com.my-co.shipping\"}".getBytes());
-        assertThatThrownBy(() -> CopybookGeneration.run(
+        assertThatThrownBy(() -> CopybookTree.run(
             settings(source, List.of(), BASE, false, false),
             List.of(source.resolve("SHIPMENT.cpy")), output, log))
-            .isInstanceOf(CopybookGenerationException.class)
+            .isInstanceOf(CopybookTreeException.class)
             .hasMessage("1 copybook(s) have errors. See the messages above.");
         assertThat(log.errors).containsExactly("SHIPMENT.cpy: the package 'com.my-co.shipping'"
             + " is not a valid Java package name");
@@ -198,10 +200,10 @@ class CopybookGenerationTest {
     @Test
     void emptyBasePackageFails() {
         Path source = TestCopybooks.copy("tree", work);
-        assertThatThrownBy(() -> CopybookGeneration.run(
+        assertThatThrownBy(() -> CopybookTree.run(
             settings(source, List.of(copylib), "", false, false),
             List.of(source.resolve("orders/ORDER.cpy")), output, log))
-            .isInstanceOf(CopybookGenerationException.class);
+            .isInstanceOf(CopybookTreeException.class);
         assertThat(log.errors).containsExactly("orders/ORDER.cpy: the package '.orders'"
             + " is not a valid Java package name");
     }
@@ -209,7 +211,7 @@ class CopybookGenerationTest {
     @Test
     void collisionFails() {
         assertThatThrownBy(() -> run("collision", List.of(copylib), BASE, false, false))
-            .isInstanceOf(CopybookGenerationException.class)
+            .isInstanceOf(CopybookTreeException.class)
             .hasMessageContaining("class com.example.mainframe.OrderLine comes from"
                 + " CUSTOMER-ORDER.cpy and CUSTOMER-RETURN.cpy")
             .hasMessageContaining("packagePerCopybook = true");
@@ -219,7 +221,7 @@ class CopybookGenerationTest {
     @Test
     void reportsAllCollisions() {
         assertThatThrownBy(() -> run("collision2", List.of(copylib), BASE, false, false))
-            .isInstanceOf(CopybookGenerationException.class)
+            .isInstanceOf(CopybookTreeException.class)
             .hasMessageContaining("class com.example.mainframe.OrderLine comes from")
             .hasMessageContaining("class com.example.mainframe.Contact comes from");
     }
@@ -245,21 +247,36 @@ class CopybookGenerationTest {
         Path account = TestCopybooks.copy("jsoncopy", work);
         Path tree = TestCopybooks.copy("tree", work);
         Path badjson = TestCopybooks.copy("badjson", work);
-        assertThat(CopybookGeneration.configCopyDirs(List.of(account.resolve("ACCOUNT.cpy"))))
+        assertThat(CopybookTree.configCopyDirs(List.of(account.resolve("ACCOUNT.cpy"))))
             .containsExactly(account.resolve("../jsoncopylib"));
-        assertThat(CopybookGeneration.configCopyDirs(List.of(tree.resolve("orders/ORDER.cpy"),
+        assertThat(CopybookTree.configCopyDirs(List.of(tree.resolve("orders/ORDER.cpy"),
             badjson.resolve("SHIPMENT.cpy")))).isEmpty();
     }
 
     @Test
+    void customMessagesAreUsed() {
+        Path tree = TestCopybooks.copy("tree", work);
+        Path collision = TestCopybooks.copy("collision", work);
+        String missing = "Set the packageName parameter of bookmap-copybook-maven-plugin.";
+        String hint = "<packagePerCopybook>true</packagePerCopybook>";
+        assertThatThrownBy(() -> CopybookTree.run(new CopybookTree.Settings(tree, List.of(),
+            null, false, false, missing, hint), List.of(tree.resolve("orders/ORDER.cpy")),
+            output, log)).hasMessage(missing);
+        assertThatThrownBy(() -> CopybookTree.run(new CopybookTree.Settings(collision,
+            List.of(copylib), BASE, false, false, missing, hint),
+            TestCopybooks.copybooks(collision), output, log))
+            .hasMessageContaining("Set " + hint + ", set \"package\" in an options file");
+    }
+
+    @Test
     void optionsFileName() {
-        assertThat(CopybookGeneration.optionsFile(Path.of("a/ORDER.cpy")))
+        assertThat(CopybookTree.optionsFile(Path.of("a/ORDER.cpy")))
             .isEqualTo(Path.of("a/ORDER.json"));
-        assertThat(CopybookGeneration.optionsFile(Path.of("ORDER")))
+        assertThat(CopybookTree.optionsFile(Path.of("ORDER")))
             .isEqualTo(Path.of("ORDER.json"));
     }
 
-    private static final class RecordingLog implements CopybookGeneration.Log {
+    private static final class RecordingLog implements CopybookTree.Log {
         final List<String> warnings = new ArrayList<>();
         final List<String> errors = new ArrayList<>();
 
