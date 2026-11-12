@@ -64,16 +64,21 @@ No. Only single-byte charsets are permitted. Multi-byte charsets are on the [Roa
 No. One class holds both directions. Set the `direction` of each field.
 This is a design decision. See the "Out of scope" section of the [Roadmap](Roadmap).
 
-## The Gradle plugin cannot find a COPY member
+## The generator cannot find a COPY member
 
-The plugin does not search the tree for `COPY` members. Declare their directories in `copyDirs`.
+The tools do not search the tree for `COPY` members. Declare their directories in `copyDirs` (plugins and options file) or with `--copy-dir` (command line).
 The search in each directory is not recursive.
 
 ## The Gradle plugin is not found
 
 The plugin is on Maven Central only. It is not on the Gradle Plugin Portal.
 Add `mavenCentral()` to `pluginManagement.repositories` in `settings.gradle.kts`.
-See [Copybook generator](Copybook-generator#gradle-plugin).
+See [Copybook generator Gradle plugin](Copybook-generator-Gradle-plugin#setup).
+
+## Which copybook tool do I use?
+
+Use the Gradle plugin or the Maven plugin to generate the classes in each build. Use the command line to generate the classes one time.
+See [Copybook generator](Copybook-generator#scaffold-mode-and-build-mode).
 
 ## Where do I report a problem?
 
