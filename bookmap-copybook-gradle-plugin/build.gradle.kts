@@ -14,3 +14,10 @@ gradlePlugin {
         }
     }
 }
+
+// The TestKit tests compile the generated classes against the bookmap-core JAR.
+val coreJar = project(":bookmap-core").tasks.named<Jar>("jar")
+tasks.test {
+    dependsOn(coreJar)
+    systemProperty("bookmap.core.jar", coreJar.get().archiveFile.get().asFile.absolutePath)
+}
