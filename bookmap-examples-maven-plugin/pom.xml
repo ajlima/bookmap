@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A standalone Maven build that uses the BookMap copybook Maven plugin.
+     Publish the snapshot of this repository first, then run from the repository root:
+       ./gradlew publishToMavenLocal
+       bookmap-examples-maven-plugin/mvnw -B -f bookmap-examples-maven-plugin/pom.xml verify -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>pt.dazz.bookmap.examples</groupId>
+  <artifactId>bookmap-examples-maven-plugin</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <modules>
+    <!-- The copybooks. This module runs the plugin, and its JAR has the generated classes. -->
+    <module>mainframe-model</module>
+    <!-- A module that uses the generated classes. It does not run the plugin. -->
+    <module>orders-service</module>
+  </modules>
+
+  <properties>
+    <bookmap.version>0.1.0-SNAPSHOT</bookmap.version>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>pt.dazz.bookmap</groupId>
+        <artifactId>bookmap-core</artifactId>
+        <version>${bookmap.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>pt.dazz.bookmap</groupId>
+        <artifactId>bookmap-transport-simulator</artifactId>
+        <version>${bookmap.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>pt.dazz.bookmap.examples</groupId>
+        <artifactId>mainframe-model</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>6.1.3</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>3.27.7</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.5.4</version>
+        </plugin>
+        <!-- In a corporate parent POM, declare the plugin here, one time. -->
+        <plugin>
+          <groupId>pt.dazz.bookmap</groupId>
+          <artifactId>bookmap-copybook-maven-plugin</artifactId>
+          <version>${bookmap.version}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>generate</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

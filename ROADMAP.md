@@ -8,10 +8,6 @@ The roadmap gives no dates and no version numbers. The release version comes fro
 
 To propose a new item, open an issue.
 
-## In progress
-
-- Maven plugin for the copybook generator (`bookmap-copybook-maven-plugin`). It gives the same behavior as the Gradle plugin.
-
 ## 1. Release hardening
 
 Harden the release pipeline and the published artifacts. Milestone: [Release hardening](https://github.com/ajlima/bookmap/milestone/1).

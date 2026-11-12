@@ -2,6 +2,8 @@ plugins { `java-gradle-plugin` }
 
 dependencies {
     implementation(project(":bookmap-copybook"))
+
+    testImplementation(testFixtures(project(":bookmap-copybook")))
 }
 
 gradlePlugin {

@@ -155,8 +155,10 @@ It sets `-H:+AddAllCharsets`. This configuration is included, but it is not test
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
 | `bookmap-copybook-cli` | The command line of the copybook generator. |
 | `bookmap-copybook-gradle-plugin` | The Gradle plugin of the copybook generator (`pt.dazz.bookmap.copybook`). |
+| `bookmap-copybook-maven-plugin` | The Maven plugin of the copybook generator (goal `generate`). |
 | `bookmap-examples` | Working examples. This README uses them. |
 | `bookmap-examples-gradle-plugin` | A standalone build that uses the Gradle plugin. |
+| `bookmap-examples-maven-plugin` | A standalone multi-module Maven build that uses the Maven plugin. |
 
 ## Reference
 
@@ -590,7 +592,7 @@ The classes compile with the BookMap processor without a change.
 Use it in two ways:
 
 - **Scaffold.** Generate the classes one time. Then keep them by hand.
-- **Build.** Generate the classes again from the copybook in each build. Use the [Gradle plugin](#gradle-plugin). `bookmap-examples` does this with the command line.
+- **Build.** Generate the classes again from the copybook in each build. Use the [Gradle plugin](#gradle-plugin) or the [Maven plugin](#maven-plugin). `bookmap-examples` does this with the command line.
 
 ### Pipeline
 
@@ -695,6 +697,35 @@ bookmap {
 Declare the directories of the `COPY` members in `copyDirs`. The plugin does not search the tree for them.
 For all options, the package rules, the class name collisions, and the location of the `COPY` members, see the [plugin README](bookmap-copybook-gradle-plugin/README.md).
 
+### Maven plugin
+
+The plugin `pt.dazz.bookmap:bookmap-copybook-maven-plugin` has the same rules as the Gradle plugin. Its goal `generate` runs in the phase `generate-sources`.
+It needs Maven 3.6.3 or later, on JDK 21 or later. It skips the generation when no input changed.
+
+```xml
+<plugin>
+  <groupId>pt.dazz.bookmap</groupId>
+  <artifactId>bookmap-copybook-maven-plugin</artifactId>
+  <version>0.6.0</version>
+  <executions>
+    <execution>
+      <goals>
+        <goal>generate</goal>
+      </goals>
+    </execution>
+  </executions>
+  <configuration>
+    <packageName>com.example.mainframe</packageName>
+    <copyDirs>
+      <copyDir>src/main/copylib</copyDir>
+    </copyDirs>
+  </configuration>
+</plugin>
+```
+
+In a multi-module project, put the copybooks in one module that runs the plugin. The other modules depend on its JAR.
+For all parameters, the up-to-date check, and the multi-module pattern, see the [Maven plugin README](bookmap-copybook-maven-plugin/README.md).
+
 ### Mapping
 
 | COBOL | Java |
@@ -765,7 +796,6 @@ The class that holds the area gets `@BookSubTypes`. Each alternative becomes a s
 - The generated operation classes do not implement `Continuable` or `Validatable`. In scaffold mode, add them by hand.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives a note.
 - These items are errors: level `66` and `77`, `SIGN LEADING`, `SEPARATE`, `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL`, edited pictures, `P`, `A`, `N`, `REPLACE`, an `OCCURS` in an `OCCURS`, and a `REDEFINES` area in another one.
-- No Maven plugin yet. Use the Gradle plugin, the command line, or the library.
 
 ## Transports and the simulator
 

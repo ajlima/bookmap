@@ -1,9 +1,9 @@
-package pt.dazz.bookmap.copybook.gradle;
+package pt.dazz.bookmap.copybook.tree;
 
 /**
  * Tells that the generation of the copybook classes failed. The message is for the user.
  */
-final class CopybookGenerationException extends RuntimeException {
+public final class CopybookTreeException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
@@ -12,7 +12,7 @@ final class CopybookGenerationException extends RuntimeException {
      *
      * @param message the message for the user
      */
-    CopybookGenerationException(String message) {
+    public CopybookTreeException(String message) {
         super(message);
     }
 }

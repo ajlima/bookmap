@@ -26,6 +26,8 @@ import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.util.PatternSet;
+import pt.dazz.bookmap.copybook.tree.CopybookTree;
+import pt.dazz.bookmap.copybook.tree.CopybookTreeException;
 
 /**
  * Generates the BookMap classes from the COBOL copybooks in a directory tree.
@@ -83,7 +85,7 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
     public List<String> getCopyDirOrder() {
         Path source = getSourceDir().get().getAsFile().toPath();
         return paths(getCopyDirs()).stream()
-            .map(dir -> source.relativize(dir).toString().replace('\\', '/')).toList();
+            .map(dir -> CopybookTree.relativePath(source, dir)).toList();
     }
 
     /**
@@ -165,7 +167,7 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
     public FileCollection getConfigCopyDirs() {
         FileTree copybooks = getCopybookFiles();
         return getObjects().fileCollection().from((Callable<List<File>>)
-            () -> CopybookGeneration.configCopyDirs(paths(copybooks)).stream()
+            () -> CopybookTree.configCopyDirs(paths(copybooks)).stream()
                 .map(Path::toFile).toList());
     }
 
@@ -174,13 +176,14 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
      */
     @TaskAction
     public void generate() {
-        CopybookGeneration.Settings settings = new CopybookGeneration.Settings(
+        CopybookTree.Settings settings = new CopybookTree.Settings(
             getSourceDir().get().getAsFile().toPath(), paths(getCopyDirs()),
-            getPackageName().getOrNull(), getLombok().get(), getPackagePerCopybook().get());
+            getPackageName().getOrNull(), getLombok().get(), getPackagePerCopybook().get(),
+            "Set bookmap.copybooks.packageName.", "bookmap.copybooks.packagePerCopybook = true");
         Logger logger = getLogger();
         try {
-            CopybookGeneration.run(settings, paths(getCopybookFiles()),
-                getOutputDir().get().getAsFile().toPath(), new CopybookGeneration.Log() {
+            CopybookTree.run(settings, paths(getCopybookFiles()),
+                getOutputDir().get().getAsFile().toPath(), new CopybookTree.Log() {
                     @Override
                     public void warn(String message) {
                         logger.warn(message);
@@ -191,7 +194,7 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
                         logger.error(message);
                     }
                 });
-        } catch (CopybookGenerationException e) {
+        } catch (CopybookTreeException e) {
             throw new GradleException(e.getMessage());
         } catch (IOException e) {
             throw new GradleException("Cannot write the generated classes: " + e.getMessage(),

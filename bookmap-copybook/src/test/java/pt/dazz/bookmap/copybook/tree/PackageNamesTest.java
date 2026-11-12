@@ -1,4 +1,4 @@
-package pt.dazz.bookmap.copybook.gradle;
+package pt.dazz.bookmap.copybook.tree;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

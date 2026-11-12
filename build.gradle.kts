@@ -20,6 +20,7 @@ val publishedModules = mapOf(
     "bookmap-copybook" to "BookMap copybook generator: parses COBOL copybooks and generates BookMap classes.",
     "bookmap-copybook-cli" to "BookMap copybook generator command-line program.",
     "bookmap-copybook-gradle-plugin" to "BookMap copybook generator Gradle plugin.",
+    "bookmap-copybook-maven-plugin" to "BookMap copybook generator Maven plugin.",
 )
 
 // Modules that are Gradle plugins. They publish the plugin JAR and the plugin marker artifact.
@@ -101,6 +102,17 @@ subprojects {
     publishedModules[name]?.let { moduleDescription ->
         apply(plugin = "com.vanniktech.maven.publish")
 
+        // A file repository for the integration tests of the Maven plugin
+        // (task publishAllPublicationsToIntegrationTestRepository).
+        extensions.configure<PublishingExtension> {
+            repositories {
+                maven {
+                    name = "integrationTest"
+                    url = uri(rootProject.layout.buildDirectory.dir("integration-test-repo"))
+                }
+            }
+        }
+
         extensions.configure<MavenPublishBaseExtension> {
             // The subprojects block runs before the build file of the module applies
             // java-gradle-plugin. So select the module by name, and wait for the plugin.
@@ -120,6 +132,9 @@ subprojects {
             }
             coordinates(group.toString(), name, version.toString())
             pom {
+                if (project.name == "bookmap-copybook-maven-plugin") {
+                    packaging = "maven-plugin"
+                }
                 this.name.set(project.name)
                 description.set(moduleDescription)
                 inceptionYear.set("2026")
