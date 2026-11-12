@@ -43,7 +43,10 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 | [Error handling](Error-handling) | The exception hierarchy and the business errors. |
 | [Transports and simulator](Transports-and-simulator) | The transport SPI and the simulator for tests. |
 | [Spring Boot](Spring-Boot) | The auto-configuration of `BookmapClient`. |
-| [Copybook generator](Copybook-generator) | The generator, the command line, the Gradle plugin, and the mapping rules. |
+| [Copybook generator](Copybook-generator) | The concepts, the options file, and the mapping rules of the generator. |
+| [Copybook generator CLI](Copybook-generator-CLI) | The command line, with examples, and the Java API. |
+| [Copybook generator Gradle plugin](Copybook-generator-Gradle-plugin) | The Gradle plugin: setup, DSL, packages, and troubleshooting. |
+| [Copybook generator Maven plugin](Copybook-generator-Maven-plugin) | The Maven plugin: setup, parameters, multi-module projects, and troubleshooting. |
 | [FAQ and troubleshooting](FAQ-and-troubleshooting) | Frequent problems and their solutions. |
 | [Contributing](Contributing) | The build, the branches, the commits, and the releases. |
 | [Roadmap](Roadmap) | The planned features, with their issues and milestones. |
@@ -59,8 +62,10 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
 | `bookmap-copybook-cli` | The command line of the copybook generator. |
 | `bookmap-copybook-gradle-plugin` | The Gradle plugin of the copybook generator (`pt.dazz.bookmap.copybook`). |
+| `bookmap-copybook-maven-plugin` | The Maven plugin of the copybook generator (goal `generate`). |
 | `bookmap-examples` | Working examples. This wiki uses them. |
 | `bookmap-examples-gradle-plugin` | A standalone build that uses the Gradle plugin. |
+| `bookmap-examples-maven-plugin` | A standalone multi-module Maven build that uses the Maven plugin. |
 
 ## Known limitations
 

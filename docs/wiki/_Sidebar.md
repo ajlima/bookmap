@@ -17,6 +17,9 @@
 
 **Tools**
 - [Copybook generator](Copybook-generator)
+  - [CLI](Copybook-generator-CLI)
+  - [Gradle plugin](Copybook-generator-Gradle-plugin)
+  - [Maven plugin](Copybook-generator-Maven-plugin)
 
 **Project**
 - [FAQ and troubleshooting](FAQ-and-troubleshooting)
