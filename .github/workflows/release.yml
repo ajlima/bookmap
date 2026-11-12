@@ -17,8 +17,10 @@
 #      build. It creates the tag vX.Y.Z and a GitHub release with the JARs that the publish
 #      job sent to Maven Central (the same bytes). Then it sets the new version in the README files
 #      (scripts/set-readme-version.sh) and pushes the commit "docs: set the README version to
-#      X.Y.Z" to main. A docs commit gives no new release. The ruleset on main must let
-#      GitHub Actions bypass it (see RELEASING.md).
+#      X.Y.Z" to main. A docs commit gives no new release. The push uses a short-lived token of
+#      the BookMap release GitHub App, because the ruleset on main blocks the GITHUB_TOKEN and a
+#      personal repository cannot add GitHub Actions to the bypass list. The app is a bypass
+#      actor of the ruleset. Its key is a secret of the "readme-update" environment (see RELEASING.md).
 
 name: Build and release
 
@@ -162,7 +164,10 @@ jobs:
     needs: [build, publish]
     if: github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
     runs-on: ubuntu-latest
+    # The secret of the release app is an environment secret. Only this job can read it.
+    environment: readme-update
     permissions:
+      # The GitHub release uses the GITHUB_TOKEN. The README push uses the token of the app.
       contents: write
     steps:
       - name: Download the published JARs
@@ -181,11 +186,33 @@ jobs:
           files: release/*.jar
           fail_on_unmatched_files: true
 
+      - name: Check the release app settings
+        env:
+          NEW_VERSION: ${{ needs.build.outputs.new_version }}
+          CLIENT_ID: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$CLIENT_ID" ] || [ -z "$PRIVATE_KEY" ]; then
+            echo "::error::The release $NEW_VERSION is complete, but the README update" \
+              "cannot run: set the variable RELEASE_APP_CLIENT_ID and the secret RELEASE_APP_PRIVATE_KEY" \
+              "in the readme-update environment. See RELEASING.md."
+            exit 1
+          fi
+
+      - name: Create a token of the release app
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Check out main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           path: repository
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Set the version in the README files
         working-directory: repository
@@ -202,7 +229,7 @@ jobs:
           git commit --all --message "docs: set the README version to $NEW_VERSION"
           if ! git push origin HEAD:main; then
             echo "::error::Cannot push the README update to main. The release $NEW_VERSION is complete." \
-              "Add GitHub Actions as a bypass actor of the main ruleset, or run" \
+              "Add the release app as a bypass actor of the main ruleset, or run" \
               "scripts/set-readme-version.sh $NEW_VERSION in a pull request. See RELEASING.md."
             exit 1
           fi

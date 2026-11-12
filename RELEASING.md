@@ -98,16 +98,54 @@ For the signing key, send the exported private key directly to the secret:
 gpg --armor --export-secret-keys <KEY_ID> | gh secret set SIGNING_KEY --env maven-central
 ```
 
-### 6. Let GitHub Actions push the README update
+### 6. Let the release app push the README update
 
-The ruleset on `main` blocks direct pushes. Add GitHub Actions to its bypass list, so that the `release` job can push the README update:
+The ruleset on `main` blocks direct pushes, also from the `GITHUB_TOKEN`.
+A repository of a personal account cannot add GitHub Actions to the bypass list. Thus, the `release` job pushes with the token of a GitHub App that you own.
 
-1. Open **Settings** > **Rules** > **Rulesets** > **Protect main**.
-2. In **Bypass list**, click **Add bypass**.
-3. Select **GitHub Actions**, with the mode **Always allow**.
-4. Click **Save changes**.
+Create the app:
 
-Caution: Each workflow job with `contents: write` can then push to `main`. Keep `contents: read` as the default permission of all workflows.
+1. Open **Settings** (of your account) > **Developer settings** > **GitHub Apps** > **New GitHub App**.
+2. Set **GitHub App name** to a unique name, for example `bookmap-release-<your-login>`.
+3. Set **Homepage URL** to `https://github.com/ajlima/bookmap`.
+4. In **Webhook**, clear **Active**.
+5. In **Repository permissions**, set **Contents** to **Read and write**. Keep all other permissions at **No access**.
+6. In **Where can this GitHub App be installed?**, select **Only on this account**.
+7. Click **Create GitHub App**.
+8. Copy the **Client ID**. You need it in step 13.
+9. In **Private keys**, click **Generate a private key**. The browser downloads a `.pem` file.
+
+Install the app on the repository:
+
+10. In the app settings, open **Install App**, and click **Install** next to your account.
+11. Select **Only select repositories**, select `bookmap`, and click **Install**.
+
+Add the app to the bypass list of the ruleset:
+
+12. Open **Settings** > **Rules** > **Rulesets** > **Protect main**. In **Bypass list**, click **Add bypass**, select the app in **Apps**, and click **Save changes**.
+
+Give the app to the `release` job. The `readme-update` environment holds the settings, so only the `release` job can read them:
+
+13. Create the environment, then set the Client ID as an environment variable:
+
+```bash
+gh api --method PUT repos/ajlima/bookmap/environments/readme-update
+```
+
+```bash
+gh variable set RELEASE_APP_CLIENT_ID --env readme-update --body "<client-id>"
+```
+
+14. Send the private key directly to the environment secret:
+
+```bash
+gh secret set RELEASE_APP_PRIVATE_KEY --env readme-update < <app-name>.<date>.private-key.pem
+```
+
+15. Delete the `.pem` file from your computer.
+
+Caution: Each workflow that has the private key can push to `main`. Do not use the secret in another job or another environment.
+Do not give the app more permissions than **Contents: Read and write**.
 
 Without this step, the release still completes, but the `release` job fails at the README update. Then update the README in a pull request:
 
@@ -139,6 +177,7 @@ Run this command to make the release artifacts in the local Maven repository, wi
 - The Gradle wrapper checks the SHA-256 of the Gradle distribution (`distributionSha256Sum`).
   The `setup-gradle` action also validates the wrapper JAR.
 - Only the `publish` job sees the Maven Central token and the signing key, through the `maven-central` environment.
+- Only the `release` job sees the private key of the release app, through the `readme-update` environment. The app token has only the `contents: write` permission, and it is valid for one hour at most.
 - The `setup-gradle` cache is disabled. Since v6, that cache is a proprietary component with separate terms of use.
   The `build` job uses the open-source `setup-java` cache instead.
   The `publish` job uses no cache, so a release always builds from clean dependencies.
