@@ -5,7 +5,7 @@ It reads a directory tree of COBOL copybooks and writes the annotated Java class
 The directories of the tree give the Java subpackages.
 
 The plugin is a thin adapter. The `bookmap-copybook` library does the parse, the mapping, and the generation.
-For the mapping rules, the options, and the limitations, see the section "Copybook generator" in the [main README](../README.md#copybook-generator).
+For the mapping rules, the options, and the limitations, see the page "Copybook generator" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator).
 For Maven builds, use the [Maven plugin](../bookmap-copybook-maven-plugin/README.md). It has the same rules.
 
 ## 1. What the plugin does
@@ -120,7 +120,7 @@ Examples, with `packageName = "com.example.mainframe"`:
 ## 5. Options files
 
 Put the options of one copybook in a file `<NAME>.json` next to `<NAME>.cpy`. The file is optional.
-The file has the format of the `--config` file of the command line. See "Command line" in the [main README](../README.md#command-line).
+The file has the format of the `--config` file of the command line. See "Options file" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#options-file).
 
 ```
 src/main/copybook/billing/GET-INVOICE.cpy

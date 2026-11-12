@@ -5,7 +5,7 @@ It reads a directory tree of COBOL copybooks and writes the annotated Java class
 The directories of the tree give the Java subpackages.
 
 The plugin has the same rules as the [Gradle plugin](../bookmap-copybook-gradle-plugin/README.md). Both plugins use the same code in `bookmap-copybook`.
-For the mapping rules, the options, and the limitations of the generator, see the section "Copybook generator" in the [main README](../README.md#copybook-generator).
+For the mapping rules, the options, and the limitations of the generator, see the page "Copybook generator" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator).
 
 ## 1. What the plugin does
 
@@ -129,7 +129,7 @@ If the final package is not a valid Java package name, the build fails for that 
 ## 5. Options files
 
 Put the options of one copybook in a file `<NAME>.json` next to `<NAME>.cpy`. The file is optional.
-The file has the format of the `--config` file of the command line. See "Command line" in the [main README](../README.md#command-line).
+The file has the format of the `--config` file of the command line. See "Options file" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#options-file).
 
 - `package` in the file has priority over the package from the directories.
 - `lombok` in the file has priority over the `lombok` parameter.
