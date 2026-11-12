@@ -3,9 +3,11 @@ plugins {
     alias(libs.plugins.maven.publish) apply false
 }
 
+import com.vanniktech.maven.publish.GradlePlugin
 import com.vanniktech.maven.publish.JavaLibrary
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import com.vanniktech.maven.publish.SourcesJar
 
 val catalog = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
@@ -17,7 +19,11 @@ val publishedModules = mapOf(
     "bookmap-spring-boot" to "BookMap Spring Boot auto-configuration.",
     "bookmap-copybook" to "BookMap copybook generator: parses COBOL copybooks and generates BookMap classes.",
     "bookmap-copybook-cli" to "BookMap copybook generator command-line program.",
+    "bookmap-copybook-gradle-plugin" to "BookMap copybook generator Gradle plugin.",
 )
+
+// Modules that are Gradle plugins. They publish the plugin JAR and the plugin marker artifact.
+val gradlePluginModules = setOf("bookmap-copybook-gradle-plugin")
 
 allprojects {
     group = "pt.dazz.bookmap"
@@ -96,7 +102,17 @@ subprojects {
         apply(plugin = "com.vanniktech.maven.publish")
 
         extensions.configure<MavenPublishBaseExtension> {
-            configure(JavaLibrary(javadocJar = JavadocJar.Javadoc(), sourcesJar = true))
+            // The subprojects block runs before the build file of the module applies
+            // java-gradle-plugin. So select the module by name, and wait for the plugin.
+            if (name in gradlePluginModules) {
+                val publishing = this
+                pluginManager.withPlugin("java-gradle-plugin") {
+                    publishing.configure(
+                        GradlePlugin(javadocJar = JavadocJar.Javadoc(), sourcesJar = SourcesJar.Sources()))
+                }
+            } else {
+                configure(JavaLibrary(javadocJar = JavadocJar.Javadoc(), sourcesJar = true))
+            }
             publishToMavenCentral(automaticRelease = true)
             // Sign only when a key is present (CI release). Local publishToMavenLocal works without a key.
             if (providers.gradleProperty("signingInMemoryKey").isPresent) {

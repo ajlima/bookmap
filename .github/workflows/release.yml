@@ -1,6 +1,7 @@
 # Build and release BookMap.
 #
-# On each pull request to main: only the build job runs (build, tests, 100% coverage).
+# On each pull request to main: only the build job runs (build, tests, 100% coverage). The build
+# job also builds the standalone example of the Gradle plugin (bookmap-examples-gradle-plugin).
 # The ruleset on main requires this check before a merge.
 #
 # On each push to main:
@@ -80,6 +81,10 @@ jobs:
             ./gradlew build --no-daemon
           fi
 
+      # The example build includes the root build, so it uses the plugin from this commit.
+      - name: Build the Gradle plugin example
+        run: ./gradlew -p bookmap-examples-gradle-plugin build --no-daemon
+
   publish:
     needs: build
     if: github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
@@ -129,7 +134,7 @@ jobs:
         run: |
           mkdir -p published
           for module in bookmap-core bookmap-processor bookmap-transport-simulator bookmap-spring-boot \
-                        bookmap-copybook bookmap-copybook-cli; do
+                        bookmap-copybook bookmap-copybook-cli bookmap-copybook-gradle-plugin; do
             cp "$module"/build/libs/*.jar published/
           done
           ls -l published
