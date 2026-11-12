@@ -1,5 +1,3 @@
-# FAQ and troubleshooting
-
 ## The client throws MappingException: no codec for a class
 
 The processor did not generate a codec, or the codec is not on the classpath.

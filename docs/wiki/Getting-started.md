@@ -1,5 +1,3 @@
-# Getting started
-
 This page shows how to add BookMap to a build, write a first book, and send the first request.
 
 ## Requirements

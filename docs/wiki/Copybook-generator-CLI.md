@@ -1,5 +1,3 @@
-# Copybook generator CLI
-
 The command line `bookmap-copybook` runs the [copybook generator](Copybook-generator) from a terminal or a script.
 Use it in scaffold mode, in a CI pipeline, or from a build tool that has no BookMap plugin.
 

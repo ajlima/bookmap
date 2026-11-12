@@ -3,7 +3,8 @@
 #
 # Usage: scripts/publish-wiki.sh <wiki-git-url>
 #
-# The script copies docs/wiki/ to the wiki repository, and ROADMAP.md to the page Roadmap.md.
+# The script copies docs/wiki/ to the wiki repository, and ROADMAP.md (without its level-1 title)
+# to the page Roadmap.md.
 # It deletes the wiki pages that are not in docs/wiki/. Thus, docs/wiki/ is the only source.
 # It makes a commit and a push only if a page changed.
 #
@@ -30,7 +31,10 @@ if ! git clone --quiet "$wiki_url" "$work_dir/wiki" 2>"$work_dir/clone.log"; the
 fi
 
 rsync --recursive --delete --checksum --exclude '.git' "$source_dir/" "$work_dir/wiki/"
-cp "$root/ROADMAP.md" "$work_dir/wiki/Roadmap.md"
+# The wiki shows the page name as the title. Remove the level-1 title of ROADMAP.md, so that
+# the Roadmap page does not show the title two times.
+awk 'NR == 1 && /^# / { title = 1; next } NR == 2 && title && /^$/ { next } { print }' \
+  "$root/ROADMAP.md" > "$work_dir/wiki/Roadmap.md"
 
 cd "$work_dir/wiki"
 git add --all

@@ -1,5 +1,3 @@
-# Error handling
-
 All exceptions are unchecked. They are in the package `pt.dazz.bookmap.exception`.
 
 ```

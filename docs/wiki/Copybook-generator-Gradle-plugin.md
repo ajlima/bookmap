@@ -1,5 +1,3 @@
-# Copybook generator Gradle plugin
-
 The plugin `pt.dazz.bookmap.copybook` runs the [copybook generator](Copybook-generator) in a Gradle build.
 It reads a directory tree of COBOL copybooks and writes the annotated Java classes before `compileJava`.
 The directories of the tree give the Java subpackages.

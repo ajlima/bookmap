@@ -1,5 +1,3 @@
-# Copybook generator Maven plugin
-
 The plugin `pt.dazz.bookmap:bookmap-copybook-maven-plugin` runs the [copybook generator](Copybook-generator) in a Maven build.
 It reads a directory tree of COBOL copybooks and writes the annotated Java classes in the phase `generate-sources`.
 The directories of the tree give the Java subpackages.

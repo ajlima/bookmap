@@ -1,5 +1,3 @@
-# Collections and fixed OCCURS
-
 A `@BookCollection` maps a COBOL `OCCURS` to a `List<Item>`. A collection is variable or fixed:
 
 - A **variable collection** works like `OCCURS DEPENDING ON`. The book size changes with the number of items.

@@ -1,5 +1,3 @@
-# Annotations reference
-
 The annotations are in the package `pt.dazz.bookmap.annotation`. The processor reads them at compile time.
 
 ## @BookOperation (class)

@@ -1,6 +1,6 @@
 # BookMap roadmap
 
-This file lists the BookMap features that are not developed yet.
+This roadmap lists the BookMap features that are not developed yet.
 The groups are in the order of priority. In each group, the items are also in the order of priority.
 
 Each item has a GitHub issue. Each group has a milestone with the same name.
