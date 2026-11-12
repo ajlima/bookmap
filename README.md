@@ -13,7 +13,7 @@
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-0f62fe">
   <img alt="Gradle 9" src="https://img.shields.io/badge/Gradle-9.9-02303A">
   <img alt="Coverage 100%" src="https://img.shields.io/badge/coverage-100%25-brightgreen">
-  <img alt="Version 0.5.0" src="https://img.shields.io/badge/version-0.5.0-f89820">
+  <img alt="Version 0.6.0" src="https://img.shields.io/badge/version-0.6.0-f89820">
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
@@ -116,12 +116,12 @@ Add the core library and the processor.
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-core:0.5.0")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.5.0")
+    implementation("pt.dazz.bookmap:bookmap-core:0.6.0")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.6.0")
 }
 ```
 
-The group is `pt.dazz.bookmap` and the version is `0.5.0`. The modules are on Maven Central.
+The group is `pt.dazz.bookmap` and the version is `0.6.0`. The modules are on Maven Central.
 Inside this build, use `project(":bookmap-core")` and `project(":bookmap-processor")`.
 
 If you use Lombok, list Lombok before BookMap in `annotationProcessor`. This is the recommended order.
@@ -132,7 +132,7 @@ The `bookmap-examples` build lists BookMap first on purpose, because that order 
 dependencies {
     compileOnly("org.projectlombok:lombok:<version>")
     annotationProcessor("org.projectlombok:lombok:<version>")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.5.0")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.6.0")
 }
 ```
 
@@ -684,7 +684,7 @@ pluginManagement {
 // build.gradle.kts
 plugins {
     java
-    id("pt.dazz.bookmap.copybook") version "0.5.0"
+    id("pt.dazz.bookmap.copybook") version "0.6.0"
 }
 
 bookmap {
@@ -866,7 +866,7 @@ Then the `Transport` bean exists when the client condition runs. The core module
 
 ## Project status
 
-BookMap is at version `0.5.0`. GitHub Actions builds each release and publishes it to Maven Central.
+BookMap is at version `0.6.0`. GitHub Actions builds each release and publishes it to Maven Central.
 See [RELEASING.md](RELEASING.md) for the release cycle and the one-time setup.
 The build enforces 100% line and branch coverage for all modules except the examples.
 Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transport SPI accepts them without a change to the core.
