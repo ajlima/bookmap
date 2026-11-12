@@ -1,5 +1,3 @@
-# Contributing
-
 This page tells how to build BookMap, how to propose a change, and how a release occurs.
 
 ## Build
@@ -110,7 +108,8 @@ The Roadmap page comes from [`ROADMAP.md`](https://github.com/ajlima/bookmap/blo
 A GitHub Action publishes them to the wiki after each merge to `main`.
 
 1. Change the files in `docs/wiki/` or `ROADMAP.md` on a branch.
-2. Use a `docs:` commit.
-3. Open a pull request to `main`.
+2. Do not start a page with a level-1 title (`# Title`). The wiki shows the file name as the title. A file name such as `Getting-started.md` gives the title "Getting started".
+3. Use a `docs:` commit.
+4. Open a pull request to `main`.
 
 **CAUTION:** Do not edit the pages in the wiki web editor. The next publication replaces all pages, and your change is lost.

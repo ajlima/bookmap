@@ -1,5 +1,3 @@
-# Transports and simulator
-
 ## The transport SPI
 
 A transport implements one method of `pt.dazz.bookmap.spi.Transport`:

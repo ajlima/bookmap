@@ -1,5 +1,3 @@
-# Conventions
-
 The framework uses few attributes. Six conventions reduce the work:
 
 1. `@BookOperation` without a value uses the simple class name.

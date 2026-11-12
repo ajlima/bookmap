@@ -1,5 +1,3 @@
-# PIC syntax and type mapping
-
 ## PIC syntax
 
 The processor parses `pic` at compile time. An incorrect or unsupported `pic` is a compile error.

@@ -1,5 +1,3 @@
-# Subtypes (REDEFINES)
-
 A COBOL book can use `REDEFINES` to give one area more than one layout. A field in the book (the discriminator) tells which layout is valid:
 
 ```cobol

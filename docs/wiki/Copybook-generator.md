@@ -1,5 +1,3 @@
-# Copybook generator
-
 The copybook generator reads a COBOL copybook and writes the annotated Java classes.
 The classes compile with the BookMap processor without a change.
 

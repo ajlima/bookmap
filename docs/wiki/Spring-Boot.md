@@ -1,5 +1,3 @@
-# Spring Boot
-
 `bookmap-spring-boot` supports Spring Boot 4.0.x. The auto-configuration creates a `BookmapClient` bean
 when a `Transport` bean exists.
 
