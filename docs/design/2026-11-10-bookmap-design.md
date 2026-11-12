@@ -1,6 +1,7 @@
 # bookmap — Design
 
 Date: 2026-11-10
+Status: implemented in v0.1.0.
 Base package: `pt.dazz.bookmap`
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. You can change them if you have a good reason.

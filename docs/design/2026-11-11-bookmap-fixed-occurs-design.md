@@ -1,6 +1,7 @@
 # bookmap — Fixed `OCCURS` (design)
 
 Date: 2026-11-11
+Status: implemented in v0.3.0.
 Base package: `pt.dazz.bookmap`
 Parent spec: `2026-11-10-bookmap-design.md`
 Related spec: `2026-11-11-bookmap-copybook-design.md` (the copybook generator needs this feature)
