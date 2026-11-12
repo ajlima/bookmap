@@ -14,12 +14,14 @@ The workflow `.github/workflows/release.yml` runs on each push to `main`.
 2. The `build` job builds and tests with that version. The build fails if coverage is less than 100%.
 3. The `publish` job checks out the same commit, signs the modules, and publishes them to Maven Central.
 4. The `release` job creates the tag `vX.Y.Z` and a GitHub release. It attaches the same JAR files that went to Maven Central.
-5. The `release` job sets the new version in `README.md` and `bookmap-copybook-gradle-plugin/README.md` with `scripts/set-readme-version.sh`. Then it pushes the commit `docs: set the README version to X.Y.Z` to `main`. A `docs:` commit makes no release.
+5. The `release` job sets the new version in `README.md`, `bookmap-copybook-gradle-plugin/README.md`, and `bookmap-copybook-maven-plugin/README.md` with `scripts/set-readme-version.sh`. Then it pushes the commit `docs: set the README version to X.Y.Z` to `main`. A `docs:` commit makes no release.
 
 The `release` job runs only after a successful `publish` job. Thus, each GitHub release is also on Maven Central.
 
 These modules go to Maven Central with the group `pt.dazz.bookmap`:
-`bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, and `bookmap-spring-boot`.
+`bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-spring-boot`,
+`bookmap-copybook`, `bookmap-copybook-cli`, `bookmap-copybook-gradle-plugin`, and `bookmap-copybook-maven-plugin`.
+The examples are not published.
 
 ## One-time setup
 
