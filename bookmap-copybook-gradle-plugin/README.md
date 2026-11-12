@@ -6,6 +6,7 @@ The directories of the tree give the Java subpackages.
 
 The plugin is a thin adapter. The `bookmap-copybook` library does the parse, the mapping, and the generation.
 For the mapping rules, the options, and the limitations, see the section "Copybook generator" in the [main README](../README.md#copybook-generator).
+For Maven builds, use the [Maven plugin](../bookmap-copybook-maven-plugin/README.md). It has the same rules.
 
 ## 1. What the plugin does
 
