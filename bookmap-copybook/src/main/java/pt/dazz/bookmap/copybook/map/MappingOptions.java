@@ -22,13 +22,15 @@ import pt.dazz.bookmap.annotation.Direction;
  *     {@code *}. The map keeps the order of the hints.
  * @param continuable the handler classes of {@code Continuable} records, by record name
  * @param validatable the handler classes of {@code Validatable} records, by record name
+ * @param conditions the mode of the level 88 items, by COBOL name of an elementary item
  */
 public record MappingOptions(List<String> stripPrefixes, List<String> inputMarkers,
                              List<String> outputMarkers, Map<String, Direction> directions,
                              Map<String, SubTypeDecision> subTypes,
                              Map<String, String> countFields, Integer maxRecordLength,
                              Map<String, String> dates, Map<String, String> continuable,
-                             Map<String, String> validatable) {
+                             Map<String, String> validatable,
+                             Map<String, ConditionMode> conditions) {
 
     /** The default input markers. */
     public static final List<String> INPUT_MARKERS = List.of("INPUT", "IN", "REQUEST", "REQ");
@@ -49,6 +51,7 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
      * @param dates the date hints
      * @param continuable the {@code Continuable} handlers
      * @param validatable the {@code Validatable} handlers
+     * @param conditions the condition modes
      * @throws IllegalArgumentException if the maximum record length is less than 1
      */
     public MappingOptions {
@@ -61,6 +64,7 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
         dates = ordered(dates);
         continuable = ordered(continuable);
         validatable = ordered(validatable);
+        conditions = Map.copyOf(conditions);
         if (maxRecordLength != null && maxRecordLength < 1) {
             throw new IllegalArgumentException("the maximum record length must be 1 or more,"
                 + " not " + maxRecordLength);
@@ -78,13 +82,35 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
      * @param subTypes the subtype decisions
      * @param countFields the count fields of fixed tables
      * @param maxRecordLength the maximum record length
+     * @param conditions the condition modes
+     */
+    public MappingOptions(List<String> stripPrefixes, List<String> inputMarkers,
+                          List<String> outputMarkers, Map<String, Direction> directions,
+                          Map<String, SubTypeDecision> subTypes,
+                          Map<String, String> countFields, Integer maxRecordLength,
+                          Map<String, ConditionMode> conditions) {
+        this(stripPrefixes, inputMarkers, outputMarkers, directions, subTypes, countFields,
+            maxRecordLength, Map.of(), Map.of(), Map.of(), conditions);
+    }
+
+    /**
+     * Creates the options without date hints, without {@code Continuable} and
+     * {@code Validatable} handlers, and without condition modes.
+     *
+     * @param stripPrefixes the prefixes
+     * @param inputMarkers the input markers
+     * @param outputMarkers the output markers
+     * @param directions the directions
+     * @param subTypes the subtype decisions
+     * @param countFields the count fields of fixed tables
+     * @param maxRecordLength the maximum record length
      */
     public MappingOptions(List<String> stripPrefixes, List<String> inputMarkers,
                           List<String> outputMarkers, Map<String, Direction> directions,
                           Map<String, SubTypeDecision> subTypes,
                           Map<String, String> countFields, Integer maxRecordLength) {
         this(stripPrefixes, inputMarkers, outputMarkers, directions, subTypes, countFields,
-            maxRecordLength, Map.of(), Map.of(), Map.of());
+            maxRecordLength, Map.of(), Map.of(), Map.of(), Map.of());
     }
 
     /**
@@ -161,7 +187,8 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
                                     Map<String, String> newContinuable,
                                     Map<String, String> newValidatable) {
         return new MappingOptions(stripPrefixes, inputMarkers, outputMarkers, directions,
-            subTypes, countFields, maxRecordLength, newDates, newContinuable, newValidatable);
+            subTypes, countFields, maxRecordLength, newDates, newContinuable, newValidatable,
+            conditions);
     }
 
     /** Copies a map and keeps its order, for deterministic diagnostics. */

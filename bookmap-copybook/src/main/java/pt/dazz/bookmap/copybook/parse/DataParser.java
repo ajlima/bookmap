@@ -8,8 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import pt.dazz.bookmap.copybook.ast.Condition;
+import pt.dazz.bookmap.copybook.ast.ConditionValue;
 import pt.dazz.bookmap.copybook.ast.Copybook;
 import pt.dazz.bookmap.copybook.ast.DataItem;
+import pt.dazz.bookmap.copybook.ast.Literal;
 import pt.dazz.bookmap.copybook.ast.Occurs;
 import pt.dazz.bookmap.copybook.ast.QualifiedName;
 import pt.dazz.bookmap.copybook.ast.Usage;
@@ -49,6 +51,14 @@ public final class DataParser {
 
     private static final Set<String> IGNORED = Set.of("INDEXED", "ASCENDING", "DESCENDING");
 
+    /** The figurative constants, with the singular form of each. */
+    private static final Map<String, String> FIGURATIVE = Map.ofEntries(
+        Map.entry("SPACE", "SPACE"), Map.entry("SPACES", "SPACE"),
+        Map.entry("ZERO", "ZERO"), Map.entry("ZEROS", "ZERO"), Map.entry("ZEROES", "ZERO"),
+        Map.entry("HIGH-VALUE", "HIGH-VALUE"), Map.entry("HIGH-VALUES", "HIGH-VALUE"),
+        Map.entry("LOW-VALUE", "LOW-VALUE"), Map.entry("LOW-VALUES", "LOW-VALUE"),
+        Map.entry("QUOTE", "QUOTE"), Map.entry("QUOTES", "QUOTE"));
+
     private static final Set<String> CLAUSES = Set.of(
         "PIC", "PICTURE", "USAGE", "OCCURS", "REDEFINES", "VALUE", "VALUES", "SIGN", "TRAILING",
         "INDEXED", "ASCENDING", "DESCENDING", "SYNC", "SYNCHRONIZED", "JUSTIFIED", "JUST",
@@ -73,6 +83,7 @@ public final class DataParser {
         Usage usage;
         Occurs occurs;
         QualifiedName redefines;
+        Literal value;
         final List<Condition> conditions = new ArrayList<>();
         final List<Builder> children = new ArrayList<>();
         String source;
@@ -87,7 +98,7 @@ public final class DataParser {
         DataItem build() {
             return new DataItem(level, name, picture, usage, occurs, redefines, conditions,
                 children.stream().map(Builder::build).toList(), source, line, column,
-                String.join(" ", declaration) + ".");
+                String.join(" ", declaration) + ".", value);
         }
     }
 
@@ -196,9 +207,79 @@ public final class DataParser {
         if (last == null) {
             error(level, "a level 88 condition needs an item before it");
         } else if (name != null) {
-            last.conditions.add(new Condition(name.text()));
+            pos++;
+            List<ConditionValue> values = conditionValues(name);
+            if (values != null) {
+                last.conditions.add(new Condition(name.text(), values, level.line(),
+                    level.column()));
+            }
         }
         skipEntry();
+    }
+
+    /**
+     * Reads the {@code VALUE} clause of a condition, up to the period. Gives null and a
+     * warning if the clause is missing or has a value that BookMap does not support.
+     */
+    private List<ConditionValue> conditionValues(Token name) {
+        if (!skipWords("VALUE", "VALUES")) {
+            warning(name, "condition " + name.text() + " has no VALUE clause and is ignored");
+            return null;
+        }
+        skipWords("IS", "ARE");
+        List<ConditionValue> values = new ArrayList<>();
+        Token token;
+        while ((token = peek()) != null && token.type() != TokenType.PERIOD) {
+            Literal from = literal(token);
+            if (from == null) {
+                return unsupported(name, token);
+            }
+            pos++;
+            Literal thru = null;
+            if (skipWords("THRU", "THROUGH")) {
+                // At the end of the tokens, the THRU word itself is the value that fails.
+                Token bound = tokens.get(Math.min(pos, tokens.size() - 1));
+                thru = literal(bound);
+                if (thru == null) {
+                    return unsupported(name, bound);
+                }
+                pos++;
+            }
+            values.add(new ConditionValue(from, thru));
+        }
+        return values;
+    }
+
+    private List<ConditionValue> unsupported(Token name, Token value) {
+        warning(value, "condition " + name.text() + ": the value " + value.text()
+            + " is not supported. The condition is ignored.");
+        return null;
+    }
+
+    /** Skips the next token if it is one of the words. */
+    private boolean skipWords(String... words) {
+        Token token = peek();
+        for (String word : words) {
+            if (token != null && token.is(word)) {
+                pos++;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Gives the literal of a token, or null if BookMap does not support it. */
+    private static Literal literal(Token token) {
+        return switch (token.type()) {
+            case LITERAL -> new Literal(Literal.Kind.TEXT, token.text());
+            case NUMBER -> new Literal(Literal.Kind.NUMBER, token.text());
+            case WORD -> {
+                String figurative = FIGURATIVE.get(token.text());
+                yield figurative == null ? null
+                    : new Literal(Literal.Kind.FIGURATIVE, figurative);
+            }
+            default -> null;
+        };
     }
 
     private void item(Token levelToken, int level) {
@@ -307,6 +388,13 @@ public final class DataParser {
             item.redefines = new QualifiedName(List.of(take(item).text()));
         } else if (word.equals("VALUE") || word.equals("VALUES")) {
             pos++;
+            skipWords("IS");
+            Token value = peek();
+            item.value = value == null ? null : literal(value);
+            if (item.value == null) {
+                warning(value == null ? token : value, "the VALUE clause of " + item.name
+                    + " is not supported and is ignored");
+            }
             skipUntilClause(null);
         } else if (word.equals("SIGN") || word.equals("TRAILING")) {
             take(item);
@@ -464,6 +552,10 @@ public final class DataParser {
 
     private void error(Token token, String message) {
         diagnostics.error(token.source(), token.line(), token.column(), message);
+    }
+
+    private void warning(Token token, String message) {
+        diagnostics.warning(token.source(), token.line(), token.column(), message);
     }
 
     // ---- checks after the tree is complete ----

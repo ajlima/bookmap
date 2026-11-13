@@ -20,6 +20,7 @@ import pt.dazz.bookmap.copybook.generate.GenerateOptions;
 import pt.dazz.bookmap.copybook.generate.JavaClassGenerator;
 import pt.dazz.bookmap.copybook.json.ModelJson;
 import pt.dazz.bookmap.copybook.json.ModelJsonException;
+import pt.dazz.bookmap.copybook.map.ConditionMode;
 import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.parse.ParseOptions;
 import pt.dazz.bookmap.copybook.parse.SourceFormat;
@@ -56,6 +57,8 @@ public final class Main {
           --input-marker <word>      A name part that marks an input alternative.
           --output-marker <word>     A name part that marks an output alternative.
           --direction <name>=<dir>   The direction (INPUT or OUTPUT) of an alternative.
+          --conditions <name>=<mode> The mode (enum, constants, or none) of the level 88
+                                     items of an item.
           --count-field <table>=<field>
                                      The count field of a fixed table (OCCURS n).
           --max-record-length <bytes>
@@ -238,6 +241,20 @@ public final class Main {
                     + "'. Use INPUT, OUTPUT, or INPUT_OUTPUT.");
             }
         }
+        Map<String, ConditionMode> conditions = new LinkedHashMap<>(base.conditions());
+        for (String value : arguments.all("--conditions")) {
+            int equals = value.indexOf('=');
+            if (equals < 1) {
+                throw new UsageException("--conditions needs NAME=MODE, not '" + value + "'");
+            }
+            try {
+                conditions.put(value.substring(0, equals),
+                    ConditionMode.of(value.substring(equals + 1)));
+            } catch (IllegalArgumentException e) {
+                throw new UsageException("unknown condition mode in '" + value
+                    + "'. Use enum, constants, or none.");
+            }
+        }
         Map<String, String> countFields = new LinkedHashMap<>(base.countFields());
         for (String value : arguments.all("--count-field")) {
             int equals = value.indexOf('=');
@@ -254,7 +271,8 @@ public final class Main {
             directions, base.subTypes(), countFields, maxRecordLength(arguments, base),
             pairs(arguments, "--date", "NAME=PATTERN", base.dates()),
             pairs(arguments, "--continuable", "RECORD=CLASS", base.continuable()),
-            pairs(arguments, "--validatable", "RECORD=CLASS", base.validatable()));
+            pairs(arguments, "--validatable", "RECORD=CLASS", base.validatable()),
+            conditions);
     }
 
     /** Adds the KEY=VALUE values of an option to the values of the options file. */

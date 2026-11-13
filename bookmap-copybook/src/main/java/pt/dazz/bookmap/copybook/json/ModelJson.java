@@ -13,11 +13,15 @@ import pt.dazz.bookmap.copybook.model.BookModel;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
 import pt.dazz.bookmap.copybook.model.CollectionMember;
+import pt.dazz.bookmap.copybook.model.ConditionMember;
+import pt.dazz.bookmap.copybook.model.EnumConstant;
+import pt.dazz.bookmap.copybook.model.EnumModel;
 import pt.dazz.bookmap.copybook.model.FieldMember;
 import pt.dazz.bookmap.copybook.model.JavaType;
 import pt.dazz.bookmap.copybook.model.MemberModel;
 import pt.dazz.bookmap.copybook.model.SubTypeEntry;
 import pt.dazz.bookmap.copybook.model.SubTypes;
+import pt.dazz.bookmap.copybook.model.ValueRange;
 
 /**
  * Writes and reads the JSON form of a {@link BookModel}. The writer is deterministic: the same
@@ -26,13 +30,20 @@ import pt.dazz.bookmap.copybook.model.SubTypes;
 public final class ModelJson {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final Set<String> MODEL_KEYS = Set.of("formatVersion", "sourceName", "classes");
+    private static final Set<String> MODEL_KEYS = Set.of("formatVersion", "sourceName", "classes",
+        "enums");
     private static final Set<String> CLASS_KEYS = Set.of("name", "kind", "superclass",
         "subTypes", "continuable", "validatable", "members");
     private static final Set<String> SUBTYPES_KEYS = Set.of("discriminator", "types");
     private static final Set<String> TYPE_KEYS = Set.of("value", "className");
     private static final Set<String> FIELD_KEYS = Set.of("kind", "name", "javaType", "order",
-        "pic", "direction", "pattern", "cobolName", "declaration");
+        "pic", "direction", "pattern", "enumType", "initialValue", "conditions", "cobolName",
+        "declaration");
+    private static final Set<String> CONDITION_KEYS = Set.of("cobolName", "constant", "method",
+        "values");
+    private static final Set<String> VALUE_KEYS = Set.of("from", "thru");
+    private static final Set<String> ENUM_KEYS = Set.of("name", "cobolName", "constants");
+    private static final Set<String> CONSTANT_KEYS = Set.of("name", "cobolName", "values");
     private static final Set<String> COLLECTION_KEYS = Set.of("kind", "name", "order",
         "direction", "maxOccurs", "fixed", "dependsOn", "itemClass", "cobolName", "declaration");
 
@@ -52,6 +63,18 @@ public final class ModelJson {
         ArrayNode classes = root.putArray("classes");
         for (ClassModel type : model.classes()) {
             classes.add(writeClass(type));
+        }
+        if (!model.enums().isEmpty()) {
+            ArrayNode enums = root.putArray("enums");
+            for (EnumModel type : model.enums()) {
+                ObjectNode node = enums.addObject().put("name", type.name())
+                    .put("cobolName", type.cobolName());
+                ArrayNode constants = node.putArray("constants");
+                for (EnumConstant constant : type.constants()) {
+                    writeValues(constants.addObject().put("name", constant.name())
+                        .put("cobolName", constant.cobolName()), constant.values());
+                }
+            }
         }
         // The default pretty printer uses the line separator of the platform.
         return root.toPrettyString().replace("\r\n", "\n") + "\n";
@@ -96,6 +119,21 @@ public final class ModelJson {
                 node.put("order", field.order());
                 node.put("pic", field.pic());
                 node.put("direction", field.direction().name());
+                if (field.enumType() != null) {
+                    node.put("enumType", field.enumType());
+                }
+                if (field.initialValue() != null) {
+                    node.put("initialValue", field.initialValue());
+                }
+                if (!field.conditions().isEmpty()) {
+                    ArrayNode conditions = node.putArray("conditions");
+                    for (ConditionMember condition : field.conditions()) {
+                        writeValues(conditions.addObject()
+                            .put("cobolName", condition.cobolName())
+                            .put("constant", condition.constant())
+                            .put("method", condition.method()), condition.values());
+                    }
+                }
                 if (field.pattern() != null) {
                     node.put("pattern", field.pattern());
                 }
@@ -116,6 +154,40 @@ public final class ModelJson {
         node.put("cobolName", member.cobolName());
         node.put("declaration", member.declaration());
         return node;
+    }
+
+    private static void writeValues(ObjectNode node, List<ValueRange> values) {
+        ArrayNode array = node.putArray("values");
+        for (ValueRange value : values) {
+            ObjectNode item = array.addObject().put("from", value.from());
+            if (value.thru() != null) {
+                item.put("thru", value.thru());
+            }
+        }
+    }
+
+    private static List<ValueRange> readValues(JsonObject owner) {
+        List<ValueRange> values = new ArrayList<>();
+        List<JsonNode> nodes = owner.array("values");
+        for (int i = 0; i < nodes.size(); i++) {
+            JsonObject value = JsonObject.of(nodes.get(i), owner.path("values") + "[" + i + "]",
+                VALUE_KEYS);
+            values.add(new ValueRange(value.text("from"), value.optionalText("thru")));
+        }
+        return values;
+    }
+
+    private static EnumModel readEnum(JsonNode node, String path) {
+        JsonObject type = JsonObject.of(node, path, ENUM_KEYS);
+        List<EnumConstant> constants = new ArrayList<>();
+        List<JsonNode> nodes = type.array("constants");
+        for (int i = 0; i < nodes.size(); i++) {
+            JsonObject constant = JsonObject.of(nodes.get(i),
+                type.path("constants") + "[" + i + "]", CONSTANT_KEYS);
+            constants.add(new EnumConstant(constant.text("name"), constant.text("cobolName"),
+                readValues(constant)));
+        }
+        return new EnumModel(type.text("name"), type.text("cobolName"), constants);
     }
 
     /**
@@ -144,7 +216,12 @@ public final class ModelJson {
         for (int i = 0; i < nodes.size(); i++) {
             classes.add(readClass(nodes.get(i), "$.classes[" + i + "]"));
         }
-        return new BookModel(version, root.text("sourceName"), classes);
+        List<EnumModel> enums = new ArrayList<>();
+        List<JsonNode> enumNodes = root.has("enums") ? root.array("enums") : List.of();
+        for (int i = 0; i < enumNodes.size(); i++) {
+            enums.add(readEnum(enumNodes.get(i), "$.enums[" + i + "]"));
+        }
+        return new BookModel(version, root.text("sourceName"), classes, enums);
     }
 
     private static ClassModel readClass(JsonNode node, String path) {
@@ -186,9 +263,24 @@ public final class ModelJson {
             throw new ModelJsonException("key 'kind' in " + path
                 + " must be FIELD or COLLECTION");
         }
-        return new FieldMember(member.text("name"), member.enumValue("javaType", JavaType.class),
+        List<ConditionMember> conditions = new ArrayList<>();
+        List<JsonNode> nodes = member.has("conditions") ? member.array("conditions") : List.of();
+        for (int i = 0; i < nodes.size(); i++) {
+            JsonObject condition = JsonObject.of(nodes.get(i),
+                member.path("conditions") + "[" + i + "]", CONDITION_KEYS);
+            conditions.add(new ConditionMember(condition.text("cobolName"),
+                condition.text("constant"), condition.text("method"), readValues(condition)));
+        }
+        JavaType javaType = member.enumValue("javaType", JavaType.class);
+        String enumType = member.optionalText("enumType");
+        if ((javaType == JavaType.ENUM) != (enumType != null)) {
+            throw new ModelJsonException("key 'enumType' in " + path
+                + " must be present only with javaType ENUM");
+        }
+        return new FieldMember(member.text("name"), javaType,
             member.integer("order"), member.text("pic"),
             member.enumValue("direction", Direction.class), member.text("cobolName"),
-            member.text("declaration"), member.optionalText("pattern"));
+            member.text("declaration"), member.optionalText("pattern"), enumType,
+            member.optionalText("initialValue"), conditions);
     }
 }

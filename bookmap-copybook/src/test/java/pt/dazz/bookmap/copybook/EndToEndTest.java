@@ -31,6 +31,7 @@ import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.copybook.diag.Diagnostic;
 import pt.dazz.bookmap.copybook.generate.GenerateOptions;
 import pt.dazz.bookmap.copybook.json.ModelJson;
+import pt.dazz.bookmap.copybook.map.ConditionMode;
 import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.map.SubTypeDecision;
 import pt.dazz.bookmap.copybook.parse.ParseOptions;
@@ -81,7 +82,7 @@ class EndToEndTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy",
-        "TRACKING.cpy"})
+        "INVOICE-PARTY.cpy", "TRACKING.cpy"})
     void generatesCompilableClasses(String name) {
         compile(name);
         Compiled.compile(generate(name, new GenerateOptions(PACKAGE, true)).files(), true);
@@ -89,7 +90,7 @@ class EndToEndTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy",
-        "TRACKING.cpy"})
+        "INVOICE-PARTY.cpy", "TRACKING.cpy"})
     void modelJsonRoundTripGivesSameJava(String name) {
         Copybooks.Result direct = generate(name, PLAIN);
         Copybooks.Result viaJson = Copybooks.generate(
@@ -274,6 +275,97 @@ class EndToEndTest {
         assertThat(get(decoded, "shipToCity")).isEqualTo("Rotterdam");
         assertThat(get(decoded, "weightKg")).isEqualTo(new BigDecimal("12.500"));
         assertThat(get(decoded, "packageCount")).isEqualTo(3);
+    }
+
+    @Test
+    void invoicePartyUsesTheEnumTheConstantsAndTheInitialValues() {
+        Copybooks.Result result = generate("INVOICE-PARTY.cpy", PLAIN);
+        assertThat(result.files()).extracting(file -> file.typeSpec().name())
+            .containsExactly("GetInvoiceParty", "PartyRole");
+        assertThat(result.diagnostics()).extracting(Diagnostic::message)
+            .filteredOn(message -> !message.startsWith("record "))
+            .containsExactly(
+            "PARTY-STATUS: the level 88 items give constants, not an enum, because a level 88"
+                + " item has a THRU range. Set the condition mode of PARTY-STATUS to change"
+                + " this.",
+            "PARTY-GRADE: the level 88 items give constants, not an enum, because it has only"
+                + " one level 88 item. Set the condition mode of PARTY-GRADE to change this.",
+            "BATCH-NUMBER: the level 88 items give constants, not an enum, because a level 88"
+                + " item has a THRU range. Set the condition mode of BATCH-NUMBER to change"
+                + " this.",
+            "CREDIT-LIMIT: the level 88 items give constants, not an enum, because a level 88"
+                + " item has a THRU range. Set the condition mode of CREDIT-LIMIT to change"
+                + " this.",
+            "PARTY-COUNTRY: the level 88 items give constants, not an enum, because it has"
+                + " only one level 88 item. Set the condition mode of PARTY-COUNTRY to change"
+                + " this.");
+        Compiled classes = Compiled.compile(result.files());
+        String type = PACKAGE + ".GetInvoiceParty";
+        BookCodec<Object> codec = classes.codec(type);
+        Object party = codec.newInstance();
+        assertThat(get(party, "partyRole"))
+            .isSameAs(classes.staticField(PACKAGE + ".PartyRole", "SELLER"));
+        assertThat(get(party, "partyStatus")).isEqualTo(1);
+        assertThat(get(party, "batchNumber")).isEqualTo(100L);
+        assertThat(get(party, "currencyCode")).isEqualTo("EUR");
+        assertThat(get(party, "creditLimit")).isEqualTo(new BigDecimal("1000.50"));
+        assertThat(get(party, "partyName")).isEqualTo("");
+        assertThat(classes.staticField(type, "PARTY_ACTIVE")).isEqualTo(1);
+        assertThat(classes.staticField(type, "BATCH_RANGE")).isEqualTo(100L);
+        assertThat(classes.staticField(type, "NO_CREDIT")).isEqualTo(new BigDecimal("0"));
+        assertThat(classes.staticField(type, "GRADE_GOOD")).isEqualTo("A");
+        assertThat(classes.staticField(type, "COUNTRY_UNKNOWN")).isEqualTo("");
+        assertThat(Compiled.call(party, "isPartyActive")).isEqualTo(true);
+        assertThat(Compiled.call(party, "isPartyClosed")).isEqualTo(false);
+        assertThat(Compiled.call(party, "isBatchFirst")).isEqualTo(false);
+        assertThat(Compiled.call(party, "isBatchRange")).isEqualTo(true);
+        assertThat(Compiled.call(party, "isNoCredit")).isEqualTo(false);
+        assertThat(Compiled.call(party, "isSmallCredit")).isEqualTo(false);
+        assertThat(Compiled.call(party, "isGradeGood")).isEqualTo(false);
+        assertThat(Compiled.call(party, "isCountryUnknown")).isEqualTo(false);
+
+        set(party, "invoiceId", "INV-0000001");
+        set(party, "partyRole", classes.staticField(PACKAGE + ".PartyRole", "SHIP_TO"));
+        set(party, "partyGrade", "X");
+        set(party, "creditLimit", new BigDecimal("50"));
+        byte[] bytes = codec.encodeRequest(party, LATIN);
+        assertThat(new String(bytes, 12, 8, StandardCharsets.ISO_8859_1)).isEqualTo("SHIP-TO ");
+        Object decoded = codec.decodeRequest(bytes, LATIN);
+        assertThat(get(decoded, "partyRole")).hasToString("SHIP_TO");
+        assertThat(Compiled.call(decoded, "isGradeGood")).isEqualTo(true);
+        assertThat(Compiled.call(decoded, "isSmallCredit")).isEqualTo(true);
+        assertThat(Compiled.call(decoded, "isCountryUnknown")).isEqualTo(true);
+        set(decoded, "partyGrade", "B");
+        set(decoded, "partyStatus", 9);
+        set(decoded, "creditLimit", null);
+        set(decoded, "partyCountry", null);
+        assertThat(Compiled.call(decoded, "isGradeGood")).isEqualTo(true);
+        assertThat(Compiled.call(decoded, "isPartyClosed")).isEqualTo(true);
+        assertThat(Compiled.call(decoded, "isNoCredit")).isEqualTo(false);
+        assertThat(Compiled.call(decoded, "isCountryUnknown")).isEqualTo(false);
+        set(decoded, "creditLimit", new BigDecimal("0.00"));
+        assertThat(Compiled.call(decoded, "isNoCredit")).isEqualTo(true);
+    }
+
+    @Test
+    void explicitEnumModeWritesRanges() {
+        Copybooks.Result result = Copybooks.generate(copybook("INVOICE-PARTY.cpy"),
+            parseOptions(), new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
+                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of(), null,
+                Map.of("PARTY-STATUS", ConditionMode.ENUM, "CREDIT-LIMIT", ConditionMode.ENUM)),
+            PLAIN);
+        assertThat(result.diagnostics()).extracting(Diagnostic::message).contains(
+            "the VALUE of CREDIT-LIMIT is not a value of a level 88 item. The field has no"
+                + " initial value.");
+        assertThat(result.files().get(2).toString())
+            .contains("ranges = @CobolValue.Range(from = \"1\", thru = \"5\")");
+        Compiled classes = Compiled.compile(result.files());
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".GetInvoiceParty");
+        Object party = codec.newInstance();
+        assertThat(get(party, "partyStatus")).hasToString("ACTIVE");
+        set(party, "creditLimit", classes.staticField(PACKAGE + ".CreditLimit", "SMALL_CREDIT"));
+        Object decoded = codec.decodeRequest(codec.encodeRequest(party, LATIN), LATIN);
+        assertThat(get(decoded, "creditLimit")).hasToString("SMALL_CREDIT");
     }
 
     @Test

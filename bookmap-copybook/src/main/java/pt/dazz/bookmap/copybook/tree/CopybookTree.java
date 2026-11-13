@@ -202,8 +202,8 @@ public final class CopybookTree {
         MappingOptions mapping = new MappingOptions(file.stripPrefixes(), file.inputMarkers(),
             file.outputMarkers(), file.directions(), file.subTypes(), file.countFields(),
             file.maxRecordLength() != null ? file.maxRecordLength()
-                : settings.maxRecordLength())
-            .withHints(file.dates(), file.continuable(), file.validatable());
+                : settings.maxRecordLength(),
+            file.dates(), file.continuable(), file.validatable(), file.conditions());
         Copybooks.Result result = Copybooks.generate(copybook, parse, mapping,
             new GenerateOptions(packageName, lombok));
         for (Diagnostic diagnostic : result.diagnostics()) {

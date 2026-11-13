@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import pt.dazz.bookmap.copybook.ast.Condition;
+import pt.dazz.bookmap.copybook.ast.ConditionValue;
 import pt.dazz.bookmap.copybook.ast.Copybook;
 import pt.dazz.bookmap.copybook.ast.DataItem;
+import pt.dazz.bookmap.copybook.ast.Literal;
 import pt.dazz.bookmap.copybook.ast.Occurs;
 import pt.dazz.bookmap.copybook.ast.QualifiedName;
 import pt.dazz.bookmap.copybook.ast.Usage;
@@ -139,8 +141,95 @@ class DataParserTest {
         DataItem status = child(copybook.records().get(0), 0);
         assertThat(status.conditions()).extracting(Condition::name)
             .containsExactly("STATUS-OPEN", "STATUS-CLOSED");
+        assertThat(status.conditions().get(1).values()).containsExactly(
+            new ConditionValue(text("C"), null), new ConditionValue(text("X"), null));
+        assertThat(status.conditions().get(1).line()).isEqualTo(4);
+        assertThat(status.conditions().get(1).column()).isEqualTo(7);
+        assertThat(status.value()).isEqualTo(text("O"));
+        assertThat(child(copybook.records().get(0), 1).value())
+            .isEqualTo(new Literal(Literal.Kind.FIGURATIVE, "ZERO"));
+        assertThat(child(copybook.records().get(0), 2).value())
+            .isEqualTo(new Literal(Literal.Kind.FIGURATIVE, "SPACE"));
         assertThat(child(copybook.records().get(0), 2).declaration())
             .isEqualTo("05 NOTE PIC X(3) SIGN TRAILING.");
+    }
+
+    private static Literal text(String text) {
+        return new Literal(Literal.Kind.TEXT, text);
+    }
+
+    private static Literal number(String text) {
+        return new Literal(Literal.Kind.NUMBER, text);
+    }
+
+    private static Literal figurative(String text) {
+        return new Literal(Literal.Kind.FIGURATIVE, text);
+    }
+
+    @Test
+    void keepsRangesNumbersAndFigurativeConstants() {
+        Copybook copybook = parse(
+            "01 ORDER.",
+            "   05 QTY PIC S9(3)V9 VALUE -1.5.",
+            "      88 QTY-LOW VALUE IS 0 THRU 9 15 THROUGH 20.",
+            "      88 QTY-NONE VALUE ZEROES.",
+            "   05 CODE PIC X.",
+            "      88 CODE-EMPTY VALUES SPACES LOW-VALUES HIGH-VALUE QUOTES.",
+            "      88 CODE-ODD VALUE ZERO SPACE LOW-VALUE HIGH-VALUES QUOTE ZEROS.");
+        assertThat(diagnostics.all()).isEmpty();
+        DataItem qty = child(copybook.records().get(0), 0);
+        assertThat(qty.value()).isEqualTo(number("-1.5"));
+        assertThat(qty.conditions().get(0).values()).containsExactly(
+            new ConditionValue(number("0"), number("9")),
+            new ConditionValue(number("15"), number("20")));
+        assertThat(qty.conditions().get(1).values()).containsExactly(
+            new ConditionValue(figurative("ZERO"), null));
+        DataItem code = child(copybook.records().get(0), 1);
+        assertThat(code.conditions().get(0).values()).extracting(v -> v.from().text())
+            .containsExactly("SPACE", "LOW-VALUE", "HIGH-VALUE", "QUOTE");
+        assertThat(code.conditions().get(1).values()).extracting(v -> v.from().text())
+            .containsExactly("ZERO", "SPACE", "LOW-VALUE", "HIGH-VALUE", "QUOTE", "ZERO");
+    }
+
+    @Test
+    void unsupportedValuesAreWarnings() {
+        Copybook copybook = parse(
+            "01 ORDER.",
+            "   05 CODE PIC X(3) VALUE ALL '-'.",
+            "      88 CODE-DASH VALUE ALL '-'.",
+            "      88 CODE-NONE.",
+            "      88 CODE-HEX VALUE 'A' THRU X'FF'.",
+            "      88 CODE-OK VALUE 'A'.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.WARNING, "the VALUE clause of CODE is not supported and is"
+                    + " ignored"),
+                tuple(Severity.WARNING, "condition CODE-DASH: the value ALL is not supported."
+                    + " The condition is ignored."),
+                tuple(Severity.WARNING, "condition CODE-NONE has no VALUE clause and is"
+                    + " ignored"),
+                tuple(Severity.WARNING, "condition CODE-HEX: the value X'FF' is not supported."
+                    + " The condition is ignored."));
+        DataItem code = child(copybook.records().get(0), 0);
+        assertThat(code.value()).isNull();
+        assertThat(code.conditions()).extracting(Condition::name).containsExactly("CODE-OK");
+    }
+
+    @Test
+    void valuesAtTheEndOfTheTokens() {
+        parse("01 ORDER.", "05 CODE PIC X.", "88 CODE-A VALUE 'A' THRU");
+        parse("01 ORDER.", "05 CODE PIC X.", "88 CODE-B");
+        parse("01 ORDER.", "05 CODE PIC X VALUE");
+        parse("01 ORDER.", "05 CODE PIC X.", "88 CODE-D VALUE 'D' THRU .");
+        Copybook last = parse("01 ORDER.", "05 CODE PIC X.", "88 CODE-E VALUE 'E'");
+        assertThat(diagnostics.all()).extracting(Diagnostic::message).containsExactly(
+            "condition CODE-A: the value THRU is not supported. The condition is ignored.",
+            "condition CODE-B has no VALUE clause and is ignored",
+            "the VALUE clause of CODE is not supported and is ignored",
+            "the entry has no closing period",
+            "condition CODE-D: the value . is not supported. The condition is ignored.");
+        assertThat(child(last.records().get(0), 0).conditions()).extracting(Condition::name)
+            .containsExactly("CODE-E");
     }
 
     @Test
