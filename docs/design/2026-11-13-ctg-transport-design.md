@@ -1,7 +1,7 @@
 # BookMap CICS Transaction Gateway transport: design
 
 Date: 2026-11-13
-Status: proposed.
+Status: approved, not released.
 
 Related documents: `docs/design/2026-11-10-bookmap-design.md` (the main design, sections 2.2, 5.9, and 5.10), `CLAUDE.md` (project rules), GitHub issue #26.
 
@@ -114,7 +114,9 @@ public record EciReply(int returnCode, String abendCode, byte[] commarea) { }
 
 - `server`, `userid`, `password`, and `transaction` can be `null`. CTG then uses its defaults: the default CICS server, no credentials, and the default mirror transaction.
 - `commarea` contains the request bytes. `commareaLength` is the size of the COMMAREA that CICS gets.
-- `timeoutSeconds` is the ECI timeout. `0` means no ECI timeout.
+- `timeoutSeconds` is the ECI timeout, from 0 to 32767. `0` means no ECI timeout.
+- The constructor throws `IllegalArgumentException` if the request bytes are longer than `commareaLength`, or if the timeout is out of range.
+- `toString()` does not show the password or the request bytes.
 - `returnCode` is the value of `ECIRequest.getRc()`. `abendCode` is the field `Abend_Code`. `commarea` is the COMMAREA after the call.
 
 A user can implement `EciConnector` for another client, for example a test fake. `JavaGatewayConnector` is the implementation for the IBM library.
@@ -186,7 +188,7 @@ Each failure has one source and one exception:
 | The COMMAREA length is more than 32,500 bytes. | `TransportException` |
 | No free connection after `connectionWaitTimeout`. | `ConnectionException` |
 | `EciConnector.open()` throws `IOException`. | `ConnectionException` |
-| `EciConnection.call` throws `IOException`. The request can be complete in CICS. | `TransportException` |
+| `EciConnection.call` throws `IOException` or an unchecked exception. The request can be complete in CICS. | `TransportException` |
 | The thread is interrupted while it waits for a connection. | `TransportException`. The interrupt flag stays set. |
 | `ECI_ERR_TRANSACTION_ABEND` (-7) with the abend code `AEI0` (`PGMIDERR`: CICS does not know the program). | `OperationNotFoundException` |
 | `ECI_ERR_TRANSACTION_ABEND` (-7) with another abend code. | `RemoteAbendException(abendCode)` |
@@ -195,7 +197,7 @@ Each failure has one source and one exception:
 | `ECI_ERR_SECURITY_ERROR` (-27). | `TransportException` |
 | Any other non-zero return code. | `TransportException` |
 
-Each message gives the operation, the program, the return code, and the name of the return code, for example `GetInvoice (PGMINV01): ECI return code -22 (ECI_ERR_UNKNOWN_SERVER)`. The transport has a table of the names of the codes in this design. For another code, the name is `UNKNOWN`.
+Each message gives the operation, the program, the return code, and the name of the return code, for example `GetInvoice (PGMINV01): ECI return code -22 (ECI_ERR_UNKNOWN_SERVER)`. The transport has a table of the names of the codes in this design. For another code, the name is `UNKNOWN`. For an abend, the message ends with the abend code, for example `, abend ASRA`.
 
 The return code values come from `ECIReturnCodes` of CICS TG V9.3. The transport uses its own constants, because it does not compile against the IBM library. A test checks that the stub constants have the same values as the transport constants.
 
@@ -208,8 +210,8 @@ A security failure has no BookMap exception of its own. This design adds no exce
 - The transport keeps a pool of open connections. A `Semaphore` with `maxConnections` permits limits the number of connections in use. A queue holds the free connections.
 - To get a connection, the transport waits for a permit, for a maximum of `connectionWaitTimeout`. Then it takes a free connection from the queue, or it opens a new connection.
 - After a call that gives a reply, the connection goes back to the queue. This is also true when the return code is not `0`: the connection to the gateway is still correct.
-- After an `IOException` from `call`, the transport closes the connection and ignores a second `IOException` from `close`. The next exchange opens a new connection.
-- The permit is always released.
+- After an exception from `call`, the transport closes the connection and ignores a second `IOException` from `close`. The next exchange opens a new connection.
+- The permit is always released, also after an unchecked exception from `open()` or `call`, for example a `NoClassDefFoundError` when `ctgclient.jar` is missing.
 - `close()` closes all free connections and marks the transport closed. An `exchange` after `close()` throws `TransportException`. A connection that is in use at `close()` is closed when its exchange ends. `close()` ignores an `IOException` of a connection. A second `close()` does nothing.
 
 The transport opens no connection in `build()`. The first exchange opens the first connection.

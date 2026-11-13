@@ -42,6 +42,7 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 | [Subtypes (REDEFINES)](Subtypes-REDEFINES) | One area with more than one layout. |
 | [Error handling](Error-handling) | The exception hierarchy and the business errors. |
 | [Transports and simulator](Transports-and-simulator) | The transport SPI and the simulator for tests. |
+| [CICS Transaction Gateway](CICS-Transaction-Gateway) | The transport for CICS programs through CTG (ECI). |
 | [Spring Boot](Spring-Boot) | The auto-configuration of `BookmapClient`. |
 | [Copybook generator](Copybook-generator) | The concepts, the options file, and the mapping rules of the generator. |
 | [Copybook generator CLI](Copybook-generator-CLI) | The command line, with examples, and the Java API. |
@@ -58,6 +59,7 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 | `bookmap-core` | Annotations, `BookmapClient`, the transport SPI, exceptions, and the codec runtime. |
 | `bookmap-processor` | The annotation processor. It generates one codec for each `@BookOperation` class. |
 | `bookmap-transport-simulator` | A transport for tests. It runs handlers in the same JVM. |
+| `bookmap-transport-ctg` | A transport for CICS programs through the CICS Transaction Gateway (ECI). |
 | `bookmap-spring-boot` | Spring Boot 4 auto-configuration for `BookmapClient` (built and tested with 4.1.2). |
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
 | `bookmap-copybook-cli` | The command line of the copybook generator. |
@@ -84,6 +86,6 @@ The [Roadmap](Roadmap) lists the plan for each limitation.
 
 GitHub Actions builds each release and publishes it to Maven Central.
 The build enforces 100% line and branch coverage for all modules except the examples.
-Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are planned. The transport SPI accepts them without a change to the core.
+BookMap has a transport for the [CICS Transaction Gateway](CICS-Transaction-Gateway). Transports for IBM MQ and HTTP are planned. The transport SPI accepts them without a change to the core.
 
 BookMap is licensed under the [MIT License](https://github.com/ajlima/bookmap/blob/main/LICENSE). Copyright (c) 2026 Alexandre Lima.

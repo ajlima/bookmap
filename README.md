@@ -179,6 +179,7 @@ See [Copybook generator](https://github.com/ajlima/bookmap/wiki/Copybook-generat
 | `REDEFINES` with a discriminator | [Subtypes (REDEFINES)](https://github.com/ajlima/bookmap/wiki/Subtypes-REDEFINES) |
 | The exception hierarchy | [Error handling](https://github.com/ajlima/bookmap/wiki/Error-handling) |
 | The transport SPI and the simulator | [Transports and simulator](https://github.com/ajlima/bookmap/wiki/Transports-and-simulator) |
+| The CICS Transaction Gateway transport | [CICS Transaction Gateway](https://github.com/ajlima/bookmap/wiki/CICS-Transaction-Gateway) |
 | The Spring Boot auto-configuration | [Spring Boot](https://github.com/ajlima/bookmap/wiki/Spring-Boot) |
 | The copybook generator, the CLI, and the build plugins | [Copybook generator](https://github.com/ajlima/bookmap/wiki/Copybook-generator) |
 | Frequent problems | [FAQ and troubleshooting](https://github.com/ajlima/bookmap/wiki/FAQ-and-troubleshooting) |
@@ -193,6 +194,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 | `bookmap-core` | Annotations, `BookmapClient`, the transport SPI, exceptions, and the codec runtime. |
 | `bookmap-processor` | The annotation processor. It generates one codec for each `@BookOperation` class. |
 | `bookmap-transport-simulator` | A transport for tests. It runs handlers in the same JVM. |
+| `bookmap-transport-ctg` | A transport for CICS programs through the CICS Transaction Gateway (ECI). Add the IBM `ctgclient.jar` yourself. |
 | `bookmap-spring-boot` | Spring Boot 4 auto-configuration for `BookmapClient` (built and tested with 4.1.2). |
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
 | `bookmap-copybook-cli` | The command line of the copybook generator. |
@@ -207,6 +209,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 
 BookMap is at version `0.7.0`. GitHub Actions builds each release and publishes it to Maven Central.
 The build enforces 100% line and branch coverage for all modules except the examples.
+BookMap has a transport for the CICS Transaction Gateway (ECI). Transports for IBM MQ and HTTP are on the roadmap.
 See [RELEASING.md](RELEASING.md) for the release cycle, and [ROADMAP.md](ROADMAP.md) for the planned features.
 
 ## License
