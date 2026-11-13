@@ -192,8 +192,9 @@ There is one exception: a zero that writes as all spaces (section 5.3 with `Z` o
 | `LocalDate`, `LocalTime`, `LocalDateTime` | Error. | `an edited pic is not permitted for LocalDate. Use X(n) with a pattern` |
 | An enum with `@CobolValue` | Error. | `an edited pic is not permitted for an enum` |
 | A field with a converter | Error. | `an edited pic is not permitted with a converter` |
-| A discriminator of `@BookSubTypes` | Error. | `an edited pic is not permitted for a discriminator` |
-| A count field of a collection | Error. | `an edited pic is not permitted for a count field` |
+| A discriminator of `@BookSubTypes` | Error. | `discriminator must not have an edited pic` |
+| A count field of a collection | Error. | `dependsOn field '<name>' must not have an edited pic` |
+| The `emptyKey` field of a collection | Error. | `emptyKey field '<name>' must not have an edited pic` |
 
 ## 8. Implementation
 
@@ -216,7 +217,7 @@ The processor and the copybook generator both use `EditedPicture.parse`. Thus, t
 - `FieldResolver`: the checks of section 7; no `@BookDefaults` usage or sign for an edited field; the byte length comes from `EditedPicture.byteLength()`, not from `BookWriter.byteLength`.
 - `FieldModel`: a new component `edited` (the picture string and the `BLANK WHEN ZERO` flag, or `null`).
 - `CodecGenerator`: for an edited field, a `private static final EditedPicture` constant, like the date formatter. New branches in `write()` and `read()` only. The number helpers for `int`, `Integer`, `long`, and `Long` stay the same.
-- `ModelSnapshot`: the snapshot records the edited picture.
+- `ModelSnapshot` (a test helper): the snapshot records the edited picture.
 - `FieldContext` does not change, because a converter is not permitted.
 - `SubTypesResolver` and the count field check: the errors of section 7.
 
@@ -226,10 +227,11 @@ The processor and the copybook generator both use `EditedPicture.parse`. Thus, t
 - The Java type follows the present rule for numbers: `int`, `long`, or `BigDecimal`.
 - `PicText.of` writes the picture as it is, and adds ` BLANK WHEN ZERO` when the item has the clause.
 - `DataParser`: `BLANK WHEN ZERO` is kept on the item, and is not ignored. See decision D6.
+- `Lexer`: in a picture, a comma or a semicolon is a separator only before a space, as in COBOL. Thus, `Z,ZZ9` is one picture.
 - An edited item with a `USAGE` other than `DISPLAY`, also from the group, is an error: `<NAME> has an edited picture and must have usage DISPLAY`.
 - An edited item with level 88 items or a `VALUE`: the generator ignores them with an info message, like a date hint. The `VALUE` of an edited item is a text literal in COBOL.
 - A date hint on an edited item is an error: `<NAME> has an edited picture. A date hint needs PIC 9(n) or PIC X(n)`.
-- An edited item as a count field is not used as a count field, with the present warning path.
+- An edited item as a count field is an error: `DEPENDING ON item <NAME> must not have an edited picture`. The generator does not suggest an edited item as a count field.
 - `RecordLength` and `RedefinesResolver` use `Picture.byteLength`. Thus, they get the correct size without other change.
 - No change to `MappingOptions`, the model JSON format, the CLI, or the plugins.
 
@@ -239,7 +241,7 @@ The change adds one class to the core, and new branches in `PicParser`, `FieldRe
 
 ## 9. Error messages
 
-The processor shows each message as `pic '<pic>': <problem>`, the present format. The generator shows `edited picture <pic>: <problem>`.
+The processor shows each message as `Invalid PIC string "<pic>": <problem>`, the present format. The generator shows `edited picture <pic>: <problem>`.
 
 | Problem | Message |
 |---|---|

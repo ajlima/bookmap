@@ -159,12 +159,13 @@ In both formats, lower case is permitted. The generator changes the names and th
 | Clause | Result |
 |---|---|
 | `PIC` or `PICTURE [IS]` with `X`, `9`, `S` (first), `V`, and repeat counts | Accepted. |
+| `PIC` with a numeric edited picture, for example `Z,ZZ9.99CR` or `$$$,$$9.99` | Accepted: a number with the edited picture in `pic`. See [Edited pictures](#edited-pictures). |
 | `USAGE [IS]` with `DISPLAY`, `COMP`, `COMPUTATIONAL`, `COMP-4`, `COMPUTATIONAL-4`, `BINARY`, `COMP-3`, `COMPUTATIONAL-3`, `PACKED-DECIMAL` | Accepted. A usage on a group applies to its items. |
 | `COMP-5`, `COMPUTATIONAL-5` | Accepted as `COMP`, with a warning. See [COMP-5](#comp-5). |
 | `INDEX` | Accepted as `PIC S9(9) COMP`, with an `info` diagnostic. See [INDEX](#index). |
 | `SYNC`, `SYNCHRONIZED`, with `LEFT` or `RIGHT` | Accepted. The generator adds slack bytes. See [SYNC](#sync). |
 | `JUSTIFIED`, `JUST`, with `RIGHT` | Accepted, with a warning: `JUSTIFIED on D is ignored. BookMap writes the text on the left and keeps the spaces on the left when it reads.` |
-| `BLANK [WHEN] ZERO`, `ZEROS`, or `ZEROES` | Accepted, with an `info` diagnostic: `BLANK WHEN ZERO on F is ignored. BookMap reads spaces as no value and writes zero as digits.` |
+| `BLANK [WHEN] ZERO`, `ZEROS`, or `ZEROES` | Accepted on an unsigned numeric `DISPLAY` item and on an edited picture without `*`. The generator writes the clause in `pic`, for example `9(5)V99 BLANK WHEN ZERO`. A zero writes as spaces. |
 | `OCCURS n [TIMES]` | Accepted: a fixed collection. |
 | `OCCURS m TO n [TIMES] DEPENDING [ON] name [OF\|IN group]` | Accepted: a variable collection. |
 | `REDEFINES` | Accepted. See [Directions](#directions) and [Subtypes](#subtypes). |
@@ -175,7 +176,7 @@ In both formats, lower case is permitted. The generator changes the names and th
 | `COMP-1`, `COMP-2`, `COMPUTATIONAL-1`, `COMPUTATIONAL-2` | Error: `COMP-1 is not supported by BookMap. See issue #46.` |
 | `NATIONAL` | Error: `NATIONAL is not supported by BookMap. See issue #49.` |
 | `POINTER` | Error. See [POINTER](#pointer). |
-| Edited pictures with `Z * , . + - B 0 / CR DB` | Error, for example `edited picture ZZ9 is not supported by BookMap. See issue #48.` |
+| An incorrect edited picture | Error, for example `edited picture Z*9: Z, *, and a floating string are mutually exclusive`. |
 | Pictures with `P`, `A`, or `N` | Error, for example `picture symbol A is not supported by BookMap`. The message for `N` gives issue #49. |
 | A picture with an incorrect form, for example `X9` | Error: `picture X9 is not valid`. |
 | Another word | Error, for example `unknown clause FOO`. |
@@ -185,6 +186,8 @@ Other errors:
 - `A12 has a text picture and must not have COMP or COMP-3`
 - `A13: COMP supports at most 18 digits`
 - `BLANK needs WHEN ZERO`
+- `BLANK WHEN ZERO on TOTAL: edited picture S9(3): BLANK WHEN ZERO is not permitted with S or '*'`
+- `TOTAL has an edited picture and must have usage DISPLAY`
 - `the INDEX item IDX must not have a PIC`
 
 A literal is a text in quotes, a number, or a figurative constant: `SPACE`, `SPACES`, `ZERO`, `ZEROS`, `ZEROES`, `HIGH-VALUE(S)`, `LOW-VALUE(S)`, or `QUOTE(S)`.
@@ -1101,12 +1104,41 @@ private int lineCount;
 A separate sign adds one byte to the item. The record length, the `SYNC` slack bytes, and the `REDEFINES` sizes include this byte.
 A `SIGN` clause on an item that is not a signed numeric `DISPLAY` item is an error, for example `SIGN on LINE-COUNT needs a signed numeric DISPLAY item`.
 
+### Edited pictures
+
+An item with a numeric edited picture becomes a number field. The Java type follows the digits, like the other numbers: `int`, `long`, or `BigDecimal`.
+The `pic` of the field is the picture of the copybook. See [Edited pictures](PIC-syntax-and-type-mapping#edited-pictures) for the rules of the codec.
+
+```cobol
+       05  INV-LINES           PIC ZZ9.
+       05  INV-TOTAL           PIC $Z,ZZ9.99CR.
+       05  INV-DISCOUNT        PIC 9(3)V99 BLANK WHEN ZERO.
+```
+
+```java
+@BookField(order = 10, pic = "ZZ9")
+private int invLines;
+
+@BookField(order = 20, pic = "$Z,ZZ9.99CR")
+private BigDecimal invTotal;
+
+@BookField(order = 30, pic = "9(3)V99 BLANK WHEN ZERO")
+private BigDecimal invDiscount;
+```
+
+- The item must have the usage `DISPLAY`. A `COMP` or `COMP-3` usage, also from a group, is an error: `INV-TOTAL has an edited picture and must have usage DISPLAY`.
+- The `SIGN` clause of a group does not apply to an edited item. The picture has its own sign.
+- The `VALUE` and the level 88 items of an edited item are ignored, with an `info` diagnostic, for example `condition INV-NONE is ignored, because INV-TOTAL has an edited picture`.
+- A date hint on an edited item is an error: `INV-DATE has an edited picture. A date hint needs PIC 9(n) or PIC X(n).`
+- An edited item cannot be the count field of a table: `DEPENDING ON item LINE-COUNT must not have an edited picture`.
+- A comma in a picture is part of the picture. A comma is a separator only before a space.
+
 ## Limitations of the generator
 
 - The generator does not detect dates. A `PIC 9(8)` date stays an `int`, unless a [date hint](#date-hints) names it.
 - A packed date with a century digit that changes, for example `CYYMMDD`, cannot get a date hint. Write a `FieldConverter` for it.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` and without `emptyKey` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields, or the key item with the option emptyKeys, if the program has one.`
-- These items are errors: `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), edited pictures (#48), `POINTER`, `P`, `A`, and an `OCCURS` in an `OCCURS` (#43).
+- These items are errors: `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), alphanumeric edited pictures, `POINTER`, `P`, `A`, and an `OCCURS` in an `OCCURS` (#43).
 - The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).
 - `SYNC` in an `OCCURS` is an error if the item needs slack bytes.
 - BookMap writes a `COMP-5` value only if it has the digits of the picture.

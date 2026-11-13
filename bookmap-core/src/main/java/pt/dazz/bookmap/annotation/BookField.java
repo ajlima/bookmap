@@ -28,6 +28,11 @@ public @interface BookField {
      * clause: {@code [SIGN [IS]] LEADING|TRAILING [SEPARATE [CHARACTER]]}, for example
      * {@code S9(5)V99 SIGN LEADING SEPARATE}.
      *
+     * <p>A number can have a numeric edited picture, for example {@code Z,ZZ9.99CR} or
+     * {@code $$$,$$9.99}, and the clause {@code BLANK WHEN ZERO}, for example
+     * {@code 9(5)V99 BLANK WHEN ZERO}. The codec writes the edited text and reads it back as a
+     * number. See {@link pt.dazz.bookmap.codec.EditedPicture}.
+     *
      * <p>Write the picture as one word, without spaces: {@code S9(7) V99} is a compile error.
      * The prefix {@code PIC IS} is not supported.
      *
