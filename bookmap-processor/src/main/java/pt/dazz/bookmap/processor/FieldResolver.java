@@ -174,8 +174,9 @@ final class FieldResolver {
         Integer length = Optional.ofNullable((Integer) values.get("length"))
             .or(() -> pic.map(PicSpec::length))
             .orElse(null);
-        Integer textLength = temporal ? textLength(member, kind, fieldType, pattern, problems)
-            : null;
+        boolean packed = usage == Usage.COMP3;
+        Integer textLength = temporal
+            ? textLength(member, kind, fieldType, pattern, packed, problems) : null;
         if (length == null) {
             length = textLength;
         }
@@ -194,15 +195,18 @@ final class FieldResolver {
             problems.error(member, "scale must not be negative");
         }
         if (textOnly) {
-            NUMERIC_ATTRIBUTES.stream().filter(values::containsKey).forEach(attribute ->
+            // A packed date can be signed.
+            NUMERIC_ATTRIBUTES.stream().filter(values::containsKey)
+                .filter(attribute -> !(temporal && packed && attribute.equals("signed")))
+                .forEach(attribute ->
                 problems.error(member, attribute + " is not permitted for "
                     + simpleName(fieldType)));
         }
         checkSign(member, kind, textOnly, signed, usage, sign, problems);
         EnumModel enumModel = null;
         if (problems.count() == before) {
-            checkTypeAndUsage(member, kind, textOnly, fieldType, usage, length, scale,
-                problems);
+            checkTypeAndUsage(member, kind, textOnly && !(temporal && packed), fieldType, usage,
+                length, scale, problems);
         }
         if (problems.count() == before && kind == JavaKind.ENUM) {
             enumModel = EnumResolver.resolve(elements, member,
@@ -264,8 +268,12 @@ final class FieldResolver {
             }
         } else if (kind == JavaKind.STRING) {
             problems.error(member, "a numeric pic is not permitted for String");
-        } else if (TEMPORAL.contains(kind) && (spec.signed() || spec.scale() > 0)) {
-            problems.error(member, "a signed or decimal pic is not permitted for " + simpleName);
+        } else if (TEMPORAL.contains(kind) && spec.scale() > 0) {
+            problems.error(member, "a decimal pic is not permitted for " + simpleName);
+        } else if (TEMPORAL.contains(kind) && spec.signed()
+            && spec.usage().filter(Usage.COMP3::equals).isEmpty()) {
+            problems.error(member, "a signed pic is permitted only with COMP-3 for "
+                + simpleName);
         }
         return Optional.of(spec);
     }
@@ -278,12 +286,13 @@ final class FieldResolver {
     /**
      * Makes the formatter of a date or time field and formats a sample value of the field type.
      * The formatted text must also parse back to the field type. Other samples with one-digit
-     * values must give text of the same length.
+     * values must give text of the same length. A packed field needs text with digits only.
      *
      * @return the length of the formatted text, or null if the pattern is not correct
      */
     private static Integer textLength(AnnotatedMember member, JavaKind kind,
-                                      TypeMirror fieldType, String pattern, Problems problems) {
+                                      TypeMirror fieldType, String pattern, boolean packed,
+                                      Problems problems) {
         DateTimeFormatter formatter;
         try {
             formatter = Formats.of(pattern);
@@ -295,12 +304,20 @@ final class FieldResolver {
         try {
             String text = formatter.format(value.apply(SAMPLES.get(0)));
             formatter.parse(text, QUERIES.get(kind));
+            boolean digits = isDigits(text);
             for (LocalDateTime sample : SAMPLES.subList(1, SAMPLES.size())) {
-                if (formatter.format(value.apply(sample)).length() != text.length()) {
+                String other = formatter.format(value.apply(sample));
+                if (other.length() != text.length()) {
                     problems.error(member, "pattern '" + pattern
                         + "' gives text of variable length for " + simpleName(fieldType));
                     return null;
                 }
+                digits &= isDigits(other);
+            }
+            if (packed && !digits) {
+                problems.error(member, "pattern '" + pattern + "' gives characters that are"
+                    + " not digits, but a COMP3 field holds only digits");
+                return null;
             }
             return text.length();
         } catch (DateTimeException e) {
@@ -308,6 +325,10 @@ final class FieldResolver {
                 + simpleName(fieldType) + ": " + e.getMessage());
             return null;
         }
+    }
+
+    private static boolean isDigits(String text) {
+        return text.chars().allMatch(c -> c >= '0' && c <= '9');
     }
 
     /**
@@ -320,7 +341,7 @@ final class FieldResolver {
         boolean explicit = member.values().containsKey("sign") && !textOnly;
         if (explicit && !signed) {
             problems.error(member, "sign needs a signed field");
-        } else if ((explicit || sign != Sign.TRAILING) && usage != Usage.DISPLAY) {
+        } else if ((explicit || sign != Sign.TRAILING && !textOnly) && usage != Usage.DISPLAY) {
             problems.error(member, "sign is permitted only with usage DISPLAY");
         }
         if (kind == JavaKind.CONVERTED && sign != Sign.TRAILING) {

@@ -1421,16 +1421,16 @@ class ValidationTest {
             field("@BookField(order = 1, pic = \"S9(8)\")", "LocalDate", "shipped"),
             field("@BookField(order = 2, pic = \"9(6)V99\")", "LocalDate", "delivered")));
         assertError(compilation, "Order.shipped (order 1)",
-            "a signed or decimal pic is not permitted for LocalDate");
+            "a signed pic is permitted only with COMP-3 for LocalDate");
         assertError(compilation, "Order.delivered (order 2)",
-            "a signed or decimal pic is not permitted for LocalDate");
+            "a decimal pic is not permitted for LocalDate");
     }
 
     @Test
     void picUsageIsCheckedAgainstTheType() {
         assertError(compile(order(
-                field("@BookField(order = 1, pic = \"9(8) COMP-3\")", "LocalDate", "shipped"))),
-            "Order.shipped (order 1)", "COMP3 is not permitted for LocalDate");
+                field("@BookField(order = 1, pic = \"9(8) COMP\")", "LocalDate", "shipped"))),
+            "Order.shipped (order 1)", "COMP is not permitted for LocalDate");
     }
 
     @Test
