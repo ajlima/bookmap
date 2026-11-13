@@ -101,6 +101,16 @@ subprojects {
             dependsOn(tasks.withType<JacocoCoverageVerification>())
             dependsOn(tasks.withType<JacocoReport>())
         }
+
+        // The cyclomatic complexity of each method (config/pmd/complexity.xml). Only the main code.
+        apply(plugin = "pmd")
+        extensions.configure<PmdExtension> {
+            toolVersion = catalog.versions.pmd.get()
+            ruleSets = emptyList()
+            ruleSetFiles = rootProject.files("config/pmd/complexity.xml")
+            sourceSets = listOf(the<SourceSetContainer>()["main"])
+            isConsoleOutput = true
+        }
     }
 
     publishedModules[name]?.let { moduleDescription ->
