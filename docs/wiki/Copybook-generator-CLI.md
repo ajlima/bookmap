@@ -63,9 +63,10 @@ A `generate` input that ends with `.json` is a model. Each other input is a copy
 | `--input-marker <word>` | both | A name part that marks an input alternative. Write it in upper case. Repeat the option for more words. |
 | `--output-marker <word>` | both | A name part that marks an output alternative. Write it in upper case. Repeat the option for more words. |
 | `--direction <name>=<direction>` | both | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`) of a `REDEFINES` alternative. The direction is not case-sensitive. Repeat the option for more alternatives. |
+| `--conditions <name>=<mode>` | both | The mode (`enum`, `constants`, or `none`) of the level 88 items of an elementary item. The mode is not case-sensitive. Repeat the option for more items. See [Level 88 items](Copybook-generator#level-88-items). |
 | `--config <file.json>` | both | An [options file](Copybook-generator#options-file) with all options. |
 
-With a model input, the parse and mapping options (`--format` to `--direction`) are not permitted. The model already contains their result.
+With a model input, the parse and mapping options (`--format` to `--conditions`) are not permitted. The model already contains their result.
 With a model input, the generator uses only `package` and `lombok` from the options file. It ignores the other keys.
 If you give a single-value option two times, the last value applies.
 
@@ -76,6 +77,7 @@ The command line and the options file work together in this way:
 - A single value on the command line (`--format`, `--charset`, `--record-name`, `--package`) has priority over the value in the file.
 - A repeated option (`--copy-dir`, `--strip-prefix`, `--input-marker`, `--output-marker`) adds its values after the values of the file. `--input-marker` and `--output-marker` add words to the default list. To replace the default list, use `inputMarkers` or `outputMarkers` in the options file.
 - `--direction` adds a decision. For the same alternative, the command line has priority.
+- `--conditions` adds a mode. For the same item, the command line has priority.
 - `--lombok` sets `lombok`. Without `--lombok`, the value of the file applies. The command line cannot set `lombok` to `false`.
 - Subtype decisions come only from the file.
 
