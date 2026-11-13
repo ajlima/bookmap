@@ -272,22 +272,21 @@ class DataParserTest {
 
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
-        "05 A PIC X SIGN LEADING.|17|LEADING is not supported by BookMap",
-        "05 A PIC 9 SIGN IS TRAILING SEPARATE CHARACTER.|29|SEPARATE is not supported by BookMap",
-        "05 A PIC 9 LEADING.|12|LEADING is not supported by BookMap",
-        "05 A PIC X SYNC.|12|SYNC is not supported by BookMap",
-        "05 A PIC X SYNCHRONIZED.|12|SYNCHRONIZED is not supported by BookMap",
-        "05 A PIC X JUSTIFIED RIGHT.|12|JUSTIFIED is not supported by BookMap",
-        "05 A PIC X JUST.|12|JUST is not supported by BookMap",
-        "05 A PIC 9 BLANK WHEN ZERO.|12|BLANK is not supported by BookMap",
-        "05 A COMP-1.|6|COMP-1 is not supported by BookMap",
-        "05 A COMP-2.|6|COMP-2 is not supported by BookMap",
-        "05 A PIC 9 COMP-5.|12|COMP-5 is not supported by BookMap",
-        "05 A USAGE IS INDEX.|15|INDEX is not supported by BookMap",
-        "05 A POINTER.|6|POINTER is not supported by BookMap",
-        "05 A PIC N(3) NATIONAL.|10|picture symbol N is not supported by BookMap",
+        "05 A PIC X SIGN LEADING.|17|LEADING is not supported by BookMap. See issue #47.",
+        "05 A PIC 9 SIGN IS TRAILING SEPARATE CHARACTER.|29|SEPARATE is not supported by"
+            + " BookMap. See issue #47.",
+        "05 A PIC 9 LEADING.|12|LEADING is not supported by BookMap. See issue #47.",
+        "05 A COMP-1.|6|COMP-1 is not supported by BookMap. See issue #46.",
+        "05 A COMP-2.|6|COMP-2 is not supported by BookMap. See issue #46.",
+        "05 A USAGE COMPUTATIONAL-2.|12|COMPUTATIONAL-2 is not supported by BookMap."
+            + " See issue #46.",
+        "05 A POINTER.|6|POINTER is not supported by BookMap: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with the REPLACE statement.",
+        "05 A PIC X NATIONAL.|12|NATIONAL is not supported by BookMap. See issue #49.",
+        "05 A PIC N(3) NATIONAL.|10|picture symbol N is not supported by BookMap."
+            + " See issue #49.",
         "05 A PIC X GLOBAL.|12|unknown clause GLOBAL",
-        "05 A PIC ZZ9.|10|edited picture ZZ9 is not supported by BookMap",
+        "05 A PIC ZZ9.|10|edited picture ZZ9 is not supported by BookMap. See issue #48.",
+        "05 A PIC 9 BLANK WHEN 7.|23|BLANK needs WHEN ZERO",
         "05 A.|1|A has no PIC",
         "05 A OCCURS X.|13|OCCURS needs a number",
         "05 A OCCURS 1 TO X.|18|OCCURS needs a number",
@@ -311,14 +310,133 @@ class DataParserTest {
     }
 
     @Test
-    void rejectsLevel66And77AndBadLevels() {
-        parse("01 ORDER. 05 A PIC X.", "66 B RENAMES A.", "77 C PIC X.", "50 D PIC X.",
-            "ORDER-ID PIC X.", "88 LONELY VALUE 'Y'.");
+    void rejectsBadLevels() {
+        parse("01 ORDER. 05 A PIC X.", "50 D PIC X.", "ORDER-ID PIC X.");
         assertThat(diagnostics.all()).extracting(Diagnostic::line, Diagnostic::message)
-            .containsExactly(tuple(2, "level 66 is not supported by BookMap"),
-                tuple(3, "level 77 is not supported by BookMap"),
-                tuple(4, "level 50 is not valid"),
-                tuple(5, "an entry must start with a level number"));
+            .containsExactly(tuple(2, "level 50 is not valid"),
+                tuple(3, "an entry must start with a level number"));
+    }
+
+    @Test
+    void level66IsIgnoredWithInfo() {
+        Copybook copybook = parse("01 ORDER. 05 A PIC X. 05 B PIC X.",
+            "66 AB RENAMES A THRU B.", "88 B-YES VALUE 'Y'.", "66");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.INFO, 2, "level 66 item AB is ignored. RENAMES adds no bytes."),
+                tuple(Severity.INFO, 4, "level 66 item  is ignored. RENAMES adds no bytes."));
+        DataItem record = copybook.records().get(0);
+        assertThat(record.children()).extracting(DataItem::name).containsExactly("A", "B");
+        assertThat(child(record, 1).conditions()).extracting(Condition::name)
+            .containsExactly("B-YES");
+    }
+
+    @Test
+    void level77IsSkippedWithWarning() {
+        Copybook copybook = parse("77 COUNTER PIC 9(4) COMP.", "88 DONE VALUE 0.",
+            "05 A PIC X.", "77 OTHER PIC X.", "01 NEXT-REC. 05 B PIC X.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.WARNING, 1, "level 77 item COUNTER is not part of a record and"
+                    + " is skipped"),
+                tuple(Severity.WARNING, 4, "level 77 item OTHER is not part of a record and"
+                    + " is skipped"));
+        assertThat(copybook.records()).extracting(DataItem::name)
+            .containsExactly("ORDER", "NEXT-REC");
+        assertThat(child(copybook.records().get(0), 0).name()).isEqualTo("A");
+        assertThat(child(copybook.records().get(0), 0).conditions()).isEmpty();
+    }
+
+    @Test
+    void itemAfterLevel77NeedsALevel01() {
+        Copybook copybook = parse("01 ORDER. 05 A PIC X.", "77 C PIC X.", "05 D PIC X.",
+            "88 D-YES VALUE 'Y'.", "05");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.WARNING, 2, "level 77 item C is not part of a record and"
+                    + " is skipped"),
+                tuple(Severity.ERROR, 3, "level 05 item D must follow a level 01 item, not a"
+                    + " level 77 item"),
+                tuple(Severity.ERROR, 5, "level 05 item  must follow a level 01 item, not a"
+                    + " level 77 item"));
+        assertThat(copybook.records().get(0).children()).extracting(DataItem::name)
+            .containsExactly("A");
+    }
+
+    @Test
+    void onlyLevel77IsAnEmptyCopybook() {
+        parse("77 C PIC X.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity)
+            .containsExactly(Severity.WARNING, Severity.ERROR);
+    }
+
+    @Test
+    void acceptsSyncJustifiedBlankAndComp5() {
+        Copybook copybook = parse("01 ORDER.",
+            "05 A PIC X(3) SYNC LEFT.", "05 B PIC X(3) SYNCHRONIZED RIGHT.", "05 C PIC X SYNC.",
+            "05 D PIC X(5) JUSTIFIED RIGHT.", "05 E PIC X(5) JUST.",
+            "05 F PIC 9(3) BLANK WHEN ZERO.", "05 G PIC 9(3) BLANK ZEROS.",
+            "05 H PIC 9(3) BLANK ZEROES.",
+            "05 I PIC 9(4) COMP-5.", "05 J PIC S9(4) USAGE IS COMPUTATIONAL-5.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::column, Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.WARNING, 5, 15, "JUSTIFIED on D is ignored. BookMap writes the"
+                    + " text on the left and keeps the spaces on the left when it reads."),
+                tuple(Severity.WARNING, 6, 15, "JUSTIFIED on E is ignored. BookMap writes the"
+                    + " text on the left and keeps the spaces on the left when it reads."),
+                tuple(Severity.INFO, 7, 15, "BLANK WHEN ZERO on F is ignored. BookMap reads"
+                    + " spaces as no value and writes zero as digits."),
+                tuple(Severity.INFO, 8, 15, "BLANK WHEN ZERO on G is ignored. BookMap reads"
+                    + " spaces as no value and writes zero as digits."),
+                tuple(Severity.INFO, 9, 15, "BLANK WHEN ZERO on H is ignored. BookMap reads"
+                    + " spaces as no value and writes zero as digits."));
+        DataItem record = copybook.records().get(0);
+        assertThat(record.children()).extracting(DataItem::name)
+            .containsExactly("A", "B", "C", "D", "E", "F", "G", "H", "I", "J");
+        assertThat(child(record, 0).declaration()).isEqualTo("05 A PIC X(3) SYNC LEFT.");
+        assertThat(child(record, 1).declaration())
+            .isEqualTo("05 B PIC X(3) SYNCHRONIZED RIGHT.");
+        assertThat(child(record, 3).declaration()).isEqualTo("05 D PIC X(5) JUSTIFIED RIGHT.");
+        assertThat(child(record, 5).declaration()).isEqualTo("05 F PIC 9(3) BLANK WHEN ZERO.");
+        assertThat(child(record, 8).usage()).isEqualTo(Usage.COMP5);
+        assertThat(child(record, 9).usage()).isEqualTo(Usage.COMP5);
+    }
+
+    @Test
+    void indexItemIsAnIntegerWithInfo() {
+        Copybook copybook = parse("01 ORDER.", "05 IDX INDEX.", "05 POSITIONS USAGE IS INDEX.",
+            "10 FIRST-POS.", "10 LAST-POS.", "10 LABEL PIC X(4) DISPLAY.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.INFO, 2, "INDEX item IDX is mapped as PIC S9(9) COMP. Its value"
+                    + " is a byte offset in a table."),
+                tuple(Severity.INFO, 4, "INDEX item FIRST-POS is mapped as PIC S9(9) COMP."
+                    + " Its value is a byte offset in a table."),
+                tuple(Severity.INFO, 5, "INDEX item LAST-POS is mapped as PIC S9(9) COMP."
+                    + " Its value is a byte offset in a table."));
+        DataItem index = child(copybook.records().get(0), 0);
+        assertThat(index.picture().text()).isEqualTo("S9(9)");
+        assertThat(index.usage()).isEqualTo(Usage.COMP);
+        assertThat(index.declaration()).isEqualTo("05 IDX INDEX.");
+        assertThat(child(child(copybook.records().get(0), 1), 2).picture().text())
+            .isEqualTo("X(4)");
+    }
+
+    @Test
+    void indexItemErrors() {
+        parse("01 ORDER.", "05 A INDEX PIC X.", "05 B INDEX OCCURS X.",
+            "05 C INDEX.", "10 D COMP.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.ERROR, 3, "OCCURS needs a number"),
+                tuple(Severity.ERROR, 2, "the INDEX item A must not have a PIC"),
+                tuple(Severity.ERROR, 5, "D has no PIC"));
     }
 
     @Test
@@ -361,7 +479,7 @@ class DataParserTest {
         "1.5 B PIC X.|an entry must start with a level number",
         "05 'X' PIC X.|unknown clause X",
         "05 B USAGE FOO.|USAGE needs a usage word",
-        "05 POINTER.|POINTER is not supported by BookMap",
+        "05 POINTER.|POINTER is not supported by BookMap: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with the REPLACE statement.",
         "05 B REDEFINES PIC X.|REDEFINES needs a data name",
         "05 B OCCURS 2 DEPENDING ON PIC X.|DEPENDING ON needs a data name",
     })
@@ -378,7 +496,8 @@ class DataParserTest {
         "01 A. 05 B PIC|PIC needs a picture string",
         "01 A. 05 B OCCURS 2 DEPENDING ON|DEPENDING ON needs a data name",
         "01 A. 05 B PIC X VALUE 'A'|the entry has no closing period",
-        "01 A. 05 B PIC X SYNC|SYNC is not supported by BookMap",
+        "01 A. 05 B PIC X SYNC|the entry has no closing period",
+        "01 A. 05 B PIC 9 BLANK|BLANK needs WHEN ZERO",
         "01 A PIC X. 88|",
     })
     void reportsEntriesThatEndEarly(String text, String messages) {
@@ -395,5 +514,128 @@ class DataParserTest {
         QualifiedName count = child(copybook.records().get(0), 1).occurs().dependingOn();
         assertThat(count.name()).isEqualTo("N");
         assertThat(count.parts()).containsExactly("N", "A");
+    }
+
+    private List<String> messages() {
+        return diagnostics.all().stream().map(Diagnostic::message).toList();
+    }
+
+    @Test
+    void syncAddsSlackBytesBeforeABinaryItem() {
+        Copybook copybook = parse("01 ORDER.", "05 A PIC X.", "05 B PIC S9(4) COMP SYNC.",
+            "05 C PIC X.", "05 D PIC 9(5) BINARY SYNC.", "05 E PIC 9(18) COMP-5 SYNC.",
+            "05 F PIC 9(4) COMP SYNC.", "05 G PIC S9(7)V99 COMP-3 SYNC.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.INFO, 3, "SYNC adds 1 slack byte before B. The generator adds"
+                    + " a FILLER."),
+                tuple(Severity.INFO, 5, "SYNC adds 3 slack bytes before D. The generator adds"
+                    + " a FILLER."));
+        DataItem record = copybook.records().get(0);
+        assertThat(record.children()).extracting(DataItem::name)
+            .containsExactly("A", "FILLER", "B", "C", "FILLER", "D", "E", "F", "G");
+        DataItem slack = child(record, 1);
+        assertThat(slack.picture().text()).isEqualTo("X(1)");
+        assertThat(slack.usage()).isEqualTo(Usage.DISPLAY);
+        assertThat(slack.level()).isEqualTo(5);
+        assertThat(slack.line()).isEqualTo(3);
+        assertThat(slack.declaration())
+            .isEqualTo("05 FILLER PIC X(1). Slack bytes before B for SYNC.");
+        assertThat(child(record, 4).picture().text()).isEqualTo("X(3)");
+    }
+
+    @Test
+    void syncOnAGroupAppliesToItsItems() {
+        Copybook copybook = parse("01 ORDER.", "05 A PIC X.", "05 G SYNC.", "10 B PIC X.",
+            "10 C PIC 9(4) COMP.", "05 H COMP SYNC.", "10 D PIC 9(4).", "10 E PIC X DISPLAY.",
+            "10 F PIC 9(9).");
+        assertThat(messages()).containsExactly(
+            "SYNC adds 1 slack byte before F. The generator adds a FILLER.");
+        DataItem record = copybook.records().get(0);
+        assertThat(child(record, 1).children()).extracting(DataItem::name)
+            .containsExactly("B", "C");
+        assertThat(child(record, 2).children()).extracting(DataItem::name)
+            .containsExactly("D", "E", "FILLER", "F");
+    }
+
+    @Test
+    void syncFollowsTheRedefinesOffsets() {
+        Copybook copybook = parse("01 ORDER.", "05 X PIC X.", "05 G1.", "10 A PIC X(3).",
+            "05 G2 REDEFINES G1.", "10 B PIC 9(4) COMP SYNC.", "05 G3 REDEFINES G1.",
+            "10 C PIC X(5).", "05 D PIC 9(9) COMP SYNC.", "05 E PIC X(2).",
+            "05 F REDEFINES E PIC 9(4) COMP SYNC.", "05 H REDEFINES MISSING PIC X.");
+        assertThat(messages()).containsExactly(
+            "SYNC adds 1 slack byte before B. The generator adds a FILLER.",
+            "SYNC adds 2 slack bytes before D. The generator adds a FILLER.");
+        DataItem record = copybook.records().get(0);
+        assertThat(child(record, 2).children()).extracting(DataItem::name)
+            .containsExactly("FILLER", "B");
+        assertThat(record.children()).extracting(DataItem::name)
+            .containsExactly("X", "G1", "G2", "G3", "FILLER", "D", "E", "F", "H");
+    }
+
+    @Test
+    void syncOnARedefinesItemThatNeedsSlackBytesIsAnError() {
+        parse("01 ORDER.", "05 A PIC X.", "05 B PIC X(2).",
+            "05 C REDEFINES B PIC 9(4) COMP SYNC.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::message)
+            .containsExactly(tuple(Severity.ERROR, 4, "SYNC on C needs slack bytes, but C has"
+                + " REDEFINES. Align the item by hand."));
+    }
+
+    @Test
+    void syncInATableNeedsNoSlackBytes() {
+        Copybook copybook = parse("01 ORDER.", "05 X PIC X.",
+            "05 T PIC 9(4) COMP SYNC OCCURS 3.", "05 U OCCURS 2.", "10 A PIC 9(4) COMP SYNC.",
+            "10 B PIC X(2).", "10 V OCCURS 2.", "15 C PIC X(2).");
+        assertThat(messages()).containsExactly(
+            "SYNC adds 1 slack byte before T. The generator adds a FILLER.");
+        assertThat(copybook.records().get(0).children()).extracting(DataItem::name)
+            .containsExactly("X", "FILLER", "T", "U");
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "05 T OCCURS 3. 10 A PIC X. 10 B PIC 9(4) COMP SYNC.|B",
+        "05 T OCCURS 3. 10 B PIC 9(4) COMP SYNC. 10 A PIC X.|B",
+        "05 X PIC X. 05 T OCCURS 3. 10 B PIC 9(9) COMP SYNC.|B",
+    })
+    void syncInATableThatNeedsSlackBytesIsAnError(String text, String item) {
+        parse("01 ORDER.", text);
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::message)
+            .containsExactly(tuple(Severity.ERROR, "SYNC on " + item + " in OCCURS T needs"
+                + " slack bytes. BookMap cannot add them in a table. Align the item by hand."));
+    }
+
+    @Test
+    void syncWithoutLevel01AssumesADoublewordBoundary() {
+        Copybook copybook = parse("05 A PIC X.", "05 B PIC 9(4) COMP SYNC.",
+            "05 C PIC 9(4) COMP SYNC.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::message)
+            .containsExactly(
+                tuple(Severity.WARNING, "the copybook has no level 01. SYNC assumes that ORDER"
+                    + " starts on a doubleword boundary."),
+                tuple(Severity.INFO, "SYNC adds 1 slack byte before B. The generator adds a"
+                    + " FILLER."));
+        assertThat(copybook.records().get(0).children()).hasSize(4);
+    }
+
+    @Test
+    void syncIsIgnoredForTextAndForAnElementaryRecord() {
+        Copybook copybook = parse("01 ORDER.", "05 A PIC X.", "05 B PIC X(4) COMP SYNC.",
+            "01 COUNTER PIC 9(4) COMP SYNC.");
+        assertThat(diagnostics.all()).isEmpty();
+        assertThat(copybook.records().get(0).children()).hasSize(2);
+    }
+
+    @Test
+    void layoutIsSkippedAfterAnError() {
+        Copybook copybook = parse("01 ORDER.", "05 A PIC X.", "05 B PIC 9(4) COMP SYNC.",
+            "05 C PIC ZZ9.");
+        assertThat(messages()).containsExactly(
+            "edited picture ZZ9 is not supported by BookMap. See issue #48.");
+        assertThat(copybook.records().get(0).children()).hasSize(3);
     }
 }

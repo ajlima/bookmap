@@ -17,7 +17,10 @@ public final class Models {
     private Models() {
     }
 
-    /** An account book with a fixed and a variable table, and two subtypes. */
+    /**
+     * An account book with a fixed and a variable table, two subtypes, date fields, and the
+     * {@code Continuable} and {@code Validatable} handlers.
+     */
     public static BookModel accountModel() {
         ClassModel account = new ClassModel("GetAccount", ClassKind.OPERATION, null,
             new SubTypes("accountType", List.of(new SubTypeEntry("01", "CheckingData"),
@@ -27,11 +30,19 @@ public final class Models {
                     Direction.INPUT_OUTPUT, "ACCOUNT-ID", "05 ACCOUNT-ID PIC X(12)."),
                 new FieldMember("accountType", JavaType.INT, 20, "9(2)",
                     Direction.INPUT_OUTPUT, "ACCOUNT-TYPE", "05 ACCOUNT-TYPE PIC 9(2)."),
-                new CollectionMember("holder", 30, Direction.INPUT_OUTPUT, "HOLDER",
-                    "05 HOLDER OCCURS 2.", 2, true, null, "Holder")));
+                new CollectionMember("holder", 30, Direction.OUTPUT, "HOLDER",
+                    "05 HOLDER OCCURS 2.", 2, true, null, "Holder")),
+            "com.example.accounts.AccountPaging", "ReturnCodes");
         ClassModel holder = new ClassModel("Holder", ClassKind.ITEM, null, null, List.of(
             new FieldMember("holderName", JavaType.STRING, 10, "X(30)", Direction.INPUT_OUTPUT,
-                "HOLDER-NAME", "10 HOLDER-NAME PIC X(30).")));
+                "HOLDER-NAME", "10 HOLDER-NAME PIC X(30)."),
+            new FieldMember("since", JavaType.LOCAL_DATE, 20, "9(8)", Direction.INPUT_OUTPUT,
+                "SINCE", "10 SINCE PIC 9(8).", "yyyyMMdd"),
+            new FieldMember("openedAt", JavaType.LOCAL_TIME, 30, "X(8)", Direction.INPUT_OUTPUT,
+                "OPENED-AT", "10 OPENED-AT PIC X(8).", "HH:mm:ss"),
+            new FieldMember("lastUpdate", JavaType.LOCAL_DATE_TIME, 40, "9(14)",
+                Direction.INPUT_OUTPUT, "LAST-UPDATE", "10 LAST-UPDATE PIC 9(14).",
+                "yyyyMMddHHmmss")));
         ClassModel checking = new ClassModel("CheckingData", ClassKind.SUBTYPE, "GetAccount",
             null, List.of(
                 new FieldMember("overdraftLimit", JavaType.BIG_DECIMAL, 40, "S9(9)V99 COMP-3",

@@ -21,7 +21,7 @@ public final class PicText {
     public static String of(Picture picture, Usage usage) {
         return switch (usage) {
             case DISPLAY -> picture.text();
-            case COMP -> picture.text() + " COMP";
+            case COMP, COMP5 -> picture.text() + " COMP";
             case COMP3 -> picture.text() + " COMP-3";
         };
     }
@@ -34,11 +34,6 @@ public final class PicText {
      * @return the number of bytes
      */
     public static int byteLength(Picture picture, Usage usage) {
-        int length = picture.length();
-        return switch (usage) {
-            case DISPLAY -> length;
-            case COMP3 -> length / 2 + 1;
-            case COMP -> length <= 4 ? 2 : length <= 9 ? 4 : 8;
-        };
+        return picture.byteLength(usage);
     }
 }

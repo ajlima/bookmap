@@ -13,6 +13,7 @@ import pt.dazz.bookmap.annotation.Direction;
  * @param direction the resolved direction
  * @param cobolName the COBOL data name
  * @param declaration the normalized COBOL declaration
+ * @param pattern the date or time pattern of a temporal field, or {@code null}
  * @param enumType the simple name of the enum for {@link JavaType#ENUM}, else {@code null}
  * @param initialValue the initial value from the {@code VALUE} clause, or {@code null}. It is
  *     a text without spaces on the right, a plain decimal number, or an enum constant name.
@@ -20,7 +21,7 @@ import pt.dazz.bookmap.annotation.Direction;
  */
 public record FieldMember(String name, JavaType javaType, int order, String pic,
                           Direction direction, String cobolName, String declaration,
-                          String enumType, String initialValue,
+                          String pattern, String enumType, String initialValue,
                           List<ConditionMember> conditions)
     implements MemberModel {
 
@@ -34,6 +35,7 @@ public record FieldMember(String name, JavaType javaType, int order, String pic,
      * @param direction the direction
      * @param cobolName the COBOL name
      * @param declaration the declaration
+     * @param pattern the date or time pattern
      * @param enumType the enum name
      * @param initialValue the initial value
      * @param conditions the conditions
@@ -43,7 +45,48 @@ public record FieldMember(String name, JavaType javaType, int order, String pic,
     }
 
     /**
-     * Creates a field member without an enum, an initial value, and conditions.
+     * Creates a field without a date or time pattern.
+     *
+     * @param name the name
+     * @param javaType the Java type
+     * @param order the order
+     * @param pic the pic
+     * @param direction the direction
+     * @param cobolName the COBOL name
+     * @param declaration the declaration
+     * @param enumType the enum name
+     * @param initialValue the initial value
+     * @param conditions the conditions
+     */
+    public FieldMember(String name, JavaType javaType, int order, String pic,
+                       Direction direction, String cobolName, String declaration,
+                       String enumType, String initialValue, List<ConditionMember> conditions) {
+        this(name, javaType, order, pic, direction, cobolName, declaration, null, enumType,
+            initialValue, conditions);
+    }
+
+    /**
+     * Creates a field without an enum, an initial value, and conditions.
+     *
+     * @param name the name
+     * @param javaType the Java type
+     * @param order the order
+     * @param pic the pic
+     * @param direction the direction
+     * @param cobolName the COBOL name
+     * @param declaration the declaration
+     * @param pattern the date or time pattern
+     */
+    public FieldMember(String name, JavaType javaType, int order, String pic,
+                       Direction direction, String cobolName, String declaration,
+                       String pattern) {
+        this(name, javaType, order, pic, direction, cobolName, declaration, pattern, null,
+            null, List.of());
+    }
+
+    /**
+     * Creates a field without a date or time pattern, an enum, an initial value, and
+     * conditions.
      *
      * @param name the name
      * @param javaType the Java type
@@ -55,7 +98,6 @@ public record FieldMember(String name, JavaType javaType, int order, String pic,
      */
     public FieldMember(String name, JavaType javaType, int order, String pic,
                        Direction direction, String cobolName, String declaration) {
-        this(name, javaType, order, pic, direction, cobolName, declaration, null, null,
-            List.of());
+        this(name, javaType, order, pic, direction, cobolName, declaration, null);
     }
 }
