@@ -10,7 +10,13 @@ dependencies {
     annotationProcessor(platform(libs.spring.boot.bom))
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 
+    // The transports are optional. The user adds the transport module. They are not in the POM.
+    compileOnly(project(":bookmap-transport-ctg"))
+
     testImplementation("org.springframework.boot:spring-boot-test")
+    testImplementation(project(":bookmap-transport-ctg"))
+    // The stub of the IBM CTG client library, for the tests of the JavaGatewayConnector bean.
+    testImplementation(project(path = ":bookmap-transport-ctg", configuration = "ctgStubElements"))
     // Reads the generated metadata in the tests, as an IDE does.
     testImplementation("org.springframework.boot:spring-boot-configuration-metadata")
 }
