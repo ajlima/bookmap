@@ -74,6 +74,20 @@ class ModelMapperTest {
     }
 
     @Test
+    void picTextKeepsTheSignClause() {
+        MapResult result = map("01 ORDER.", "05 AMOUNTS SIGN LEADING SEPARATE.",
+            "10 NET PIC S9(5)V99.", "10 TAX PIC S9(3) SIGN TRAILING.",
+            "05 TOTAL PIC S9(5) TRAILING SEPARATE CHARACTER.", "05 DISCOUNT PIC S9(3) LEADING.");
+        assertThat(result.model().classes().get(0).members())
+            .extracting(m -> ((FieldMember) m).pic())
+            .containsExactly("S9(5)V99 SIGN LEADING SEPARATE", "S9(3)",
+                "S9(5) SIGN TRAILING SEPARATE", "S9(3) SIGN LEADING");
+        // 8 + 3 + 6 + 3
+        assertThat(result.diagnostics()).extracting(Diagnostic::message)
+            .containsExactly("record ORDER has 20 bytes");
+    }
+
+    @Test
     void recordUsageIsInherited() {
         MapResult result = map("01 ORDER COMP.", "05 QTY PIC 9(4).");
         assertThat(((FieldMember) result.model().classes().get(0).members().get(0)).pic())

@@ -7,6 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.copybook.ast.Condition;
 import pt.dazz.bookmap.copybook.ast.ConditionValue;
 import pt.dazz.bookmap.copybook.ast.Copybook;
@@ -136,7 +137,7 @@ class DataParserTest {
             "      88 STATUS-OPEN VALUE 'O'.",
             "      88 STATUS-CLOSED VALUES ARE 'C' 'X'.",
             "   05 QTY PIC 9(3) VALUE ZEROS.",
-            "   05 NOTE PIC X(3) VALUE IS SPACES SIGN TRAILING.");
+            "   05 NOTE PIC X(3) VALUE IS SPACES SYNC.");
         assertThat(diagnostics.all()).isEmpty();
         DataItem status = child(copybook.records().get(0), 0);
         assertThat(status.conditions()).extracting(Condition::name)
@@ -151,7 +152,7 @@ class DataParserTest {
         assertThat(child(copybook.records().get(0), 2).value())
             .isEqualTo(new Literal(Literal.Kind.FIGURATIVE, "SPACE"));
         assertThat(child(copybook.records().get(0), 2).declaration())
-            .isEqualTo("05 NOTE PIC X(3) SIGN TRAILING.");
+            .isEqualTo("05 NOTE PIC X(3) SYNC.");
     }
 
     private static Literal text(String text) {
@@ -272,10 +273,13 @@ class DataParserTest {
 
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
-        "05 A PIC X SIGN LEADING.|17|LEADING is not supported by BookMap. See issue #47.",
-        "05 A PIC 9 SIGN IS TRAILING SEPARATE CHARACTER.|29|SEPARATE is not supported by"
-            + " BookMap. See issue #47.",
-        "05 A PIC 9 LEADING.|12|LEADING is not supported by BookMap. See issue #47.",
+        "05 A PIC S9 SIGN IS SEPARATE.|21|SIGN needs LEADING or TRAILING",
+        "05 A PIC S9 SIGN.|17|SIGN needs LEADING or TRAILING",
+        "05 A PIC S9 SEPARATE.|13|unknown clause SEPARATE",
+        "05 A PIC X SIGN LEADING.|1|SIGN on A needs a signed numeric DISPLAY item",
+        "05 A PIC 9 SIGN IS TRAILING SEPARATE CHARACTER.|1|SIGN on A needs a signed numeric"
+            + " DISPLAY item",
+        "05 A PIC S9 COMP-3 LEADING.|1|SIGN on A needs a signed numeric DISPLAY item",
         "05 A COMP-1.|6|COMP-1 is not supported by BookMap. See issue #46.",
         "05 A COMP-2.|6|COMP-2 is not supported by BookMap. See issue #46.",
         "05 A USAGE COMPUTATIONAL-2.|12|COMPUTATIONAL-2 is not supported by BookMap."
@@ -508,7 +512,7 @@ class DataParserTest {
 
     @Test
     void acceptsLessCommonClauseForms() {
-        Copybook copybook = parse("01 A.", "05 B PICTURE X VALUES 'A' TRAILING.",
+        Copybook copybook = parse("01 A.", "05 B PICTURE S9 VALUES 1 TRAILING.",
             "05 C OCCURS 3 DEPENDING ON N IN A PIC X.", "05 COMP-3 PIC 9.");
         assertThat(diagnostics.all()).isEmpty();
         QualifiedName count = child(copybook.records().get(0), 1).occurs().dependingOn();
@@ -637,5 +641,43 @@ class DataParserTest {
         assertThat(messages()).containsExactly(
             "edited picture ZZ9 is not supported by BookMap. See issue #48.");
         assertThat(copybook.records().get(0).children()).hasSize(3);
+    }
+
+    @Test
+    void signClauseOfAGroupGoesToItsSignedDisplayNumbers() {
+        Copybook copybook = parse(
+            "01 ORDER.",
+            "   05 AMOUNTS SIGN IS LEADING SEPARATE CHARACTER.",
+            "      10 NET PIC S9(5)V99.",
+            "      10 TAX PIC S9(3) SIGN TRAILING.",
+            "      10 QTY PIC 9(3).",
+            "      10 PACKED PIC S9(5) COMP-3.",
+            "      10 CODE PIC X(2).",
+            "      10 RATES.",
+            "         15 RATE PIC S9V99.",
+            "   05 TOTAL PIC S9(5) TRAILING SEPARATE.",
+            "   05 DISCOUNT PIC S9(3) LEADING.",
+            "   05 PLAIN PIC S9(3).");
+        assertThat(diagnostics.all()).isEmpty();
+        DataItem record = copybook.records().get(0);
+        DataItem amounts = child(record, 0);
+        assertThat(amounts.sign()).isNull();
+        assertThat(amounts.declaration())
+            .isEqualTo("05 AMOUNTS SIGN IS LEADING SEPARATE CHARACTER.");
+        assertThat(amounts.children()).extracting(DataItem::sign).containsExactly(
+            Sign.LEADING_SEPARATE, null, null, null, null, null);
+        assertThat(child(child(amounts, 5), 0).sign()).isEqualTo(Sign.LEADING_SEPARATE);
+        assertThat(record.children()).extracting(DataItem::sign).containsExactly(
+            null, Sign.TRAILING_SEPARATE, Sign.LEADING, null);
+        assertThat(child(record, 1).declaration())
+            .isEqualTo("05 TOTAL PIC S9(5) TRAILING SEPARATE.");
+    }
+
+    @Test
+    void separateSignMovesTheSlackBytesOfSync() {
+        Copybook copybook = parse("01 ORDER.", "05 A PIC S9(2) SIGN LEADING SEPARATE.",
+            "05 B PIC S9(4) COMP SYNC.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::message).containsExactly(
+            "SYNC adds 1 slack byte before B. The generator adds a FILLER.");
     }
 }
