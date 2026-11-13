@@ -58,6 +58,7 @@ subprojects {
         "testImplementation"(platform(catalog.junit.bom))
         "testImplementation"(catalog.junit.jupiter)
         "testImplementation"(catalog.assertj.core)
+        "testImplementation"(catalog.archunit)
         "testRuntimeOnly"(catalog.junit.platform.launcher)
     }
 
