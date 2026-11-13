@@ -153,7 +153,7 @@ The file has the format of the [options file](Copybook-generator#options-file).
 
 ```
 src/main/copybook/billing/GET-INVOICE.cpy
-src/main/copybook/billing/GET-INVOICE.json   { "stripPrefixes": ["INV-"] }
+src/main/copybook/billing/GET-INVOICE.json   { "stripPrefixes": ["INV-"], "countFields": {...} }
 ```
 
 These rules apply:
@@ -164,6 +164,9 @@ These rules apply:
 - `copyDirs` in the file come first in the search order. The `copyDirs` of the extension come after them.
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file. Without a file, the plugin uses the defaults of the generator.
+
+Mapping options such as `stripPrefixes`, `directions`, `subTypes`, and `countFields` name items of one copybook. Thus, the plugin has no property for them. Put them in the options file.
+For example, `countFields` links a count field to a fixed table. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table).
 
 If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails.
 The task logs an error line that starts with the path of the options file, for example `/work/src/main/copybook/ORDER.json: cannot read the file: ...`.
@@ -314,7 +317,7 @@ bookmap-examples-gradle-plugin/
   build.gradle.kts
   src/main/copybook/orders/GET-ORDER.cpy       -> package ...orders: GetOrder, OrderLine
   src/main/copybook/billing/GET-INVOICE.cpy    -> package ...billing: GetInvoice
-  src/main/copybook/billing/GET-INVOICE.json   { "stripPrefixes": ["INV-"] }
+  src/main/copybook/billing/GET-INVOICE.json   { "stripPrefixes": ["INV-"], "countFields": {...} }
   src/main/copylib/ADDRESS.cpy                 the COPY member of GET-INVOICE.cpy
   src/test/java/...                            a test with the simulator transport
 ```

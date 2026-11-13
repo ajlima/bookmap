@@ -142,6 +142,9 @@ The file has the format of the `--config` file of the command line. See "Options
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file.
 
+Mapping options such as `stripPrefixes`, `directions`, `subTypes`, and `countFields` name items of one copybook. Thus, the goal has no parameter for them. Put them in the options file.
+For example, `countFields` links a count field to a fixed table. See "Count field of a fixed table" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#count-field-of-a-fixed-table).
+
 If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The goal logs an error line that starts with the path of the file.
 
 The copybook and its `COPY` members use the `charset` and the `format` of the options file. The default charset is UTF-8. The goal does not use `project.build.sourceEncoding`. Write the options file in UTF-8.

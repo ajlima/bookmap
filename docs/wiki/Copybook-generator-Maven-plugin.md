@@ -180,6 +180,9 @@ The file has the format of the [options file](Copybook-generator#options-file).
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file.
 
+Mapping options such as `stripPrefixes`, `directions`, `subTypes`, and `countFields` name items of one copybook. Thus, the goal has no parameter for them. Put them in the options file.
+For example, `countFields` links a count field to a fixed table. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table).
+
 If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The message starts with the path of the file.
 
 ## Class name collisions
@@ -396,7 +399,7 @@ bookmap-examples-maven-plugin/
   mainframe-model/
     src/main/copybook/orders/GET-ORDER.cpy           -> package ...orders
     src/main/copybook/billing/GET-INVOICE.cpy        -> package ...billing
-    src/main/copybook/billing/GET-INVOICE.json       { "stripPrefixes": ["INV-"] }
+    src/main/copybook/billing/GET-INVOICE.json       { "stripPrefixes": ["INV-"], "countFields": {...} }
     src/main/copylib/ADDRESS.cpy                     the COPY member
   orders-service/
     src/test/java/.../MavenPluginEndToEndTest.java   a test with the simulator transport
