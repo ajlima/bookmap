@@ -13,9 +13,14 @@
 #   2. The publish job signs the modules and publishes them to Maven Central. It runs only for
 #      refs/heads/main and only when a new version exists. It has read-only repository access;
 #      the Sonatype token and the signing key come from secrets (see RELEASING.md).
-#   3. The release job runs after a successful publish. It has write access and runs no Gradle
+#   3. The attest job runs after a successful publish. It makes a SLSA build provenance
+#      attestation for each JAR, POM, and Gradle module file that went to Maven Central. It takes
+#      the files from the staging directory of the publish plugin, so the attested bytes are the
+#      uploaded bytes. It has only the id-token and attestations permissions, and it runs no build.
+#      The release job does not wait for it: if it fails, run the job again.
+#   4. The release job runs after a successful publish. It has write access and runs no Gradle
 #      build. It creates the tag vX.Y.Z and a GitHub release with the JARs that the publish
-#      job sent to Maven Central (the same bytes). Then it sets the new version in the README files
+#      job staged for Maven Central (the same bytes). Then it sets the new version in the README files
 #      (scripts/set-readme-version.sh) and pushes the commit "docs: set the README version to
 #      X.Y.Z" to main. A docs commit gives no new release. The push uses a short-lived token of
 #      the BookMap release GitHub App, because the ruleset on main blocks the GITHUB_TOKEN and a
@@ -141,24 +146,46 @@ jobs:
           done
           ./gradlew publishAndReleaseToMavenCentral --no-daemon -PreleaseVersion="$NEW_VERSION"
 
-      # The GitHub release gets the same bytes that went to Maven Central.
-      - name: Collect the published JARs
-        run: |
-          mkdir -p published
-          for module in bookmap-core bookmap-processor bookmap-transport-simulator bookmap-spring-boot \
-                        bookmap-copybook bookmap-copybook-cli bookmap-copybook-gradle-plugin \
-                        bookmap-copybook-maven-plugin; do
-            cp "$module"/build/libs/*.jar published/
-          done
-          ls -l published
-
-      - name: Upload the published JARs
+      # The publish plugin (com.vanniktech.maven.publish) stages the files of each module in
+      # build/publishing/mavenCentral, then uploads them in one bundle. The attest job attests
+      # these files, and the release job attaches the JARs of these files to the GitHub release.
+      # Thus the attested bytes, the GitHub release, and Maven Central have the same bytes.
+      - name: Upload the published files
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: published-jars
-          path: published/*.jar
+          name: maven-central-files
+          path: |
+            */build/publishing/mavenCentral/**/*.jar
+            */build/publishing/mavenCentral/**/*.pom
+            */build/publishing/mavenCentral/**/*.module
           if-no-files-found: error
           retention-days: 7
+
+  # This job has no environment and no secret, and it runs no build. Only this job can get an
+  # OIDC token. The release job does not wait for it, so a failure here does not stop the tag.
+  attest:
+    needs: [build, publish]
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      # The OIDC token gets the short-lived Sigstore signing certificate.
+      id-token: write
+      # Stores the attestation in the repository.
+      attestations: write
+    steps:
+      - name: Download the published files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: maven-central-files
+          path: maven-central
+
+      - name: Attest the build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            maven-central/**/*.jar
+            maven-central/**/*.pom
+            maven-central/**/*.module
 
   release:
     needs: [build, publish]
@@ -170,10 +197,10 @@ jobs:
       # The GitHub release uses the GITHUB_TOKEN. The README push uses the token of the app.
       contents: write
     steps:
-      - name: Download the published JARs
+      - name: Download the published files
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: published-jars
+          name: maven-central-files
           path: release
 
       - name: Create the tag and the GitHub release
@@ -183,7 +210,7 @@ jobs:
           name: BookMap ${{ needs.build.outputs.new_version }}
           target_commitish: ${{ github.sha }}
           body: ${{ needs.build.outputs.changelog }}
-          files: release/*.jar
+          files: release/**/*.jar
           fail_on_unmatched_files: true
 
       - name: Check the release app settings
