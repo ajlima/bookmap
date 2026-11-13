@@ -7,10 +7,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import pt.dazz.bookmap.annotation.Direction;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pt.dazz.bookmap.copybook.Golden;
 import pt.dazz.bookmap.copybook.Models;
+import pt.dazz.bookmap.copybook.model.BookModel;
+import pt.dazz.bookmap.copybook.model.ClassKind;
+import pt.dazz.bookmap.copybook.model.ClassModel;
+import pt.dazz.bookmap.copybook.model.FieldMember;
+import pt.dazz.bookmap.copybook.model.JavaType;
 
 class JavaClassGeneratorTest {
 
@@ -47,6 +53,17 @@ class JavaClassGeneratorTest {
     void outputIsDeterministic() {
         assertThat(JavaClassGenerator.generate(Models.accountModel(), PLAIN).toString())
             .isEqualTo(JavaClassGenerator.generate(Models.accountModel(), PLAIN).toString());
+    }
+
+    @Test
+    void initialValueOfADateFieldIsAnIsoText() {
+        FieldMember shipDate = new FieldMember("shipDate", JavaType.LOCAL_DATE, 10, "9(8)",
+            Direction.INPUT_OUTPUT, "SHIP-DATE", "05 SHIP-DATE PIC 9(8).", "yyyyMMdd", null,
+            "2026-01-01", List.of());
+        BookModel model = new BookModel(BookModel.FORMAT_VERSION, "SHIPMENT.cpy", List.of(
+            new ClassModel("Shipment", ClassKind.OPERATION, null, null, List.of(shipDate))));
+        assertThat(JavaClassGenerator.generate(model, PLAIN).get(0).toString())
+            .contains("private LocalDate shipDate = LocalDate.parse(\"2026-01-01\");");
     }
 
     @Test

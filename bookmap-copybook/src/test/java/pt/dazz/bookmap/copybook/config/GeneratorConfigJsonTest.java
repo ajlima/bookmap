@@ -13,6 +13,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.copybook.json.ModelJsonException;
+import pt.dazz.bookmap.copybook.map.ConditionMode;
 import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.map.SubTypeDecision;
 import pt.dazz.bookmap.copybook.parse.SourceFormat;
@@ -38,6 +39,7 @@ class GeneratorConfigJsonTest {
               "classNames": { "SAVINGS-DATA": "SavingsAccount" }
             }
           },
+          "conditions": { "PARTY-ROLE": "enum", "ACCOUNT-FLAG": "Constants" },
           "countFields": { "INVOICE-LINE": "INVOICE-LINE-COUNT" },
           "maxRecordLength": 32500,
           "dates": { "OPENED-ON": "yyyyMMdd", "*-TIME": "HHmmss" },
@@ -62,6 +64,8 @@ class GeneratorConfigJsonTest {
         assertThat(config.mapping().subTypes()).isEqualTo(Map.of("CHECKING-DATA",
             new SubTypeDecision("ACCOUNT-TYPE", Map.of("CHECKING-DATA", "01", "SAVINGS-DATA",
                 "02"), Map.of("SAVINGS-DATA", "SavingsAccount"))));
+        assertThat(config.mapping().conditions()).isEqualTo(Map.of("PARTY-ROLE",
+            ConditionMode.ENUM, "ACCOUNT-FLAG", ConditionMode.CONSTANTS));
         assertThat(config.mapping().countFields()).isEqualTo(Map.of("INVOICE-LINE",
             "INVOICE-LINE-COUNT"));
         assertThat(config.mapping().maxRecordLength()).isEqualTo(32500);
@@ -122,6 +126,8 @@ class GeneratorConfigJsonTest {
         "{\"subTypes\": {\"A\": {\"values\": {}}}}|missing key 'discriminator' in $.subTypes.A",
         "{\"subTypes\": {\"A\": {\"discriminator\": \"T\", \"values\": {}, \"x\": 1}}}"
             + "|unknown key 'x' in $.subTypes.A",
+        "{\"conditions\": {\"A\": \"flags\"}}|key 'A' in $.conditions has the unknown"
+            + " condition mode 'flags'. Use enum, constants, or none.",
         "{\"maxRecordLength\": \"32K\"}|key 'maxRecordLength' in $ must be an integer",
         "{\"maxRecordLength\": 0}|key 'maxRecordLength' in $ must be 1 or more, not 0",
     })

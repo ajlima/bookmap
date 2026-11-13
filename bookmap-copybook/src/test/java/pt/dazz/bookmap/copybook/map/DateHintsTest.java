@@ -54,6 +54,24 @@ class DateHintsTest {
         assertThat(field(result, "GetOrder", "orderId").pattern()).isNull();
     }
 
+    @Test
+    void dateHintIgnoresTheLevel88ItemsAndTheValue() {
+        MapResult result = map(dates("ORDER-DATE", "yyyyMMdd"),
+            "01 GET-ORDER.", "05 ORDER-DATE PIC 9(8) VALUE 20260101.",
+            "88 NO-DATE VALUE 0.", "88 LAST-DATE VALUE 99991231.");
+        assertThat(problems(result)).isEmpty();
+        FieldMember field = field(result, "GetOrder", "orderDate");
+        assertThat(field.javaType()).isEqualTo(JavaType.LOCAL_DATE);
+        assertThat(field.pattern()).isEqualTo("yyyyMMdd");
+        assertThat(field.enumType()).isNull();
+        assertThat(field.initialValue()).isNull();
+        assertThat(field.conditions()).isEmpty();
+        assertThat(result.diagnostics()).extracting(Diagnostic::message).contains(
+            "condition NO-DATE is ignored, because ORDER-DATE has a date hint",
+            "condition LAST-DATE is ignored, because ORDER-DATE has a date hint",
+            "the VALUE of ORDER-DATE is ignored, because ORDER-DATE has a date hint");
+    }
+
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
         "9(8)  | yyyyMMdd       | LOCAL_DATE",

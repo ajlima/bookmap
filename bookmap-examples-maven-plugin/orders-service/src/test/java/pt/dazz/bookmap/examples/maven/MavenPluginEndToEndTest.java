@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.BookmapClient;
 import pt.dazz.bookmap.examples.maven.billing.GetInvoice;
+import pt.dazz.bookmap.examples.maven.billing.PartyRole;
 import pt.dazz.bookmap.examples.maven.billing.InvoiceLine;
 import pt.dazz.bookmap.examples.maven.orders.GetOrder;
 import pt.dazz.bookmap.examples.maven.orders.OrderLine;
@@ -52,22 +53,26 @@ class MavenPluginEndToEndTest {
     }
 
     @Test
-    void invoiceWithTheCopyMember() {
+    void invoiceWithTheCopyMemberAndTheEnum() {
         simulator.register(GetInvoice.class, call -> {
             assertThat(call.getInvoiceId()).isEqualTo("INV000000007");
+            assertThat(call.getPartyRole()).isEqualTo(PartyRole.BILL_TO);
             call.setAmountDue(new BigDecimal("75.00"));
+            call.setPartyRole(PartyRole.SHIP_TO);
             call.setStreet("12 Harbour Road");
             call.setCity("Rotterdam");
             call.setCountryCode("NL");
         });
         GetInvoice request = new GetInvoice();
         request.setInvoiceId("INV000000007");
+        request.setPartyRole(PartyRole.BILL_TO);
 
         GetInvoice result = client.execute(request);
 
         assertThat(result.getAmountDue()).isEqualByComparingTo("75.00");
         assertThat(result.getCity()).isEqualTo("Rotterdam");
         assertThat(result.getCountryCode()).isEqualTo("NL");
+        assertThat(result.getPartyRole()).isEqualTo(PartyRole.SHIP_TO);
     }
 
     @Test

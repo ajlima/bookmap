@@ -18,11 +18,12 @@ import pt.dazz.bookmap.copybook.parse.Picture;
  * @param line the line of the level number
  * @param column the column of the level number
  * @param declaration the normalized entry text without {@code VALUE} clauses
+ * @param value the literal of the {@code VALUE} clause, or {@code null}
  */
 public record DataItem(int level, String name, Picture picture, Usage usage, Occurs occurs,
                        QualifiedName redefines, List<Condition> conditions,
                        List<DataItem> children, String source, int line, int column,
-                       String declaration) {
+                       String declaration, Literal value) {
 
     /** The name of an item without a name. */
     public static final String FILLER = "FILLER";
@@ -42,11 +43,13 @@ public record DataItem(int level, String name, Picture picture, Usage usage, Occ
      * @param line the line
      * @param column the column
      * @param declaration the declaration
+     * @param value the {@code VALUE} literal
      */
     public DataItem {
         conditions = List.copyOf(conditions);
         children = List.copyOf(children);
     }
+
 
     /**
      * Tells if the item is a group.

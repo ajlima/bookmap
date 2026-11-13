@@ -12,6 +12,8 @@ public enum JavaType {
     LONG,
     /** {@code java.math.BigDecimal}. */
     BIG_DECIMAL,
+    /** A generated enum. {@link FieldMember#enumType()} gives its name. */
+    ENUM,
     /** {@code java.time.LocalDate}, from a date hint. */
     LOCAL_DATE,
     /** {@code java.time.LocalTime}, from a date hint. */

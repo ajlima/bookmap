@@ -9,8 +9,10 @@ import java.util.List;
  * @param formatVersion the version of the JSON format
  * @param sourceName the file name of the copybook, without a directory
  * @param classes the classes, in source order
+ * @param enums the enums from level 88 items, in source order
  */
-public record BookModel(int formatVersion, String sourceName, List<ClassModel> classes) {
+public record BookModel(int formatVersion, String sourceName, List<ClassModel> classes,
+                        List<EnumModel> enums) {
 
     /** The current version of the JSON format. */
     public static final int FORMAT_VERSION = 1;
@@ -21,8 +23,21 @@ public record BookModel(int formatVersion, String sourceName, List<ClassModel> c
      * @param formatVersion the format version
      * @param sourceName the source name
      * @param classes the classes
+     * @param enums the enums
      */
     public BookModel {
         classes = List.copyOf(classes);
+        enums = List.copyOf(enums);
+    }
+
+    /**
+     * Creates a model without enums.
+     *
+     * @param formatVersion the format version
+     * @param sourceName the source name
+     * @param classes the classes
+     */
+    public BookModel(int formatVersion, String sourceName, List<ClassModel> classes) {
+        this(formatVersion, sourceName, classes, List.of());
     }
 }

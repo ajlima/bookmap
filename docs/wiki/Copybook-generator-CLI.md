@@ -65,6 +65,7 @@ A `generate` input that ends with `.json` is a model. Each other input is a copy
 | `--direction <name>=<direction>` | both | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`) of a `REDEFINES` alternative. The direction is not case-sensitive. Repeat the option for more alternatives. |
 | `--count-field <table>=<field>` | both | The count field of a fixed table (`OCCURS n`). The generator writes `dependsOn` on the table. Repeat the option for more tables. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table). |
 | `--max-record-length <bytes>` | both | The maximum record length. A longer record gives a warning. Default: no check. See [Record length](Copybook-generator#record-length). |
+| `--conditions <name>=<mode>` | both | The mode (`enum`, `constants`, or `none`) of the level 88 items of an elementary item. The mode is not case-sensitive. Repeat the option for more items. See [Level 88 items](Copybook-generator#level-88-items). |
 | `--date <name>=<pattern>` | both | A date hint: the date or time pattern of an item. A name with `*` is a name pattern, for example `*-DATE=yyyyMMdd`. Repeat the option for more hints. See [Date hints](Copybook-generator#date-hints). |
 | `--continuable <record>=<class>` | both | The handler class of a `Continuable` record. See [Continuable and Validatable](Copybook-generator#continuable-and-validatable). |
 | `--validatable <record>=<class>` | both | The handler class of a `Validatable` record. |
@@ -81,6 +82,7 @@ The command line and the options file work together in this way:
 - A single value on the command line (`--format`, `--charset`, `--record-name`, `--max-record-length`, `--package`) has priority over the value in the file.
 - A repeated option (`--copy-dir`, `--strip-prefix`, `--input-marker`, `--output-marker`) adds its values after the values of the file. `--input-marker` and `--output-marker` add words to the default list. To replace the default list, use `inputMarkers` or `outputMarkers` in the options file.
 - `--direction` adds a decision. For the same alternative, the command line has priority.
+- `--conditions` adds a mode. For the same item, the command line has priority.
 - `--count-field` adds a count field. For the same table, the command line has priority over `countFields` in the file.
 - `--date`, `--continuable`, and `--validatable` add an entry. For the same name or record, the command line has priority.
 - `--lombok` sets `lombok`. Without `--lombok`, the value of the file applies. The command line cannot set `lombok` to `false`.

@@ -14,6 +14,7 @@ import java.util.Set;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.copybook.json.JsonObject;
 import pt.dazz.bookmap.copybook.json.ModelJsonException;
+import pt.dazz.bookmap.copybook.map.ConditionMode;
 import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.map.SubTypeDecision;
 import pt.dazz.bookmap.copybook.parse.ParseOptions;
@@ -27,8 +28,8 @@ public final class GeneratorConfigJson {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Set<String> KEYS = Set.of("format", "charset", "copyDirs",
         "recordName", "stripPrefixes", "inputMarkers", "outputMarkers", "directions",
-        "subTypes", "countFields", "maxRecordLength", "dates", "continuable", "validatable",
-        "package", "lombok");
+        "subTypes", "conditions", "countFields", "maxRecordLength", "dates", "continuable",
+        "validatable", "package", "lombok");
     private static final Set<String> SUBTYPE_KEYS = Set.of("discriminator", "values",
         "classNames");
 
@@ -73,7 +74,8 @@ public final class GeneratorConfigJson {
             root.has("maxRecordLength") ? maxRecordLength(root) : null,
             root.has("dates") ? root.textMap("dates") : Map.of(),
             root.has("continuable") ? root.textMap("continuable") : Map.of(),
-            root.has("validatable") ? root.textMap("validatable") : Map.of());
+            root.has("validatable") ? root.textMap("validatable") : Map.of(),
+            root.has("conditions") ? conditions(root) : Map.of());
         return new GeneratorConfig(parse, mapping, root.optionalText("package"),
             root.has("lombok") ? root.bool("lombok") : null);
     }
@@ -108,6 +110,19 @@ public final class GeneratorConfigJson {
             }
         });
         return directions;
+    }
+
+    private static Map<String, ConditionMode> conditions(JsonObject root) {
+        Map<String, ConditionMode> modes = new LinkedHashMap<>();
+        root.textMap("conditions").forEach((name, value) -> {
+            try {
+                modes.put(name, ConditionMode.of(value));
+            } catch (IllegalArgumentException e) {
+                throw new ModelJsonException("key '" + name + "' in $.conditions has the "
+                    + e.getMessage());
+            }
+        });
+        return modes;
     }
 
     private static Map<String, SubTypeDecision> subTypes(JsonObject root) {

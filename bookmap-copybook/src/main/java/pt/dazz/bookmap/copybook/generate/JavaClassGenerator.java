@@ -24,14 +24,20 @@ import pt.dazz.bookmap.annotation.BookCollection;
 import pt.dazz.bookmap.annotation.BookField;
 import pt.dazz.bookmap.annotation.BookOperation;
 import pt.dazz.bookmap.annotation.BookSubTypes;
+import pt.dazz.bookmap.annotation.CobolValue;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.copybook.model.BookModel;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
 import pt.dazz.bookmap.copybook.model.CollectionMember;
+import pt.dazz.bookmap.copybook.model.ConditionMember;
+import pt.dazz.bookmap.copybook.model.EnumConstant;
+import pt.dazz.bookmap.copybook.model.EnumModel;
 import pt.dazz.bookmap.copybook.model.FieldMember;
+import pt.dazz.bookmap.copybook.model.JavaType;
 import pt.dazz.bookmap.copybook.model.MemberModel;
 import pt.dazz.bookmap.copybook.model.SubTypeEntry;
+import pt.dazz.bookmap.copybook.model.ValueRange;
 
 /**
  * Writes the Java classes of a model, with BookMap annotations.
@@ -55,6 +61,10 @@ public final class JavaClassGenerator {
         for (ClassModel type : model.classes()) {
             files.add(JavaFile.builder(options.packageName(),
                     type(type, model.sourceName(), options))
+                .indent(INDENT).skipJavaLangImports(true).build());
+        }
+        for (EnumModel type : model.enums()) {
+            files.add(JavaFile.builder(options.packageName(), enumType(type, model.sourceName()))
                 .indent(INDENT).skipJavaLangImports(true).build());
         }
         return files;
@@ -108,12 +118,22 @@ public final class JavaClassGenerator {
         }
         for (MemberModel member : type.members()) {
             TypeName javaType = javaType(member, options.packageName());
-            builder.addField(FieldSpec.builder(javaType, member.name(), Modifier.PRIVATE)
+            FieldSpec.Builder field = FieldSpec.builder(javaType, member.name(),
+                    Modifier.PRIVATE)
                 .addJavadoc("{@code $L}\n", member.declaration())
-                .addAnnotation(annotation(member, type.kind()))
-                .build());
+                .addAnnotation(annotation(member, type.kind()));
+            if (member instanceof FieldMember fieldMember
+                && fieldMember.initialValue() != null) {
+                field.initializer(literal(fieldMember, javaType, fieldMember.initialValue()));
+            }
+            builder.addField(field.build());
             if (!options.lombok()) {
                 addAccessors(builder, javaType, member.name());
+            }
+            if (member instanceof FieldMember fieldMember) {
+                for (ConditionMember condition : fieldMember.conditions()) {
+                    addCondition(builder, fieldMember, javaType, condition);
+                }
             }
         }
         if (type.continuable() != null) {
@@ -132,6 +152,89 @@ public final class JavaClassGenerator {
                 .addJavadoc("Calls {@code $L.validate(this)}.\n", handler.simpleName())
                 .addAnnotation(Override.class).addModifiers(Modifier.PUBLIC)
                 .addStatement("$T.validate(this)", handler).build());
+        }
+        return builder.build();
+    }
+
+    /** Gives a value of a field as a Java expression. */
+    private static CodeBlock literal(FieldMember field, TypeName javaType, String value) {
+        return switch (field.javaType()) {
+            case STRING -> CodeBlock.of("$S", value);
+            case INT -> CodeBlock.of("$L", value);
+            case LONG -> CodeBlock.of("$LL", value);
+            case BIG_DECIMAL -> CodeBlock.of("new $T($S)", BigDecimal.class, value);
+            case ENUM -> CodeBlock.of("$T.$N", javaType, value);
+            // Only a model JSON can give this: the mapper ignores the VALUE of a date field.
+            case LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME -> CodeBlock.of("$T.parse($S)", javaType,
+                value);
+        };
+    }
+
+    /**
+     * Adds the constant and the boolean method of one level 88 item. The constant holds the
+     * first value. The method tests all values and ranges.
+     */
+    private static void addCondition(TypeSpec.Builder builder, FieldMember field,
+                                     TypeName javaType, ConditionMember condition) {
+        builder.addField(FieldSpec.builder(javaType, condition.constant(), Modifier.PUBLIC,
+                Modifier.STATIC, Modifier.FINAL)
+            .addJavadoc("The first value of {@code $L}.\n", condition.cobolName())
+            .initializer(literal(field, javaType, condition.values().get(0).from()))
+            .build());
+        boolean object = field.javaType() == JavaType.STRING
+            || field.javaType() == JavaType.BIG_DECIMAL;
+        List<CodeBlock> tests = new ArrayList<>();
+        for (ValueRange range : condition.values()) {
+            CodeBlock from = literal(field, javaType, range.from());
+            if (range.thru() == null) {
+                tests.add(switch (field.javaType()) {
+                    case STRING -> CodeBlock.of("$L.equals($N)", from, field.name());
+                    case BIG_DECIMAL -> CodeBlock.of("$N.compareTo($L) == 0", field.name(),
+                        from);
+                    default -> CodeBlock.of("$N == $L", field.name(), from);
+                });
+            } else {
+                CodeBlock thru = literal(field, javaType, range.thru());
+                tests.add(object
+                    ? CodeBlock.of("$N.compareTo($L) >= 0 && $N.compareTo($L) <= 0",
+                        field.name(), from, field.name(), thru)
+                    : CodeBlock.of("$N >= $L && $N <= $L", field.name(), from, field.name(),
+                        thru));
+            }
+        }
+        CodeBlock any = CodeBlock.join(tests.stream()
+            .map(test -> tests.size() == 1 ? test : CodeBlock.of("($L)", test)).toList(),
+            " || ");
+        builder.addMethod(MethodSpec.methodBuilder(condition.method())
+            .addJavadoc("Tells if {@code $N} holds a value of {@code $L}.\n\n"
+                + "@return {@code true} for a value of the level 88 item\n", field.name(),
+                condition.cobolName())
+            .addModifiers(Modifier.PUBLIC).returns(TypeName.BOOLEAN)
+            .addStatement(object ? "return $N != null && ($L)" : "return $L",
+                object ? new Object[] {field.name(), any} : new Object[] {any})
+            .build());
+    }
+
+    private static TypeSpec enumType(EnumModel type, String sourceName) {
+        TypeSpec.Builder builder = TypeSpec.enumBuilder(type.name())
+            .addModifiers(Modifier.PUBLIC)
+            .addJavadoc("Generated by the BookMap copybook generator from {@code $L}.\n"
+                + "The level 88 items of {@code $L}.\n", sourceName, type.cobolName());
+        for (EnumConstant constant : type.constants()) {
+            AnnotationSpec.Builder value = AnnotationSpec.builder(CobolValue.class);
+            for (ValueRange range : constant.values()) {
+                if (range.thru() == null) {
+                    value.addMember("value", "$S", range.from());
+                } else {
+                    value.addMember("ranges", "$L", AnnotationSpec.builder(
+                            CobolValue.Range.class)
+                        .addMember("from", "$S", range.from())
+                        .addMember("thru", "$S", range.thru()).build());
+                }
+            }
+            builder.addEnumConstant(constant.name(), TypeSpec.anonymousClassBuilder("")
+                .addJavadoc("{@code $L}\n", constant.cobolName())
+                .addAnnotation(value.build()).build());
         }
         return builder.build();
     }
@@ -156,6 +259,7 @@ public final class JavaClassGenerator {
                 case INT -> TypeName.INT;
                 case LONG -> TypeName.LONG;
                 case BIG_DECIMAL -> ClassName.get(BigDecimal.class);
+                case ENUM -> ClassName.get(packageName, field.enumType());
                 case LOCAL_DATE -> ClassName.get(LocalDate.class);
                 case LOCAL_TIME -> ClassName.get(LocalTime.class);
                 case LOCAL_DATE_TIME -> ClassName.get(LocalDateTime.class);
