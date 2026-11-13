@@ -20,18 +20,19 @@ The transport maps the operation name to its destination. See [Transports and si
 | Attribute | Meaning | Default |
 |---|---|---|
 | `order` | Position in the book. Gaps are permitted. | Mandatory. |
-| `pic` | A COBOL `PIC` string with an optional usage clause. It replaces `length`, `scale`, `signed`, and `usage`. | None. |
+| `pic` | A COBOL `PIC` string with an optional usage clause and an optional sign clause. It replaces `length`, `scale`, `signed`, `usage`, and `sign`. | None. |
 | `length` | Number of characters for text. Total number of digits for numbers (`S9(13)V99` is `length = 15`). | Mandatory without `pic`. |
 | `direction` | `INPUT`, `OUTPUT`, or `INPUT_OUTPUT`. | `INPUT_OUTPUT`. A count field without `direction` takes the direction of its collection. |
 | `usage` | `DISPLAY`, `COMP3`, or `COMP`. | From `@BookDefaults`, else `DISPLAY`. |
 | `scale` | Number of implied decimal places (`V99` is 2). | 0. |
 | `signed` | `true` if the field has a sign (`S9`). | From `@BookDefaults`, else `false`. |
+| `sign` | The sign format of a signed `DISPLAY` number: `TRAILING`, `LEADING`, `TRAILING_SEPARATE`, or `LEADING_SEPARATE`. See [Sign formats](PIC-syntax-and-type-mapping#sign-formats). | `TRAILING`. |
 | `pattern` | Date or time format. | From `@BookDefaults`, else `yyyyMMdd`. Set a pattern on each `LocalTime` and `LocalDateTime` field. |
 | `converter` | A custom `FieldConverter` class. | None. |
 
 A field needs `pic` or `length`. One exception exists: a date or time field with neither gets its length from the pattern.
-If you set `pic`, do not set `length`, `scale`, `signed`, or `usage` on the same field. This is a compile error.
-Do not set `signed` or `scale` on a `String` or a date and time field. This is a compile error.
+If you set `pic`, do not set `length`, `scale`, `signed`, `usage`, or `sign` on the same field. This is a compile error.
+Do not set `signed`, `scale`, or `sign` on a `String` or a date and time field. This is a compile error.
 An operation class and an item class need at least one annotated field.
 
 ### Rules for annotated fields

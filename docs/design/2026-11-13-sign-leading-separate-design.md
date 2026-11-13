@@ -1,7 +1,7 @@
 # BookMap, SIGN LEADING and SIGN SEPARATE: design
 
 Date: 2026-11-13
-Status: proposed.
+Status: approved.
 
 Related documents: `docs/design/2026-11-10-bookmap-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-11-bookmap-copybook-design.md` (the generator), GitHub issue #47.
 
