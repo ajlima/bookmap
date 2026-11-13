@@ -36,6 +36,23 @@ bookmap-examples-maven-plugin/mvnw -B -f bookmap-examples-maven-plugin/pom.xml v
 
 The `build` check of a pull request runs all these builds.
 
+### Dependency checksums
+
+The Gradle builds verify the SHA-256 checksum of each downloaded plugin and library.
+The checksums are in `gradle/verification-metadata.xml` and in `bookmap-examples-gradle-plugin/gradle/verification-metadata.xml`.
+The build fails if a dependency has no checksum or a different checksum.
+
+When you add, remove, or update a Gradle dependency, write the checksums again:
+
+```bash
+scripts/update-verification-metadata.sh
+```
+
+The script downloads all dependencies into a temporary Gradle user home. Then it writes the two files again.
+Read the diff of the two files, and commit them with the dependency change.
+Do this also on the branch of a Dependabot pull request for Gradle.
+For more information, see "Supply-chain protection" in [RELEASING.md](https://github.com/ajlima/bookmap/blob/main/RELEASING.md).
+
 ## Rules for the code
 
 - Write all code, comments, Javadoc, and messages in English.

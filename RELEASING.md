@@ -192,5 +192,33 @@ For the user instructions, see "Verify an artifact" in the [README](README.md#ve
 - The `setup-gradle` cache is disabled. Since v6, that cache is a proprietary component with separate terms of use.
   The `build` job uses the open-source `setup-java` cache instead.
   The `publish` job uses no cache, so a release always builds from clean dependencies.
-- Not done yet: Gradle dependency verification (`gradle/verification-metadata.xml`). It pins the checksum of each plugin and library.
-  Add it when the dependency set is stable, because each Dependabot update then needs a new checksum.
+- Gradle dependency verification pins the SHA-256 checksum of each plugin, library, POM, and Gradle module file that the build downloads.
+  The file `gradle/verification-metadata.xml` applies to the root build: `build`, `publishToMavenLocal`, and `publishAndReleaseToMavenCentral`.
+  The standalone example `bookmap-examples-gradle-plugin` is a separate root build, so it has its own file `bookmap-examples-gradle-plugin/gradle/verification-metadata.xml`.
+  The build fails if a downloaded file has a different checksum, or if a file has no checksum.
+  The Javadoc JARs and the source JARs are trusted without a checksum: an IDE downloads them, and the build does not run them.
+  Gradle verification does not cover the Maven wrapper and the dependencies of `bookmap-examples-maven-plugin`.
+  It also does not cover the Maven distributions that the integration tests of `bookmap-copybook-maven-plugin` download.
+
+### Update the dependency checksums
+
+Each change to a Gradle dependency needs new checksums. If a Dependabot pull request for Gradle does not change the verification files, its `build` check fails.
+Update the checksums on the branch of the pull request:
+
+```bash
+gh pr checkout <PR_NUMBER>
+```
+
+```bash
+scripts/update-verification-metadata.sh
+```
+
+The script removes all checksums from the two verification files. Then it runs the builds that write the checksums again.
+The builds use a temporary, empty Gradle user home. Thus, Gradle downloads each file again, also each POM file and each Gradle module file.
+The `publish` job also starts with an empty cache, so it needs the checksums of all these files.
+
+1. Read the diff of the two files. Make sure that only the changed dependencies have new checksums.
+2. Commit the files with a `build:` commit, for example `build: update the dependency checksums`.
+3. Push the commit to the branch of the pull request.
+
+**CAUTION:** Do not run the script on a computer that you do not trust. Gradle writes the checksums of the files that it downloads, so a changed file gets a pinned checksum.
