@@ -106,6 +106,7 @@ public final class ModelMapper {
     final Set<String> classNames = new HashSet<>();
     final Map<DataItem, Placed> placed = new IdentityHashMap<>();
     private final RedefinesResolver redefines;
+    private DateHints dates;
 
     private ModelMapper(Copybook copybook, MappingOptions options) {
         this.sourceName = copybook.sourceName();
@@ -125,6 +126,7 @@ public final class ModelMapper {
     public static MapResult map(Copybook copybook, MappingOptions options) {
         ModelMapper mapper = new ModelMapper(copybook, options);
         mapper.redefines.checkDecisions();
+        mapper.dates = new DateHints(mapper, mapper.redefines);
         for (DataItem record : copybook.records()) {
             info(mapper, record);
             ClassBuilder operation = mapper.newClass(mapper.names.className(record.name()),
@@ -134,6 +136,7 @@ public final class ModelMapper {
                 new Context(usage, Direction.INPUT_OUTPUT, null, List.of()));
         }
         mapper.redefines.checkSubTypeAreas();
+        mapper.dates.checkUnused();
         BookModel model = new BookModel(BookModel.FORMAT_VERSION, copybook.sourceName(),
             mapper.classes.stream().map(ClassBuilder::build).toList());
         return new MapResult(mapper.diagnostics.hasErrors() ? null : model,
@@ -207,8 +210,11 @@ public final class ModelMapper {
         } else {
             name = owner.fieldName(names.fieldName(item.name()), context.groups());
         }
-        FieldMember field = new FieldMember(name, javaType(picture), owner.nextOrder(),
-            PicText.of(picture, usage), context.direction(), item.name(), item.declaration());
+        DateHints.Applied date = dates.apply(item, usage);
+        FieldMember field = new FieldMember(name,
+            date != null ? date.type() : javaType(picture), owner.nextOrder(),
+            PicText.of(picture, usage), context.direction(), item.name(), item.declaration(),
+            date != null ? date.pattern() : null);
         owner.members.add(field);
         placed.put(item, new Placed(owner, field, item, usage));
     }

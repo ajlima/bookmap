@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -139,6 +140,25 @@ class EndToEndTest {
         codec.decodeResponse(responseBytes, decoded, LATIN);
         assertThat(get(decoded, "taxAmount")).isEqualTo(new BigDecimal("20.98"));
         assertThat(get(decoded, "trailer")).isEqualTo("END");
+    }
+
+    @Test
+    void dateHintsRoundTripThroughTheCodec() {
+        MappingOptions dates = new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
+            MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of("*-DATE", "yyyyMMdd"));
+        Copybooks.Result result = Copybooks.generate(copybook("INVOICE.cpy"), parseOptions(),
+            dates, PLAIN);
+        assertThat(result.diagnostics()).isEmpty();
+        Compiled classes = Compiled.compile(result.files());
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".GetInvoice");
+        Object response = codec.newInstance();
+        set(response, "invoiceAmount", new BigDecimal("99.90"));
+        set(response, "dueDate", LocalDate.of(2026, 12, 31));
+        byte[] bytes = codec.encodeResponse(response, LATIN);
+        assertThat(new String(bytes, 14, 8, StandardCharsets.ISO_8859_1)).isEqualTo("20261231");
+        Object decoded = codec.newInstance();
+        codec.decodeResponse(bytes, decoded, LATIN);
+        assertThat(get(decoded, "dueDate")).isEqualTo(LocalDate.of(2026, 12, 31));
     }
 
     @Test

@@ -38,6 +38,7 @@ class GeneratorConfigJsonTest {
               "classNames": { "SAVINGS-DATA": "SavingsAccount" }
             }
           },
+          "dates": { "OPENED-ON": "yyyyMMdd", "*-TIME": "HHmmss" },
           "package": "com.example.accounts",
           "lombok": false
         }
@@ -57,6 +58,8 @@ class GeneratorConfigJsonTest {
         assertThat(config.mapping().subTypes()).isEqualTo(Map.of("CHECKING-DATA",
             new SubTypeDecision("ACCOUNT-TYPE", Map.of("CHECKING-DATA", "01", "SAVINGS-DATA",
                 "02"), Map.of("SAVINGS-DATA", "SavingsAccount"))));
+        assertThat(config.mapping().dates()).containsExactly(
+            Map.entry("OPENED-ON", "yyyyMMdd"), Map.entry("*-TIME", "HHmmss"));
         assertThat(config.packageName()).isEqualTo("com.example.accounts");
         assertThat(config.lombok()).isFalse();
     }
@@ -103,6 +106,7 @@ class GeneratorConfigJsonTest {
             + " 'BOTH'. Use INPUT, OUTPUT, or INPUT_OUTPUT.",
         "{\"directions\": {\"A\": 1}}|key 'A' in $.directions must be a string",
         "{\"directions\": []}|key 'directions' in $ must be an object",
+        "{\"dates\": {\"A\": 1}}|key 'A' in $.dates must be a string",
         "{\"subTypes\": {\"A\": {\"values\": {}}}}|missing key 'discriminator' in $.subTypes.A",
         "{\"subTypes\": {\"A\": {\"discriminator\": \"T\", \"values\": {}, \"x\": 1}}}"
             + "|unknown key 'x' in $.subTypes.A",

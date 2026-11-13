@@ -12,6 +12,9 @@ import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import javax.lang.model.element.Modifier;
@@ -127,6 +130,9 @@ public final class JavaClassGenerator {
                 case INT -> TypeName.INT;
                 case LONG -> TypeName.LONG;
                 case BIG_DECIMAL -> ClassName.get(BigDecimal.class);
+                case LOCAL_DATE -> ClassName.get(LocalDate.class);
+                case LOCAL_TIME -> ClassName.get(LocalTime.class);
+                case LOCAL_DATE_TIME -> ClassName.get(LocalDateTime.class);
             };
         };
     }
@@ -139,6 +145,9 @@ public final class JavaClassGenerator {
                     .addMember("pic", "$S", field.pic());
                 if (kind != ClassKind.ITEM && field.direction() != Direction.INPUT_OUTPUT) {
                     spec.addMember("direction", direction(field.direction()));
+                }
+                if (field.pattern() != null) {
+                    spec.addMember("pattern", "$S", field.pattern());
                 }
                 yield spec.build();
             }
