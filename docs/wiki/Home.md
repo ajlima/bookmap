@@ -80,7 +80,6 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 - No nested collections.
 - No `COMP-1` or `COMP-2`.
 - Single-byte charsets only.
-- Packed dates need a converter.
 - Edited pictures (`Z`, `*`, `,`, `+`, `-`, `CR`, `DB`) are rejected at compile time.
 - No `P` scaling, `A`, or `N` in a picture, and no `COMP-5`.
 - An operation class must not be a record. `@lombok.Value` is not supported, because it gives no setters.

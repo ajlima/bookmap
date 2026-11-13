@@ -97,6 +97,15 @@ public @interface BookField {
      * extra precision before you set the value, for example with
      * {@code LocalTime.truncatedTo(ChronoUnit.MINUTES)}.
      *
+     * <p>A date or time field can have the usage {@code COMP3}, for example
+     * {@code pic = "S9(8) COMP-3"}. Then the digits of the packed number are the text of the
+     * pattern. The pattern must give digits only, and the number of digits must be equal to
+     * the length of the text. Use a quoted literal for a constant digit, for example
+     * {@code '0'HHmmss} in {@code S9(7) COMP-3}. A packed date can be signed. The write uses
+     * the sign {@code C} for a signed field and {@code F} for an unsigned field. On read, a
+     * negative sign causes a {@link pt.dazz.bookmap.exception.MappingException}. The
+     * {@code usage} of {@code @BookDefaults} does not apply to a date or time field.
+     *
      * @return the pattern
      */
     String pattern() default "yyyyMMdd";

@@ -39,7 +39,6 @@ New layout features in the core and the processor. Milestone: [Mapping](https://
 - [#46](https://github.com/ajlima/bookmap/issues/46) Support COMP-1 and COMP-2
 - [#48](https://github.com/ajlima/bookmap/issues/48) Support edited pictures
 - [#49](https://github.com/ajlima/bookmap/issues/49) Support multi-byte charsets (DBCS and NATIONAL)
-- [#50](https://github.com/ajlima/bookmap/issues/50) Support packed dates without a converter
 
 ## 4. Integrations
 

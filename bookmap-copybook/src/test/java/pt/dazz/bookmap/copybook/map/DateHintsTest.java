@@ -55,6 +55,16 @@ class DateHintsTest {
     }
 
     @Test
+    void packedDateKeepsTheUsageInThePicture() {
+        MapResult result = map(dates("ORDER-DATE", "yyyyMMdd"),
+            "01 GET-ORDER.", "05 ORDER-DATE PIC S9(8) COMP-3.");
+        assertThat(problems(result)).isEmpty();
+        assertThat(field(result, "GetOrder", "orderDate")).isEqualTo(new FieldMember(
+            "orderDate", JavaType.LOCAL_DATE, 10, "S9(8) COMP-3", Direction.INPUT_OUTPUT,
+            "ORDER-DATE", "05 ORDER-DATE PIC S9(8) COMP-3.", "yyyyMMdd"));
+    }
+
+    @Test
     void dateHintIgnoresTheLevel88ItemsAndTheValue() {
         MapResult result = map(dates("ORDER-DATE", "yyyyMMdd"),
             "01 GET-ORDER.", "05 ORDER-DATE PIC 9(8) VALUE 20260101.",
@@ -73,7 +83,7 @@ class DateHintsTest {
     }
 
     @ParameterizedTest
-    @CsvSource(delimiter = '|', value = {
+    @CsvSource(delimiter = '|', quoteCharacter = '"', value = {
         "9(8)  | yyyyMMdd       | LOCAL_DATE",
         "9(6)  | yyMMdd         | LOCAL_DATE",
         "9(7)  | yyyyDDD        | LOCAL_DATE",
@@ -81,6 +91,11 @@ class DateHintsTest {
         "9(6)  | HHmmss         | LOCAL_TIME",
         "X(8)  | HH:mm:ss       | LOCAL_TIME",
         "9(14) | yyyyMMddHHmmss | LOCAL_DATE_TIME",
+        "S9(8) COMP-3  | yyyyMMdd       | LOCAL_DATE",
+        "9(7) COMP-3   | yyyyDDD        | LOCAL_DATE",
+        "S9(7) COMP-3  | '01'yyDDD      | LOCAL_DATE",
+        "S9(7) COMP-3  | '0'HHmmss      | LOCAL_TIME",
+        "S9(14) COMP-3 | yyyyMMddHHmmss | LOCAL_DATE_TIME",
     })
     void patternGivesJavaType(String pic, String pattern, JavaType type) {
         MapResult result = map(dates("STAMP", pattern), "01 GET-ORDER.",
@@ -196,9 +211,22 @@ class DateHintsTest {
 
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
-        "9(8) COMP-3 | yyyyMMdd  | D: a date or time field must have the usage DISPLAY",
-        "S9(8)       | yyyyMMdd  | D: a date or time field must not have S or V in the picture",
-        "9(6)V99     | yyyyMMdd  | D: a date or time field must not have S or V in the picture",
+        "9(8) COMP   | yyyyMMdd  | D: a date or time field must have the usage DISPLAY or"
+            + " COMP-3",
+        "9(8) COMP-5 | yyyyMMdd  | D: a date or time field must have the usage DISPLAY or"
+            + " COMP-3",
+        "S9(8)       | yyyyMMdd  | D: a DISPLAY date or time field must not have S or V in the"
+            + " picture",
+        "9(6)V99     | yyyyMMdd  | D: a DISPLAY date or time field must not have S or V in the"
+            + " picture",
+        "S9(6)V99 COMP-3 | yyyyMMdd | D: a COMP-3 date or time field must not have V in the"
+            + " picture",
+        "S9(10) COMP-3 | yyyy-MM-dd | D: the date pattern 'yyyy-MM-dd' gives characters that"
+            + " are not digits, but a COMP-3 item holds only digits",
+        "9(5) COMP-3 | HH:mm     | D: the date pattern 'HH:mm' gives characters that are not"
+            + " digits, but a COMP-3 item holds only digits",
+        "S9(7) COMP-3 | yyyyMMdd | D: the date pattern 'yyyyMMdd' gives 8 characters, but the"
+            + " picture S9(7) has 7",
         "X(10)       | d.M.yyyy  | D: the date pattern 'd.M.yyyy' gives text of variable length",
         "9(6)        | yyyyMMdd  | D: the date pattern 'yyyyMMdd' gives 8 characters, but the"
             + " picture 9(6) has 6",

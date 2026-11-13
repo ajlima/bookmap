@@ -30,6 +30,7 @@ import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.annotation.Sign;
+import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.EnumModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
@@ -738,9 +739,11 @@ final class CodecGenerator {
             case INTEGER -> writeNumber(field, helperCall(Helper.DECIMAL_OF_INTEGER, value));
             case LONG_BOXED -> writeNumber(field, helperCall(Helper.DECIMAL_OF_LONG, value));
             case BIG_DECIMAL -> writeNumber(field, value);
-            case LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME -> CodeBlock.of(
-                "writer.writeTemporal($N, $L, $L, $N)", n.descriptor(), value, field.length(),
-                n.formatter());
+            case LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME -> field.usage() == Usage.COMP3
+                ? CodeBlock.of("writer.writePackedTemporal($N, $L, $L, $L, $N)", n.descriptor(),
+                    value, field.length(), field.signed(), n.formatter())
+                : CodeBlock.of("writer.writeTemporal($N, $L, $L, $N)", n.descriptor(), value,
+                    field.length(), n.formatter());
             case ENUM -> {
                 CodeBlock text = CodeBlock.of("$N($L, $N)", n.enumMethods().write(), value,
                     n.descriptor());
@@ -770,9 +773,9 @@ final class CodecGenerator {
             case LONG -> helperCall(Helper.LONG_VALUE, number, descriptor);
             case LONG_BOXED -> helperCall(Helper.LONG_BOXED_VALUE, number, descriptor);
             case BIG_DECIMAL -> number;
-            case LOCAL_DATE -> readTemporal("readDate", field);
-            case LOCAL_TIME -> readTemporal("readTime", field);
-            case LOCAL_DATE_TIME -> readTemporal("readDateTime", field);
+            case LOCAL_DATE -> readTemporal("Date", field);
+            case LOCAL_TIME -> readTemporal("Time", field);
+            case LOCAL_DATE_TIME -> readTemporal("DateTime", field);
             case ENUM -> CodeBlock.of("$N($L, $N)", n.enumMethods().read(),
                 field.enumModel().numeric() ? number
                     : CodeBlock.of("reader.readText($N, $L)", n.descriptor(), field.length()),
@@ -786,10 +789,14 @@ final class CodecGenerator {
         };
     }
 
-    private CodeBlock readTemporal(String method, FieldModel field) {
+    /** Reads a date or time field. A packed field calls {@code readPacked<type>}. */
+    private CodeBlock readTemporal(String type, FieldModel field) {
         Names n = names.get(field);
-        return CodeBlock.of("reader.$N($N, $L, $N)", method, n.descriptor(), field.length(),
-            n.formatter());
+        return field.usage() == Usage.COMP3
+            ? CodeBlock.of("reader.$N($N, $L, $L, $N)", "readPacked" + type, n.descriptor(),
+                field.length(), field.signed(), n.formatter())
+            : CodeBlock.of("reader.$N($N, $L, $N)", "read" + type, n.descriptor(),
+                field.length(), n.formatter());
     }
 
     /**
