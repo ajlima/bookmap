@@ -176,3 +176,54 @@ subprojects {
         }
     }
 }
+
+// A report of the size of each module: the source files, the classes, and the lines of the main code.
+// The report is in build/reports/module-size.md. The task gives no limit.
+val sizeModules = subprojects.filter { it.name != "bookmap-examples" && it.file("src/main/java").isDirectory }
+val moduleSize = tasks.register("moduleSize") {
+    group = "verification"
+    description = "Reports the source files, classes, and lines of the main code of each module."
+    val sources = sizeModules.associate { module ->
+        module.name to module.fileTree("src/main/java") { include("**/*.java") }
+    }
+    val classes = sizeModules.associate { module ->
+        module.name to module.fileTree(module.layout.buildDirectory.dir("classes/java/main")) {
+            include("**/*.class")
+        }
+    }
+    dependsOn(sizeModules.map { "${it.path}:classes" })
+    sources.values.forEach { inputs.files(it) }
+    val report = layout.buildDirectory.file("reports/module-size.md")
+    outputs.file(report)
+    doLast {
+        val anonymous = Regex("""\$\d+$""")
+        val rows = sources.keys.sorted().map { module ->
+            val files = sources.getValue(module).files
+            val lines = files.map { it.readLines() }
+            // A code line is not blank and is not only a comment. The count is approximate.
+            val codeLines = lines.sumOf { fileLines ->
+                fileLines.map { it.trim() }.count { line ->
+                    line.isNotEmpty() && !line.startsWith("//") && !line.startsWith("/*") &&
+                        !line.startsWith("*")
+                }
+            }
+            // A named class, interface, enum, record, or annotation. Not an anonymous class.
+            val classCount = classes.getValue(module).files.count { file ->
+                val name = file.nameWithoutExtension
+                name != "package-info" && name != "module-info" && !anonymous.containsMatchIn(name)
+            }
+            val largest = files.zip(lines).maxByOrNull { it.second.size }
+            listOf(module, files.size, classCount, lines.sumOf { it.size }, codeLines,
+                largest?.let { "${it.first.name} (${it.second.size})" } ?: "-")
+        }
+        val header = listOf("Module", "Source files", "Classes", "Lines", "Code lines", "Largest file (lines)")
+        val table = (listOf(header, header.map { "---" }) + rows)
+            .joinToString("\n") { row -> row.joinToString(" | ", "| ", " |") }
+        report.get().asFile.writeText(table + "\n")
+        logger.lifecycle(table)
+    }
+}
+
+tasks.named("build") {
+    dependsOn(moduleSize)
+}
