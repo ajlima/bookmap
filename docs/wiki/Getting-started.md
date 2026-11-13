@@ -353,8 +353,9 @@ public class MyTransport implements Transport {
 - Translate each technical failure to a subclass of `TransportException`. See [Error handling](Error-handling).
 
 For CICS through the CICS Transaction Gateway, use `CtgTransport`. See [CICS Transaction Gateway](CICS-Transaction-Gateway).
+For an HTTP endpoint that accepts the bytes of the book, use `HttpTransport`. See [HTTP transport](HTTP-transport).
 For IBM MQ, use `MqTransport`. See [IBM MQ](IBM-MQ).
-BookMap has no transport for HTTP yet. It is on the [Roadmap](Roadmap). Until then, write a transport with the client library of your middleware.
+For other middleware, write a transport with the client library of your middleware.
 
 Then create the client with the transport:
 
