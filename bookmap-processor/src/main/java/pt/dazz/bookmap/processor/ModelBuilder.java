@@ -27,6 +27,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
@@ -53,6 +54,9 @@ public final class ModelBuilder {
     private static final String CONTINUABLE = "pt.dazz.bookmap.Continuable";
     private static final String VALIDATABLE = "pt.dazz.bookmap.Validatable";
 
+    /** The Java kinds of an empty-slot key. */
+    private static final Set<JavaKind> KEY_KINDS = EnumSet.of(JavaKind.STRING, JavaKind.INT,
+        JavaKind.INTEGER, JavaKind.LONG, JavaKind.LONG_BOXED, JavaKind.BIG_DECIMAL);
     private static final Set<JavaKind> COUNT_KINDS = EnumSet.of(JavaKind.INT, JavaKind.INTEGER,
         JavaKind.LONG, JavaKind.LONG_BOXED);
 
@@ -624,6 +628,33 @@ public final class ModelBuilder {
             boolean counted = !fixed || !((String) values.getOrDefault("dependsOn", "")).isEmpty();
             FieldModel count = counted ? countField(member, direction, maxOccurs, annotated,
                 byName, outside, fields, members, countUsers) : null;
+            EmptyItem emptyItem = EmptyItem.valueOf(
+                (String) values.getOrDefault("emptyItem", EmptyItem.LOW_VALUES.name()));
+            String keyName = (String) values.getOrDefault("emptyKey", "");
+            if (!fixed && (values.containsKey("emptyItem") || values.containsKey("emptyKey"))) {
+                problems.error(member, "emptyItem and emptyKey need fixed = true");
+            } else if (!keyName.isEmpty() && counted) {
+                problems.error(member, "emptyKey is not permitted with dependsOn: the count field"
+                    + " gives the number of items");
+            }
+            FieldModel emptyKey = null;
+            int emptyKeyOffset = 0;
+            if (fixed && !counted && !keyName.isEmpty() && item != null) {
+                for (FieldModel field : item.fields()) {
+                    if (field.name().equals(keyName)) {
+                        emptyKey = field;
+                        break;
+                    }
+                    emptyKeyOffset += field.byteLength();
+                }
+                if (emptyKey == null) {
+                    problems.error(member, "emptyKey field '" + keyName
+                        + "' is not a field of item class " + item.type().getQualifiedName());
+                } else if (!KEY_KINDS.contains(emptyKey.kind())) {
+                    problems.error(member, "emptyKey field '" + keyName
+                        + "' must be String or a number without a converter");
+                }
+            }
             Optional<String> getter = fieldResolver.getter(owner, member, codecPackage, problems);
             Optional<String> setter = fieldResolver.setter(owner, member, codecPackage, problems);
             if (problems.count() != before || item == null || counted && count == null
@@ -632,7 +663,8 @@ public final class ModelBuilder {
                 return null;
             }
             return new CollectionModel(member.owner(), member.name(), member.order(), direction,
-                count, maxOccurs, fixed, item, getter.get(), setter.get());
+                count, maxOccurs, fixed, item, getter.get(), setter.get(), emptyItem, emptyKey,
+                emptyKeyOffset);
         }
 
         private ItemModel item(AnnotatedMember collection, Direction direction) {

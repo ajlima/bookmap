@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.EnumModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
@@ -65,6 +66,8 @@ final class CodecGenerator {
     private static final ClassName BOOK_READER = ClassName.get("pt.dazz.bookmap.codec",
         "BookReader");
     private static final ClassName FORMATS = ClassName.get("pt.dazz.bookmap.codec", "Formats");
+    private static final ClassName EMPTY_SLOT = ClassName.get("pt.dazz.bookmap.codec",
+        "EmptySlot");
     private static final ClassName CODEC_CONTEXT = ClassName.get("pt.dazz.bookmap.convert",
         "CodecContext");
     private static final ClassName FIELD_CONTEXT = ClassName.get("pt.dazz.bookmap.convert",
@@ -93,7 +96,12 @@ final class CodecGenerator {
     }
 
     /** The names of the generated members and local variables of one collection. */
-    private record CollectionNames(String descriptor, String list, String count) {
+    /**
+     * The names of the members of a collection.
+     *
+     * @param marker the name of the {@code EmptySlot} constant, or {@code null} for LOW-VALUES
+     */
+    private record CollectionNames(String descriptor, String list, String count, String marker) {
     }
 
     /** The names of the methods that write and read one item class. */
@@ -367,10 +375,31 @@ final class CodecGenerator {
         String descriptor = allocator.newName(upperSnake(collection.name()));
         builder.addField(FieldSpec.builder(String.class, descriptor, Modifier.PRIVATE,
             Modifier.STATIC, Modifier.FINAL).initializer("$S", collection.descriptor()).build());
+        String marker = null;
+        if (collection.marked()) {
+            marker = allocator.newName(upperSnake(collection.name()) + "_EMPTY");
+            builder.addField(FieldSpec.builder(EMPTY_SLOT, marker, Modifier.PRIVATE,
+                Modifier.STATIC, Modifier.FINAL).initializer(emptySlot(collection)).build());
+        }
         collections.put(collection, new CollectionNames(descriptor,
-            allocator.newName(collection.name()), allocator.newName(collection.name() + "Count")));
+            allocator.newName(collection.name()), allocator.newName(collection.name() + "Count"),
+            marker));
         items.computeIfAbsent(collection.item().type().getQualifiedName().toString(),
             key -> addItemMembers(builder, collection.item()));
+    }
+
+    /** Gives the expression that makes the empty-slot marker of a collection. */
+    private static CodeBlock emptySlot(CollectionModel collection) {
+        CodeBlock.Builder code = CodeBlock.builder().add("$T.$N()", EMPTY_SLOT,
+            collection.emptyItem() == EmptyItem.SPACES ? "spaces" : "lowValues");
+        FieldModel key = collection.emptyKey();
+        if (key != null && key.kind() == JavaKind.STRING) {
+            code.add(".withTextKey($L, $L)", collection.emptyKeyOffset(), key.byteLength());
+        } else if (key != null) {
+            code.add(".withNumberKey($L, $L)", collection.emptyKeyOffset(),
+                numberAttributes(key));
+        }
+        return code.build();
     }
 
     /** Adds the members of an item class and makes its write and read methods. */
@@ -597,17 +626,34 @@ final class CodecGenerator {
         if (collection.countField() == null) {
             code.addStatement("int start = writer.position()")
                 .addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write())
-                .beginControlFlow("if (writer.isLowValuesFrom(start))")
+                .beginControlFlow("if ($L)", n.marker() == null
+                    ? CodeBlock.of("writer.isLowValuesFrom(start)")
+                    : CodeBlock.of("writer.isEmptySlotFrom($N, $N, start)", n.descriptor(),
+                        n.marker()))
                 .addStatement("throw new $T($N + $S + i + $S)", MAPPING_EXCEPTION, n.descriptor(),
-                    ": item ", " is all LOW-VALUES, so a read cannot find it")
+                    ": item ", emptyItemError(collection))
                 .endControlFlow();
         } else {
             code.addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write());
         }
-        return code.endControlFlow()
-            .addStatement("writer.writeLowValues(($L - $N) * $L)", collection.maxOccurs(),
-                n.count(), collection.item().byteLength())
-            .build();
+        code.endControlFlow();
+        if (n.marker() == null) {
+            return code.addStatement("writer.writeLowValues(($L - $N) * $L)",
+                collection.maxOccurs(), n.count(), collection.item().byteLength()).build();
+        }
+        return code.addStatement("writer.writeEmptySlots($N, $L, $L - $N)", n.marker(),
+            collection.item().byteLength(), collection.maxOccurs(), n.count()).build();
+    }
+
+    /** Gives the end of the message for an item that a read would find empty. */
+    private static String emptyItemError(CollectionModel collection) {
+        if (collection.emptyKey() != null) {
+            return " has an empty key " + collection.emptyKey().name()
+                + ", so a read cannot find it";
+        }
+        return collection.emptyItem() == EmptyItem.SPACES
+            ? " is all spaces, so a read cannot find it"
+            : " is all LOW-VALUES, so a read cannot find it";
     }
 
     /**
@@ -637,9 +683,11 @@ final class CodecGenerator {
     private CodeBlock readItems(CollectionModel collection, boolean append) {
         CollectionNames n = collections.get(collection);
         int itemLength = collection.item().byteLength();
+        CodeBlock marker = n.marker() == null ? CodeBlock.of("")
+            : CodeBlock.of(", $N", n.marker());
         CodeBlock size = collection.countField() == null
-            ? CodeBlock.of("reader.countUsedSlots($N, $L, $L)", n.descriptor(), itemLength,
-                collection.maxOccurs())
+            ? CodeBlock.of("reader.countUsedSlots($N, $L, $L$L)", n.descriptor(), itemLength,
+                collection.maxOccurs(), marker)
             : helperCall(Helper.COLLECTION_SIZE,
                 CodeBlock.of("target.$N()", collection.countField().getter()),
                 CodeBlock.of("$N", n.descriptor()), CodeBlock.of("$L", collection.maxOccurs()));
