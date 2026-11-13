@@ -56,6 +56,8 @@ public final class Main {
           --input-marker <word>      A name part that marks an input alternative.
           --output-marker <word>     A name part that marks an output alternative.
           --direction <name>=<dir>   The direction (INPUT or OUTPUT) of an alternative.
+          --count-field <table>=<field>
+                                     The count field of a fixed table (OCCURS n).
           --config <file.json>       A file with all options. The command line has priority.
         """;
 
@@ -230,11 +232,20 @@ public final class Main {
                     + "'. Use INPUT, OUTPUT, or INPUT_OUTPUT.");
             }
         }
+        Map<String, String> countFields = new LinkedHashMap<>(base.countFields());
+        for (String value : arguments.all("--count-field")) {
+            int equals = value.indexOf('=');
+            if (equals < 1) {
+                throw new UsageException("--count-field needs TABLE=FIELD, not '" + value
+                    + "'");
+            }
+            countFields.put(value.substring(0, equals), value.substring(equals + 1));
+        }
         return new MappingOptions(
             concat(base.stripPrefixes(), arguments.all("--strip-prefix")),
             concat(base.inputMarkers(), arguments.all("--input-marker")),
             concat(base.outputMarkers(), arguments.all("--output-marker")),
-            directions, base.subTypes());
+            directions, base.subTypes(), countFields);
     }
 
     private static List<String> concat(List<String> first, List<String> second) {

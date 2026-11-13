@@ -135,6 +135,45 @@ class MainTest {
     }
 
     @Test
+    void countFieldOptionLinksAFixedTable() throws IOException {
+        Path copybook = dir.resolve("INVOICE.cpy");
+        Files.writeString(copybook, String.join("\n",
+            "       01  GET-INVOICE.",
+            "           05  INVOICE-LINE-COUNT PIC 9(3).",
+            "           05  LINE-TOTAL PIC 9(3).",
+            "           05  INVOICE-LINE OCCURS 100 TIMES.",
+            "               10  PRODUCT-CODE PIC X(12)."));
+        Path config = dir.resolve("config.json");
+        Files.writeString(config, "{\"countFields\": {\"INVOICE-LINE\": \"LINE-TOTAL\"}}");
+        assertThat(run("generate", copybook.toString(), "--config", config.toString(),
+            "--count-field", "INVOICE-LINE=INVOICE-LINE-COUNT", "--package",
+            "com.example.orders", "--output-dir", dir.resolve("src").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(Files.readString(generated("GetInvoice")))
+            .contains("dependsOn = \"invoiceLineCount\"");
+        assertThat(run("generate", copybook.toString(), "--config", config.toString(),
+            "--package", "com.example.orders", "--output-dir", dir.resolve("src2").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(Files.readString(dir.resolve("src2/com/example/orders/GetInvoice.java")))
+            .contains("dependsOn = \"lineTotal\"");
+    }
+
+    @Test
+    void countFieldSuggestionIsPrinted() throws IOException {
+        Path copybook = dir.resolve("INVOICE.cpy");
+        Files.writeString(copybook, String.join("\n",
+            "       01  GET-INVOICE.",
+            "           05  INVOICE-LINE-COUNT PIC 9(3).",
+            "           05  INVOICE-LINE OCCURS 100 TIMES.",
+            "               10  PRODUCT-CODE PIC X(12)."));
+        assertThat(run("parse", copybook.toString(), "--output",
+            dir.resolve("model.json").toString())).isEqualTo(Main.OK);
+        assertThat(err()).contains("info: INVOICE-LINE: INVOICE-LINE-COUNT can be the count"
+            + " field of this fixed table")
+            .contains("--count-field INVOICE-LINE=INVOICE-LINE-COUNT.");
+    }
+
+    @Test
     void errorsGiveExitCode1AndDiagnostics() throws IOException {
         Path copybook = dir.resolve("BAD.cpy");
         Files.writeString(copybook, "       01  BAD.\n           05  A PIC ZZ9.");
@@ -203,6 +242,10 @@ class MainTest {
             + " NAME=DIRECTION, not 'A'",
         "generate A.cpy --package a --output-dir x --direction A=SIDEWAYS|unknown direction"
             + " in 'A=SIDEWAYS'. Use INPUT, OUTPUT, or INPUT_OUTPUT.",
+        "generate A.cpy --package a --output-dir x --count-field LINE|--count-field needs"
+            + " TABLE=FIELD, not 'LINE'",
+        "generate A.json --package a --output-dir x --count-field A=B|parse and mapping"
+            + " options are not permitted with a model input",
     })
     void usageErrorsGiveExitCode2(String commandLine, String message) {
         String[] args = commandLine == null ? new String[0] : commandLine.split(" ");
