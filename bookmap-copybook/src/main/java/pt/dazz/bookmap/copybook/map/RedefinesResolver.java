@@ -70,7 +70,7 @@ final class RedefinesResolver {
     }
 
     /** Finds an item by a bare or qualified name, or reports an error. */
-    private DataItem find(String kind, String name) {
+    DataItem find(String kind, String name) {
         QualifiedName qualified;
         try {
             qualified = QualifiedName.parse(name);
@@ -92,7 +92,7 @@ final class RedefinesResolver {
         };
     }
 
-    private void decisionError(String message) {
+    void decisionError(String message) {
         mapper.diagnostics.error(mapper.sourceName, 1, 1, message);
     }
 
@@ -308,7 +308,8 @@ final class RedefinesResolver {
                 + " REDEFINES area " + base.name() + ", in the same class");
             return null;
         }
-        if (field.field().javaType() == JavaType.BIG_DECIMAL) {
+        if (field.field().javaType() == JavaType.BIG_DECIMAL
+            || field.field().javaType().temporal()) {
             mapper.error(base, "the discriminator " + name + " must be text or an integer");
             return null;
         }

@@ -135,6 +135,18 @@ class MainTest {
     }
 
     @Test
+    void dateOptionsGiveDateFields() throws IOException {
+        Path config = dir.resolve("dates.json");
+        Files.writeString(config, "{\"dates\": {\"ORDER-DATE\": \"ddMMyyyy\"}}");
+        assertThat(run("generate", resource("ORDERS.cpy"), "--config", config.toString(),
+            "--date", "*-DATE=yyyyMMdd", "--date", "ORDER-DATE=yyyyMMdd", "--package",
+            "com.example.orders", "--output-dir", dir.resolve("src").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(Files.readString(generated("OrderEntry")))
+            .contains("pattern = \"yyyyMMdd\"", "private LocalDate orderDate;");
+    }
+
+    @Test
     void errorsGiveExitCode1AndDiagnostics() throws IOException {
         Path copybook = dir.resolve("BAD.cpy");
         Files.writeString(copybook, "       01  BAD.\n           05  A PIC ZZ9.");
@@ -203,6 +215,11 @@ class MainTest {
             + " NAME=DIRECTION, not 'A'",
         "generate A.cpy --package a --output-dir x --direction A=SIDEWAYS|unknown direction"
             + " in 'A=SIDEWAYS'. Use INPUT, OUTPUT, or INPUT_OUTPUT.",
+        "generate A.cpy --package a --output-dir x --date A|--date needs NAME=PATTERN, not 'A'",
+        "generate A.cpy --package a --output-dir x --date A=|--date needs NAME=PATTERN, not"
+            + " 'A='",
+        "generate A.cpy --package a --output-dir x --date =yyyyMMdd|--date needs NAME=PATTERN,"
+            + " not '=yyyyMMdd'",
     })
     void usageErrorsGiveExitCode2(String commandLine, String message) {
         String[] args = commandLine == null ? new String[0] : commandLine.split(" ");

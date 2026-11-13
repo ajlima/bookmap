@@ -56,6 +56,8 @@ public final class Main {
           --input-marker <word>      A name part that marks an input alternative.
           --output-marker <word>     A name part that marks an output alternative.
           --direction <name>=<dir>   The direction (INPUT or OUTPUT) of an alternative.
+          --date <name>=<pattern>    A date or time pattern for an item. A name with *
+                                     is a name pattern, for example *-DATE=yyyyMMdd.
           --config <file.json>       A file with all options. The command line has priority.
         """;
 
@@ -230,11 +232,19 @@ public final class Main {
                     + "'. Use INPUT, OUTPUT, or INPUT_OUTPUT.");
             }
         }
+        Map<String, String> dates = new LinkedHashMap<>(base.dates());
+        for (String value : arguments.all("--date")) {
+            int equals = value.indexOf('=');
+            if (equals < 1 || equals == value.length() - 1) {
+                throw new UsageException("--date needs NAME=PATTERN, not '" + value + "'");
+            }
+            dates.put(value.substring(0, equals), value.substring(equals + 1));
+        }
         return new MappingOptions(
             concat(base.stripPrefixes(), arguments.all("--strip-prefix")),
             concat(base.inputMarkers(), arguments.all("--input-marker")),
             concat(base.outputMarkers(), arguments.all("--output-marker")),
-            directions, base.subTypes());
+            directions, base.subTypes(), dates);
     }
 
     private static List<String> concat(List<String> first, List<String> second) {
