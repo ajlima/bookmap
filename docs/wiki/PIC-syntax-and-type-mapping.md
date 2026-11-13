@@ -3,6 +3,8 @@
 The processor parses `pic` at compile time. An incorrect or unsupported `pic` is a compile error.
 
 - The prefix `PIC` or `PICTURE` and a final `.` are optional. Letters are not case-sensitive.
+- Write the picture as one word, without spaces. For example, `S9(7) V99` is a compile error. A space is necessary only between the picture and the usage clause.
+- `PIC IS` is not supported. Write `PIC X(3)`, not `PIC IS X(3)`.
 - Text: `X(n)` or a sequence of `X`.
 - Number: optional `S`, integer digits `9(n)` or `999`, and optional `V` followed by decimal digits.
   Examples: `9(5)`, `S9(13)V99`, `S9(7)V9(2)`, `V99`.
@@ -120,11 +122,11 @@ Date patterns use `DateTimeFormatter` (for example `yyyyMMdd`, `yyMMdd`, `yyyyDD
 The default pattern is `yyyyMMdd`. It fits only `LocalDate`. Set a `pattern` on each `LocalTime` and `LocalDateTime` field.
 Otherwise, the compiler reports `pattern 'yyyyMMdd' does not fit LocalDateTime`.
 
-- The pattern must give text of a fixed length. For example, `Hmmss` is a compile error.
+- The pattern must give text of a fixed length. For example, `Hmmss` and `HHmmssn` are compile errors. Use `SSS` for a fixed number of fraction digits.
 - The pattern must fit the Java type. For example, `HHmmss` on a `LocalDate` is a compile error.
 - An explicit `length` must agree with the pattern. Otherwise, the compiler reports `length N does not agree with pattern 'P' (M characters)`.
 - The formatters are strict and use `Locale.ROOT`.
-- A two-digit year (`yy`) reads as a year from 2000 to 2099.
+- A two-digit year (`yy` or `uu`) reads as a year from 2000 to 2099.
 
 On write, the codec reads the text again and compares it with the value.
 If the pattern cannot keep the value, the codec throws `MappingException`.
@@ -143,13 +145,14 @@ Packed dates (for example `S9(7) COMP-3` in the format `0CYYDDD`) have no built-
 - `COMP` number: never `null`. Low-values read as `0`.
 - Date or time with only spaces or low-values: `null`.
 - `LocalDate` or `LocalDateTime` with only zeros: `null`. `LocalTime` with only zeros: `LocalTime.MIDNIGHT`.
+  "Only zeros" means that each character is the digit `0`. With a pattern that has separators, for example `yyyy-MM-dd`, the text `0000-00-00` is not "only zeros": it throws `MappingException`.
 - Enum: the constant that contains the value. A blank field gives `null`, unless a constant has the blank value. An unknown value throws `MappingException`, or gives the `@CobolUnknown` constant.
 
 ### Write
 
 - Text: the codec adds spaces on the right. A `null` text writes spaces.
 - Number: a `null` number writes zero, with a positive sign. For example, `S9(3)` writes `F0 F0 C0` in EBCDIC.
-- Date or time: a `null` value writes the digit `0` in all positions. Thus, a `null` `LocalTime` reads back as midnight.
+- Date or time: a `null` value writes the digit `0` in all positions, also in the positions of the separators. For example, `yyyy-MM-dd` writes `0000000000`. Thus, a `null` `LocalTime` reads back as midnight.
 - Converter: the converter gets the `null` value.
 - Enum: the canonical value of the constant. A `null` enum writes spaces (text) or zero (number).
 - Too large a value (text, digits, or a negative value in an unsigned field) throws `MappingException`. The codec never truncates.

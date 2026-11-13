@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.annotation.Direction;
@@ -48,6 +49,20 @@ class ApiTypesTest {
         assertThat(r.operation()).isEqualTo("Op");
         assertThat(r.maxResponseLength()).isEqualTo(5);
     }
+    @Test void bookRequestCopiesTheAttributes() {
+        var source = new HashMap<String, String>();
+        source.put("k", "v");
+        var r = new BookRequest("Op", new byte[0], 5, source);
+        source.put("k", "changed");
+        assertThat(r.attributes()).containsExactly(Map.entry("k", "v"));
+        assertThatThrownBy(() -> r.attributes().put("x", "y"))
+            .isInstanceOf(UnsupportedOperationException.class);
+    }
+    @Test void bookRequestRejectsNullAttributeValue() {
+        var source = new HashMap<String, String>();
+        source.put("k", null);
+        assertThatNullPointerException().isThrownBy(() -> new BookRequest("Op", new byte[0], 5, source));
+    }
     @Test void directionFlags() {
         assertThat(Direction.INPUT.isInput()).isTrue();      assertThat(Direction.INPUT.isOutput()).isFalse();
         assertThat(Direction.OUTPUT.isOutput()).isTrue();    assertThat(Direction.OUTPUT.isInput()).isFalse();
@@ -64,6 +79,9 @@ class ApiTypesTest {
             .isInstanceOf(BookmapException.class).isInstanceOf(RuntimeException.class);
         assertThat(new RemoteAbendException("ASRA", "abend").abendCode()).isEqualTo("ASRA");
         assertThat(new BusinessException("x")).isInstanceOf(BookmapException.class);
+        assertThat(new TransportTimeoutException("m")).isInstanceOf(TransportException.class);
+        assertThat(new ConnectionException("m")).isInstanceOf(TransportException.class);
+        assertThat(new OperationNotFoundException("m")).isInstanceOf(TransportException.class);
     }
     @Test void exceptionConstructorsKeepMessageAndCause() {
         var cause = new IllegalStateException("c");

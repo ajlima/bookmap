@@ -1,6 +1,5 @@
 package pt.dazz.bookmap.simulator;
 
-import java.nio.charset.Charset;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.spi.BookCodec;
 
@@ -43,5 +42,4 @@ class GreetingCodec implements BookCodec<Greeting> {
 
     @Override public void resetOutputCollections(Greeting value) { }
 
-    static Charset charset(String name) { return Charset.forName(name); }
 }

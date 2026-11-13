@@ -227,7 +227,7 @@ public final class BookReader {
         } catch (BookmapException e) {
             throw e;
         } catch (RuntimeException e) {
-            throw new MappingException(field + ": converter failed (" + e.getMessage() + ")", e);
+            throw BookWriter.converterFailure(field, e);
         }
     }
 

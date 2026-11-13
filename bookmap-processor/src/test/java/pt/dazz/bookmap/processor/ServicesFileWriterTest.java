@@ -8,6 +8,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.lang.reflect.Proxy;
 import java.net.URI;
+import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -28,6 +29,7 @@ class ServicesFileWriterTest {
     private final List<String> messages = new ArrayList<>();
     private final List<Object> origins = new ArrayList<>();
     private int creates;
+    private IOException readFailure = new FileNotFoundException(ServicesFileWriter.PATH);
 
     /** A filer with an existing service file (or none if {@code existing} is null). */
     private Filer filer(String existing, boolean failOnCreate) {
@@ -35,7 +37,7 @@ class ServicesFileWriterTest {
             new Class<?>[] {Filer.class}, (proxy, method, args) -> {
                 if (method.getName().equals("getResource")) {
                     if (existing == null) {
-                        throw new FileNotFoundException(ServicesFileWriter.PATH);
+                        throw readFailure;
                     }
                     return file(existing);
                 }
@@ -113,6 +115,33 @@ class ServicesFileWriterTest {
             messager());
 
         assertThat(written.toString()).isEqualTo("test.Beta_BookCodec\n");
+    }
+
+    @Test
+    void missingPathIsIgnored() {
+        readFailure = new NoSuchFileException(ServicesFileWriter.PATH);
+        ServicesFileWriter writer = new ServicesFileWriter();
+        writer.add("test.Beta_BookCodec", "test.Beta");
+
+        writer.write(filer(null, false), elements(Set.of("test.Beta_BookCodec", "test.Beta")),
+            messager());
+
+        assertThat(written.toString()).isEqualTo("test.Beta_BookCodec\n");
+        assertThat(messages).isEmpty();
+    }
+
+    @Test
+    void readErrorIsAWarning() {
+        readFailure = new IOException("access denied");
+        ServicesFileWriter writer = new ServicesFileWriter();
+        writer.add("test.Beta_BookCodec", "test.Beta");
+
+        writer.write(filer(null, false), elements(Set.of("test.Beta_BookCodec", "test.Beta")),
+            messager());
+
+        assertThat(written.toString()).isEqualTo("test.Beta_BookCodec\n");
+        assertThat(messages).containsExactly(Diagnostic.Kind.WARNING
+            + ": could not read the existing " + ServicesFileWriter.PATH + ": access denied");
     }
 
     @Test

@@ -1,8 +1,10 @@
 package pt.dazz.bookmap.spring;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.Charset;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import pt.dazz.bookmap.codec.BookCodecRegistry;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.exception.ContinuationLimitException;
 import pt.dazz.bookmap.spi.BookCodec;
+import pt.dazz.bookmap.spi.BookRequest;
 import pt.dazz.bookmap.spi.Transport;
 
 class BookmapAutoConfigurationTest {
@@ -59,7 +62,7 @@ class BookmapAutoConfigurationTest {
         int calls;
 
         @Override
-        public byte[] exchange(pt.dazz.bookmap.spi.BookRequest request) {
+        public byte[] exchange(BookRequest request) {
             calls++;
             return new byte[] {0};
         }
@@ -100,7 +103,7 @@ class BookmapAutoConfigurationTest {
             .run(context -> {
                 BookmapClient client = context.getBean(BookmapClient.class);
                 Statement statement = new Statement();
-                org.assertj.core.api.Assertions.assertThatThrownBy(() -> client.execute(statement))
+                assertThatThrownBy(() -> client.execute(statement))
                     .isInstanceOf(ContinuationLimitException.class);
                 assertThat(transport.calls).isEqualTo(2);
             });
@@ -111,11 +114,9 @@ class BookmapAutoConfigurationTest {
         StatementCodec codec = new StatementCodec();
         withBeans(codec, new CountingTransport()).withPropertyValues("bookmap.max-calls=1")
             .run(context -> {
-                try {
-                    context.getBean(BookmapClient.class).execute(new Statement());
-                } catch (ContinuationLimitException expected) {
-                    // the limit ends the loop
-                }
+                BookmapClient client = context.getBean(BookmapClient.class);
+                assertThatThrownBy(() -> client.execute(new Statement()))
+                    .isInstanceOf(ContinuationLimitException.class);
                 assertThat(codec.charsets).containsExactly(Charset.forName("IBM037"));
             });
     }
@@ -126,11 +127,9 @@ class BookmapAutoConfigurationTest {
         withBeans(codec, new CountingTransport())
             .withPropertyValues("bookmap.charset=IBM500", "bookmap.max-calls=1")
             .run(context -> {
-                try {
-                    context.getBean(BookmapClient.class).execute(new Statement());
-                } catch (ContinuationLimitException expected) {
-                    // the limit ends the loop
-                }
+                BookmapClient client = context.getBean(BookmapClient.class);
+                assertThatThrownBy(() -> client.execute(new Statement()))
+                    .isInstanceOf(ContinuationLimitException.class);
                 assertThat(codec.charsets).containsExactly(Charset.forName("IBM500"));
             });
     }
@@ -139,7 +138,17 @@ class BookmapAutoConfigurationTest {
     void invalidCharsetPropertyFails() {
         runner.withBean(Transport.class, CountingTransport::new)
             .withPropertyValues("bookmap.charset=UTF-8")
-            .run(context -> assertThat(context).hasFailed());
+            .run(context -> assertThat(context).hasFailed().getFailure()
+                .rootCause().isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("single-byte"));
+    }
+
+    @Test
+    void unknownCharsetPropertyFails() {
+        runner.withBean(Transport.class, CountingTransport::new)
+            .withPropertyValues("bookmap.charset=NO-SUCH-CHARSET")
+            .run(context -> assertThat(context).hasFailed().getFailure()
+                .rootCause().isInstanceOf(UnsupportedCharsetException.class));
     }
 
     @ParameterizedTest

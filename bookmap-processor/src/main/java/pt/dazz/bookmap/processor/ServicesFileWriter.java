@@ -1,7 +1,9 @@
 package pt.dazz.bookmap.processor;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.file.NoSuchFileException;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.TreeSet;
@@ -51,7 +53,7 @@ final class ServicesFileWriter {
             return;
         }
         Set<String> names = new TreeSet<>(codecNames);
-        names.addAll(existingNames(filer));
+        names.addAll(existingNames(filer, messager));
         names.removeIf(name -> elements.getTypeElement(name) == null);
         Element[] origins = operationClasses.stream().map(elements::getTypeElement)
             .toArray(Element[]::new);
@@ -69,7 +71,7 @@ final class ServicesFileWriter {
         }
     }
 
-    private static Set<String> existingNames(Filer filer) {
+    private static Set<String> existingNames(Filer filer, Messager messager) {
         Set<String> names = new TreeSet<>();
         try {
             FileObject file = filer.getResource(StandardLocation.CLASS_OUTPUT, "", PATH);
@@ -80,8 +82,11 @@ final class ServicesFileWriter {
                     names.add(name);
                 }
             });
-        } catch (IOException e) {
+        } catch (FileNotFoundException | NoSuchFileException e) {
             // There is no file yet.
+        } catch (IOException e) {
+            messager.printMessage(Diagnostic.Kind.WARNING,
+                "could not read the existing " + PATH + ": " + e.getMessage());
         }
         return names;
     }

@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import pt.dazz.bookmap.annotation.BookField;
 
 /**
- * One order in the answer of {@link GetCustomerOrders}. Convention style.
+ * One order in the answer of {@link GetCustomerOrders}. The class uses the convention style.
  */
 public class Order {
 
@@ -15,6 +15,7 @@ public class Order {
     @BookField(order = 20, pic = "S9(13)V99 COMP-3")
     private BigDecimal totalAmount;
 
+    // The length is 8, from the default pattern yyyyMMdd.
     @BookField(order = 30)
     private LocalDate orderDate;
 
