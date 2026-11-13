@@ -76,7 +76,12 @@ bookmap.max-calls=50
 ```
 
 The properties bind to the record `pt.dazz.bookmap.spring.BookmapProperties`, with the prefix `bookmap`.
-The module has no configuration metadata file yet. Thus, the IDE does not complete the `bookmap.*` properties.
+
+The JAR of `bookmap-spring-boot` contains the file `META-INF/spring-configuration-metadata.json`.
+The IDE reads this file. It completes the `bookmap.*` properties in `application.properties` and `application.yml`, and it shows the description and the default value of each property.
+For `bookmap.charset`, the IDE also proposes the values `IBM037`, `IBM500`, `IBM1047`, `IBM1140`, and `IBM1148`.
+You can set a different single-byte charset.
+The metadata does not add a dependency to your application.
 
 The application does not start in these cases:
 
