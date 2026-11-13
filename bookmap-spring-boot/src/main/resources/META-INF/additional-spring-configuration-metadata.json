@@ -1,0 +1,29 @@
+{
+  "hints": [
+    {
+      "name": "bookmap.charset",
+      "values": [
+        {
+          "value": "IBM037",
+          "description": "EBCDIC for the United States and Canada. This is the default."
+        },
+        {
+          "value": "IBM500",
+          "description": "EBCDIC International."
+        },
+        {
+          "value": "IBM1047",
+          "description": "EBCDIC Latin-1 for open systems."
+        },
+        {
+          "value": "IBM1140",
+          "description": "EBCDIC for the United States and Canada, with the euro sign."
+        },
+        {
+          "value": "IBM1148",
+          "description": "EBCDIC International, with the euro sign."
+        }
+      ]
+    }
+  ]
+}
