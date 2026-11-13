@@ -25,4 +25,7 @@ dependencies {
 // into the generated metadata. It reads the file from the output of processResources.
 tasks.named<JavaCompile>("compileJava") {
     inputs.files(tasks.named("processResources"))
+    // An incremental compile gives only the changed classes to the configuration processor.
+    // The processor then writes the metadata without the descriptions of the other classes.
+    options.isIncremental = false
 }
