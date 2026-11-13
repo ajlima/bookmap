@@ -164,7 +164,7 @@ private BigDecimal total;
 private BigDecimal discount;
 ```
 
-### Symbols
+### Edit symbols
 
 | Symbol | Write |
 |---|---|
@@ -204,7 +204,7 @@ The attributes come from the picture:
 
 `@BookDefaults(usage = ...)` does not apply to an edited field.
 
-### Write
+### Write an edited number
 
 - The write does not round. A value with more decimal places than the scale, or with too many digits, causes a `MappingException`.
 - A negative value in a picture without a sign causes a `MappingException`.
@@ -224,7 +224,7 @@ The attributes come from the picture:
 | `+,+++,999.99` | -123456.78 | `_-123,456.78` |
 | `-9(5)` | 42 | `_00042` |
 
-### Read
+### Read an edited number
 
 - A field with only spaces or LOW-VALUES reads as `null`. An `int` or a `long` gets 0.
 - A `9` position must hold a digit.
@@ -236,7 +236,7 @@ The attributes come from the picture:
 
 Each value that the write accepts reads back with the scale of the picture. A zero that writes as spaces reads back as `null`.
 
-### Not supported
+### Edited pictures that are not supported
 
 - Alphanumeric edited pictures, for example `XXBXX`. Use `X(n)`.
 - A currency sign other than `$`, and `DECIMAL-POINT IS COMMA`.
