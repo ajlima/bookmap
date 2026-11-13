@@ -200,7 +200,7 @@ public final class CopybookTree {
             fileParse.recordName());
         MappingOptions file = config == null ? MappingOptions.defaults() : config.mapping();
         MappingOptions mapping = new MappingOptions(file.stripPrefixes(), file.inputMarkers(),
-            file.outputMarkers(), file.directions(), file.subTypes(),
+            file.outputMarkers(), file.directions(), file.subTypes(), file.countFields(),
             file.maxRecordLength() != null ? file.maxRecordLength()
                 : settings.maxRecordLength());
         Copybooks.Result result = Copybooks.generate(copybook, parse, mapping,

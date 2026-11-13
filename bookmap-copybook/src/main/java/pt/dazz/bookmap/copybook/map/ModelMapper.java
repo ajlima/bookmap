@@ -11,6 +11,7 @@ import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.copybook.ast.Condition;
 import pt.dazz.bookmap.copybook.ast.Copybook;
 import pt.dazz.bookmap.copybook.ast.DataItem;
+import pt.dazz.bookmap.copybook.ast.QualifiedName;
 import pt.dazz.bookmap.copybook.ast.Usage;
 import pt.dazz.bookmap.copybook.diag.Diagnostics;
 import pt.dazz.bookmap.copybook.model.BookModel;
@@ -106,6 +107,7 @@ public final class ModelMapper {
     final Set<String> classNames = new HashSet<>();
     final Map<DataItem, Placed> placed = new IdentityHashMap<>();
     private final RedefinesResolver redefines;
+    private final CountFieldResolver countFields;
 
     private ModelMapper(Copybook copybook, MappingOptions options) {
         this.sourceName = copybook.sourceName();
@@ -113,6 +115,7 @@ public final class ModelMapper {
         this.names = new Names(options.stripPrefixes());
         this.index = new ItemIndex(copybook);
         this.redefines = new RedefinesResolver(this);
+        this.countFields = new CountFieldResolver(this);
     }
 
     /**
@@ -125,6 +128,7 @@ public final class ModelMapper {
     public static MapResult map(Copybook copybook, MappingOptions options) {
         ModelMapper mapper = new ModelMapper(copybook, options);
         mapper.redefines.checkDecisions();
+        mapper.countFields.checkOptions();
         for (DataItem record : copybook.records()) {
             info(mapper, record);
             RecordLength.check(record, options.maxRecordLength(), mapper.diagnostics);
@@ -135,6 +139,7 @@ public final class ModelMapper {
                 new Context(usage, Direction.INPUT_OUTPUT, null, List.of()));
         }
         mapper.redefines.checkSubTypeAreas();
+        mapper.countFields.checkUnmapped();
         BookModel model = new BookModel(BookModel.FORMAT_VERSION, copybook.sourceName(),
             mapper.classes.stream().map(ClassBuilder::build).toList());
         return new MapResult(mapper.diagnostics.hasErrors() ? null : model,
@@ -179,7 +184,7 @@ public final class ModelMapper {
                 redefines.area(item, alternatives, items.subList(i + 1, items.size()), owner,
                     context);
             } else if (item.occurs() != null) {
-                collection(item, owner, context, usage);
+                collection(item, i > 0 ? items.get(i - 1) : null, owner, context, usage);
             } else if (item.isGroup()) {
                 walk(item.children(), owner, context.withGroup(item, usage));
             } else {
@@ -224,19 +229,31 @@ public final class ModelMapper {
         return picture.length() <= MAX_INT_DIGITS ? JavaType.INT : JavaType.LONG;
     }
 
-    /** Maps an {@code OCCURS} item to a collection and an item class. */
-    private void collection(DataItem item, ClassBuilder owner, Context context, Usage usage) {
+    /**
+     * Maps an {@code OCCURS} item to a collection and an item class. The previous item is the
+     * item just before the table in the same group, or {@code null}.
+     */
+    private void collection(DataItem item, DataItem previous, ClassBuilder owner,
+                            Context context, Usage usage) {
         if (context.occurs() != null) {
             error(item, "OCCURS " + item.name() + " is inside OCCURS " + context.occurs()
                 + ". BookMap does not support nested collections.");
             return;
         }
         String dependsOn = null;
+        DataItem linked = countFields.countOf(item);
         if (item.occurs().dependingOn() != null) {
-            dependsOn = countField(item, owner);
+            dependsOn = dependingOn(item, owner);
             if (dependsOn == null) {
                 return;
             }
+        } else if (linked != null) {
+            dependsOn = countField(item, linked, "count field " + linked.name(), owner);
+            if (dependsOn == null) {
+                return;
+            }
+        } else {
+            countFields.suggest(item, previous);
         }
         String name = item.isFiller()
             ? owner.fieldName("filler" + ++owner.fillers, List.of())
@@ -249,20 +266,20 @@ public final class ModelMapper {
         } else {
             field(item, type, inner, usage, "value");
         }
-        boolean fixed = dependsOn == null;
+        boolean fixed = item.occurs().dependingOn() == null;
         // An item class has only fields: a nested OCCURS is an error above.
-        if (fixed && type.members.stream()
+        if (fixed && dependsOn == null && type.members.stream()
             .anyMatch(member -> ((FieldMember) member).pic().endsWith(" COMP"))) {
             diagnostics.info(item.source(), item.line(), item.column(), item.name()
                 + ": a COMP value of 0 is all LOW-VALUES and cannot be written."
-                + " Add dependsOn if the program has a count field.");
+                + " Link the count field with the option countFields if the program has one.");
         }
         owner.members.add(new CollectionMember(name, order, context.direction(), item.name(),
             item.declaration(), item.occurs().max(), fixed, dependsOn, type.name));
     }
 
     /** Resolves the {@code DEPENDING ON} item. Gives its field name, or {@code null}. */
-    private String countField(DataItem table, ClassBuilder owner) {
+    private String dependingOn(DataItem table, ClassBuilder owner) {
         String target = table.occurs().dependingOn().toString();
         return switch (index.find(table.occurs().dependingOn())) {
             case ItemIndex.NotFound notFound -> {
@@ -274,28 +291,71 @@ public final class ModelMapper {
                     + String.join(", ", ambiguous.matches()));
                 yield null;
             }
-            case ItemIndex.Found found -> {
-                Placed count = placed.get(found.item());
-                if (count == null || count.owner() != owner) {
-                    error(table, "DEPENDING ON item " + target
-                        + " must be in the same class, before the table");
-                    yield null;
-                }
-                if (count.field().javaType() != JavaType.INT
-                    && count.field().javaType() != JavaType.LONG) {
-                    error(table, "DEPENDING ON item " + target + " must be an integer");
-                    yield null;
-                }
-                int digits = found.item().picture().length();
-                if (digits < MAX_INT_DIGITS
-                    && Math.pow(10, digits) - 1 < table.occurs().max()) {
-                    error(table, "DEPENDING ON item " + target + " has " + digits
-                        + " digits and cannot hold " + table.occurs().max());
-                    yield null;
-                }
-                yield count.field().name();
+            case ItemIndex.Found found -> countField(table, found.item(),
+                "DEPENDING ON item " + target, owner);
+        };
+    }
+
+    /**
+     * Checks the count item of a table. Gives the field name of the count item, or
+     * {@code null} after an error.
+     *
+     * @param label the count item in the messages, for example {@code DEPENDING ON item N}
+     */
+    private String countField(DataItem table, DataItem countItem, String label,
+                              ClassBuilder owner) {
+        Placed count = placed.get(countItem);
+        if (count == null || count.owner() != owner) {
+            error(table, label + " must be in the same class, before the table");
+            return null;
+        }
+        if (count.field().javaType() != JavaType.INT
+            && count.field().javaType() != JavaType.LONG) {
+            error(table, label + " must be an integer");
+            return null;
+        }
+        int digits = countItem.picture().length();
+        if (digits < MAX_INT_DIGITS && Math.pow(10, digits) - 1 < table.occurs().max()) {
+            error(table, label + " has " + digits + " digits and cannot hold "
+                + table.occurs().max());
+            return null;
+        }
+        return count.field().name();
+    }
+
+    /**
+     * Finds an item that an option names, by a bare or a qualified name. Reports an error if
+     * no item or more than one item matches.
+     *
+     * @param kind the option in the messages, for example {@code direction decision}
+     * @param name the name in the option
+     * @return the item, or {@code null} after an error
+     */
+    DataItem findNamed(String kind, String name) {
+        QualifiedName qualified;
+        try {
+            qualified = QualifiedName.parse(name);
+        } catch (IllegalArgumentException e) {
+            optionError(kind + ": " + e.getMessage());
+            return null;
+        }
+        return switch (index.find(qualified)) {
+            case ItemIndex.Found found -> found.item();
+            case ItemIndex.NotFound notFound -> {
+                optionError(kind + ": item " + name + " does not exist");
+                yield null;
+            }
+            case ItemIndex.Ambiguous ambiguous -> {
+                optionError(kind + ": item " + name + " is ambiguous. Qualify it: "
+                    + String.join(", ", ambiguous.matches()));
+                yield null;
             }
         };
+    }
+
+    /** Reports an error in an option. The error has the position of the copybook start. */
+    void optionError(String message) {
+        diagnostics.error(sourceName, 1, 1, message);
     }
 
     void error(DataItem item, String message) {

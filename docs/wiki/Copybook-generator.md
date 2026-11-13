@@ -64,6 +64,7 @@ The build plugins read the file `<NAME>.json` next to `<NAME>.cpy`.
       "classNames": { "SAVINGS-DATA": "SavingsAccount" }
     }
   },
+  "countFields": { "INVOICE-LINE": "INVOICE-LINE-COUNT" },
   "maxRecordLength": 32500,
   "package": "com.example.accounts",
   "lombok": false
@@ -83,6 +84,7 @@ All keys are optional. An unknown key is an error.
 | `outputMarkers` | list of texts | The name parts that mark an output alternative. Write them in upper case. The list replaces the default list. | `OUTPUT`, `OUT`, `RESPONSE`, `RESP` |
 | `directions` | map | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`, in upper case) of each `REDEFINES` alternative. See [Directions](#directions). | empty |
 | `subTypes` | map | The subtype decisions. See [Subtypes](#subtypes). | empty |
+| `countFields` | map | The count field of each fixed table: the table name, then the name of the count field. See [Count field of a fixed table](#count-field-of-a-fixed-table). | empty |
 | `maxRecordLength` | integer | The maximum record length in bytes. A longer record gives a warning. See [Record length](#record-length). | no check |
 | `package` | text | The Java package of the classes. | The tool gives it. |
 | `lombok` | boolean | Write Lombok annotations instead of getters and setters. | `false` |
@@ -219,7 +221,7 @@ Other messages of the `COPY` statement: `COPY needs a member name`, `REPLACING n
 |---|---|
 | Level `01` | A class with `@BookOperation`. |
 | A group without `OCCURS` | No class. Its items go into the class of the parent. |
-| `OCCURS n` | `@BookCollection(fixed = true)` and an item class. |
+| `OCCURS n` | `@BookCollection(fixed = true)` and an item class. With the option `countFields`, also `dependsOn`. |
 | `OCCURS m TO n DEPENDING ON X` | `@BookCollection(dependsOn = "x")` and an item class. |
 | `OCCURS m TO n` without `DEPENDING ON` | `@BookCollection(maxOccurs = n, fixed = true)`. |
 | An elementary item with `OCCURS` | An item class with one field `value`. |
@@ -284,8 +286,68 @@ The class names are compared without case. If an item class name is in use, the 
 | `DEPENDING ON item CNT has 1 digits and cannot hold 20` | The count item is too small for the maximum. |
 | `OCCURS T4B is inside OCCURS T4. BookMap does not support nested collections.` | A table in a table. |
 
-A fixed `OCCURS` has no `dependsOn`, because the copybook does not tell which field is the count.
-Add `dependsOn` by hand if the program has a count field. See [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#fixed-collections).
+### Count field of a fixed table
+
+Many copybooks keep the number of used entries of a fixed table in a separate field:
+
+```cobol
+       01  GET-INVOICE.
+           05  INVOICE-ID               PIC X(12).
+           05  INVOICE-LINE-COUNT       PIC 9(3).
+           05  INVOICE-LINE OCCURS 100 TIMES.
+               10  PRODUCT-CODE         PIC X(12).
+               10  LINE-AMOUNT          PIC S9(7)V99 COMP-3.
+```
+
+The copybook does not tell which field is the count. Thus, the generator does not guess it. Without an option, the table is a fixed collection in LOW-VALUES mode.
+Use the option `countFields` to link the count field to the table:
+
+```json
+{
+  "countFields": { "INVOICE-LINE": "INVOICE-LINE-COUNT" }
+}
+```
+
+On the command line, use `--count-field INVOICE-LINE=INVOICE-LINE-COUNT`. The generator then writes `dependsOn` on the fixed collection:
+
+```java
+@BookField(order = 20, pic = "9(3)")
+private int invoiceLineCount;
+
+@BookCollection(order = 30, maxOccurs = 100, direction = Direction.INPUT_OUTPUT, fixed = true, dependsOn = "invoiceLineCount")
+private List<InvoiceLine> invoiceLine;
+```
+
+The codec then uses count mode. See [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#count-mode).
+
+Rules for the option:
+
+- The key is the name of a table with `OCCURS n` and without `DEPENDING ON`. The value is the name of the count field.
+- The count field is an elementary numeric item without decimals.
+- The count field is in the same class as the table, before the table. A group around it is permitted.
+- The digits of the count field must hold the maximum of the table.
+- One count field serves only one table.
+
+| Message | Cause |
+|---|---|
+| `count field option: item NOPE does not exist` | No item has this name. The position is `<file>:1:1`. |
+| `count field option: item X is ambiguous. Qualify it: ...` | More than one item has this name. Add `OF group`. |
+| `count field option: N has no OCCURS` | The table is not a table. |
+| `count field option: T has OCCURS DEPENDING ON. Remove the option: the DEPENDING ON item is the count field.` | The table is not fixed. |
+| `count field option: CODE must be an elementary numeric item without decimals` | The count field is a group, text, or has decimals. |
+| `count field option: N is already the count field of T1` | Two tables have the same count field. |
+| `count field LATE must be in the same class, before the table` | The count field is after the table, or in another class. |
+| `count field HUGE must be an integer` | The count field has more than 18 digits. |
+| `count field N has 1 digits and cannot hold 20` | The count field is too small for the maximum. |
+| `count field option: T is not in a generated class, so the count field has no effect` | The table is skipped, for example a `REDEFINES` of an elementary item. |
+
+The generator suggests the option when a numeric item without decimals comes just before a fixed table and its name ends with `-COUNT`. The suggestion is an `info` diagnostic:
+
+```
+GET-INVOICE.cpy:4:12: info: INVOICE-LINE: INVOICE-LINE-COUNT can be the count field of this fixed table. To link them, set "countFields": {"INVOICE-LINE": "INVOICE-LINE-COUNT"} in the options file, or --count-field INVOICE-LINE=INVOICE-LINE-COUNT.
+```
+
+The suggestion does not change the classes. Set the option only if the program uses the field as the count.
 
 ### REDEFINES of an elementary item
 
@@ -516,7 +578,7 @@ The severity is `error`, `warning`, or `info`. Only an `error` stops the generat
 
 - The generator reports all problems of one step before it stops.
 - If the parse step has errors, the mapping step does not run. Correct the parse errors first, then run the generator again. The mapping errors can then show.
-- An error in a direction decision or a subtype decision has the position `<file>:1:1`.
+- An error in a direction decision or a subtype decision has the position `<file>:1:1`. A name in the option `countFields` that the generator cannot find has the same position.
 
 ### Record length
 
@@ -543,7 +605,7 @@ The warning does not stop the generation. To make the record shorter, decrease t
 
 - The generator does not detect dates. A `PIC 9(8)` date stays an `int`.
 - The generated operation classes do not implement `Continuable` or `Validatable`. In scaffold mode, add them by hand.
-- A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Add dependsOn if the program has a count field.`
+- A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields if the program has one.`
 - These items are errors: level `66` and `77`, `SIGN LEADING`, `SEPARATE`, `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL`, edited pictures, `P`, `A`, `N`, `REPLACE`, an `OCCURS` in an `OCCURS`, and a `REDEFINES` area in another one.
 
 The [Roadmap](Roadmap) lists the plan for these limitations.

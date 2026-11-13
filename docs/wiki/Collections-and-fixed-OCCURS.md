@@ -112,6 +112,8 @@ private List<ShipmentSummary> shipments;
 
 **CAUTION:** Set `dependsOn` if the program gives a count field. Without `dependsOn`, the codec uses LOW-VALUES mode and does not read the count field. Only `0x00` bytes make an empty slot. If the program fills the unused slots with spaces, the codec reads those slots as items.
 
+The copybook generator does not guess the count field of a fixed table. Give it with the option `countFields`. Then the generator writes `dependsOn`. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table).
+
 ### Example: count mode
 
 The example `ListShipments` in `bookmap-examples` uses a count field:

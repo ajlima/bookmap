@@ -22,6 +22,7 @@ final class Arguments {
         Map.entry("--input-marker", Set.of("parse", "generate")),
         Map.entry("--output-marker", Set.of("parse", "generate")),
         Map.entry("--direction", Set.of("parse", "generate")),
+        Map.entry("--count-field", Set.of("parse", "generate")),
         Map.entry("--max-record-length", Set.of("parse", "generate")),
         Map.entry("--config", Set.of("parse", "generate")),
         Map.entry("--output", Set.of("parse")),
@@ -31,7 +32,7 @@ final class Arguments {
     /** The options that change the parse or map step. A model input does not accept them. */
     static final Set<String> MODEL_OPTIONS = Set.of("--format", "--charset", "--copy-dir",
         "--record-name", "--strip-prefix", "--input-marker", "--output-marker", "--direction",
-        "--max-record-length");
+        "--count-field", "--max-record-length");
 
     final String command;
     final Path input;
