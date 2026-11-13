@@ -1,11 +1,13 @@
-# Run the mutation tests.
+# Run the mutation tests each night.
 #
-# On each pull request to main and each push to main, this workflow runs the task mutationTest:
-# PIT (pitest) on bookmap-core, bookmap-processor, and bookmap-copybook. The check fails if the
-# mutation score of a module is less than its minimum score in build.gradle.kts.
-# The mutation tests are slow, so ./gradlew build does not run them, and this check is separate.
-# A pull request that changes only documentation (*.md files and the docs/ folder) skips the Gradle
-# steps, and the check passes.
+# This workflow runs the task mutationTest: PIT (pitest) on bookmap-core, bookmap-processor, and
+# bookmap-copybook. The run fails if the mutation score of a module is less than its minimum score
+# in build.gradle.kts. The mutation tests take about 20 minutes on a GitHub runner, so they do not
+# run on each pull request or push. They run on main at 02:00 UTC each day, and on request
+# (Actions > Mutation tests > Run workflow).
+#
+# A scheduled run does nothing if main has no new commit in the last 25 hours. GitHub sends an
+# email for a failed scheduled run to the user who last changed the cron schedule.
 #
 # The job uploads the PIT reports as the artifact "mutation-reports". The job has read-only access
 # and keeps no credential in the checkout.
@@ -13,10 +15,8 @@
 name: Mutation tests
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  schedule:
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,8 +24,7 @@ permissions:
 
 concurrency:
   group: mutation-${{ github.ref }}
-  # A new push to a pull request cancels its old run. Runs on main never cancel each other.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   mutation-test:
@@ -34,33 +33,24 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The full history gives the base of the pull request and the branch main.
-          fetch-depth: 0
           persist-credentials: false
 
-      # A pull request that changes only documentation (*.md files and the docs/ folder) skips the
-      # Gradle steps, and the check passes. A push to main always runs the mutation tests. The
-      # workflow always runs, so the check always reports.
-      - name: Find the changed files
+      # A scheduled run tests only a new main. A run on request always tests.
+      - name: Find a new commit
         id: changes
         env:
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          docs_only=false
-          # The script of main runs, so a pull request cannot change the rule for itself. If main has
-          # no script, the mutation tests run. The checkout is the merge commit of the pull request:
-          # its first parent is the base.
-          if [ "$EVENT_NAME" = pull_request ] \
-            && git show origin/main:scripts/docs-only-change.sh > "$RUNNER_TEMP/docs-only-change.sh"; then
-            docs_only=$(bash "$RUNNER_TEMP/docs-only-change.sh" HEAD^1 HEAD)
+          skip=false
+          last_commit=$(git log -1 --format=%ct HEAD)
+          if [ "$EVENT_NAME" = schedule ] && [ $(( $(date +%s) - last_commit )) -gt 90000 ]; then
+            skip=true
+            echo "::notice::main has no new commit in the last 25 hours. The mutation tests do not run."
           fi
-          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
-          if [ "$docs_only" = true ]; then
-            echo "::notice::Only documentation files changed. The Gradle steps do not run."
-          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java 21
-        if: steps.changes.outputs.docs_only != 'true'
+        if: steps.changes.outputs.skip != 'true'
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
@@ -69,18 +59,18 @@ jobs:
           cache: gradle
 
       - name: Set up Gradle
-        if: steps.changes.outputs.docs_only != 'true'
+        if: steps.changes.outputs.skip != 'true'
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           # The cache of setup-gradle v6 is a proprietary component. Do not enable it.
           cache-disabled: true
 
       - name: Run the mutation tests
-        if: steps.changes.outputs.docs_only != 'true'
+        if: steps.changes.outputs.skip != 'true'
         run: ./gradlew mutationTest --continue --no-daemon
 
       - name: Upload the mutation reports
-        if: always() && steps.changes.outputs.docs_only != 'true'
+        if: always() && steps.changes.outputs.skip != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: mutation-reports
