@@ -22,7 +22,7 @@ The `release` job does not wait for the `attest` job. If the `attest` job fails,
 Do this before the end of the 7-day retention of the `maven-central-files` artifact.
 
 These modules go to Maven Central with the group `pt.dazz.bookmap`:
-`bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-transport-ctg`, `bookmap-spring-boot`,
+`bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-transport-ctg`, `bookmap-transport-http`, `bookmap-spring-boot`,
 `bookmap-copybook`, `bookmap-copybook-cli`, `bookmap-copybook-gradle-plugin`, and `bookmap-copybook-maven-plugin`.
 The examples are not published.
 
