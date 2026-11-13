@@ -84,7 +84,7 @@ The mutation tests are slow, so `./gradlew build` does not run them. Run them wi
 The task runs PIT on `bookmap-core`, `bookmap-processor`, and `bookmap-copybook`.
 It fails if the mutation score of a module is less than 95%. The minimum score of each module is in `build.gradle.kts`.
 Each module writes a PIT report in `build/reports/pitest/` (HTML and XML).
-The `mutation-test` check of the workflow `.github/workflows/mutation.yml` runs the mutation tests.
+The `mutation-test` check of the workflow `.github/workflows/mutation.yml` runs the mutation tests. The ruleset on `main` requires this check.
 
 ### Pull requests that change only documentation
 
@@ -157,7 +157,7 @@ Start with the main design: [`2026-11-10-bookmap-design.md`](https://github.com/
 1. Open an issue, or select an issue from the [Roadmap](Roadmap).
 2. Create a branch from `main`.
 3. Commit often on the branch.
-4. Open a pull request to `main`. The `build` check must pass.
+4. Open a pull request to `main`. The `build` and `mutation-test` checks must pass.
 5. The author approves and merges the pull request.
 
 A ruleset on `main` blocks direct pushes and force pushes.
