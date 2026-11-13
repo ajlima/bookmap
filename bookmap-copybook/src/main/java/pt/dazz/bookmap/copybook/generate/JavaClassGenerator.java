@@ -26,6 +26,7 @@ import pt.dazz.bookmap.annotation.BookOperation;
 import pt.dazz.bookmap.annotation.BookSubTypes;
 import pt.dazz.bookmap.annotation.CobolValue;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.copybook.model.BookModel;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
@@ -291,6 +292,13 @@ public final class JavaClassGenerator {
                 }
                 if (collection.dependsOn() != null) {
                     spec.addMember("dependsOn", "$S", collection.dependsOn());
+                }
+                if (collection.emptyKey() != null) {
+                    spec.addMember("emptyKey", "$S", collection.emptyKey());
+                }
+                if (collection.emptyItem() != EmptyItem.LOW_VALUES) {
+                    spec.addMember("emptyItem", "$T.$L", EmptyItem.class,
+                        collection.emptyItem().name());
                 }
                 yield spec.build();
             }

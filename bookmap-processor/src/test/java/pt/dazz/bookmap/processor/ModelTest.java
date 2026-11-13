@@ -10,6 +10,7 @@ import java.util.ServiceLoader;
 import javax.annotation.processing.Processor;
 import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
@@ -24,7 +25,8 @@ class ModelTest {
             Usage.DISPLAY, 0, false, "yyyyMMdd", FieldModel.JavaKind.INT, null, "getLineCount",
             "setLineCount", null, 3, null);
         MemberModel lines = new CollectionModel("Order", "lines", 4, Direction.OUTPUT, count, 5,
-            false, new ItemModel(null, List.of(), 0, null), "getLines", "setLines");
+            false, new ItemModel(null, List.of(), 0, null), "getLines", "setLines",
+            EmptyItem.LOW_VALUES, null, 0);
         assertThat(count.descriptor()).isEqualTo("Order.lineCount (order 3)");
         assertThat(lines.descriptor()).isEqualTo("Order.lines (order 4)");
     }

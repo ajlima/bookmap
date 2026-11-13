@@ -176,6 +176,22 @@ class CopybookTreeTest {
     }
 
     @Test
+    void optionsFileKeepsTheEmptyItemMarkers() throws IOException {
+        Path source = Files.createDirectories(work.resolve("markers"));
+        Files.writeString(source.resolve("ORDER.cpy"), String.join("\n",
+            "       01  ORDER.",
+            "           05  ORDER-LINE OCCURS 5 TIMES.",
+            "               10  PRODUCT-ID           PIC 9(6).", ""));
+        Files.writeString(source.resolve("ORDER.json"), "{\"emptyItems\": {\"ORDER-LINE\":"
+            + " \"SPACES\"}, \"emptyKeys\": {\"ORDER-LINE\": \"PRODUCT-ID\"}}");
+        CopybookTree.run(settings(source, List.of(), BASE, false, false),
+            TestCopybooks.copybooks(source), output, log);
+        assertThat(log.errors).isEmpty();
+        assertThat(output.resolve("com/example/mainframe/Order.java")).content()
+            .contains("emptyKey = \"productId\"", "emptyItem = EmptyItem.SPACES");
+    }
+
+    @Test
     void optionsFileKeepsTheDateHints() throws IOException {
         Path source = Files.createDirectories(work.resolve("dates"));
         Files.writeString(source.resolve("ORDER.cpy"),

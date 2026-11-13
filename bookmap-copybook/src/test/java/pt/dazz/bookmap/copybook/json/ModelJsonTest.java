@@ -66,6 +66,17 @@ class ModelJsonTest {
     }
 
     @Test
+    void emptyItemMarkersRoundTrip() {
+        BookModel model = Models.markerModel();
+        String json = ModelJson.write(model);
+        assertThat(json).contains("\"emptyItem\" : \"SPACES\"",
+            "\"emptyKey\" : \"invoiceNumber\"");
+        assertThat(ModelJson.read(json)).isEqualTo(model);
+        assertThat(ModelJson.write(Models.accountModel())).doesNotContain("emptyItem",
+            "emptyKey");
+    }
+
+    @Test
     void enumTypeAgreesWithJavaType() {
         String json = ModelJson.write(conditionModel());
         assertThatThrownBy(() -> ModelJson.read(json.replace("\"javaType\" : \"ENUM\"",

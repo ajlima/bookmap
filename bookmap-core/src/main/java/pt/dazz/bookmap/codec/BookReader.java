@@ -92,16 +92,29 @@ public final class BookReader {
      *     comes before a slot that is not empty
      */
     public int countUsedSlots(String field, int slotLength, int slots) {
+        return countUsedSlots(field, slotLength, slots, EmptySlot.lowValues());
+    }
+
+    /**
+     * Counts the used slots of a fixed collection. The marker tells which slot is empty. The
+     * reader does not move.
+     *
+     * @param field the collection descriptor, for error messages
+     * @param slotLength the number of bytes of one slot
+     * @param slots the number of slots
+     * @param marker the marker of an empty slot
+     * @return the index of the last slot that is not empty, plus 1, or 0 if all slots are empty
+     * @throws MappingException if the data ends before the end of the area, if an empty slot
+     *     comes before a slot that is not empty, or if a key has bytes that are not valid
+     */
+    public int countUsedSlots(String field, int slotLength, int slots, EmptySlot marker) {
         if ((long) slotLength * slots > data.length - position) {
             throw new MappingException(field + ": the response is too short for the fixed area");
         }
         int firstEmpty = -1;
         for (int slot = 0; slot < slots; slot++) {
-            int start = position + slot * slotLength;
-            boolean empty = true;
-            for (int i = start; i < start + slotLength && empty; i++) {
-                empty = data[i] == 0;
-            }
+            boolean empty = marker.isEmpty(field + " slot " + slot, data,
+                position + slot * slotLength, slotLength, ctx.charset());
             if (empty && firstEmpty < 0) {
                 firstEmpty = slot;
             } else if (!empty && firstEmpty >= 0) {

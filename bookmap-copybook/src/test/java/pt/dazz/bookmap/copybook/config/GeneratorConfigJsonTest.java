@@ -41,6 +41,8 @@ class GeneratorConfigJsonTest {
           },
           "conditions": { "PARTY-ROLE": "enum", "ACCOUNT-FLAG": "Constants" },
           "countFields": { "INVOICE-LINE": "INVOICE-LINE-COUNT" },
+          "emptyItems": { "INVOICE-LINE": "SPACES" },
+          "emptyKeys": { "PAYMENT": "PAYMENT-ID" },
           "maxRecordLength": 32500,
           "dates": { "OPENED-ON": "yyyyMMdd", "*-TIME": "HHmmss" },
           "continuable": { "GET-ACCOUNT": "com.example.accounts.AccountPaging" },
@@ -68,6 +70,8 @@ class GeneratorConfigJsonTest {
             ConditionMode.ENUM, "ACCOUNT-FLAG", ConditionMode.CONSTANTS));
         assertThat(config.mapping().countFields()).isEqualTo(Map.of("INVOICE-LINE",
             "INVOICE-LINE-COUNT"));
+        assertThat(config.mapping().emptyItems()).isEqualTo(Map.of("INVOICE-LINE", "SPACES"));
+        assertThat(config.mapping().emptyKeys()).isEqualTo(Map.of("PAYMENT", "PAYMENT-ID"));
         assertThat(config.mapping().maxRecordLength()).isEqualTo(32500);
         assertThat(config.mapping().dates()).containsExactly(
             Map.entry("OPENED-ON", "yyyyMMdd"), Map.entry("*-TIME", "HHmmss"));

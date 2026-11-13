@@ -87,16 +87,61 @@ private List<OrderLine> lines;
 private BigDecimal orderTotal;
 ```
 
-The program tells the caller the number of used items in one of two ways. BookMap supports both.
+The program tells the caller the number of used items in one of these ways. BookMap supports all of them.
+
+| COBOL program | Mode | Attributes |
+|---|---|---|
+| `MOVE LOW-VALUES TO` the table. | LOW-VALUES mode | None. |
+| `MOVE SPACES TO` the table. | SPACES mode | `emptyItem = EmptyItem.SPACES` |
+| `INITIALIZE` the table, or `MOVE ZERO TO` the key of an unused entry. | Key mode | `emptyKey = "<key field>"` |
+| A count field before the table. | Count mode | `dependsOn = "<count field>"` |
 
 ### LOW-VALUES mode
 
-LOW-VALUES mode applies when `dependsOn` is not set. The unused slots contain LOW-VALUES (bytes `0x00`).
+LOW-VALUES mode applies when `dependsOn`, `emptyItem`, and `emptyKey` are not set. The unused slots contain LOW-VALUES (bytes `0x00`).
 
 - Write: the codec writes the items, then LOW-VALUES in the unused slots.
 - Read: a slot with only `0x00` bytes is empty. The list ends at the last slot with data. The check does not use the charset.
 - An empty slot before a slot with data causes a `MappingException`.
 - An item that encodes to only `0x00` bytes causes a `MappingException` on write. A read cannot find such an item.
+
+### SPACES mode
+
+SPACES mode applies when `emptyItem = EmptyItem.SPACES` is set, without `emptyKey` and without `dependsOn`:
+
+```java
+@BookCollection(order = 30, maxOccurs = 20, fixed = true, emptyItem = EmptyItem.SPACES)
+private List<OrderLine> lines;
+```
+
+- Write: the codec writes the items, then spaces of the charset in the unused slots (`0x40` in EBCDIC, `0x20` in ASCII).
+- Read: a slot is empty if each byte is a space or `0x00`. Thus, the codec also accepts a table that the program cleared with LOW-VALUES.
+- An empty slot before a slot with data causes a `MappingException`.
+- An item that encodes to only spaces causes a `MappingException` on write. For example, an item with only text fields and empty values.
+
+### Key mode
+
+Key mode applies when `emptyKey` is set. The key is a field of the item class. A slot is empty if its key is blank or zero:
+
+```java
+@BookCollection(order = 20, maxOccurs = 4, fixed = true, emptyKey = "orderNumber",
+    emptyItem = EmptyItem.SPACES)
+private List<Backorder> backorders;
+```
+
+- A `String` key is empty if it has only spaces or `0x00` bytes. The text `"000"` is not empty: map the key as a number to use zeros.
+- A number key is empty if its value is zero, or if a `DISPLAY` or `COMP-3` key has only spaces or `0x00` bytes. A `COMP` key is empty only if its value is zero.
+- The other bytes of the slot have no effect. A program can keep old data in a removed entry.
+- Write: the codec writes the items. In each unused slot, it writes the bytes of `emptyItem` (`0x00` by default). A number key gets the value zero, encoded with its `PIC`. Thus, a COBOL check such as `IF ORDER-NUMBER = ZERO` is true.
+- An item with an empty key causes a `MappingException` on write. A read cannot find such an item.
+- An empty slot before a slot with data causes a `MappingException`.
+
+Rules for the key. Each rule gives a compile error if the class does not obey it:
+
+- The key is a field of the item class. With subtypes, it is a field of the base class, not of a subtype.
+- The key is `String`, `int`, `Integer`, `long`, `Long`, or `BigDecimal`, without a converter.
+- `emptyKey` is not permitted with `dependsOn`.
+- `emptyItem` and `emptyKey` need `fixed = true`.
 
 ### Count mode
 
@@ -109,10 +154,11 @@ private List<ShipmentSummary> shipments;
 
 - Write: the codec sets the count field to the list size. Then it writes the items and LOW-VALUES in the unused slots.
 - Read: the codec reads the number of items that the count field gives. It ignores the other slots.
+- With `emptyItem = EmptyItem.SPACES`, the codec writes spaces in the unused slots. A read does not use `emptyItem`.
 
-**CAUTION:** Set `dependsOn` if the program gives a count field. Without `dependsOn`, the codec uses LOW-VALUES mode and does not read the count field. Only `0x00` bytes make an empty slot. If the program fills the unused slots with spaces, the codec reads those slots as items.
+**CAUTION:** Select the mode that agrees with the program. In LOW-VALUES mode, only `0x00` bytes make an empty slot. If the program fills the unused slots with spaces, the codec reads those slots as items.
 
-The copybook generator does not guess the count field of a fixed table. Give it with the option `countFields`. Then the generator writes `dependsOn`. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table).
+The copybook generator does not guess the mode of a fixed table. Give the count field with the option `countFields`, and the markers with the options `emptyItems` and `emptyKeys`. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table) and [Empty entries of a fixed table](Copybook-generator#empty-entries-of-a-fixed-table).
 
 ### Example: count mode
 
@@ -161,13 +207,13 @@ public class ShipmentSummary {
 
 The fixed area always has 5 slots of 14 bytes. `returnCode` is always at the same offset.
 
-### Rules for both modes
+### Rules for all modes
 
 - The fixed area is `maxOccurs` multiplied by the item length. With subtype items, the item length is the length of the longest layout.
 - A field after a fixed collection has a fixed offset, if no variable collection comes before it.
-- The response must contain the full area, in both modes. A response that ends in the area causes a `MappingException`.
+- The response must contain the full area, in all modes. A response that ends in the area causes a `MappingException`.
 - Pagination, the reset of `OUTPUT` collections, and items with subtypes work as for a variable collection.
-- The full examples are `GetOrder` and `ListShipments` in `bookmap-examples`, package `pt.dazz.bookmap.examples.orders`.
+- The full examples are `GetOrder`, `ListShipments`, and `ListBackorders` in `bookmap-examples`, package `pt.dazz.bookmap.examples.orders`.
 
 ## Messages
 
@@ -179,5 +225,8 @@ The codec throws `MappingException` with one of these messages. `<field>` has th
 | `<field>: the list contains a null item` | An item of the list is `null`. |
 | `<field>: count V is not between 0 and maxOccurs M` | The response has a count that is not valid. |
 | `<field>: item I is all LOW-VALUES, so a read cannot find it` | LOW-VALUES mode: an item encodes to `0x00` bytes only. |
-| `<field>: slot A is empty, but slot B after it has data` | LOW-VALUES mode: an empty slot comes before a slot with data. |
+| `<field>: item I is all spaces, so a read cannot find it` | SPACES mode: an item encodes to spaces only. |
+| `<field>: item I has an empty key K, so a read cannot find it` | Key mode: the key of an item is blank or zero. |
+| `<field>: slot A is empty, but slot B after it has data` | LOW-VALUES, SPACES, or key mode: an empty slot comes before a slot with data. |
+| `<field> slot S: byte 0x.. at offset N of the field is not valid in a zoned decimal` | Key mode: the number key of slot S has bytes that are not valid. |
 | `<field>: the response is too short for the fixed area` | The response ends inside a fixed area. |

@@ -55,6 +55,16 @@ final class CountFieldResolver {
     }
 
     /**
+     * Tells if the option links a count field to a table.
+     *
+     * @param table an {@code OCCURS} item
+     * @return {@code true} if the table has a count field
+     */
+    boolean linked(DataItem table) {
+        return counts.containsKey(table);
+    }
+
+    /**
      * Gives the count item of a table, and marks the table as mapped.
      *
      * @param table an {@code OCCURS} item

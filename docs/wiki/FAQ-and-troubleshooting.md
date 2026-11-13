@@ -59,8 +59,10 @@ A number or a date with only spaces or low-values becomes `null` for a wrapper t
 
 ## A fixed collection gives a wrong number of items
 
-A fixed collection without `dependsOn` uses LOW-VALUES mode. The unused slots must contain only `0x00` bytes.
+A fixed collection without `dependsOn`, `emptyItem`, and `emptyKey` uses LOW-VALUES mode. The unused slots must contain only `0x00` bytes.
 If the program uses a count field, set `dependsOn` to its name.
+If the program fills the unused slots with spaces, set `emptyItem = EmptyItem.SPACES`.
+If the program runs `INITIALIZE` on the table, or sets a key to zero, set `emptyKey` to the key field.
 Do not rely on convention 4 for a fixed collection. See [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#fixed-collections).
 
 ## The simulator throws OperationNotFoundException
