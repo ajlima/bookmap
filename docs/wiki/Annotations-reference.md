@@ -23,9 +23,9 @@ The transport maps the operation name to its destination. See [Transports and si
 | `pic` | A COBOL `PIC` string with an optional usage clause and an optional sign clause. It replaces `length`, `scale`, `signed`, `usage`, and `sign`. | None. |
 | `length` | Number of characters for text. Total number of digits for numbers (`S9(13)V99` is `length = 15`). | Mandatory without `pic`. |
 | `direction` | `INPUT`, `OUTPUT`, or `INPUT_OUTPUT`. | `INPUT_OUTPUT`. A count field without `direction` takes the direction of its collection. |
-| `usage` | `DISPLAY`, `COMP3`, or `COMP`. | From `@BookDefaults`, else `DISPLAY`. |
+| `usage` | `DISPLAY`, `COMP3`, or `COMP`. A date or time field can be `DISPLAY` or `COMP3`. | From `@BookDefaults`, else `DISPLAY`. A date or time field does not use `@BookDefaults`. |
 | `scale` | Number of implied decimal places (`V99` is 2). | 0. |
-| `signed` | `true` if the field has a sign (`S9`). | From `@BookDefaults`, else `false`. |
+| `signed` | `true` if the field has a sign (`S9`). A date or time field can be signed only with `COMP3`. | From `@BookDefaults`, else `false`. |
 | `sign` | The sign format of a signed `DISPLAY` number: `TRAILING`, `LEADING`, `TRAILING_SEPARATE`, or `LEADING_SEPARATE`. See [Sign formats](PIC-syntax-and-type-mapping#sign-formats). | `TRAILING`. |
 | `pattern` | Date or time format. | From `@BookDefaults`, else `yyyyMMdd`. Set a pattern on each `LocalTime` and `LocalDateTime` field. |
 | `converter` | A custom `FieldConverter` class. | None. |
@@ -251,6 +251,7 @@ The priority is, from high to low:
 5. The built-in default.
 
 The `usage` and `signed` defaults apply only to numeric types. The `pattern` default applies only to date and time types. Fields with a converter ignore all three.
+Thus, a packed date needs `usage = Usage.COMP3` or a `pic` with `COMP-3` on the field. `@BookDefaults(usage = Usage.COMP3)` does not change a date field.
 
 - The processor does not use the `@BookDefaults` of an enclosing class or of a superclass. A field in a superclass uses the defaults of the superclass and of its package.
 - All classes of one operation (superclasses and item classes) must use the same charset. A different charset is a compile error.

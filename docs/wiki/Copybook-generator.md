@@ -865,12 +865,16 @@ For `"*-DATE": "yyyyMMdd"`, the item `10 SHIP-DATE PIC 9(8).` gives this field:
 private LocalDate shipDate;
 ```
 
+A date hint also applies to a `COMP-3` item (see [Packed dates](PIC-syntax-and-type-mapping#packed-dates)). The item can be signed. The pattern must give digits only. For `"ORDER-DATE": "yyyyMMdd"`, the item `05 ORDER-DATE PIC S9(8) COMP-3.` gives a `LocalDate` field with `pic = "S9(8) COMP-3"` and `pattern = "yyyyMMdd"`.
+
 The generator checks each hint against the item. These errors have the line of the item:
 
 | Message | Cause |
 |---|---|
-| `D: a date or time field must have the usage DISPLAY` | The item is `COMP` or `COMP-3`. |
-| `D: a date or time field must not have S or V in the picture` | The picture is signed or has decimals. |
+| `D: a date or time field must have the usage DISPLAY or COMP-3` | The item is `COMP`, `COMP-4`, or `COMP-5`. |
+| `D: a DISPLAY date or time field must not have S or V in the picture` | The `DISPLAY` picture is signed or has decimals. |
+| `D: a COMP-3 date or time field must not have V in the picture` | The `COMP-3` picture has decimals. |
+| `D: the date pattern 'yyyy-MM-dd' gives characters that are not digits, but a COMP-3 item holds only digits` | The item is `COMP-3`, and the pattern gives other characters than digits. |
 | `D: the date pattern 'yyyyMMdd' gives 8 characters, but the picture 9(6) has 6` | The length of the pattern does not agree with the picture. |
 | `D: the date pattern 'd.M.yyyy' gives text of variable length` | The pattern does not give a fixed length. |
 | `D: the date pattern 'MMdd' does not fit LocalDateTime, LocalDate, or LocalTime` | The pattern gives no complete date or time. |
@@ -1100,7 +1104,7 @@ A `SIGN` clause on an item that is not a signed numeric `DISPLAY` item is an err
 ## Limitations of the generator
 
 - The generator does not detect dates. A `PIC 9(8)` date stays an `int`, unless a [date hint](#date-hints) names it.
-- Packed dates, for example `S9(7) COMP-3`, cannot get a date hint. Write a `FieldConverter` for them.
+- A packed date with a century digit that changes, for example `CYYMMDD`, cannot get a date hint. Write a `FieldConverter` for it.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` and without `emptyKey` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields, or the key item with the option emptyKeys, if the program has one.`
 - These items are errors: `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), edited pictures (#48), `POINTER`, `P`, `A`, and an `OCCURS` in an `OCCURS` (#43).
 - The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).

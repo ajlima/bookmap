@@ -170,7 +170,45 @@ If the pattern cannot keep the value, the codec throws `MappingException`.
 Examples: the year 1975 with `yyMMdd`, or a time with seconds or nanoseconds with `HHmm`.
 Remove the extra precision before you set the value, for example with `truncatedTo(ChronoUnit.MINUTES)`.
 
-Packed dates (for example `S9(7) COMP-3` in the format `0CYYDDD`) have no built-in support. Write a `FieldConverter` for them.
+### Packed dates
+
+A date or time field can have the usage `COMP3`. Then the digits of the packed number are the text of the pattern.
+
+```java
+@BookField(order = 10, pic = "S9(8) COMP-3", pattern = "yyyyMMdd")
+private LocalDate orderDate;
+
+@BookField(order = 20, pic = "S9(7) COMP-3", pattern = "'0'HHmmss")
+private LocalTime shipTime;
+
+@BookField(order = 30, usage = Usage.COMP3, pattern = "yyyyMMddHHmmss")
+private LocalDateTime lastUpdate;
+```
+
+- The pattern must give digits only. Otherwise, the compiler reports `pattern 'P' gives characters that are not digits, but a COMP3 field holds only digits`.
+- The number of digits must be equal to the length of the pattern text. Use a quoted literal for a constant digit.
+- A packed date can be signed: `S` in the `pic`, or `signed = true`. A `V` in the `pic` is a compile error.
+- Without `pic`, the length is the length of the pattern text. `lastUpdate` above has 14 digits, thus 8 bytes.
+- `@BookDefaults(usage = Usage.COMP3)` does not apply to a date or time field. Set the usage on the field.
+- `COMP` is not permitted for a date or time field.
+
+| Picture | Pattern | Java type | Example value | Bytes |
+|---|---|---|---|---|
+| `S9(8) COMP-3` | `yyyyMMdd` | `LocalDate` | 2026-11-13 | `02 02 61 11 3C` |
+| `9(7) COMP-3` | `yyyyDDD` | `LocalDate` | 2026-11-13 | `20 26 31 7F` |
+| `S9(7) COMP-3` | `'01'yyDDD` (CICS `EIBDATE`, `0CYYDDD` for the years 2000 to 2099) | `LocalDate` | 2026-11-13 | `01 26 31 7C` |
+| `S9(7) COMP-3` | `'0'HHmmss` (CICS `EIBTIME`) | `LocalTime` | 13:05:09 | `01 30 50 9C` |
+| `S9(14) COMP-3` | `yyyyMMddHHmmss` | `LocalDateTime` | 2026-11-13T23:59:58 | `02 02 61 11 32 35 95 8C` |
+
+On write, the sign nibble is `C` for a signed field and `F` for an unsigned field. A `null` value writes packed zero.
+On read, the rules are the same as for a `DISPLAY` date:
+
+- A field with only LOW-VALUES or only spaces is `null`.
+- Packed zero is `null`, or `LocalTime.MIDNIGHT` for a time.
+- A negative sign (`B` or `D`) causes a `MappingException`, also with zero digits.
+- A nibble that is not valid, or digits that are not a valid date, cause a `MappingException`.
+
+A century digit that changes in one field, for example `CYYMMDD` with `0` for 19xx and `1` for 20xx, has no `DateTimeFormatter` letter. Write a `FieldConverter` for it.
 
 ## Conversion rules
 
