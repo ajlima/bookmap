@@ -61,18 +61,12 @@ jobs:
 
       # The history shows only the human authors and the release bots. An AI assistant is never
       # an author, a committer, or a co-author. The check runs the script of main, so a pull
-      # request cannot weaken it. Only pull request #90, which adds the script, uses its own copy.
+      # request cannot weaken it.
       - name: Check the commit authors
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [ "$PR_NUMBER" = "90" ]; then
-            bash scripts/check-commit-authors.sh HEAD
-          else
-            git show origin/main:scripts/check-commit-authors.sh > "$RUNNER_TEMP/check-commit-authors.sh" \
-              || { echo "error: cannot read the check from main"; exit 1; }
-            bash "$RUNNER_TEMP/check-commit-authors.sh" HEAD
-          fi
+          git show origin/main:scripts/check-commit-authors.sh > "$RUNNER_TEMP/check-commit-authors.sh" \
+            || { echo "error: cannot read the check from main"; exit 1; }
+          bash "$RUNNER_TEMP/check-commit-authors.sh" HEAD
 
       - name: Set up Java 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
