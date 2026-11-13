@@ -197,6 +197,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 | `bookmap-transport-simulator` | A transport for tests. It runs handlers in the same JVM. |
 | `bookmap-transport-ctg` | A transport for CICS programs through the CICS Transaction Gateway (ECI). Add the IBM `ctgclient.jar` yourself. |
 | `bookmap-transport-http` | A transport for an HTTP endpoint that accepts the bytes of the book. It uses only the JDK HTTP client. |
+| `bookmap-transport-mq` | A transport for IBM MQ request and reply queues (Jakarta Messaging). See [IBM MQ](https://github.com/ajlima/bookmap/wiki/IBM-MQ). |
 | `bookmap-spring-boot` | Spring Boot 4 auto-configuration for `BookmapClient` (built and tested with 4.1.2). |
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
 | `bookmap-copybook-cli` | The command line of the copybook generator. |
@@ -211,7 +212,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 
 BookMap is at version `0.9.0`. GitHub Actions builds each release and publishes it to Maven Central.
 The build enforces 100% line and branch coverage for all modules except the examples.
-BookMap has transports for the CICS Transaction Gateway (ECI) and for HTTP (binary body). A transport for IBM MQ is on the roadmap.
+BookMap has transports for the CICS Transaction Gateway (ECI), for HTTP (binary body), and for IBM MQ.
 See [RELEASING.md](RELEASING.md) for the release cycle, and [ROADMAP.md](ROADMAP.md) for the planned features.
 
 ## License
