@@ -54,6 +54,9 @@ public class GenerateMojo extends AbstractMojo {
     /** Add one package segment from the copybook name. */
     boolean packagePerCopybook;
 
+    /** The maximum record length in bytes. A longer record gives a warning. */
+    Integer maxRecordLength;
+
     /** The directory for the generated Java files. */
     File outputDir;
 
@@ -103,10 +106,16 @@ public class GenerateMojo extends AbstractMojo {
         }
         CopybookTree.Settings settings = new CopybookTree.Settings(sourceDir.toPath(),
             copyDirs == null ? List.of() : copyDirs.stream().map(File::toPath).toList(),
-            packageName, lombok, packagePerCopybook, MISSING_PACKAGE, PACKAGE_PER_COPYBOOK_HINT);
+            packageName, lombok, packagePerCopybook, MISSING_PACKAGE, PACKAGE_PER_COPYBOOK_HINT,
+            maxRecordLength);
         Log log = getLog();
         try {
             CopybookTree.run(settings, copybooks, outputDir.toPath(), new CopybookTree.Log() {
+                @Override
+                public void info(String message) {
+                    log.info(message);
+                }
+
                 @Override
                 public void warn(String message) {
                     log.warn(message);
@@ -135,7 +144,8 @@ public class GenerateMojo extends AbstractMojo {
         }
         dirs.addAll(CopybookTree.configCopyDirs(copybooks));
         List<String> parameters = Arrays.asList(packageName, Boolean.toString(lombok),
-            Boolean.toString(packagePerCopybook), outputDir.getAbsolutePath(),
+            Boolean.toString(packagePerCopybook), String.valueOf(maxRecordLength),
+            outputDir.getAbsolutePath(),
             String.valueOf(includes), String.valueOf(excludes));
         return Fingerprint.of(pluginVersion, parameters, sourceDir.toPath(), copybooks,
             scan(List.of("**/*.json"), null), dirs);

@@ -185,7 +185,9 @@ class EndToEndTest {
         Copybooks.Result result = generate("INVOICE-PARTY.cpy", PLAIN);
         assertThat(result.files()).extracting(file -> file.typeSpec().name())
             .containsExactly("GetInvoiceParty", "PartyRole");
-        assertThat(result.diagnostics()).extracting(Diagnostic::message).containsExactly(
+        assertThat(result.diagnostics()).extracting(Diagnostic::message)
+            .filteredOn(message -> !message.startsWith("record "))
+            .containsExactly(
             "PARTY-STATUS: the level 88 items give constants, not an enum, because a level 88"
                 + " item has a THRU range. Set the condition mode of PARTY-STATUS to change"
                 + " this.",
@@ -252,7 +254,7 @@ class EndToEndTest {
     void explicitEnumModeWritesRanges() {
         Copybooks.Result result = Copybooks.generate(copybook("INVOICE-PARTY.cpy"),
             parseOptions(), new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
-                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(),
+                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of(), null,
                 Map.of("PARTY-STATUS", ConditionMode.ENUM, "CREDIT-LIMIT", ConditionMode.ENUM)),
             PLAIN);
         assertThat(result.diagnostics()).extracting(Diagnostic::message).contains(

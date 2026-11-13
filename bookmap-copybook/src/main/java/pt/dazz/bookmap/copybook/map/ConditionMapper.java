@@ -61,6 +61,13 @@ final class ConditionMapper {
                 // The REDEFINES resolver reports the name.
             }
         });
+        mapper.options.countFields().values().forEach(name -> {
+            try {
+                restrict(QualifiedName.parse(name));
+            } catch (IllegalArgumentException e) {
+                // The count field resolver reports the name.
+            }
+        });
         copybook.records().forEach(this::restrictCounts);
     }
 
@@ -80,9 +87,9 @@ final class ConditionMapper {
     /** Resolves the names of the {@code conditions} option. */
     void checkOptions() {
         mapper.options.conditions().forEach((name, mode) -> {
-            DataItem item = mapper.redefines.find("condition mode", name);
+            DataItem item = mapper.findNamed("condition mode", name);
             if (item != null && (item.isGroup() || item.conditions().isEmpty())) {
-                mapper.diagnostics.error(mapper.sourceName, 1, 1, "condition mode: " + name
+                mapper.optionError("condition mode: " + name
                     + " is not an elementary item with level 88 items");
             } else if (item != null) {
                 modes.put(item, mode);

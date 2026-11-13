@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.BookmapClient;
 import pt.dazz.bookmap.examples.maven.billing.GetInvoice;
 import pt.dazz.bookmap.examples.maven.billing.PartyRole;
+import pt.dazz.bookmap.examples.maven.billing.InvoiceLine;
 import pt.dazz.bookmap.examples.maven.orders.GetOrder;
 import pt.dazz.bookmap.examples.maven.orders.OrderLine;
 import pt.dazz.bookmap.simulator.SimulatorTransport;
@@ -72,5 +73,29 @@ class MavenPluginEndToEndTest {
         assertThat(result.getCity()).isEqualTo("Rotterdam");
         assertThat(result.getCountryCode()).isEqualTo("NL");
         assertThat(result.getPartyRole()).isEqualTo(PartyRole.SHIP_TO);
+    }
+
+    @Test
+    void countFieldsGiveTheNumberOfUsedEntries() {
+        simulator.register(GetInvoice.class, call -> {
+            InvoiceLine first = new InvoiceLine();
+            first.setProductCode("PRD000000001");
+            first.setLineAmount(new BigDecimal("50.00"));
+            InvoiceLine second = new InvoiceLine();
+            second.setProductCode("PRD000000002");
+            second.setLineAmount(new BigDecimal("25.00"));
+            call.setInvoiceLine(List.of(first, second));
+            call.setTaxSummaryEntry(List.of());
+        });
+        GetInvoice request = new GetInvoice();
+        request.setInvoiceId("INV000000007");
+
+        GetInvoice result = client.execute(request);
+
+        assertThat(result.getInvoiceLineCount()).isEqualTo(2);
+        assertThat(result.getInvoiceLine()).extracting(InvoiceLine::getProductCode)
+            .containsExactly("PRD000000001", "PRD000000002");
+        assertThat(result.getTaxSummaryCount()).isZero();
+        assertThat(result.getTaxSummaryEntry()).isEmpty();
     }
 }

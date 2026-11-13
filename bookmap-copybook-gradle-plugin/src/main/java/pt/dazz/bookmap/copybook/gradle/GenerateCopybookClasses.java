@@ -114,6 +114,15 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
     public abstract Property<Boolean> getPackagePerCopybook();
 
     /**
+     * Gives the maximum record length in bytes. A longer record gives a warning.
+     *
+     * @return the maximum record length
+     */
+    @Input
+    @Optional
+    public abstract Property<Integer> getMaxRecordLength();
+
+    /**
      * Gives the directory for the generated Java files.
      *
      * @return the output directory
@@ -179,11 +188,17 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
         CopybookTree.Settings settings = new CopybookTree.Settings(
             getSourceDir().get().getAsFile().toPath(), paths(getCopyDirs()),
             getPackageName().getOrNull(), getLombok().get(), getPackagePerCopybook().get(),
-            "Set bookmap.copybooks.packageName.", "bookmap.copybooks.packagePerCopybook = true");
+            "Set bookmap.copybooks.packageName.", "bookmap.copybooks.packagePerCopybook = true",
+            getMaxRecordLength().getOrNull());
         Logger logger = getLogger();
         try {
             CopybookTree.run(settings, paths(getCopybookFiles()),
                 getOutputDir().get().getAsFile().toPath(), new CopybookTree.Log() {
+                    @Override
+                    public void info(String message) {
+                        logger.lifecycle(message);
+                    }
+
                     @Override
                     public void warn(String message) {
                         logger.warn(message);
