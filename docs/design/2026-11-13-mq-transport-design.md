@@ -1,7 +1,7 @@
 # BookMap IBM MQ transport: design
 
 Date: 2026-11-13
-Status: proposed.
+Status: approved.
 
 Related documents: `docs/design/2026-11-10-bookmap-design.md` (the main design, sections 2.2, 5.9, and 5.10), `docs/design/2026-11-13-ctg-transport-design.md` (the CTG transport, #26), `CLAUDE.md` (project rules), GitHub issue #27.
 
