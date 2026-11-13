@@ -2,6 +2,7 @@ package pt.dazz.bookmap.copybook.map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static pt.dazz.bookmap.copybook.map.Mapping.diagnostics;
 import static pt.dazz.bookmap.copybook.map.Mapping.map;
 import static pt.dazz.bookmap.copybook.map.Mapping.member;
 import static pt.dazz.bookmap.copybook.map.Mapping.type;
@@ -73,7 +74,7 @@ class RedefinesMappingTest {
     @Test
     void directionSplitByMarkers() {
         MapResult result = map(INVOICE);
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(diagnostics(result)).isEmpty();
         ClassModel invoice = type(result, "GetInvoice");
         assertThat(invoice.members()).extracting(MemberModel::name, MemberModel::direction,
                 MemberModel::order)
@@ -180,9 +181,9 @@ class RedefinesMappingTest {
     void bothMarkersIsAWarning() {
         MapResult result = map("01 ORDER.", "05 IN-OUT-DATA.", "10 X PIC X.",
             "05 OUT-DATA REDEFINES IN-OUT-DATA.", "10 Y PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity)
             .containsExactly(Severity.WARNING, Severity.ERROR);
-        assertThat(result.diagnostics().get(0).message()).isEqualTo("IN-OUT-DATA has an input"
+        assertThat(diagnostics(result).get(0).message()).isEqualTo("IN-OUT-DATA has an input"
             + " marker and an output marker. Its direction is not clear.");
     }
 
@@ -207,7 +208,7 @@ class RedefinesMappingTest {
     })
     void directionDecisionErrors(String name, String message) {
         MapResult result = map(directions(Map.of(name, Direction.INPUT)), INVOICE);
-        assertThat(result.diagnostics()).extracting(Diagnostic::source, Diagnostic::line,
+        assertThat(diagnostics(result)).extracting(Diagnostic::source, Diagnostic::line,
                 Diagnostic::message)
             .containsExactly(tuple("ORDER.cpy", 1, message));
     }
@@ -241,7 +242,7 @@ class RedefinesMappingTest {
     @Test
     void subtypesFromDecision() {
         MapResult result = map(subTypes(Map.of("SAVINGS-DATA", accountDecision())), ACCOUNT);
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(diagnostics(result)).isEmpty();
         ClassModel account = type(result, "GetAccount");
         assertThat(account.subTypes()).isEqualTo(new SubTypes("accountType", List.of(
             new SubTypeEntry("01", "CheckingData"), new SubTypeEntry("02", "SavingsAccount"))));
