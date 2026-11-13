@@ -78,7 +78,6 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 - No `REDEFINES` without a discriminator. See [Subtypes (REDEFINES)](Subtypes-REDEFINES).
 - No subtypes in a subtype, and no base fields after the redefined area.
 - No nested collections.
-- A fixed collection detects empty slots only through LOW-VALUES or a count field.
 - No `COMP-1` or `COMP-2`.
 - Single-byte charsets only.
 - Packed dates need a converter.

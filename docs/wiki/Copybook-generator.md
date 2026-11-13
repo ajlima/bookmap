@@ -90,6 +90,8 @@ All keys are optional. An unknown key is an error.
 | `subTypes` | map | The subtype decisions. See [Subtypes](#subtypes). | empty |
 | `conditions` | map | The mode (`enum`, `constants`, or `none`) of the level 88 items of an elementary item. The mode is not case-sensitive. See [Level 88 items](#level-88-items). | empty: the generator selects the mode. |
 | `countFields` | map | The count field of each fixed table: the table name, then the name of the count field. See [Count field of a fixed table](#count-field-of-a-fixed-table). | empty |
+| `emptyItems` | map | The bytes of an unused entry of each fixed table: the table name, then `SPACES` or `LOW-VALUES`. See [Empty entries of a fixed table](#empty-entries-of-a-fixed-table). | empty |
+| `emptyKeys` | map | The key item that marks an empty entry of each fixed table: the table name, then the name of the key item. See [Empty entries of a fixed table](#empty-entries-of-a-fixed-table). | empty |
 | `maxRecordLength` | integer | The maximum record length in bytes. A longer record gives a warning. See [Record length](#record-length). | no check |
 | `dates` | map | The date hints: a date or time pattern for each item name or name pattern. See [Date hints](#date-hints). | empty |
 | `continuable` | map | The handler class of each `Continuable` record. See [Continuable and Validatable](#continuable-and-validatable). | empty |
@@ -455,6 +457,54 @@ GET-INVOICE.cpy:4:12: info: INVOICE-LINE: INVOICE-LINE-COUNT can be the count fi
 ```
 
 The suggestion does not change the classes. Set the option only if the program uses the field as the count.
+
+### Empty entries of a fixed table
+
+Without a count field, a fixed table finds its unused entries through LOW-VALUES. Many programs use spaces or `INITIALIZE` instead:
+
+```cobol
+       01  LIST-OPEN-INVOICES.
+           05  INVOICE-LINE OCCURS 5 TIMES.
+               10  INVOICE-NUMBER       PIC X(10).
+               10  AMOUNT-DUE           PIC S9(7)V99 COMP-3.
+```
+
+The copybook does not tell how the program marks an unused entry. Thus, the generator does not guess it. Use these options:
+
+```json
+{
+  "emptyItems": { "INVOICE-LINE": "SPACES" },
+  "emptyKeys": { "INVOICE-LINE": "INVOICE-NUMBER" }
+}
+```
+
+On the command line, use `--empty-item INVOICE-LINE=SPACES` and `--empty-key INVOICE-LINE=INVOICE-NUMBER`. The generator then writes `emptyItem` and `emptyKey` on the fixed collection:
+
+```java
+@BookCollection(order = 10, maxOccurs = 5, direction = Direction.INPUT_OUTPUT, fixed = true, emptyKey = "invoiceNumber", emptyItem = EmptyItem.SPACES)
+private List<InvoiceLine> invoiceLine;
+```
+
+The codec then uses key mode, and writes spaces in the unused entries. See [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#key-mode).
+
+Rules for the options:
+
+- The key of each option is the name of a table with `OCCURS n` and without `DEPENDING ON`. A name can be qualified with `OF` or `IN`.
+- The value of `emptyItems` is `SPACES` or `LOW-VALUES`. `emptyItems` is permitted with `countFields`: it then gives only the bytes of the unused entries.
+- The value of `emptyKeys` is an elementary item of the entry. It is not in a `REDEFINES` area of the entry. A group around it is permitted.
+- The key item maps to a text or a number field: not a date hint, and not a level 88 enum.
+- A table with `emptyKeys` has no `countFields` entry.
+
+| Message | Cause |
+|---|---|
+| `empty item option: item NOPE does not exist` | No item has this name. The position is `<file>:1:1`. The same messages apply to `empty key option`. |
+| `empty item option: N has no OCCURS` | The table is not a table. |
+| `empty item option: T has OCCURS DEPENDING ON. Remove the option: the DEPENDING ON item gives the number of items.` | The table is not fixed. |
+| `empty item option: T has the unknown value ZEROS. Use SPACES or LOW-VALUES.` | An incorrect value of `emptyItems`. |
+| `empty key option: K is not an elementary item of the entry of T` | The key is a group, is outside the entry, or is in a `REDEFINES` area. |
+| `empty key option: K must map to a text or a number field` | The key has a date hint, or it maps to an enum. |
+| `empty key option: T has a count field. Remove one of the two options.` | The table also has `countFields`. |
+| `empty item options: T is not in a generated class, so the options have no effect` | The table is skipped, for example a `REDEFINES` of an elementary item. |
 
 ### REDEFINES of an elementary item
 
@@ -951,7 +1001,7 @@ The `parse` command writes the model as JSON. The `generate` command reads it ag
 - An enum has `name`, `cobolName`, and `constants`. A constant has `name`, `cobolName`, and `values`.
 - A value has `from`, and `thru` for a range.
 - The writer writes the optional keys only when they have a value. Thus, a model without level 88 items and `VALUE` clauses does not change.
-- A collection member has `kind: COLLECTION`, `name`, `order`, `direction`, `maxOccurs`, `fixed`, an optional `dependsOn`, `itemClass`, `cobolName`, and `declaration`.
+- A collection member has `kind: COLLECTION`, `name`, `order`, `direction`, `maxOccurs`, `fixed`, an optional `dependsOn`, `itemClass`, `cobolName`, and `declaration`. A fixed collection can also have `emptyItem` (`SPACES`) and `emptyKey` (the Java name of the key field). The generator writes them only if they are set. A former generator does not read a model with these keys: it gives the error `unknown key`.
 - The reader rejects an unknown key, and another `formatVersion`: `unsupported formatVersion 2. This reader supports 1.`
 - The generator does not check a model that you edit by hand. It writes the classes as the model gives them.
 
@@ -1027,7 +1077,7 @@ The warning does not stop the generation. To make the record shorter, decrease t
 
 - The generator does not detect dates. A `PIC 9(8)` date stays an `int`, unless a [date hint](#date-hints) names it.
 - Packed dates, for example `S9(7) COMP-3`, cannot get a date hint. Write a `FieldConverter` for them.
-- A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields if the program has one.`
+- A fixed `OCCURS` of `COMP` items without `dependsOn` and without `emptyKey` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields, or the key item with the option emptyKeys, if the program has one.`
 - These items are errors: `SIGN LEADING` and `SEPARATE` (#47), `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), edited pictures (#48), `POINTER`, `P`, `A`, and an `OCCURS` in an `OCCURS` (#43).
 - The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).
 - `SYNC` in an `OCCURS` is an error if the item needs slack bytes.

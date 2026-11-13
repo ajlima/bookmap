@@ -215,6 +215,8 @@ Compile errors on the field, for example `Invoice.partyRole (order 30): enum Par
 | `direction` | As in `@BookField`. | `OUTPUT`. |
 | `dependsOn` | The name of the count field. | Variable collection: the member immediately before the collection. Fixed collection: no count field. |
 | `fixed` | `true` for a fixed table (`OCCURS n` without `DEPENDING ON`). | `false` |
+| `emptyItem` | Fixed table: the bytes of an unused slot, `EmptyItem.LOW_VALUES` or `EmptyItem.SPACES`. Without `emptyKey` and `dependsOn`, these bytes also mark an empty slot on read. | `EmptyItem.LOW_VALUES` |
+| `emptyKey` | Fixed table: the name of a field of the item class. A slot is empty if this key is blank or zero. Not permitted with `dependsOn`. | No key. |
 | `maxOccurs` | The maximum number of items in one call. | Mandatory. |
 
 The item class has `@BookField` fields without `direction`. They use the direction of the collection.

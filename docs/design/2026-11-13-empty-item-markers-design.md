@@ -154,14 +154,17 @@ public static EmptySlot lowValues();
 public static EmptySlot spaces();
 public EmptySlot withTextKey(int offset, int length);
 public EmptySlot withNumberKey(int offset, int length, int scale, boolean signed, Usage usage);
-public boolean isEmpty(byte[] data, int from, int slotLength, Charset charset);
+public boolean isEmpty(String field, byte[] data, int from, int slotLength, Charset charset);
+public byte[] fill(int slotLength, Charset charset);
 ```
 
-New public methods. The existing methods do not change, and they call the new methods with `EmptySlot.lowValues()`:
+The `field` argument of `isEmpty` is the descriptor of the slot, for the message of an invalid number key.
+
+New public methods. The existing methods do not change. `countUsedSlots` without a marker calls the new method with `EmptySlot.lowValues()`:
 
 - `BookReader.countUsedSlots(String field, int slotLength, int slots, EmptySlot marker)`.
-- `BookWriter.writeEmptySlots(String field, EmptySlot marker, int slotLength, int slots)`.
-- `BookWriter.isEmptySlotFrom(EmptySlot marker, int start)`.
+- `BookWriter.writeEmptySlots(EmptySlot marker, int slotLength, int slots)`.
+- `BookWriter.isEmptySlotFrom(String field, EmptySlot marker, int start)`.
 
 A codec for a LOW-VALUES collection stays the same as the code of the former processor. Thus, the generated code changes only for the new modes **[builder call]**.
 
