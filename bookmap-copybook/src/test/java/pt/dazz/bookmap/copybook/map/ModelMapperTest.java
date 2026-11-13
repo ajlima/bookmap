@@ -238,8 +238,9 @@ class ModelMapperTest {
     }
 
     @Test
-    void conditionsAreInfo() {
-        MapResult result = map("01 ORDER.", "05 STATUS PIC X.", "88 STATUS-OPEN VALUE 'O'.");
+    void conditionsOfAGroupAreInfo() {
+        MapResult result = map("01 ORDER.", "05 STATUS.", "88 STATUS-OPEN VALUE 'O'.",
+            "10 CODE PIC X.");
         assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.INFO, "condition STATUS-OPEN is ignored"));
     }

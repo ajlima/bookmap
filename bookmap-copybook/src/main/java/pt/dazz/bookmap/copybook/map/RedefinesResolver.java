@@ -70,7 +70,7 @@ final class RedefinesResolver {
     }
 
     /** Finds an item by a bare or qualified name, or reports an error. */
-    private DataItem find(String kind, String name) {
+    DataItem find(String kind, String name) {
         QualifiedName qualified;
         try {
             qualified = QualifiedName.parse(name);

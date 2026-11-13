@@ -20,6 +20,7 @@ import pt.dazz.bookmap.copybook.generate.GenerateOptions;
 import pt.dazz.bookmap.copybook.generate.JavaClassGenerator;
 import pt.dazz.bookmap.copybook.json.ModelJson;
 import pt.dazz.bookmap.copybook.json.ModelJsonException;
+import pt.dazz.bookmap.copybook.map.ConditionMode;
 import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.parse.ParseOptions;
 import pt.dazz.bookmap.copybook.parse.SourceFormat;
@@ -56,6 +57,8 @@ public final class Main {
           --input-marker <word>      A name part that marks an input alternative.
           --output-marker <word>     A name part that marks an output alternative.
           --direction <name>=<dir>   The direction (INPUT or OUTPUT) of an alternative.
+          --conditions <name>=<mode> The mode (enum, constants, or none) of the level 88
+                                     items of an item.
           --config <file.json>       A file with all options. The command line has priority.
         """;
 
@@ -230,11 +233,25 @@ public final class Main {
                     + "'. Use INPUT, OUTPUT, or INPUT_OUTPUT.");
             }
         }
+        Map<String, ConditionMode> conditions = new LinkedHashMap<>(base.conditions());
+        for (String value : arguments.all("--conditions")) {
+            int equals = value.indexOf('=');
+            if (equals < 1) {
+                throw new UsageException("--conditions needs NAME=MODE, not '" + value + "'");
+            }
+            try {
+                conditions.put(value.substring(0, equals),
+                    ConditionMode.of(value.substring(equals + 1)));
+            } catch (IllegalArgumentException e) {
+                throw new UsageException("unknown condition mode in '" + value
+                    + "'. Use enum, constants, or none.");
+            }
+        }
         return new MappingOptions(
             concat(base.stripPrefixes(), arguments.all("--strip-prefix")),
             concat(base.inputMarkers(), arguments.all("--input-marker")),
             concat(base.outputMarkers(), arguments.all("--output-marker")),
-            directions, base.subTypes());
+            directions, base.subTypes(), conditions);
     }
 
     private static List<String> concat(List<String> first, List<String> second) {

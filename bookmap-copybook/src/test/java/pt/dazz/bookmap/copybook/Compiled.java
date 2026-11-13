@@ -102,6 +102,32 @@ public final class Compiled {
     }
 
     /**
+     * Gives the value of a public static field, for example an enum constant.
+     *
+     * @param className the qualified class name
+     * @param field the field name
+     * @return the value
+     */
+    public Object staticField(String className, String field) {
+        try {
+            return loader.loadClass(className).getField(field).get(null);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Calls a public method without parameters.
+     *
+     * @param bean the object
+     * @param name the method name
+     * @return the result
+     */
+    public static Object call(Object bean, String name) {
+        return invoke(method(bean, name, 0), bean);
+    }
+
+    /**
      * Calls a getter.
      *
      * @param bean the object
