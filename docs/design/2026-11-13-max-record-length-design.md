@@ -1,7 +1,7 @@
 # BookMap copybook generator, maximum record length: design
 
 Date: 2026-11-13
-Status: proposed.
+Status: implemented in v0.15.0.
 
 Related documents: `docs/design/2026-11-11-bookmap-copybook-design.md` (the generator design), `docs/design/2026-11-13-ctg-transport-design.md` (the COMMAREA limit), GitHub issue #80.
 

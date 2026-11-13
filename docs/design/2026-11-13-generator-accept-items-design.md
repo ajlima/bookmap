@@ -1,7 +1,7 @@
 # bookmap — Generator: accept the COBOL items that are errors today (design)
 
 Date: 2026-11-13
-Status: proposed.
+Status: implemented in v0.17.0.
 Issue: #37
 Parent spec: `2026-11-11-bookmap-copybook-design.md`
 
