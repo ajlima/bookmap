@@ -95,8 +95,8 @@ public final class DataParser {
     private record Slot(Builder item, int boundary, int offset) {
     }
 
-    /** The {@code OCCURS} item that contains the items of a layout, and its offset. */
-    private record Table(Builder item, int offset, List<Slot> slots) {
+    /** The offset of the {@code OCCURS} item that contains a layout, and its SYNC items. */
+    private record Table(int offset, List<Slot> slots) {
     }
 
     /** Thrown to stop the clauses of one entry after an error. */
@@ -512,7 +512,7 @@ public final class DataParser {
             return item.occurs == null ? single : single * item.occurs.max();
         }
         Table inner = table == null && item.occurs != null
-            ? new Table(item, offset, new ArrayList<>()) : table;
+            ? new Table(offset, new ArrayList<>()) : table;
         int single = layoutChildren(item, usage, sync, offset, inner, record);
         if (inner != table) {
             for (Slot slot : inner.slots()) {
