@@ -3,6 +3,7 @@ package pt.dazz.bookmap;
 import java.util.ArrayList;
 import java.util.List;
 import pt.dazz.bookmap.convert.CodecContext;
+import pt.dazz.bookmap.exception.BusinessException;
 import pt.dazz.bookmap.spi.BookCodec;
 
 /** Hand-written codec for tests. It records every call. */
@@ -65,7 +66,7 @@ class FakeCodec<T> implements BookCodec<T> {
         @Override
         public void validate() {
             if (decoded == failOnDecode) {
-                throw new pt.dazz.bookmap.exception.BusinessException("Order " + decoded + " is not valid");
+                throw new BusinessException("Order " + decoded + " is not valid");
             }
         }
     }

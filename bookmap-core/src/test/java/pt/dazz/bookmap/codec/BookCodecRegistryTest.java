@@ -4,11 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-
+import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.exception.MappingException;
 import pt.dazz.bookmap.spi.BookCodec;
-import org.junit.jupiter.api.Test;
 
 public class BookCodecRegistryTest {
 
