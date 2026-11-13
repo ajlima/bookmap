@@ -133,6 +133,16 @@ class BookmapClientTest {
     }
 
     @Test
+    void validateRunsBeforeTheContinuationLimit() {
+        PagedOrder order = new PagedOrder();
+        order.pagesWithMore = Integer.MAX_VALUE;
+        order.failOnDecode = 1;
+        assertThatThrownBy(() -> builder().maxCalls(1).build().execute(order))
+            .isInstanceOf(BusinessException.class);
+        assertThat(transport.calls()).isEqualTo(1);
+    }
+
+    @Test
     void continuationRepeatsUntilFalse() {
         PagedOrder order = new PagedOrder();
         order.pagesWithMore = 2;
@@ -163,11 +173,12 @@ class BookmapClientTest {
     void outputCollectionsAreResetBeforeExecution() {
         PagedOrder order = new PagedOrder();
         order.pagesWithMore = 1;
-        BookmapClient client = BookmapClient.builder().transport(transport)
+        CountingTransport shared = new CountingTransport(pagedCodec.events);
+        BookmapClient client = BookmapClient.builder().transport(shared)
             .codecRegistry(BookCodecRegistry.of(pagedCodec)).build();
         client.execute(order);
-        assertThat(pagedCodec.events).containsExactly("reset", "encode", "decode", "encode", "decode");
-        assertThat(transport.events).containsExactly("exchange", "exchange");
+        assertThat(pagedCodec.events).containsExactly(
+            "reset", "encode", "exchange", "decode", "encode", "exchange", "decode");
     }
 
     @Test
@@ -216,6 +227,18 @@ class BookmapClientTest {
         assertThatThrownBy(() -> client.execute(new Order()))
             .isInstanceOf(MappingException.class)
             .hasMessage("GETORDER: invalid charset ISO-2022-CN")
+            .hasCauseInstanceOf(IllegalArgumentException.class);
+        assertThat(transport.calls()).isZero();
+    }
+
+    @Test
+    void multiByteCodecCharsetFails() {
+        FakeCodec<Order> codec = new FakeCodec<>(Order.class, "UTF-8");
+        BookmapClient client = BookmapClient.builder().transport(transport)
+            .codecRegistry(BookCodecRegistry.of(codec)).build();
+        assertThatThrownBy(() -> client.execute(new Order()))
+            .isInstanceOf(MappingException.class)
+            .hasMessage("GETORDER: invalid charset UTF-8")
             .hasCauseInstanceOf(IllegalArgumentException.class);
         assertThat(transport.calls()).isZero();
     }

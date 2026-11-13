@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -115,6 +116,29 @@ class SimulatorTransportTest {
         byte[] response = transport.exchange(request("Echo", new byte[] {1, 2, 3}));
 
         assertThat(response).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void handlerGetsACopyOfTheRequestBytes() {
+        SimulatorTransport transport = SimulatorTransport.builder().build();
+        transport.register("Clear", req -> {
+            Arrays.fill(req, (byte) 0);
+            return req;
+        });
+
+        transport.exchange(request("Clear", new byte[] {1, 2, 3}));
+
+        assertThat(transport.receivedRequests().get(0).payload()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void builderRejectsATimeoutThatIsNotPositive() {
+        SimulatorTransport.Builder builder = SimulatorTransport.builder();
+        assertThatThrownBy(() -> builder.timeout(Duration.ZERO))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("The timeout must be more than zero: PT0S");
+        assertThatThrownBy(() -> builder.timeout(Duration.ofMillis(-1)))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

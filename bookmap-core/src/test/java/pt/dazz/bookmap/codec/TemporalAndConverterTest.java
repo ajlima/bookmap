@@ -62,14 +62,15 @@ class TemporalAndConverterTest {
     @Test void isoDateInText() {
         var iso = Formats.of("yyyy-MM-dd");
         byte[] bytes = write(LocalDate.of(2026, 3, 15), 10, iso);
-        assertThat(bytes).isEqualTo(ebcdic("2026-03-15"));
+        assertThat(bytes).containsExactly(
+            0xF2, 0xF0, 0xF2, 0xF6, 0x60, 0xF0, 0xF3, 0x60, 0xF1, 0xF5);
         assertThat(readDate(bytes, 10, iso)).isEqualTo(LocalDate.of(2026, 3, 15));
     }
 
     @Test void timeAndDateTime() {
         var time = LocalTime.of(13, 45, 10);
         byte[] timeBytes = write(time, 6, TIME);
-        assertThat(timeBytes).isEqualTo(ebcdic("134510"));
+        assertThat(timeBytes).containsExactly(0xF1, 0xF3, 0xF4, 0xF5, 0xF1, 0xF0);
         assertThat(new BookReader(timeBytes, EBCDIC).readTime(F, 6, TIME)).isEqualTo(time);
 
         var stamp = LocalDateTime.of(2026, 3, 15, 13, 45, 10);
@@ -89,7 +90,8 @@ class TemporalAndConverterTest {
     }
 
     @Test void nullDateWritesZeros() {
-        assertThat(write(null, 8, DATE)).isEqualTo(ebcdic("00000000"));
+        assertThat(write(null, 8, DATE))
+            .containsExactly(0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0, 0xF0);
     }
 
     @Test void zeroBlankLowValueDatesReadAsNull() {
@@ -99,6 +101,17 @@ class TemporalAndConverterTest {
         var reader = new BookReader(ebcdic("00000000000000"), EBCDIC);
         assertThat(reader.readDateTime(F, 14, DATE_TIME)).isNull();
         assertThat(new BookReader(filled(6, 0x40), EBCDIC).readTime(F, 6, TIME)).isNull();
+        assertThat(new BookReader(filled(6, 0x00), EBCDIC).readTime(F, 6, TIME)).isNull();
+        assertThat(new BookReader(filled(14, 0x40), EBCDIC).readDateTime(F, 14, DATE_TIME)).isNull();
+        assertThat(new BookReader(filled(14, 0x00), EBCDIC).readDateTime(F, 14, DATE_TIME)).isNull();
+    }
+
+    @Test void zerosWithSeparatorsAreNotOnlyZeros() {
+        var iso = Formats.of("yyyy-MM-dd");
+        assertThat(write(null, 10, iso)).isEqualTo(ebcdic("0000000000"));
+        assertThat(readDate(ebcdic("0000000000"), 10, iso)).isNull();
+        assertThatThrownBy(() -> readDate(ebcdic("0000-00-00"), 10, iso))
+            .isInstanceOf(MappingException.class).hasMessageStartingWith(F + ": ");
     }
 
     @Test void invalidDateFails() {
@@ -287,6 +300,26 @@ class TemporalAndConverterTest {
         assertThatThrownBy(() -> r.readConverted(F, failing, ONE_BYTE))
             .isInstanceOf(MappingException.class).hasMessageStartingWith(F + ": ")
             .hasCause(failure);
+    }
+
+    @Test void converterExceptionWithoutMessageNamesTheClass() {
+        FieldConverter<Boolean> failing = new FieldConverter<>() {
+            @Override public Boolean decode(byte[] bytes, FieldContext context) {
+                throw new IllegalStateException();
+            }
+
+            @Override public byte[] encode(Boolean value, FieldContext context) {
+                throw new IllegalStateException();
+            }
+        };
+        var w = new BookWriter(EBCDIC);
+        assertThatThrownBy(() -> w.writeConverted(F, true, failing, ONE_BYTE))
+            .isInstanceOf(MappingException.class)
+            .hasMessage(F + ": converter failed (java.lang.IllegalStateException)");
+        var r = new BookReader(new byte[1], EBCDIC);
+        assertThatThrownBy(() -> r.readConverted(F, failing, ONE_BYTE))
+            .isInstanceOf(MappingException.class)
+            .hasMessage(F + ": converter failed (java.lang.IllegalStateException)");
     }
 
     @Test void bookmapExceptionFromConverterPassesThrough() {

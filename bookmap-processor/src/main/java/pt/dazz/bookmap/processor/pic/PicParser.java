@@ -8,7 +8,7 @@ import pt.dazz.bookmap.processor.pic.PicSpec.Category;
 
 /**
  * Parses a COBOL {@code PIC} string at compile time.
- * The syntax is in section 5.2.1 of the design spec.
+ * The syntax is in the Javadoc of {@link pt.dazz.bookmap.annotation.BookField#pic()}.
  * The parser uses a small hand-written scanner.
  */
 public final class PicParser {

@@ -23,7 +23,11 @@ public @interface BookField {
     int order();
 
     /**
-     * Gives the COBOL PIC clause, for example {@code X(10)} or {@code S9(7)V99}.
+     * Gives the COBOL PIC clause, for example {@code X(10)}, {@code S9(7)V99}, or
+     * {@code PIC S9(7)V99 COMP-3}.
+     *
+     * <p>Write the picture as one word, without spaces: {@code S9(7) V99} is a compile error.
+     * The prefix {@code PIC IS} is not supported.
      *
      * @return the PIC clause
      */
@@ -68,8 +72,12 @@ public @interface BookField {
      * Gives the date or time pattern for date and time fields.
      *
      * <p>The pattern uses {@link java.time.format.DateTimeFormatter} letters. The formatter is
-     * strict and uses {@link java.util.Locale#ROOT}. A two-digit year ({@code yy}) reads as a
-     * year from 2000 to 2099. On write, a value that the pattern cannot keep causes a
+     * strict and uses {@link java.util.Locale#ROOT}. A two-digit year ({@code yy} or {@code uu})
+     * reads as a year from 2000 to 2099. On read, a date or time with only the digit {@code 0}
+     * is {@code null} ({@code LocalTime.MIDNIGHT} for a time). Zeros with separators, for
+     * example {@code 0000-00-00} with {@code yyyy-MM-dd}, are not a valid date and cause a
+     * {@link pt.dazz.bookmap.exception.MappingException}. A {@code null} value writes the digit
+     * {@code 0} in all positions. On write, a value that the pattern cannot keep causes a
      * {@link pt.dazz.bookmap.exception.MappingException}. Examples: the year 1975 with
      * {@code yyMMdd}, or a time with seconds or nanoseconds with {@code HHmm}. Remove the
      * extra precision before you set the value, for example with

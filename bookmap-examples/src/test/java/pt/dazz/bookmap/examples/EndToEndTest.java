@@ -7,10 +7,10 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import java.util.Arrays;
 import pt.dazz.bookmap.BookmapClient;
 import pt.dazz.bookmap.codec.BookCodecRegistry;
 import pt.dazz.bookmap.convert.CodecContext;
@@ -151,6 +151,7 @@ class EndToEndTest {
         assertThatThrownBy(() -> client.execute(newRequest()))
             .isInstanceOfSatisfying(RemoteAbendException.class,
                 e -> assertThat(e.abendCode()).isEqualTo("ASRA"));
+        assertThat(simulator.receivedRequests()).hasSize(1);
     }
 
     @Test
@@ -185,5 +186,27 @@ class EndToEndTest {
         assertThat(result.getOrders()).hasSize(1);
         assertThat(result.getOrders().get(0).getTotalAmount()).isEqualByComparingTo("-1234567890123.45");
         assertThat(result.getOrders().get(0).getOrderDate()).isEqualTo(LocalDate.of(2026, 2, 28));
+    }
+
+    @Test
+    void amountAndDateBytes() {
+        var codec = BookCodecRegistry.loadDefault().codecFor(GetCustomerOrders.class);
+        Order refund = new Order();
+        refund.setOrderNumber("ORD0000001");
+        refund.setTotalAmount(new BigDecimal("-1234567890123.45"));
+        refund.setOrderDate(LocalDate.of(2026, 2, 28));
+        GetCustomerOrders page = newRequest();
+        page.setReturnCode("0000");
+        page.setReturnMessage("OK");
+        page.setMoreData("N");
+        page.setOrders(List.of(refund));
+
+        byte[] response = codec.encodeResponse(page, CodecContext.defaults());
+
+        // The order starts at byte 80: number (10), amount (COMP-3, 8), date (8).
+        assertThat(Arrays.copyOfRange(response, 90, 98))
+            .containsExactly(0x12, 0x34, 0x56, 0x78, 0x90, 0x12, 0x34, 0x5D);
+        assertThat(Arrays.copyOfRange(response, 98, 106))
+            .containsExactly(0xF2, 0xF0, 0xF2, 0xF6, 0xF0, 0xF2, 0xF2, 0xF8);
     }
 }

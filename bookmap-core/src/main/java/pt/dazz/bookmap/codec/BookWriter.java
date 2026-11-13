@@ -117,7 +117,7 @@ public final class BookWriter {
         } catch (BookmapException e) {
             throw e;
         } catch (RuntimeException e) {
-            throw new MappingException(field + ": converter failed (" + e.getMessage() + ")", e);
+            throw converterFailure(field, e);
         }
         if (bytes == null || bytes.length != context.byteLength()) {
             throw new MappingException(field + ": converter must return "
@@ -183,5 +183,18 @@ public final class BookWriter {
      */
     public byte[] toByteArray() {
         return out.toByteArray();
+    }
+
+    /**
+     * Gives the error for a converter that threw a {@link RuntimeException}. When the exception
+     * has no message, the error shows the exception class.
+     *
+     * @param field the field descriptor
+     * @param e the exception from the converter
+     * @return the error, with {@code e} as its cause
+     */
+    static MappingException converterFailure(String field, RuntimeException e) {
+        String detail = e.getMessage() == null ? e.getClass().getName() : e.getMessage();
+        return new MappingException(field + ": converter failed (" + detail + ")", e);
     }
 }

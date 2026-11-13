@@ -64,7 +64,7 @@ class PackedAndBinaryTest {
         assertThat(read(packed, 15, 2, true, Usage.COMP3)).isEqualByComparingTo("-1234567.89");
     }
 
-    @Test void packedRoundTripKeepsScale() {
+    @Test void packedReadKeepsScale() {
         assertThat(read(bytes(0x01, 0x23, 0x4C), 4, 2, true, Usage.COMP3).toPlainString())
             .isEqualTo("12.34");
     }
@@ -78,7 +78,11 @@ class PackedAndBinaryTest {
 
     @Test void packedInvalidNibbleFails() {
         assertThatThrownBy(() -> read(bytes(0x1A, 0x3C), 3, 0, true, Usage.COMP3))
-            .isInstanceOf(MappingException.class).hasMessageStartingWith(F);
+            .isInstanceOf(MappingException.class).hasMessageStartingWith(F)
+            .hasMessageContaining("byte 0x1A at offset 0 of the field");
+        assertThatThrownBy(() -> read(bytes(0x12, 0xA3, 0x4C), 5, 0, true, Usage.COMP3))
+            .isInstanceOf(MappingException.class)
+            .hasMessageContaining("byte 0xA3 at offset 1 of the field");
     }
 
     @Test void packedInvalidSignNibbleFails() {
@@ -98,6 +102,11 @@ class PackedAndBinaryTest {
 
     @Test void packedLowValuesReadAsNull() {
         assertThat(read(bytes(0x00, 0x00), 3, 0, true, Usage.COMP3)).isNull();
+    }
+
+    @Test void packedMixedSpacesAndLowValuesReadAsNull() {
+        assertThat(read(bytes(0x40, 0x00), 3, 0, true, Usage.COMP3)).isNull();
+        assertThat(read(bytes(0x00, 0x40), 3, 0, true, Usage.COMP3)).isNull();
     }
 
     @Test void packedSpacesReadAsNull() {

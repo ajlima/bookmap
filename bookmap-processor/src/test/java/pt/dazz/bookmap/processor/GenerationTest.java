@@ -304,6 +304,10 @@ class GenerationTest {
         CompiledCodec.set(counts, "b", 6L);
         CompiledCodec.set(counts, "c", 7);
         CompiledCodec.set(counts, "d", 8L);
+        CompiledCodec.set(counts, "e", 9);
+        CompiledCodec.set(counts, "f", 10);
+        CompiledCodec.set(counts, "g", 11L);
+        CompiledCodec.set(counts, "h", 12L);
         byte[] data = new byte[codec.maxResponseLength()];
         Arrays.fill(data, 0, 14, (byte) ' ');
 
@@ -313,6 +317,11 @@ class GenerationTest {
         assertThat(CompiledCodec.get(counts, "b")).isEqualTo(0L);
         assertThat(CompiledCodec.get(counts, "c")).isNull();
         assertThat(CompiledCodec.get(counts, "d")).isNull();
+        // COMP has no blank value: the low-values after byte 14 read as zero.
+        assertThat(CompiledCodec.get(counts, "e")).isEqualTo(0);
+        assertThat(CompiledCodec.get(counts, "f")).isEqualTo(0);
+        assertThat(CompiledCodec.get(counts, "g")).isEqualTo(0L);
+        assertThat(CompiledCodec.get(counts, "h")).isEqualTo(0L);
     }
 
     @Test

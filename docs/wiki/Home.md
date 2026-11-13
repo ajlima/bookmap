@@ -83,6 +83,10 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 - Single-byte charsets only.
 - Packed dates need a converter.
 - Edited pictures (`Z`, `*`, `,`, `+`, `-`, `CR`, `DB`) are rejected at compile time.
+- No `P` scaling, `A`, or `N` in a picture, and no `COMP-5`.
+- No `SIGN LEADING` or `SIGN SEPARATE`.
+- An operation class must not be a record. `@lombok.Value` is not supported, because it gives no setters.
+- The CTG transport sends a COMMAREA. Channels and containers are not supported.
 
 The [Roadmap](Roadmap) lists the plan for each limitation.
 
