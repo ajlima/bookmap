@@ -72,12 +72,13 @@ final class FieldResolver {
     /** The attributes that only numeric fields and converted fields can use. */
     private static final List<String> NUMERIC_ATTRIBUTES = List.of("signed", "scale");
 
-    // The first sample has two-digit values. The second sample has one-digit values. A pattern
-    // that gives different text lengths for them (such as "d", "M", or "H") has no fixed length.
-    // With Locale.ROOT, month and day names ("MMMM", "EEEE") have three letters.
+    // The first sample has two-digit values and nine-digit nanoseconds. The second sample has
+    // one-digit values. A pattern that gives different text lengths for them (such as "d", "M",
+    // "H", or "n") has no fixed length. With Locale.ROOT, month and day names ("MMMM", "EEEE")
+    // have three letters.
     private static final List<LocalDateTime> SAMPLES = List.of(
-        LocalDateTime.of(2026, 12, 31, 23, 59, 58),
-        LocalDateTime.of(2026, 1, 1, 1, 1, 1));
+        LocalDateTime.of(2026, 12, 31, 23, 59, 58, 999_999_999),
+        LocalDateTime.of(2026, 1, 1, 1, 1, 1, 1));
 
     private static final Map<JavaKind, Function<LocalDateTime, TemporalAccessor>> SAMPLE_VALUES =
         Map.of(
@@ -289,7 +290,7 @@ final class FieldResolver {
         try {
             String text = formatter.format(value.apply(SAMPLES.get(0)));
             formatter.parse(text, QUERIES.get(kind));
-            for (LocalDateTime sample : SAMPLES) {
+            for (LocalDateTime sample : SAMPLES.subList(1, SAMPLES.size())) {
                 if (formatter.format(value.apply(sample)).length() != text.length()) {
                     problems.error(member, "pattern '" + pattern
                         + "' gives text of variable length for " + simpleName(fieldType));

@@ -1485,14 +1485,18 @@ class ValidationTest {
             field("@BookField(order = 5, pattern = \"yyyyMMddhhmmssa\")", "LocalDateTime",
                 "created"),
             field("@BookField(order = 6, pattern = \"yyyy-MM-dd H:mm:ss\")", "LocalDateTime",
-                "changed")));
+                "changed"),
+            field("@BookField(order = 7, pattern = \"HHmmssn\")", "LocalTime", "stamp"),
+            field("@BookField(order = 8, pattern = \"HHmmssSSS\")", "LocalTime", "precise")));
         assertError(compilation, "Order.shipped (order 1)",
             "pattern 'yyyy-M-d' gives text of variable length for LocalDate");
         assertError(compilation, "Order.time (order 3)",
             "pattern 'Hmmss' gives text of variable length for LocalTime");
         assertError(compilation, "Order.changed (order 6)",
             "pattern 'yyyy-MM-dd H:mm:ss' gives text of variable length for LocalDateTime");
-        CompilationSubject.assertThat(compilation).hadErrorCount(3);
+        assertError(compilation, "Order.stamp (order 7)",
+            "pattern 'HHmmssn' gives text of variable length for LocalTime");
+        CompilationSubject.assertThat(compilation).hadErrorCount(4);
     }
 
     @Test

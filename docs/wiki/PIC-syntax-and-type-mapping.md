@@ -120,11 +120,11 @@ Date patterns use `DateTimeFormatter` (for example `yyyyMMdd`, `yyMMdd`, `yyyyDD
 The default pattern is `yyyyMMdd`. It fits only `LocalDate`. Set a `pattern` on each `LocalTime` and `LocalDateTime` field.
 Otherwise, the compiler reports `pattern 'yyyyMMdd' does not fit LocalDateTime`.
 
-- The pattern must give text of a fixed length. For example, `Hmmss` is a compile error.
+- The pattern must give text of a fixed length. For example, `Hmmss` and `HHmmssn` are compile errors. Use `SSS` for a fixed number of fraction digits.
 - The pattern must fit the Java type. For example, `HHmmss` on a `LocalDate` is a compile error.
 - An explicit `length` must agree with the pattern. Otherwise, the compiler reports `length N does not agree with pattern 'P' (M characters)`.
 - The formatters are strict and use `Locale.ROOT`.
-- A two-digit year (`yy`) reads as a year from 2000 to 2099.
+- A two-digit year (`yy` or `uu`) reads as a year from 2000 to 2099.
 
 On write, the codec reads the text again and compares it with the value.
 If the pattern cannot keep the value, the codec throws `MappingException`.
