@@ -281,13 +281,19 @@ public final class ModelMapper {
         }
         DateHints.Applied date = dates.apply(item, usage);
         FieldMember field;
+        if (date != null && picture.edited() != null) {
+            // Only a picture without edit symbols can have a date hint.
+            diagnostics.info(item.source(), item.line(), item.column(), "BLANK WHEN ZERO on "
+                + item.name() + " is ignored, because " + item.name() + " has a date hint");
+            picture = Picture.parse(picture.text());
+        }
         if (date != null) {
             // A date or time field has no constants and no enum. Tell what is ignored.
             ignored(item, "has a date hint");
             field = new FieldMember(name, date.type(), owner.nextOrder(),
                 PicText.of(picture, usage, item.sign()), context.direction(), item.name(), item.declaration(),
                 date.pattern());
-        } else if (picture.edited() != null) {
+        } else if (picture.editSymbols()) {
             // The VALUE of an edited item is text, and its conditions compare text.
             ignored(item, "has an edited picture");
             field = new FieldMember(name, javaType(picture, usage), owner.nextOrder(),

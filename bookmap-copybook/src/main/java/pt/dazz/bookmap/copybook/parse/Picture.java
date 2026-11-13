@@ -90,6 +90,16 @@ public record Picture(String text, boolean numeric, boolean signed, int integerD
     }
 
     /**
+     * Tells if the picture has edit symbols, for example {@code Z} or {@code CR}. A
+     * {@code 9(5)} with {@code BLANK WHEN ZERO} is an edited picture without edit symbols.
+     *
+     * @return {@code true} for an edited picture with edit symbols
+     */
+    public boolean editSymbols() {
+        return edited != null && EditedPicture.isEdited(text);
+    }
+
+    /**
      * Gives this picture with the clause {@code BLANK WHEN ZERO}. The result is an edited
      * picture.
      *

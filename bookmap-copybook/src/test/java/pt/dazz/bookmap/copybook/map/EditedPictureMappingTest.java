@@ -102,4 +102,74 @@ class EditedPictureMappingTest {
 
         assertThat(messages(result, Severity.INFO)).noneMatch(m -> m.contains("count field"));
     }
+
+    private static MappingOptions options(Map<String, SubTypeDecision> subTypes,
+                                          Map<String, String> countFields,
+                                          Map<String, String> emptyKeys) {
+        return new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
+            MappingOptions.OUTPUT_MARKERS, Map.of(), subTypes, countFields, null, Map.of(),
+            Map.of(), Map.of(), Map.of(), Map.of(), emptyKeys);
+    }
+
+    @Test
+    void anEditedCountFieldOfTheOptionIsAnError() {
+        MapResult result = map(options(Map.of(), Map.of("LINE", "LINE-COUNT"), Map.of()),
+            "01 INVOICE.", "05 LINE-COUNT PIC Z9.", "05 LINE OCCURS 5.", "10 SKU PIC X(8).");
+
+        assertThat(messages(result, Severity.ERROR)).containsExactly(
+            "count field LINE-COUNT must not have an edited picture");
+    }
+
+    @Test
+    void aCountItemWithBlankWhenZeroIsAnError() {
+        MapResult result = map("01 INVOICE.", "05 LINE-COUNT PIC 9(2) BLANK WHEN ZERO.",
+            "05 LINE OCCURS 1 TO 50 DEPENDING ON LINE-COUNT.", "10 SKU PIC X(8).");
+
+        assertThat(messages(result, Severity.ERROR)).containsExactly(
+            "DEPENDING ON item LINE-COUNT must not have an edited picture");
+    }
+
+    @Test
+    void anEditedEmptyKeyIsAnError() {
+        MapResult result = map(options(Map.of(), Map.of(), Map.of("LINE", "QUANTITY")),
+            "01 INVOICE.", "05 LINE OCCURS 5.", "10 QUANTITY PIC ZZ9.", "10 SKU PIC X(8).");
+
+        assertThat(messages(result, Severity.ERROR)).containsExactly(
+            "empty key option: QUANTITY must not have an edited picture");
+    }
+
+    @Test
+    void anEditedDiscriminatorIsAnError() {
+        MapResult result = map(options(Map.of("CARD-DATA", new SubTypeDecision("ENTRY-TYPE",
+                Map.of("CARD-DATA", "1", "BANK-DATA", "2"), Map.of())), Map.of(), Map.of()),
+            "01 INVOICE.", "05 ENTRY-TYPE PIC Z9.", "05 CARD-DATA.", "10 CARD-NO PIC X(4).",
+            "05 BANK-DATA REDEFINES CARD-DATA.", "10 IBAN PIC X(4).");
+
+        assertThat(messages(result, Severity.ERROR)).containsExactly(
+            "the discriminator ENTRY-TYPE must not have an edited picture");
+    }
+
+    @Test
+    void aDateHintIgnoresBlankWhenZero() {
+        MapResult result = map(MappingOptions.defaults().withHints(Map.of("*-DATE", "yyyyMMdd"),
+                Map.of(), Map.of()),
+            "01 INVOICE.", "05 DUE-DATE PIC 9(8) BLANK WHEN ZERO.");
+
+        assertThat(result.hasErrors()).isFalse();
+        assertThat(field(result, "dueDate").pic()).isEqualTo("9(8)");
+        assertThat(field(result, "dueDate").javaType()).isEqualTo(JavaType.LOCAL_DATE);
+        assertThat(messages(result, Severity.INFO)).contains(
+            "BLANK WHEN ZERO on DUE-DATE is ignored, because DUE-DATE has a date hint");
+    }
+
+    @Test
+    void theConditionsOfANumberWithBlankWhenZeroAreKept() {
+        MapResult result = map("01 INVOICE.", "05 STATUS-CODE PIC 9 BLANK WHEN ZERO VALUE 1.",
+            "88 STATUS-OPEN VALUE 1.", "88 STATUS-CLOSED VALUE 2.");
+
+        assertThat(result.hasErrors()).isFalse();
+        assertThat(field(result, "statusCode").pic()).isEqualTo("9 BLANK WHEN ZERO");
+        assertThat(field(result, "statusCode").enumType()).isNotNull();
+        assertThat(field(result, "statusCode").initialValue()).isNotNull();
+    }
 }

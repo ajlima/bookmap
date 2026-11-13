@@ -301,6 +301,10 @@ final class RedefinesResolver {
                 + " REDEFINES area " + base.name() + ", in the same class");
             return null;
         }
+        if (item.picture().edited() != null) {
+            mapper.error(base, "the discriminator " + name + " must not have an edited picture");
+            return null;
+        }
         if (field.field().javaType() == JavaType.BIG_DECIMAL
             || field.field().javaType().temporal()) {
             mapper.error(base, "the discriminator " + name + " must be text or an integer");

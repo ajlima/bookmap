@@ -133,6 +133,10 @@ final class EmptyItemResolver {
             return null;
         }
         FieldMember field = placed.field();
+        if (key.picture().edited() != null) {
+            mapper.error(table, KEY_KIND + ": " + key.name() + " must not have an edited picture");
+            return null;
+        }
         if (field.pattern() != null || !KEY_TYPES.contains(field.javaType())) {
             mapper.error(table, KEY_KIND + ": " + key.name()
                 + " must map to a text or a number field");

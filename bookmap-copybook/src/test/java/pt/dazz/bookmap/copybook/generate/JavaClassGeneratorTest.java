@@ -84,4 +84,12 @@ class JavaClassGeneratorTest {
         assertThat(Files.readString(file)).contains("public class Holder");
         assertThat(dir.resolve("com/example/accounts/GetAccount.java")).exists();
     }
+
+    @Test
+    void aDeclarationThatEndsACommentUsesHtml() {
+        assertThat(JavaClassGenerator.declaration("05 A PIC ZZ9.")).hasToString(
+            "{@code 05 A PIC ZZ9.}\n");
+        assertThat(JavaClassGenerator.declaration("05 A<B> & @C PIC **/**/99.")).hasToString(
+            "<code>05 A&lt;B&gt; &amp; &#64;C PIC **&#47;**&#47;99.</code>\n");
+    }
 }

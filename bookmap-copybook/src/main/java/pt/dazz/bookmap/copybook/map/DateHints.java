@@ -138,7 +138,7 @@ final class DateHints {
 
     private Applied check(DataItem item, Usage usage, String pattern) {
         Picture picture = item.picture();
-        if (picture.edited() != null) {
+        if (picture.editSymbols()) {
             mapper.error(item, item.name() + " has an edited picture. A date hint needs"
                 + " PIC 9(n) or PIC X(n).");
             return null;

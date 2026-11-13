@@ -450,6 +450,47 @@ class EndToEndTest {
     }
 
     @Test
+    void editedPicturesRoundTrip() {
+        Copybooks.Result result = generate("INVOICE-PRINT.cpy", PLAIN);
+        assertThat(result.diagnostics()).extracting(Diagnostic::message).containsExactly(
+            "record PRINT-INVOICE has 51 bytes",
+            "PRT-STATUS: the level 88 items give constants, not an enum, because it has only one"
+                + " level 88 item. Set the condition mode of PRT-STATUS to change this.",
+            "the VALUE of PRT-FEE is ignored, because PRT-FEE has an edited picture");
+        String source = result.files().stream()
+            .filter(file -> file.typeSpec().name().equals("PrintInvoice")).findFirst()
+            .orElseThrow().toString();
+        assertThat(source).contains("pic = \"$$,$$9.99CR\"")
+            .contains("<code>05 PRT-DUE-DAY PIC **&#47;**&#47;99.</code>")
+            .contains("pic = \"9(3)V99 BLANK WHEN ZERO\"");
+        Compiled classes = Compiled.compile(result.files());
+        assertThat(classes.staticField(PACKAGE + ".PrintInvoice", "PRT_OPEN")).isEqualTo(1);
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".PrintInvoice");
+        Object invoice = codec.newInstance();
+        set(invoice, "prtInvoiceId", "INV-0042");
+        set(invoice, "prtLineCount", 7);
+        set(invoice, "prtTotal", new BigDecimal("-1234.5"));
+        set(invoice, "prtTax", new BigDecimal("12.34"));
+        set(invoice, "prtDueDay", 10226);
+        set(invoice, "prtDiscount", BigDecimal.ZERO);
+        set(invoice, "prtStatus", 1);
+        set(invoice, "prtFee", -5);
+
+        byte[] bytes = codec.encodeRequest(invoice, LATIN);
+
+        assertThat(new String(bytes, StandardCharsets.ISO_8859_1)).isEqualTo("INV-0042  "
+            + "  7" + "$1,234.50CR" + "   12.34 " + "*1/02/26" + "     " + "1" + "  -5");
+        Object decoded = codec.decodeRequest(bytes, LATIN);
+        assertThat(get(decoded, "prtLineCount")).isEqualTo(7);
+        assertThat(get(decoded, "prtTotal")).isEqualTo(new BigDecimal("-1234.50"));
+        assertThat(get(decoded, "prtTax")).isEqualTo(new BigDecimal("12.34"));
+        assertThat(get(decoded, "prtDueDay")).isEqualTo(10226);
+        assertThat(get(decoded, "prtDiscount")).isNull();
+        assertThat(get(decoded, "prtStatus")).isEqualTo(1);
+        assertThat(get(decoded, "prtFee")).isEqualTo(-5);
+    }
+
+    @Test
     void errorsStopThePipeline() {
         Copybooks.Result parseError = Copybooks.toModel(copybook("copylib/ADDRESS.cpy"),
             ParseOptions.defaults(), MappingOptions.defaults());
