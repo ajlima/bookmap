@@ -97,12 +97,15 @@ public final class HttpTransport implements Transport, AutoCloseable {
         if (route == null) {
             throw new OperationNotFoundException(operation + ": no HTTP route");
         }
+        if (closed.get()) {
+            throw new TransportException(operation + ": the transport is closed");
+        }
         String target = FailureTranslator.target(operation, route.method(), route.uri());
         Map<String, String> merged = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         merged.putAll(headers);
         merged.putAll(route.headers());
         if (headerSupplier != null) {
-            merged.putAll(headerSupplier.get());
+            merged.putAll(suppliedHeaders(target));
         }
         HttpRequest.Builder builder = HttpRequest.newBuilder(route.uri())
             .method(route.method(), BodyPublishers.ofByteArray(request.payload()));
@@ -111,10 +114,35 @@ public final class HttpTransport implements Transport, AutoCloseable {
         HttpResponse<byte[]> response;
         try {
             response = future.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new TransportException(target + ": request failed", e);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            throw FailureTranslator.timeout(target, timeout, e);
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            throw new TransportException(target + ": interrupted", e);
+        } catch (ExecutionException e) {
+            throw FailureTranslator.translate(target, e.getCause(), timeout);
         }
         return FailureTranslator.checkResponse(target, response, abendHeader);
+    }
+
+    private Map<String, String> suppliedHeaders(String target) {
+        Map<String, String> supplied;
+        try {
+            supplied = headerSupplier.get();
+        } catch (RuntimeException e) {
+            throw new TransportException(target + ": header supplier failed", e);
+        }
+        if (supplied == null) {
+            throw new TransportException(target + ": header supplier returned null");
+        }
+        try {
+            supplied.forEach(HeaderRules::check);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new TransportException(target + ": header supplier gave an incorrect header", e);
+        }
+        return supplied;
     }
 
     /**
@@ -190,8 +218,8 @@ public final class HttpTransport implements Transport, AutoCloseable {
         public Builder baseUri(URI baseUri) {
             Objects.requireNonNull(baseUri, "baseUri");
             if (!isHttp(baseUri)) {
-                throw new IllegalArgumentException(
-                    "The base URI must be an absolute http or https URI: " + baseUri);
+                throw new IllegalArgumentException("The base URI must be an absolute http or "
+                    + "https URI: " + FailureTranslator.safe(baseUri));
             }
             this.baseUri = baseUri;
             return this;
@@ -251,15 +279,21 @@ public final class HttpTransport implements Transport, AutoCloseable {
 
         /**
          * Sets the header {@code Authorization: Basic ...}, with the user and the password in
-         * UTF-8 (RFC 7617).
+         * UTF-8 (RFC 7617). Use it only with an {@code https} route: on {@code http}, the
+         * password goes over the network as clear text.
          *
          * @param user the user
          * @param password the password
          * @return this builder
+         * @throws IllegalArgumentException if the user contains a colon
          */
         public Builder basicAuth(String user, String password) {
             Objects.requireNonNull(user, "user");
             Objects.requireNonNull(password, "password");
+            if (user.indexOf(':') >= 0) {
+                throw new IllegalArgumentException(
+                    "The user of basic authentication must not contain a colon (RFC 7617)");
+            }
             String credentials = Base64.getEncoder()
                 .encodeToString((user + ":" + password).getBytes(StandardCharsets.UTF_8));
             return header("Authorization", "Basic " + credentials);
@@ -361,14 +395,14 @@ public final class HttpTransport implements Transport, AutoCloseable {
             URI uri = route.uri();
             if (!uri.isAbsolute()) {
                 if (baseUri == null) {
-                    throw new IllegalStateException(operation + ": the route URI " + uri
-                        + " is relative, and no base URI is set");
+                    throw new IllegalStateException(operation + ": the route URI "
+                        + FailureTranslator.safe(uri) + " is relative, and no base URI is set");
                 }
                 uri = baseUri.resolve(uri);
             }
             if (!isHttp(uri)) {
-                throw new IllegalStateException(operation + ": the route URI " + uri
-                    + " is not an absolute http or https URI");
+                throw new IllegalStateException(operation + ": the route URI "
+                    + FailureTranslator.safe(uri) + " is not an absolute http or https URI");
             }
             return new HttpRoute(uri, route.method(), route.headers());
         }

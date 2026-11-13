@@ -153,4 +153,26 @@ class HttpTransportBuilderTest {
             assertThat(caller.ownsClient()).isFalse();
         }
     }
+
+    @Test
+    void builderMessagesHaveNoUserInformationAndNoQuery() {
+        assertThatThrownBy(() -> HttpTransport.builder().baseUri("ftp://u:secret@h/x?token=abc"))
+            .hasMessageNotContaining("secret")
+            .hasMessageNotContaining("token");
+        assertThatThrownBy(() -> HttpTransport.builder()
+                .route("GetInvoice", "ftp://u:secret@h/x?token=abc").build())
+            .hasMessageNotContaining("secret")
+            .hasMessageNotContaining("token");
+        assertThatThrownBy(() -> HttpTransport.builder()
+                .route("GetInvoice", "x?token=abc").build())
+            .hasMessageNotContaining("token");
+    }
+
+    @Test
+    void basicAuthUserWithAColonIsRejected() {
+        assertThatThrownBy(() -> HttpTransport.builder().basicAuth("ORD:USER", "secret"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageNotContaining("ORD:USER")
+            .hasMessageNotContaining("secret");
+    }
 }

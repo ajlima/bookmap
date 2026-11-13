@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -246,5 +247,62 @@ class HttpTransportTest {
                     .build(), java.net.http.HttpResponse.BodyHandlers.ofByteArray()).statusCode())
                 .isEqualTo(200);
         }
+    }
+
+    @Test
+    void bodyThatStopsGivesATimeout() {
+        server.handler(exchange -> {
+            exchange.sendResponseHeaders(200, 10);
+            exchange.getResponseBody().write(new byte[] {1, 2});
+            exchange.getResponseBody().flush();
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        long start = System.nanoTime();
+
+        assertThatThrownBy(() -> exchange(builder().timeout(Duration.ofMillis(300))))
+            .isExactlyInstanceOf(TransportTimeoutException.class)
+            .hasMessageEndingWith(": no response in 300 ms");
+        assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(3));
+    }
+
+    @Test
+    void refusedConnectionIsAConnectionFailure() {
+        String uri = server.baseUri() + "invoices";
+        server.close();
+
+        assertThatThrownBy(() -> exchange(HttpTransport.builder().route("GetInvoice", uri)))
+            .isExactlyInstanceOf(ConnectionException.class);
+    }
+
+    @Test
+    void transportThatOwnsItsClientRejectsAnExchangeAfterClose() {
+        transport = builder().build();
+        transport.close();
+
+        assertThatThrownBy(() -> transport.exchange(new BookRequest("GetInvoice", REQUEST, 100)))
+            .isExactlyInstanceOf(TransportException.class);
+        assertThat(server.requestCount()).isZero();
+    }
+
+    @Test
+    void longAbendCodeIsLimitedTo32Characters() {
+        server.respond(500, null, new byte[0], Map.of("X-Abend-Code", "A".repeat(40)));
+
+        assertThatThrownBy(() -> exchange(builder().abendHeader("X-Abend-Code")))
+            .isInstanceOfSatisfying(RemoteAbendException.class,
+                e -> assertThat(e.abendCode()).isEqualTo("A".repeat(32)));
+    }
+
+    @Test
+    void controlCharactersInTheAbendCodeBecomeSpaces() {
+        server.respond(500, null, new byte[0], Map.of("X-Abend-Code", "AS\tRA"));
+
+        assertThatThrownBy(() -> exchange(builder().abendHeader("X-Abend-Code")))
+            .isInstanceOfSatisfying(RemoteAbendException.class,
+                e -> assertThat(e.abendCode()).isEqualTo("AS RA"));
     }
 }
