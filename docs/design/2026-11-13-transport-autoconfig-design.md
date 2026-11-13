@@ -266,7 +266,7 @@ Rules:
 
 **The SSL bundle.** If `ssl.bundle` is set, the auto-configuration gets the bundle from `SslBundles`. It makes an `HttpClient` like the client of the transport: HTTP/1.1, `Redirect.NEVER`, the connect timeout (the property, else 10 seconds), and the `SSLContext` of the bundle. The protocols and the ciphers of the bundle options go into the `SSLParameters` of the client. It gives the client to `httpClient`. An unknown bundle name stops the application, with the `NoSuchSslBundleException` of Spring Boot.
 
-The transport does not close a client of the caller. Thus, the auto-configuration declares the client as a bean with `@Bean(destroyMethod = "shutdown")`. Spring Boot calls `shutdown()` when the context closes. Do not use the inferred destroy method: it selects `close()`, and `close()` can wait for a long time (HTTP design, 8).
+The transport does not close a client of the caller. Thus, a package-private holder bean `SslBundleHttpClient` keeps the client, and calls `shutdown()` of the client in `destroy()` when the context closes. The client is not an `HttpClient` bean: an `HttpClient` bean could make the injection of an `HttpClient` bean of the application ambiguous. The holder does not call `close()`: `close()` can wait for a long time (HTTP design, 8).
 
 ### 5.6 The customizers
 
@@ -315,7 +315,7 @@ The builder of this design verifies the case rules with a test, also without bra
 The configuration processor makes the metadata of each properties record. The text of each `@param` tag is the description (see the comment in `BookmapProperties`). `additional-spring-configuration-metadata.json` adds:
 
 - A hint for `bookmap.transport.type` with a description of each value.
-- A hint for `bookmap.transport.http.ssl.bundle` with the provider `handle-as` of Spring Boot, if the IDE supports it. Else, no hint.
+- No hint for `bookmap.transport.http.ssl.bundle`. Spring Boot has no value provider for the names of the SSL bundles.
 
 `ConfigurationMetadataTest` checks for each increment: the list of the keys, the type, the default value, and the start of the description of each new property. `listsOnlyTheBookmapProperties` gets the new keys.
 

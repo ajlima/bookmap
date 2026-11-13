@@ -310,6 +310,7 @@ class OrderService {
 **CAUTION:** Do not write the password as a plain value in `application.properties`. Each person who can read the repository can then read the password.
 
 See [Spring Boot](https://github.com/ajlima/bookmap/wiki/Spring-Boot#cics-transaction-gateway) for all properties, the secrets, and the customizer.
+For an HTTP endpoint, set `bookmap.transport.type=http` and the `bookmap.transport.http.*` properties. See [Spring Boot](https://github.com/ajlima/bookmap/wiki/Spring-Boot#http).
 
 ### 7. Test without CICS
 
