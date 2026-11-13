@@ -1,5 +1,25 @@
 The client sends the bytes of each request through a **transport**. The transport is the only part of BookMap that knows the middleware.
-BookMap has a simulator transport for tests, a transport for the [CICS Transaction Gateway](CICS-Transaction-Gateway), an [HTTP transport](HTTP-transport), and a transport for [IBM MQ](IBM-MQ).
+The book classes and the `BookmapClient` calls are the same for all transports. Only the transport object changes.
+
+This page explains the transport SPI and the simulator for tests. Each real transport has its own page:
+
+- [CICS Transaction Gateway](CICS-Transaction-Gateway): calls a CICS program with a COMMAREA through CTG (ECI).
+- [HTTP transport](HTTP-transport): sends the book bytes to an HTTP endpoint.
+- [IBM MQ](IBM-MQ): puts the book bytes on a request queue, and gets the reply from a reply queue.
+
+## Choose a transport
+
+| Transport | Use it when | Add to your application | The mainframe side needs |
+|---|---|---|---|
+| [CICS Transaction Gateway](CICS-Transaction-Gateway) | The program is a CICS program with a COMMAREA, and your site has a CTG. | `bookmap-transport-ctg` and the IBM library `ctgclient.jar`. The IBM library is not on Maven Central: add it yourself. | A CTG Gateway daemon connected to the CICS region. A COMMAREA of 32,500 bytes maximum. |
+| [HTTP transport](HTTP-transport) | The mainframe has an HTTP endpoint that accepts the bytes of the book. | `bookmap-transport-http`. It uses only the JDK HTTP client. | An endpoint with a binary body (`application/octet-stream`), for example a CICS web service or a custom HTTP program in CICS. A standard z/OS Connect API expects JSON, and does not work. |
+| [IBM MQ](IBM-MQ) | The program gets its requests from a queue and puts the replies on a queue. | `bookmap-transport-mq` and the IBM MQ classes for Jakarta Messaging (`com.ibm.mq.jakarta.client`, on Maven Central). | A server program that reads the request queue and puts the reply on the `ReplyToQ` with the correct correlation ID. Messages in the format `MQFMT_NONE`, without an RFH2 header. |
+| [Simulator](#the-simulator) | Unit tests and integration tests without a mainframe. | `bookmap-transport-simulator`, in the test scope. | Nothing. Handlers in the same JVM give the responses. |
+
+To change the transport, change only the object that you give to `BookmapClient.builder().transport(...)`. The book classes do not change.
+In Spring Boot, the property `bookmap.transport.type` selects the transport. See [Spring Boot](Spring-Boot#select-a-transport).
+
+If no transport fits your middleware, write your own. See [The transport SPI](#the-transport-spi).
 
 ## The transport SPI
 
