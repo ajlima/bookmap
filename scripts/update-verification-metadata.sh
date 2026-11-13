@@ -9,6 +9,7 @@
 # Example: scripts/update-verification-metadata.sh --no-daemon
 #
 # The script removes all checksums first, so that the files keep no old versions.
+# It downloads all dependencies again into a temporary Gradle user home.
 # It keeps the <configuration> section of each file.
 # Gradle takes the checksums from the downloaded files. Review the diff before a commit.
 set -euo pipefail
@@ -32,9 +33,16 @@ clear_components() {
 clear_components "$root_file"
 clear_components "$example_file"
 
+# Use an empty Gradle user home. With a full cache, Gradle does not read some POM and module
+# files again, and it does not write their checksums. CI starts with an empty cache, so it needs them.
+gradle_home="$(mktemp -d)"
+trap 'rm -rf "$gradle_home"' EXIT
+
 # The release job runs publishAndReleaseToMavenCentral. Its dependencies are the same as the
 # dependencies of publishToMavenLocal.
-./gradlew --write-verification-metadata sha256 build publishToMavenLocal "$@"
-./gradlew -p bookmap-examples-gradle-plugin --write-verification-metadata sha256 build "$@"
+./gradlew --gradle-user-home "$gradle_home" --write-verification-metadata sha256 \
+  clean build publishToMavenLocal "$@"
+./gradlew --gradle-user-home "$gradle_home" -p bookmap-examples-gradle-plugin \
+  --write-verification-metadata sha256 clean build "$@"
 
 echo "Updated $root_file and $example_file"
