@@ -13,6 +13,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.copybook.json.ModelJsonException;
+import pt.dazz.bookmap.copybook.map.ConditionMode;
 import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.map.SubTypeDecision;
 import pt.dazz.bookmap.copybook.parse.SourceFormat;
@@ -38,6 +39,7 @@ class GeneratorConfigJsonTest {
               "classNames": { "SAVINGS-DATA": "SavingsAccount" }
             }
           },
+          "conditions": { "PARTY-ROLE": "enum", "ACCOUNT-FLAG": "Constants" },
           "package": "com.example.accounts",
           "lombok": false
         }
@@ -57,6 +59,8 @@ class GeneratorConfigJsonTest {
         assertThat(config.mapping().subTypes()).isEqualTo(Map.of("CHECKING-DATA",
             new SubTypeDecision("ACCOUNT-TYPE", Map.of("CHECKING-DATA", "01", "SAVINGS-DATA",
                 "02"), Map.of("SAVINGS-DATA", "SavingsAccount"))));
+        assertThat(config.mapping().conditions()).isEqualTo(Map.of("PARTY-ROLE",
+            ConditionMode.ENUM, "ACCOUNT-FLAG", ConditionMode.CONSTANTS));
         assertThat(config.packageName()).isEqualTo("com.example.accounts");
         assertThat(config.lombok()).isFalse();
     }
@@ -106,6 +110,8 @@ class GeneratorConfigJsonTest {
         "{\"subTypes\": {\"A\": {\"values\": {}}}}|missing key 'discriminator' in $.subTypes.A",
         "{\"subTypes\": {\"A\": {\"discriminator\": \"T\", \"values\": {}, \"x\": 1}}}"
             + "|unknown key 'x' in $.subTypes.A",
+        "{\"conditions\": {\"A\": \"flags\"}}|key 'A' in $.conditions has the unknown"
+            + " condition mode 'flags'. Use enum, constants, or none.",
     })
     void rejectsInvalidConfigurations(String json, String message) {
         assertThatThrownBy(() -> GeneratorConfigJson.read(json, BASE))

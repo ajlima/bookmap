@@ -56,7 +56,8 @@ class MainTest {
             .isEqualTo(Main.OK);
         assertThat(Files.readString(model)).contains("\"name\" : \"ListOrders\"");
         assertThat(out()).contains("wrote the model of ORDERS.cpy to");
-        assertThat(err()).contains("info: condition MORE-ORDERS is ignored");
+        assertThat(err()).contains("info: MORE-DATA: the level 88 items give constants, not an"
+            + " enum, because it has only one level 88 item.");
     }
 
     @Test
@@ -135,6 +136,15 @@ class MainTest {
     }
 
     @Test
+    void conditionsOptionSetsTheMode() throws IOException {
+        assertThat(run("generate", resource("ORDERS.cpy"), "--conditions", "MORE-DATA=ENUM",
+            "--package", "com.example.orders", "--output-dir", dir.resolve("src").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(Files.readString(generated("ListOrders"))).contains("private MoreData");
+        assertThat(Files.readString(generated("MoreData"))).contains("@CobolValue(\"Y\")");
+    }
+
+    @Test
     void errorsGiveExitCode1AndDiagnostics() throws IOException {
         Path copybook = dir.resolve("BAD.cpy");
         Files.writeString(copybook, "       01  BAD.\n           05  A PIC ZZ9.");
@@ -203,6 +213,10 @@ class MainTest {
             + " NAME=DIRECTION, not 'A'",
         "generate A.cpy --package a --output-dir x --direction A=SIDEWAYS|unknown direction"
             + " in 'A=SIDEWAYS'. Use INPUT, OUTPUT, or INPUT_OUTPUT.",
+        "generate A.cpy --package a --output-dir x --conditions =enum|--conditions needs"
+            + " NAME=MODE, not '=enum'",
+        "generate A.cpy --package a --output-dir x --conditions A=flags|unknown condition"
+            + " mode in 'A=flags'. Use enum, constants, or none.",
     })
     void usageErrorsGiveExitCode2(String commandLine, String message) {
         String[] args = commandLine == null ? new String[0] : commandLine.split(" ");

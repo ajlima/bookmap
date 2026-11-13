@@ -11,5 +11,7 @@ public enum JavaType {
     /** {@code long}. */
     LONG,
     /** {@code java.math.BigDecimal}. */
-    BIG_DECIMAL
+    BIG_DECIMAL,
+    /** A generated enum. {@link FieldMember#enumType()} gives its name. */
+    ENUM
 }

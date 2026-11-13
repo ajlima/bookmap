@@ -61,6 +61,8 @@ public final class ModelMapper {
         SubTypes subTypes;
         final List<MemberModel> members = new ArrayList<>();
         final Set<String> used = new HashSet<>();
+        /** The names of the constants and boolean methods of level 88 items. */
+        final Set<String> conditionNames = new HashSet<>();
         int fillers;
         int order;
 
@@ -88,6 +90,14 @@ public final class ModelMapper {
             return unique;
         }
 
+        String uniqueConditionName(String name) {
+            String unique = name;
+            for (int n = 2; !conditionNames.add(unique); n++) {
+                unique = name + n;
+            }
+            return unique;
+        }
+
         ClassModel build() {
             return new ClassModel(name, kind, superclass, subTypes, members);
         }
@@ -105,7 +115,8 @@ public final class ModelMapper {
     final List<ClassBuilder> classes = new ArrayList<>();
     final Set<String> classNames = new HashSet<>();
     final Map<DataItem, Placed> placed = new IdentityHashMap<>();
-    private final RedefinesResolver redefines;
+    final RedefinesResolver redefines;
+    private final ConditionMapper conditions;
 
     private ModelMapper(Copybook copybook, MappingOptions options) {
         this.sourceName = copybook.sourceName();
@@ -113,6 +124,7 @@ public final class ModelMapper {
         this.names = new Names(options.stripPrefixes());
         this.index = new ItemIndex(copybook);
         this.redefines = new RedefinesResolver(this);
+        this.conditions = new ConditionMapper(this, copybook);
     }
 
     /**
@@ -125,6 +137,7 @@ public final class ModelMapper {
     public static MapResult map(Copybook copybook, MappingOptions options) {
         ModelMapper mapper = new ModelMapper(copybook, options);
         mapper.redefines.checkDecisions();
+        mapper.conditions.checkOptions();
         for (DataItem record : copybook.records()) {
             info(mapper, record);
             ClassBuilder operation = mapper.newClass(mapper.names.className(record.name()),
@@ -135,12 +148,19 @@ public final class ModelMapper {
         }
         mapper.redefines.checkSubTypeAreas();
         BookModel model = new BookModel(BookModel.FORMAT_VERSION, copybook.sourceName(),
-            mapper.classes.stream().map(ClassBuilder::build).toList());
+            mapper.classes.stream().map(ClassBuilder::build).toList(), mapper.conditions.enums);
         return new MapResult(mapper.diagnostics.hasErrors() ? null : model,
             mapper.diagnostics.all());
     }
 
+    /**
+     * Reports the level 88 items of an item that is not a field: a group or a skipped
+     * {@code REDEFINES} item. The condition mapper handles the level 88 items of a field.
+     */
     private static void info(ModelMapper mapper, DataItem item) {
+        if (!item.isGroup() && item.redefines() == null) {
+            return;
+        }
         for (Condition condition : item.conditions()) {
             mapper.diagnostics.info(item.source(), item.line(), item.column(),
                 "condition " + condition.name() + " is ignored");
@@ -149,6 +169,16 @@ public final class ModelMapper {
 
     /** Creates a class with a unique name. The class keeps its place in source order. */
     ClassBuilder newClass(String base, String parent, ClassKind kind) {
+        ClassBuilder type = new ClassBuilder(uniqueClassName(base, parent), kind);
+        classes.add(type);
+        return type;
+    }
+
+    /**
+     * Gives a class or enum name that no other class or enum of the copybook has. A name that
+     * is in use gets the parent name as a prefix, then a number.
+     */
+    String uniqueClassName(String base, String parent) {
         String name = base;
         if (classNames.contains(name.toLowerCase(Locale.ROOT)) && parent != null) {
             name = parent + base;
@@ -158,9 +188,7 @@ public final class ModelMapper {
             unique = name + n;
         }
         classNames.add(unique.toLowerCase(Locale.ROOT));
-        ClassBuilder type = new ClassBuilder(unique, kind);
-        classes.add(type);
-        return type;
+        return unique;
     }
 
     /** Maps the items of a group into a class. */
@@ -207,8 +235,10 @@ public final class ModelMapper {
         } else {
             name = owner.fieldName(names.fieldName(item.name()), context.groups());
         }
-        FieldMember field = new FieldMember(name, javaType(picture), owner.nextOrder(),
-            PicText.of(picture, usage), context.direction(), item.name(), item.declaration());
+        ConditionMapper.Decision decision = conditions.decide(item, owner, javaType(picture));
+        FieldMember field = new FieldMember(name, decision.javaType(), owner.nextOrder(),
+            PicText.of(picture, usage), context.direction(), item.name(), item.declaration(),
+            decision.enumType(), decision.initialValue(), decision.conditions());
         owner.members.add(field);
         placed.put(item, new Placed(owner, field, item, usage));
     }
