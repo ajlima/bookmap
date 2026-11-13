@@ -18,6 +18,7 @@ val publishedModules = mapOf(
     "bookmap-transport-simulator" to "BookMap in-memory transport for tests.",
     "bookmap-transport-ctg" to "BookMap transport for the CICS Transaction Gateway (ECI).",
     "bookmap-transport-http" to "BookMap HTTP transport (binary body), for example for CICS web services.",
+    "bookmap-transport-mq" to "BookMap transport for IBM MQ (Jakarta Messaging request and reply).",
     "bookmap-spring-boot" to "BookMap Spring Boot auto-configuration.",
     "bookmap-copybook" to "BookMap copybook generator: parses COBOL copybooks and generates BookMap classes.",
     "bookmap-copybook-cli" to "BookMap copybook generator command-line program.",
