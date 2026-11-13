@@ -2,6 +2,7 @@
 The request bytes go to the program in a COMMAREA. The transport returns the COMMAREA that the program gives back.
 
 The module contains no IBM code. Add the IBM client library `ctgclient.jar` to your application.
+For the other transports and a comparison, see [Transports and simulator](Transports-and-simulator#choose-a-transport).
 
 ## Setup
 

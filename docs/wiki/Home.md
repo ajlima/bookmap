@@ -41,10 +41,10 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 | [Collections and fixed OCCURS](Collections-and-fixed-OCCURS) | Variable collections, pagination, and fixed tables. |
 | [Subtypes (REDEFINES)](Subtypes-REDEFINES) | One area with more than one layout. |
 | [Error handling](Error-handling) | The exception hierarchy and the business errors. |
-| [Transports and simulator](Transports-and-simulator) | The transport SPI and the simulator for tests. |
-| [CICS Transaction Gateway](CICS-Transaction-Gateway) | The transport for CICS programs through CTG (ECI). |
-| [HTTP transport](HTTP-transport) | The transport for an HTTP endpoint with a binary body. |
-| [IBM MQ](IBM-MQ) | The IBM MQ transport: request and reply queues. |
+| [Transports and simulator](Transports-and-simulator) | The comparison of the transports, the transport SPI, and the simulator for tests. |
+| &nbsp;&nbsp;↳ [CICS Transaction Gateway](CICS-Transaction-Gateway) | The transport for CICS programs through CTG (ECI). |
+| &nbsp;&nbsp;↳ [HTTP transport](HTTP-transport) | The transport for an HTTP endpoint with a binary body. |
+| &nbsp;&nbsp;↳ [IBM MQ](IBM-MQ) | The IBM MQ transport: request and reply queues. |
 | [Spring Boot](Spring-Boot) | The auto-configuration of `BookmapClient`. |
 | [Copybook generator](Copybook-generator) | The concepts, the options file, and the mapping rules of the generator. |
 | [Copybook generator CLI](Copybook-generator-CLI) | The command line, with examples, and the Java API. |

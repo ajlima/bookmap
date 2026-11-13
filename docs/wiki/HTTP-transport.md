@@ -4,6 +4,7 @@ The request bytes go in the body of an HTTP request. The transport returns the b
 The body is binary: `application/octet-stream`. Examples of endpoints are a CICS web service with a binary body, a custom HTTP program in CICS, or an API gateway that accepts a binary body.
 
 The module uses only the JDK HTTP client (`java.net.http`). It has no other dependency.
+For the other transports and a comparison, see [Transports and simulator](Transports-and-simulator#choose-a-transport).
 
 **NOTE:** A standard z/OS Connect API expects JSON. This transport does not convert a book to JSON. Use it only with an endpoint that accepts the bytes of the book.
 

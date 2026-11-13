@@ -22,6 +22,8 @@ Replace `<version>` with the latest version: ![Maven Central](https://img.shield
 | `bookmap-core` | Compile and runtime | The annotations, `BookmapClient`, the transport SPI, and the exceptions. Always necessary. |
 | `bookmap-processor` | Annotation processor only | The generation of the codecs at compile time. Always necessary. Do not put it on the runtime classpath. |
 | `bookmap-transport-simulator` | Test | The tests without a mainframe. |
+| `bookmap-transport-ctg` | Compile and runtime | The calls to CICS programs through the CICS Transaction Gateway (ECI). Add the IBM `ctgclient.jar` yourself. See [CICS Transaction Gateway](CICS-Transaction-Gateway). |
+| `bookmap-transport-http` | Compile and runtime | The calls to an HTTP endpoint that accepts the bytes of the book. See [HTTP transport](HTTP-transport). |
 | `bookmap-transport-mq` | Compile and runtime | The calls through IBM MQ request and reply queues. See [IBM MQ](IBM-MQ). |
 | `bookmap-spring-boot` | Compile and runtime | The auto-configuration of `BookmapClient` in Spring Boot 4 (built and tested with 4.1.2). It includes `bookmap-core`. See [Spring Boot](Spring-Boot). |
 
@@ -355,6 +357,7 @@ public class MyTransport implements Transport {
 For CICS through the CICS Transaction Gateway, use `CtgTransport`. See [CICS Transaction Gateway](CICS-Transaction-Gateway).
 For an HTTP endpoint that accepts the bytes of the book, use `HttpTransport`. See [HTTP transport](HTTP-transport).
 For IBM MQ, use `MqTransport`. See [IBM MQ](IBM-MQ).
+For a comparison of the transports, see [Transports and simulator](Transports-and-simulator#choose-a-transport).
 For other middleware, write a transport with the client library of your middleware.
 
 Then create the client with the transport:
@@ -404,5 +407,6 @@ See the standalone build `bookmap-native-test`.
 
 - Read the [Annotations reference](Annotations-reference) and the [Conventions](Conventions).
 - Map fixed tables and `REDEFINES` areas: [Collections and fixed OCCURS](Collections-and-fixed-OCCURS) and [Subtypes (REDEFINES)](Subtypes-REDEFINES).
+- Select a transport for the mainframe: [Transports and simulator](Transports-and-simulator#choose-a-transport).
 - Generate the classes from a copybook with the [Copybook generator](Copybook-generator).
 - If a step fails, see [FAQ and troubleshooting](FAQ-and-troubleshooting).

@@ -1,6 +1,7 @@
 The module `bookmap-transport-mq` calls a mainframe program through IBM MQ. The transport puts the request bytes on a request queue. Then it waits for the reply on a reply queue, and it returns the reply bytes to `BookmapClient`.
 
 The transport uses Jakarta Messaging (JMS 3.1). You give it the connection factory of IBM MQ. The BookMap module does not contain IBM code, and its POM does not name an IBM artifact.
+For the other transports and a comparison, see [Transports and simulator](Transports-and-simulator#choose-a-transport).
 
 ## Add the dependencies
 
