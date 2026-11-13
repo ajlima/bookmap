@@ -146,6 +146,7 @@ class BookmapAutoConfigurationTest {
     @CsvSource(delimiter = '|', value = {
         "ctg|bookmap-transport-ctg and the IBM library ctgclient.jar",
         "http|bookmap-transport-http",
+        "mq|bookmap-transport-mq",
         })
     void missingTransportStopsTheApplication(String type, String requirement) {
         runner.withPropertyValues("bookmap.transport.type=" + type)
@@ -154,17 +155,6 @@ class BookmapAutoConfigurationTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("bookmap.transport.type=" + type + ", but no Transport bean exists. Add "
                     + requirement + " to the class path."));
-    }
-
-    @ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"mq"})
-    void transportWithoutAutoConfigurationStopsTheApplication(String type) {
-        runner.withPropertyValues("bookmap.transport.type=" + type)
-            .run(context -> assertThat(context).hasFailed().getFailure()
-                .rootCause()
-                .hasMessage("bookmap.transport.type=" + type + ", but no Transport bean exists. "
-                    + "This version of bookmap-spring-boot has no auto-configuration for " + type
-                    + ". Declare a Transport bean."));
     }
 
     @Test

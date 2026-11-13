@@ -53,7 +53,12 @@ class ConfigurationMetadataTest {
             "bookmap.transport.http.username", "bookmap.transport.http.password",
             "bookmap.transport.http.abend-header", "bookmap.transport.http.timeout",
             "bookmap.transport.http.connect-timeout", "bookmap.transport.http.ssl.bundle",
-            "bookmap.transport.http.routes");
+            "bookmap.transport.http.routes",
+            "bookmap.transport.mq.user", "bookmap.transport.mq.password",
+            "bookmap.transport.mq.mq-native-messages", "bookmap.transport.mq.default-reply-queue",
+            "bookmap.transport.mq.correlation", "bookmap.transport.mq.timeout",
+            "bookmap.transport.mq.persistent", "bookmap.transport.mq.max-sessions",
+            "bookmap.transport.mq.session-wait-timeout", "bookmap.transport.mq.routes");
     }
 
     @Test
@@ -155,5 +160,26 @@ class ConfigurationMetadataTest {
             .contains("environment variable");
         assertThat(properties.get("bookmap.transport.http.routes").getDescription())
             .startsWith("The route of each operation.");
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "mq-native-messages|java.lang.Boolean|true",
+        "correlation|pt.dazz.bookmap.mq.MqCorrelation|message-id",
+        "timeout|java.time.Duration|30s",
+        "persistent|java.lang.Boolean|false",
+        "max-sessions|java.lang.Integer|10",
+        "session-wait-timeout|java.time.Duration|30s"})
+    void mqPropertyHasTypeAndDefault(String name, String type, String defaultValue) throws IOException {
+        ConfigurationMetadataProperty property = properties().get("bookmap.transport.mq." + name);
+        assertThat(property.getType()).isEqualTo(type);
+        assertThat(String.valueOf(property.getDefaultValue())).isEqualTo(defaultValue);
+        assertThat(property.getDescription()).isNotBlank();
+    }
+
+    @Test
+    void mqPasswordHasADescription() throws IOException {
+        assertThat(properties().get("bookmap.transport.mq.password").getDescription())
+            .contains("environment variable");
     }
 }

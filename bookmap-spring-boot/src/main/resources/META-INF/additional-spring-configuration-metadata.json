@@ -39,7 +39,7 @@
         },
         {
           "value": "mq",
-          "description": "IBM MQ. This version has no auto-configuration for it: declare a Transport bean."
+          "description": "IBM MQ, with Jakarta Messaging. Add bookmap-transport-mq and a ConnectionFactory bean."
         },
         {
           "value": "http",
