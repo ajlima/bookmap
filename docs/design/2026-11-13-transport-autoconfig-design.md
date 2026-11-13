@@ -291,6 +291,7 @@ HttpTransportBuilderCustomizer bearerToken(TokenService tokens) {
 
 - A password is a `String` property. Spring Boot binds it from any property source: an environment variable (`BOOKMAP_TRANSPORT_CTG_PASSWORD`), a configuration tree (`spring.config.import=configtree:/run/secrets/`), or a vault.
 - `toString()` of each properties record shows `password=******` when the password is set. It never shows the value.
+- `toString()` shows only the keys of a map that can contain a secret, for example the CTG `protocol-properties` (the password of a key ring) and the HTTP `headers` (an `Authorization` header).
 - The metadata description of each password tells the reader to use an environment variable or a secret store, not a plain value in `application.properties`.
 - The Actuator endpoint `configprops` hides the values by default in Spring Boot 4.1. BookMap does not change this.
 

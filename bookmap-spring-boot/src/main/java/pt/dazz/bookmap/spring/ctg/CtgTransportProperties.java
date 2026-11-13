@@ -2,6 +2,7 @@ package pt.dazz.bookmap.spring.ctg;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.TreeSet;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
@@ -66,15 +67,17 @@ public record CtgTransportProperties(
     }
 
     /**
-     * Shows the settings. The password is hidden.
+     * Shows the settings. The password and the values of the protocol properties are hidden: a
+     * protocol property can contain the password of a key ring.
      *
-     * @return the settings, with {@code password=******} when a password is set
+     * @return the settings, with {@code password=******} when a password is set, and only the keys
+     *     of the protocol properties
      */
     @Override
     public String toString() {
         return "CtgTransportProperties[url=" + url + ", port=" + port
             + ", socketConnectTimeout=" + socketConnectTimeout
-            + ", protocolProperties=" + protocolProperties + ", server=" + server
+            + ", protocolProperties=" + new TreeSet<>(protocolProperties.keySet()) + ", server=" + server
             + ", defaultTransaction=" + defaultTransaction + ", userid=" + userid
             + ", password=" + (password == null ? "null" : "******")
             + ", timeout=" + timeout + ", maxConnections=" + maxConnections
