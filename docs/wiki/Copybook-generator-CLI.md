@@ -63,9 +63,12 @@ A `generate` input that ends with `.json` is a model. Each other input is a copy
 | `--input-marker <word>` | both | A name part that marks an input alternative. Write it in upper case. Repeat the option for more words. |
 | `--output-marker <word>` | both | A name part that marks an output alternative. Write it in upper case. Repeat the option for more words. |
 | `--direction <name>=<direction>` | both | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`) of a `REDEFINES` alternative. The direction is not case-sensitive. Repeat the option for more alternatives. |
+| `--date <name>=<pattern>` | both | A date hint: the date or time pattern of an item. A name with `*` is a name pattern, for example `*-DATE=yyyyMMdd`. Repeat the option for more hints. See [Date hints](Copybook-generator#date-hints). |
+| `--continuable <record>=<class>` | both | The handler class of a `Continuable` record. See [Continuable and Validatable](Copybook-generator#continuable-and-validatable). |
+| `--validatable <record>=<class>` | both | The handler class of a `Validatable` record. |
 | `--config <file.json>` | both | An [options file](Copybook-generator#options-file) with all options. |
 
-With a model input, the parse and mapping options (`--format` to `--direction`) are not permitted. The model already contains their result.
+With a model input, the parse and mapping options (`--format` to `--validatable`) are not permitted. The model already contains their result.
 With a model input, the generator uses only `package` and `lombok` from the options file. It ignores the other keys.
 If you give a single-value option two times, the last value applies.
 
@@ -76,6 +79,7 @@ The command line and the options file work together in this way:
 - A single value on the command line (`--format`, `--charset`, `--record-name`, `--package`) has priority over the value in the file.
 - A repeated option (`--copy-dir`, `--strip-prefix`, `--input-marker`, `--output-marker`) adds its values after the values of the file. `--input-marker` and `--output-marker` add words to the default list. To replace the default list, use `inputMarkers` or `outputMarkers` in the options file.
 - `--direction` adds a decision. For the same alternative, the command line has priority.
+- `--date`, `--continuable`, and `--validatable` add an entry. For the same name or record, the command line has priority.
 - `--lombok` sets `lombok`. Without `--lombok`, the value of the file applies. The command line cannot set `lombok` to `false`.
 - Subtype decisions come only from the file.
 
@@ -130,6 +134,8 @@ For exit code 2, the command writes `error: <message>` and then `Run bookmap-cop
 | `unknown charset 'x'` | An incorrect `--charset`. |
 | `--direction needs NAME=DIRECTION, not 'X'` | `--direction` without `=`. |
 | `unknown direction in 'X=both'. Use INPUT, OUTPUT, or INPUT_OUTPUT.` | An incorrect direction. |
+| `--date needs NAME=PATTERN, not 'A'` | A `--date` value without `=`, without a name, or without a pattern. |
+| `--continuable needs RECORD=CLASS, not 'A'` | The same for `--continuable` and `--validatable`. |
 | `parse and mapping options are not permitted with a model input` | A parse or mapping option with a model input. |
 | `bad.json: unknown key 'foo' in $` | An unknown key in the options file. |
 
