@@ -382,6 +382,17 @@ class CollectionGenerationTest {
     }
 
     @Test
+    void resetLeavesAnInputCollection() {
+        BookCodec<Object> codec = updateShipmentCodec();
+        Object shipment = shipment(codec, 2);
+        List<Object> lines = list(shipment, "lines");
+
+        codec.resetOutputCollections(shipment);
+
+        assertThat(list(shipment, "lines")).isSameAs(lines).hasSize(2);
+    }
+
+    @Test
     void inputCollectionAboveMaxOccursFails() {
         BookCodec<Object> codec = updateShipmentCodec();
         Object shipment = shipment(codec, 4);

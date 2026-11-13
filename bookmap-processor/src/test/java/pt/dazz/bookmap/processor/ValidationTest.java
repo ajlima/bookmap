@@ -1182,12 +1182,15 @@ class ValidationTest {
 
     @Test
     void duplicateOperationName() {
+        JavaFileObject findOrder = source("FindOrder",
+            "@BookOperation(\"GetOrder\") public class FindOrder { " + TestCompiler.ID_FIELD + " }");
         Compilation compilation = compile(
             source("GetOrder", "@BookOperation public class GetOrder { " + TestCompiler.ID_FIELD + " }"),
-            source("FindOrder", "@BookOperation(\"GetOrder\") public class FindOrder { " + TestCompiler.ID_FIELD + " }"));
+            findOrder);
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
-            .hadErrorContaining("operation name 'GetOrder' is already used by test.");
+            .hadErrorContaining("operation name 'GetOrder' is already used by test.GetOrder")
+            .inFile(findOrder);
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
         assertThat(compiler.snapshots).hasSize(1);
     }
@@ -1342,6 +1345,22 @@ class ValidationTest {
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
             .hadErrorContaining("Order.missing (order 1): type Missing is not supported");
+        // javac reports the missing type three times (the field and the two accessors). The
+        // processor reports it one time.
+        CompilationSubject.assertThat(compilation).hadErrorCount(4);
+    }
+
+    @Test
+    void classResolvedInALaterRoundReportsItsErrorOneTime() {
+        TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
+            Map.of("test.Base", String.join("\n", "public class Base {",
+                field("@BookField(order = 1, length = 5)", "String", "id"), "}")));
+        Compilation compilation = compiler.compile(List.of(generator),
+            source("Order", "@BookOperation public class Order extends Base {",
+                field("@BookField(order = 2, length = 5, usage = Usage.COMP3)", "String", "code"),
+                "}"));
+        assertError(compilation, "Order.code (order 2)", "COMP3 is not permitted for String");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
 
     @Test
