@@ -1,7 +1,7 @@
 # BookMap, packed dates: design
 
 Date: 2026-11-13
-Status: proposed.
+Status: approved.
 
 Related documents: `docs/design/2026-11-10-bookmap-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-13-generator-date-hints-design.md` (the date hints of the generator), GitHub issue #50.
 
