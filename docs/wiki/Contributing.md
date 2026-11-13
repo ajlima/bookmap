@@ -120,6 +120,14 @@ The commit messages follow [Conventional Commits](https://www.conventionalcommit
 | `BREAKING CHANGE` in the commit body | A new major version. |
 | `docs:`, `test:`, `build:`, `refactor:`, `ci:` | No release. |
 
+### Commit authors
+
+Commit with your own git identity. Set `git config user.name` and `git config user.email` before the first commit.
+Do not use an AI assistant as the author, the committer, or a co-author. Do not add a `Co-Authored-By` line or a "Generated with" line for an AI assistant.
+The `build` check runs `scripts/check-commit-authors.sh`. The check fails if a commit breaks this rule.
+
+**CAUTION:** Set the git identity in each new environment, for example a cloud session or a CI runner. The default identity of that environment is not your identity.
+
 ## Releases
 
 GitHub Actions makes each release from `main`. It builds and tests the commit, publishes the modules to Maven Central, and creates the tag and the GitHub release.
