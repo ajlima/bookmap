@@ -1,19 +1,32 @@
 package pt.dazz.bookmap.copybook;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static pt.dazz.bookmap.copybook.Compiled.get;
 import static pt.dazz.bookmap.copybook.Compiled.set;
 
+import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.JavaFile;
+import com.palantir.javapoet.MethodSpec;
+import com.palantir.javapoet.TypeSpec;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.lang.model.element.Modifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import pt.dazz.bookmap.Continuable;
+import pt.dazz.bookmap.Validatable;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.copybook.diag.Diagnostic;
 import pt.dazz.bookmap.copybook.generate.GenerateOptions;
@@ -23,6 +36,7 @@ import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.map.SubTypeDecision;
 import pt.dazz.bookmap.copybook.parse.ParseOptions;
 import pt.dazz.bookmap.copybook.parse.SourceFormat;
+import pt.dazz.bookmap.exception.BusinessException;
 import pt.dazz.bookmap.spi.BookCodec;
 
 class EndToEndTest {
@@ -68,7 +82,7 @@ class EndToEndTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy",
-        "INVOICE-PARTY.cpy"})
+        "INVOICE-PARTY.cpy", "TRACKING.cpy"})
     void generatesCompilableClasses(String name) {
         compile(name);
         Compiled.compile(generate(name, new GenerateOptions(PACKAGE, true)).files(), true);
@@ -76,7 +90,7 @@ class EndToEndTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy",
-        "INVOICE-PARTY.cpy"})
+        "INVOICE-PARTY.cpy", "TRACKING.cpy"})
     void modelJsonRoundTripGivesSameJava(String name) {
         Copybooks.Result direct = generate(name, PLAIN);
         Copybooks.Result viaJson = Copybooks.generate(
@@ -142,6 +156,89 @@ class EndToEndTest {
         codec.decodeResponse(responseBytes, decoded, LATIN);
         assertThat(get(decoded, "taxAmount")).isEqualTo(new BigDecimal("20.98"));
         assertThat(get(decoded, "trailer")).isEqualTo("END");
+    }
+
+    @Test
+    void dateHintsRoundTripThroughTheCodec() {
+        MappingOptions dates = MappingOptions.defaults().withHints(
+            Map.of("*-DATE", "yyyyMMdd"), Map.of(), Map.of());
+        Copybooks.Result result = Copybooks.generate(copybook("INVOICE.cpy"), parseOptions(),
+            dates, PLAIN);
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+            .containsOnly(pt.dazz.bookmap.copybook.diag.Severity.INFO);
+        Compiled classes = Compiled.compile(result.files());
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".GetInvoice");
+        Object response = codec.newInstance();
+        set(response, "invoiceAmount", new BigDecimal("99.90"));
+        set(response, "dueDate", LocalDate.of(2026, 12, 31));
+        byte[] bytes = codec.encodeResponse(response, LATIN);
+        assertThat(new String(bytes, 14, 8, StandardCharsets.ISO_8859_1)).isEqualTo("20261231");
+        Object decoded = codec.newInstance();
+        codec.decodeResponse(bytes, decoded, LATIN);
+        assertThat(get(decoded, "dueDate")).isEqualTo(LocalDate.of(2026, 12, 31));
+    }
+
+    /** Writes a handler class with one static method that calls a getter of the page. */
+    private static JavaFile handler(String packageName, String name, MethodSpec method) {
+        return JavaFile.builder(packageName, TypeSpec.classBuilder(name)
+            .addModifiers(Modifier.PUBLIC, Modifier.FINAL).addMethod(method).build()).build();
+    }
+
+    @Test
+    void pagedListWithDatesAndHandlersRoundTrips() {
+        Map<String, String> dates = new LinkedHashMap<>();
+        dates.put("*-DATE", "yyyyMMdd");
+        dates.put("SHIP-TIME", "HH:mm:ss");
+        dates.put("LAST-UPDATE", "yyyyMMddHHmmss");
+        MappingOptions options = MappingOptions.defaults().withHints(dates,
+            Map.of("LIST-SHIPMENTS", "com.example.handlers.ShipmentPaging"),
+            Map.of("LIST-SHIPMENTS", "ShipmentChecks"));
+        Copybooks.Result result = Copybooks.generate(copybook("LIST-SHIPMENTS.cpy"),
+            parseOptions(), options, PLAIN);
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+            .containsOnly(pt.dazz.bookmap.copybook.diag.Severity.INFO);
+        ClassName page = ClassName.get(PACKAGE, "ListShipments");
+        List<JavaFile> files = new ArrayList<>(result.files());
+        files.add(handler("com.example.handlers", "ShipmentPaging", MethodSpec
+            .methodBuilder("hasContinuation").addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(boolean.class).addParameter(page, "page")
+            .addStatement("return $S.equals(page.getMoreData())", "Y").build()));
+        files.add(handler(PACKAGE, "ShipmentChecks", MethodSpec.methodBuilder("validate")
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC).addParameter(page, "page")
+            .beginControlFlow("if (!$S.equals(page.getReturnCode()))", "00")
+            .addStatement("throw new $T($S + page.getReturnCode())", BusinessException.class,
+                "return code ")
+            .endControlFlow().build()));
+        Compiled classes = Compiled.compile(files);
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".ListShipments");
+
+        Object request = codec.newInstance();
+        set(request, "customerId", "CUST000042");
+        set(request, "fromDate", LocalDate.of(2026, 11, 1));
+        Object decodedRequest = codec.decodeRequest(codec.encodeRequest(request, LATIN), LATIN);
+        assertThat(get(decodedRequest, "fromDate")).isEqualTo(LocalDate.of(2026, 11, 1));
+
+        Object response = codec.newInstance();
+        set(response, "returnCode", "00");
+        set(response, "moreData", "Y");
+        Object entry = classes.create(PACKAGE + ".ShipmentEntry");
+        set(entry, "shipmentId", "SHP000000001");
+        set(entry, "shipDate", LocalDate.of(2026, 11, 12));
+        set(entry, "shipTime", LocalTime.of(14, 30, 5));
+        set(entry, "lastUpdate", LocalDateTime.of(2026, 11, 12, 14, 31, 0));
+        set(response, "shipmentEntry", List.of(entry));
+        Object decoded = codec.newInstance();
+        codec.decodeResponse(codec.encodeResponse(response, LATIN), decoded, LATIN);
+
+        Object shipment = ((List<?>) get(decoded, "shipmentEntry")).get(0);
+        assertThat(get(shipment, "shipTime")).isEqualTo(LocalTime.of(14, 30, 5));
+        assertThat(get(shipment, "lastUpdate"))
+            .isEqualTo(LocalDateTime.of(2026, 11, 12, 14, 31, 0));
+        assertThat(((Continuable) decoded).hasContinuation()).isTrue();
+        ((Validatable) decoded).validate();
+        set(decoded, "returnCode", "12");
+        assertThatThrownBy(((Validatable) decoded)::validate)
+            .isInstanceOf(BusinessException.class).hasMessage("return code 12");
     }
 
     @Test
@@ -269,6 +366,53 @@ class EndToEndTest {
         set(party, "creditLimit", classes.staticField(PACKAGE + ".CreditLimit", "SMALL_CREDIT"));
         Object decoded = codec.decodeRequest(codec.encodeRequest(party, LATIN), LATIN);
         assertThat(get(decoded, "creditLimit")).hasToString("SMALL_CREDIT");
+    }
+
+    @Test
+    void trackingRoundTripKeepsTheCobolOffsets() {
+        Copybooks.Result result = generate("TRACKING.cpy", PLAIN);
+        assertThat(result.diagnostics()).extracting(Diagnostic::message).containsExactly(
+            "level 77 item WS-RETRY-COUNT is not part of a record and is skipped",
+            "JUSTIFIED on TRK-CARRIER is ignored. BookMap writes the text on the left and keeps"
+                + " the spaces on the left when it reads.",
+            "BLANK WHEN ZERO on TRK-CHARGE is ignored. BookMap reads spaces as no value and"
+                + " writes zero as digits.",
+            "level 66 item TRK-KEY is ignored. RENAMES adds no bytes.",
+            "INDEX item TRK-EVENT-IDX is mapped as PIC S9(9) COMP. Its value is a byte offset"
+                + " in a table.",
+            "SYNC adds 1 slack byte before TRK-EVENT-COUNT. The generator adds a FILLER.",
+            "SYNC adds 2 slack bytes before TRK-WEIGHT-GRAMS. The generator adds a FILLER.",
+            "record GET-TRACKING has 39 bytes",
+            "COMP-5 on TRK-WEIGHT-GRAMS is mapped as COMP. BookMap reads all binary values, but"
+                + " writes only values with at most 9 digits.");
+        Compiled classes = Compiled.compile(result.files());
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".GetTracking");
+        Object tracking = codec.newInstance();
+        set(tracking, "trkShipmentId", "SHP0000042");
+        set(tracking, "trkStatus", "D");
+        set(tracking, "trkEventCount", 7);
+        set(tracking, "trkWeightGrams", 125000L);
+        set(tracking, "trkCarrier", "OCEAN");
+        set(tracking, "trkCharge", new BigDecimal("99.90"));
+        set(tracking, "trkEventIdx", 48);
+
+        byte[] bytes = codec.encodeRequest(tracking, LATIN);
+        // 10 + 1 + 1 slack + 2 + 2 slack + 4 + 8 + 7 + 4: the offsets of the COBOL compiler.
+        assertThat(bytes).hasSize(39);
+        assertThat(new String(bytes, 20, 8, StandardCharsets.ISO_8859_1)).isEqualTo("OCEAN   ");
+        // COMP-5 can hold all values of its 4 bytes, and the long field reads them.
+        bytes[16] = (byte) 0xFF;
+        bytes[17] = (byte) 0xFF;
+        bytes[18] = (byte) 0xFF;
+        bytes[19] = (byte) 0xFF;
+        // BLANK WHEN ZERO: a zero amount is all spaces.
+        Arrays.fill(bytes, 28, 35, (byte) ' ');
+        Object decoded = codec.decodeRequest(bytes, LATIN);
+        assertThat(get(decoded, "trkEventCount")).isEqualTo(7);
+        assertThat(get(decoded, "trkWeightGrams")).isEqualTo(4_294_967_295L);
+        assertThat(get(decoded, "trkCarrier")).isEqualTo("OCEAN");
+        assertThat(get(decoded, "trkCharge")).isNull();
+        assertThat(get(decoded, "trkEventIdx")).isEqualTo(48);
     }
 
     @Test

@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pt.dazz.bookmap.copybook.ast.DataItem;
 import pt.dazz.bookmap.copybook.diag.Diagnostic;
-import pt.dazz.bookmap.copybook.diag.Severity;
 
 class CopybookParserTest {
 
@@ -214,11 +213,50 @@ class CopybookParserTest {
     }
 
     @Test
-    void replaceStatementIsAnError() {
-        ParseResult result = parse("REPLACE ==A== BY ==B==.", "01 ORDER. 05 X PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
-            .containsExactly(tuple(Severity.ERROR,
-                "the REPLACE statement is not supported by BookMap"));
+    void replaceStatementChangesTheTextAfterIt() throws IOException {
+        write("PARTY.cpy", "05 :PFX:-NAME PIC X(20).", "05 :PFX:-SIZE PIC 9(4) POINTER.");
+        ParseResult result = parse("01 ORDER.", "05 :PFX:-ID PIC X.",
+            "REPLACE ==:PFX:== BY ==SENDER== ==POINTER== BY ==COMP==.", "COPY PARTY.",
+            "REPLACE ==:PFX:== BY ==RECEIVER== ==POINTER== BY ==COMP==.", "COPY PARTY.",
+            "REPLACE OFF.",
+            "05 :PFX:-CODE PIC X.");
+        assertThat(result.diagnostics()).isEmpty();
+        assertThat(names(result)).containsExactly(":PFX:-ID", "SENDER-NAME", "SENDER-SIZE",
+            "RECEIVER-NAME", "RECEIVER-SIZE", ":PFX:-CODE");
+        assertThat(result.copybook().records().get(0).children().get(2).declaration())
+            .isEqualTo("05 SENDER-SIZE PIC 9(4) COMP.");
+    }
+
+    @Test
+    void replaceStatementAppliesAfterCopyReplacing() throws IOException {
+        write("PARTY.cpy", "05 :PFX:-NAME PIC X(20).");
+        ParseResult result = parse("REPLACE ==SENDER-NAME== BY ==SHIPPER-NAME==.", "01 ORDER.",
+            "COPY PARTY REPLACING ==:PFX:== BY ==SENDER==.", "05 SENDER-NAME PIC X.");
+        assertThat(result.diagnostics()).isEmpty();
+        assertThat(names(result)).containsExactly("SHIPPER-NAME", "SHIPPER-NAME");
+    }
+
+    @Test
+    void badReplaceStatementsAreErrors() {
+        ParseResult result = parse("01 ORDER. 05 X PIC X.", "REPLACE A BY ==B==.",
+            "REPLACE ==A== ==B==.", "REPLACE ==A== BY B.", "REPLACE == == BY ==B==.",
+            "REPLACE OFF X.", "REPLACE ALSO ==A== BY ==B==.", "REPLACE ==A== BY ==B==");
+        assertThat(result.diagnostics()).extracting(Diagnostic::line, Diagnostic::message)
+            .containsExactly(
+                tuple(2, "REPLACE needs pseudo-text, for example REPLACE ==A== BY ==B==."),
+                tuple(3, "REPLACE needs BY"),
+                tuple(4, "REPLACE needs pseudo-text, for example REPLACE ==A== BY ==B==."),
+                tuple(5, "REPLACE needs a text to replace"),
+                tuple(6, "the REPLACE statement has an unknown word X"),
+                tuple(7, "REPLACE needs pseudo-text, for example REPLACE ==A== BY ==B==."),
+                tuple(8, "the REPLACE statement has no closing period"));
+    }
+
+    @Test
+    void replaceStatementWithoutPeriodStopsTheReplacements() {
+        ParseResult result = parse("01 ORDER. 05 X PIC X.", "REPLACE OFF");
+        assertThat(result.diagnostics()).extracting(Diagnostic::message)
+            .containsExactly("the REPLACE statement has no closing period");
     }
 
     @Test

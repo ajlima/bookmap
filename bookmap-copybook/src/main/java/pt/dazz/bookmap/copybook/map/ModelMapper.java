@@ -60,6 +60,8 @@ public final class ModelMapper {
         final ClassKind kind;
         String superclass;
         SubTypes subTypes;
+        String continuable;
+        String validatable;
         final List<MemberModel> members = new ArrayList<>();
         final Set<String> used = new HashSet<>();
         /** The names of the constants and boolean methods of level 88 items. */
@@ -100,7 +102,8 @@ public final class ModelMapper {
         }
 
         ClassModel build() {
-            return new ClassModel(name, kind, superclass, subTypes, members);
+            return new ClassModel(name, kind, superclass, subTypes, members, continuable,
+                validatable);
         }
     }
 
@@ -117,6 +120,9 @@ public final class ModelMapper {
     final Set<String> classNames = new HashSet<>();
     final Map<DataItem, Placed> placed = new IdentityHashMap<>();
     private final RedefinesResolver redefines;
+    private DateHints dates;
+    /** The handler of the record that the mapper maps now, if the record is Continuable. */
+    private String continuable;
     private final CountFieldResolver countFields;
     private final ConditionMapper conditions;
 
@@ -140,6 +146,8 @@ public final class ModelMapper {
     public static MapResult map(Copybook copybook, MappingOptions options) {
         ModelMapper mapper = new ModelMapper(copybook, options);
         mapper.redefines.checkDecisions();
+        mapper.dates = new DateHints(mapper);
+        OperationHandlers handlers = new OperationHandlers(mapper, copybook.records());
         mapper.countFields.checkOptions();
         mapper.conditions.checkOptions();
         for (DataItem record : copybook.records()) {
@@ -147,11 +155,15 @@ public final class ModelMapper {
             RecordLength.check(record, options.maxRecordLength(), mapper.diagnostics);
             ClassBuilder operation = mapper.newClass(mapper.names.className(record.name()),
                 null, ClassKind.OPERATION);
+            operation.continuable = handlers.continuable(record);
+            operation.validatable = handlers.validatable(record);
+            mapper.continuable = operation.continuable;
             Usage usage = record.usage() != null ? record.usage() : Usage.DISPLAY;
             mapper.walk(record.children(), operation,
                 new Context(usage, Direction.INPUT_OUTPUT, null, List.of()));
         }
         mapper.redefines.checkSubTypeAreas();
+        mapper.dates.checkUnused();
         mapper.countFields.checkUnmapped();
         BookModel model = new BookModel(BookModel.FORMAT_VERSION, copybook.sourceName(),
             mapper.classes.stream().map(ClassBuilder::build).toList(), mapper.conditions.enums);
@@ -202,22 +214,33 @@ public final class ModelMapper {
         for (int i = 0; i < items.size(); i++) {
             DataItem item = items.get(i);
             info(this, item);
-            Usage usage = item.usage() != null ? item.usage() : context.usage();
             if (item.redefines() != null) {
                 redefines.redefiningItem(item, items, context.usage());
                 continue;
             }
             List<DataItem> alternatives = RedefinesResolver.alternatives(item, items);
+            DataItem previous = i > 0 ? items.get(i - 1) : null;
             if (item.isGroup() && !alternatives.isEmpty()) {
-                redefines.area(item, alternatives, items.subList(i + 1, items.size()), owner,
-                    context);
-            } else if (item.occurs() != null) {
-                collection(item, i > 0 ? items.get(i - 1) : null, owner, context, usage);
-            } else if (item.isGroup()) {
-                walk(item.children(), owner, context.withGroup(item, usage));
+                redefines.area(item, previous, alternatives, items.subList(i + 1, items.size()),
+                    owner, context);
             } else {
-                field(item, owner, context, usage, null);
+                item(item, previous, owner, context);
             }
+        }
+    }
+
+    /**
+     * Maps an item without a {@code REDEFINES} area: a collection, a group, or a field. The
+     * previous item is the item just before it in the same group, or {@code null}.
+     */
+    void item(DataItem item, DataItem previous, ClassBuilder owner, Context context) {
+        Usage usage = item.usage() != null ? item.usage() : context.usage();
+        if (item.occurs() != null) {
+            collection(item, previous, owner, context, usage);
+        } else if (item.isGroup()) {
+            walk(item.children(), owner, context.withGroup(item, usage));
+        } else {
+            field(item, owner, context, usage, null);
         }
     }
 
@@ -229,9 +252,15 @@ public final class ModelMapper {
             error(item, item.name() + " has a text picture and must not have COMP or COMP-3");
             return;
         }
-        if (usage == Usage.COMP && picture.length() > MAX_LONG_DIGITS) {
+        if (usage != Usage.DISPLAY && usage != Usage.COMP3
+            && picture.length() > MAX_LONG_DIGITS) {
             error(item, item.name() + ": COMP supports at most 18 digits");
             return;
+        }
+        if (usage == Usage.COMP5) {
+            warning(item, "COMP-5 on " + item.name() + " is mapped as COMP. BookMap reads all"
+                + " binary values, but writes only values with at most " + picture.length()
+                + " digits.");
         }
         String name;
         if (forcedName != null) {
@@ -241,20 +270,45 @@ public final class ModelMapper {
         } else {
             name = owner.fieldName(names.fieldName(item.name()), context.groups());
         }
-        ConditionMapper.Decision decision = conditions.decide(item, owner, javaType(picture));
-        FieldMember field = new FieldMember(name, decision.javaType(), owner.nextOrder(),
-            PicText.of(picture, usage), context.direction(), item.name(), item.declaration(),
-            decision.enumType(), decision.initialValue(), decision.conditions());
+        DateHints.Applied date = dates.apply(item, usage);
+        FieldMember field;
+        if (date != null) {
+            // A date or time field has no constants and no enum. Tell what is ignored.
+            item.conditions().forEach(condition -> diagnostics.info(item.source(),
+                condition.line(), condition.column(), "condition " + condition.name()
+                    + " is ignored, because " + item.name() + " has a date hint"));
+            if (item.value() != null) {
+                diagnostics.info(item.source(), item.line(), item.column(), "the VALUE of "
+                    + item.name() + " is ignored, because " + item.name() + " has a date hint");
+            }
+            field = new FieldMember(name, date.type(), owner.nextOrder(),
+                PicText.of(picture, usage), context.direction(), item.name(), item.declaration(),
+                date.pattern());
+        } else {
+            ConditionMapper.Decision decision = conditions.decide(item, owner,
+                javaType(picture, usage));
+            field = new FieldMember(name, decision.javaType(), owner.nextOrder(),
+                PicText.of(picture, usage), context.direction(), item.name(), item.declaration(),
+                decision.enumType(), decision.initialValue(), decision.conditions());
+        }
         owner.members.add(field);
         placed.put(item, new Placed(owner, field, item, usage));
     }
 
-    private static JavaType javaType(Picture picture) {
+    private static JavaType javaType(Picture picture, Usage usage) {
         if (!picture.numeric()) {
             return JavaType.STRING;
         }
         if (picture.scale() > 0 || picture.length() > MAX_LONG_DIGITS) {
             return JavaType.BIG_DECIMAL;
+        }
+        if (usage == Usage.COMP5) {
+            // The type holds all values of the bytes, not only the digits of the picture.
+            return switch (picture.byteLength(usage)) {
+                case 2 -> JavaType.INT;
+                case 4 -> picture.signed() ? JavaType.INT : JavaType.LONG;
+                default -> picture.signed() ? JavaType.LONG : JavaType.BIG_DECIMAL;
+            };
         }
         return picture.length() <= MAX_INT_DIGITS ? JavaType.INT : JavaType.LONG;
     }
@@ -267,7 +321,7 @@ public final class ModelMapper {
                             Context context, Usage usage) {
         if (context.occurs() != null) {
             error(item, "OCCURS " + item.name() + " is inside OCCURS " + context.occurs()
-                + ". BookMap does not support nested collections.");
+                + ". BookMap does not support nested collections. See issue #43.");
             return;
         }
         String dependsOn = null;
@@ -295,6 +349,11 @@ public final class ModelMapper {
             walk(item.children(), type, inner);
         } else {
             field(item, type, inner, usage, "value");
+        }
+        if (continuable != null && context.direction() == Direction.INPUT_OUTPUT) {
+            error(item, item.name() + " is an INPUT_OUTPUT collection. BookMap does not permit"
+                + " it in a Continuable class. Put the table in the output alternative of a"
+                + " REDEFINES area.");
         }
         boolean fixed = item.occurs().dependingOn() == null;
         // An item class has only fields: a nested OCCURS is an error above.

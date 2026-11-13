@@ -13,5 +13,21 @@ public enum JavaType {
     /** {@code java.math.BigDecimal}. */
     BIG_DECIMAL,
     /** A generated enum. {@link FieldMember#enumType()} gives its name. */
-    ENUM
+    ENUM,
+    /** {@code java.time.LocalDate}, from a date hint. */
+    LOCAL_DATE,
+    /** {@code java.time.LocalTime}, from a date hint. */
+    LOCAL_TIME,
+    /** {@code java.time.LocalDateTime}, from a date hint. */
+    LOCAL_DATE_TIME;
+
+    /**
+     * Tells if the type is a date or a time.
+     *
+     * @return {@code true} for {@link #LOCAL_DATE}, {@link #LOCAL_TIME}, and
+     *     {@link #LOCAL_DATE_TIME}
+     */
+    public boolean temporal() {
+        return ordinal() >= LOCAL_DATE.ordinal();
+    }
 }

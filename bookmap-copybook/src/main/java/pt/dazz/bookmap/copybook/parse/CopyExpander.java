@@ -12,7 +12,7 @@ import pt.dazz.bookmap.copybook.diag.Diagnostics;
 
 /**
  * Replaces each {@code COPY} statement with the tokens of its member, after the
- * {@code REPLACING} changes.
+ * {@code REPLACING} changes. Then applies the {@code REPLACE} statements.
  */
 final class CopyExpander {
 
@@ -20,6 +20,10 @@ final class CopyExpander {
 
     /** One {@code REPLACING} operand pair. */
     private record Replacement(List<Token> from, List<Token> to, String tag) {
+    }
+
+    /** The replacements of a {@code REPLACE} statement, and the index after its period. */
+    private record ReplaceStatement(List<Replacement> replacements, int next) {
     }
 
     /** Thrown to stop one {@code COPY} statement after an error. */
@@ -38,19 +42,20 @@ final class CopyExpander {
     }
 
     /**
-     * Expands the {@code COPY} statements.
+     * Expands the {@code COPY} statements, then applies the {@code REPLACE} statements.
      *
      * @param tokens the tokens of the copybook
      * @param rootName the member name of the copybook itself, for cycle detection
      * @param options the parse options
      * @param diagnostics the diagnostics of the step
-     * @return the tokens without {@code COPY} statements
+     * @return the tokens without {@code COPY} and {@code REPLACE} statements
      */
     static List<Token> expand(List<Token> tokens, String rootName, ParseOptions options,
                               Diagnostics diagnostics) {
         List<String> stack = new ArrayList<>();
         stack.add(rootName);
-        return new CopyExpander(options, diagnostics).expand(tokens, stack);
+        CopyExpander expander = new CopyExpander(options, diagnostics);
+        return expander.replaceStatements(expander.expand(tokens, stack));
     }
 
     private List<Token> expand(List<Token> tokens, List<String> stack) {
@@ -60,9 +65,6 @@ final class CopyExpander {
             Token token = tokens.get(i);
             if (token.is("COPY")) {
                 i = copy(tokens, i, stack, out);
-            } else if (token.is("REPLACE")) {
-                error(token, "the REPLACE statement is not supported by BookMap");
-                i = afterPeriod(tokens, i);
             } else {
                 out.add(token);
                 i++;
@@ -111,11 +113,77 @@ final class CopyExpander {
         }
     }
 
-    private Token at(List<Token> tokens, int index, Token copy) {
+    private Token at(List<Token> tokens, int index, Token statement) {
         if (index >= tokens.size()) {
-            throw fail(copy, "the COPY statement has no closing period");
+            throw fail(statement, "the " + statement.text() + " statement has no closing period");
         }
         return tokens.get(index);
+    }
+
+    /**
+     * Applies the {@code REPLACE} statements. Each statement applies to the tokens after it, up
+     * to the next {@code REPLACE} statement.
+     */
+    private List<Token> replaceStatements(List<Token> tokens) {
+        List<Token> out = new ArrayList<>();
+        List<Replacement> active = List.of();
+        int start = 0;
+        int i = 0;
+        while (i < tokens.size()) {
+            if (tokens.get(i).is("REPLACE")) {
+                out.addAll(replace(tokens.subList(start, i), active));
+                ReplaceStatement statement = replaceStatement(tokens, i);
+                active = statement.replacements();
+                i = statement.next();
+                start = i;
+            } else {
+                i++;
+            }
+        }
+        out.addAll(replace(tokens.subList(Math.min(start, tokens.size()), tokens.size()),
+            active));
+        return out;
+    }
+
+    /** Reads one {@code REPLACE} statement. After an error, no replacement is active. */
+    private ReplaceStatement replaceStatement(List<Token> tokens, int start) {
+        Token replace = tokens.get(start);
+        int i = start + 1;
+        try {
+            if (at(tokens, i, replace).is("OFF")) {
+                i++;
+            } else {
+                List<Replacement> replacements = new ArrayList<>();
+                do {
+                    Token from = pseudoText(at(tokens, i, replace));
+                    if (!at(tokens, i + 1, replace).is("BY")) {
+                        throw fail(tokens.get(i + 1), "REPLACE needs BY");
+                    }
+                    Replacement replacement = replacement(from,
+                        pseudoText(at(tokens, i + 2, replace)));
+                    if (replacement.from().isEmpty()) {
+                        throw fail(from, "REPLACE needs a text to replace");
+                    }
+                    replacements.add(replacement);
+                    i += 3;
+                } while (at(tokens, i, replace).type() != TokenType.PERIOD);
+                return new ReplaceStatement(replacements, i + 1);
+            }
+            Token end = at(tokens, i, replace);
+            if (end.type() != TokenType.PERIOD) {
+                throw fail(end, "the REPLACE statement has an unknown word " + end.text());
+            }
+            return new ReplaceStatement(List.of(), i + 1);
+        } catch (StatementError e) {
+            return new ReplaceStatement(List.of(), afterPeriod(tokens, i));
+        }
+    }
+
+    private Token pseudoText(Token token) {
+        if (token.type() != TokenType.PSEUDO_TEXT) {
+            throw fail(token, "REPLACE needs pseudo-text, for example REPLACE ==A== BY ==B==.");
+        }
+        return token;
     }
 
     private Replacement replacement(Token from, Token to) {

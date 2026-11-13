@@ -66,9 +66,12 @@ A `generate` input that ends with `.json` is a model. Each other input is a copy
 | `--count-field <table>=<field>` | both | The count field of a fixed table (`OCCURS n`). The generator writes `dependsOn` on the table. Repeat the option for more tables. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table). |
 | `--max-record-length <bytes>` | both | The maximum record length. A longer record gives a warning. Default: no check. See [Record length](Copybook-generator#record-length). |
 | `--conditions <name>=<mode>` | both | The mode (`enum`, `constants`, or `none`) of the level 88 items of an elementary item. The mode is not case-sensitive. Repeat the option for more items. See [Level 88 items](Copybook-generator#level-88-items). |
+| `--date <name>=<pattern>` | both | A date hint: the date or time pattern of an item. A name with `*` is a name pattern, for example `*-DATE=yyyyMMdd`. Repeat the option for more hints. See [Date hints](Copybook-generator#date-hints). |
+| `--continuable <record>=<class>` | both | The handler class of a `Continuable` record. See [Continuable and Validatable](Copybook-generator#continuable-and-validatable). |
+| `--validatable <record>=<class>` | both | The handler class of a `Validatable` record. |
 | `--config <file.json>` | both | An [options file](Copybook-generator#options-file) with all options. |
 
-With a model input, the parse and mapping options (`--format` to `--conditions`) are not permitted. The model already contains their result.
+With a model input, the parse and mapping options (`--format` to `--validatable`) are not permitted. The model already contains their result.
 With a model input, the generator uses only `package` and `lombok` from the options file. It ignores the other keys.
 If you give a single-value option two times, the last value applies.
 
@@ -81,6 +84,7 @@ The command line and the options file work together in this way:
 - `--direction` adds a decision. For the same alternative, the command line has priority.
 - `--conditions` adds a mode. For the same item, the command line has priority.
 - `--count-field` adds a count field. For the same table, the command line has priority over `countFields` in the file.
+- `--date`, `--continuable`, and `--validatable` add an entry. For the same name or record, the command line has priority.
 - `--lombok` sets `lombok`. Without `--lombok`, the value of the file applies. The command line cannot set `lombok` to `false`.
 - Subtype decisions come only from the file.
 
@@ -137,6 +141,8 @@ For exit code 2, the command writes `error: <message>` and then `Run bookmap-cop
 | `unknown direction in 'X=both'. Use INPUT, OUTPUT, or INPUT_OUTPUT.` | An incorrect direction. |
 | `--count-field needs TABLE=FIELD, not 'X'` | `--count-field` without `=`. |
 | `--max-record-length needs a number of bytes of 1 or more, not '32K'` | An incorrect `--max-record-length`. |
+| `--date needs NAME=PATTERN, not 'A'` | A `--date` value without `=`, without a name, or without a pattern. |
+| `--continuable needs RECORD=CLASS, not 'A'` | The same for `--continuable` and `--validatable`. |
 | `parse and mapping options are not permitted with a model input` | A parse or mapping option with a model input. |
 | `bad.json: unknown key 'foo' in $` | An unknown key in the options file. |
 

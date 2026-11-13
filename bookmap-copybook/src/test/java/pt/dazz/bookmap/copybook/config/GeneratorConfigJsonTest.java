@@ -42,6 +42,9 @@ class GeneratorConfigJsonTest {
           "conditions": { "PARTY-ROLE": "enum", "ACCOUNT-FLAG": "Constants" },
           "countFields": { "INVOICE-LINE": "INVOICE-LINE-COUNT" },
           "maxRecordLength": 32500,
+          "dates": { "OPENED-ON": "yyyyMMdd", "*-TIME": "HHmmss" },
+          "continuable": { "GET-ACCOUNT": "com.example.accounts.AccountPaging" },
+          "validatable": { "GET-ACCOUNT": "ReturnCodes" },
           "package": "com.example.accounts",
           "lombok": false
         }
@@ -66,6 +69,12 @@ class GeneratorConfigJsonTest {
         assertThat(config.mapping().countFields()).isEqualTo(Map.of("INVOICE-LINE",
             "INVOICE-LINE-COUNT"));
         assertThat(config.mapping().maxRecordLength()).isEqualTo(32500);
+        assertThat(config.mapping().dates()).containsExactly(
+            Map.entry("OPENED-ON", "yyyyMMdd"), Map.entry("*-TIME", "HHmmss"));
+        assertThat(config.mapping().continuable()).isEqualTo(Map.of("GET-ACCOUNT",
+            "com.example.accounts.AccountPaging"));
+        assertThat(config.mapping().validatable()).isEqualTo(Map.of("GET-ACCOUNT",
+            "ReturnCodes"));
         assertThat(config.packageName()).isEqualTo("com.example.accounts");
         assertThat(config.lombok()).isFalse();
     }
@@ -113,6 +122,7 @@ class GeneratorConfigJsonTest {
         "{\"directions\": {\"A\": 1}}|key 'A' in $.directions must be a string",
         "{\"countFields\": {\"A\": 1}}|key 'A' in $.countFields must be a string",
         "{\"directions\": []}|key 'directions' in $ must be an object",
+        "{\"dates\": {\"A\": 1}}|key 'A' in $.dates must be a string",
         "{\"subTypes\": {\"A\": {\"values\": {}}}}|missing key 'discriminator' in $.subTypes.A",
         "{\"subTypes\": {\"A\": {\"discriminator\": \"T\", \"values\": {}, \"x\": 1}}}"
             + "|unknown key 'x' in $.subTypes.A",
