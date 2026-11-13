@@ -180,6 +180,39 @@ class MainTest {
         assertThat(err()).contains("warning: ORDER-DATE-X redefines ORDER-DATE and is skipped");
     }
 
+    @Test
+    void generateShowsTheRecordLength() {
+        assertThat(run("generate", resource("ORDERS.cpy"), "--package", "com.example.orders",
+            "--output-dir", dir.resolve("src").toString())).isEqualTo(Main.OK);
+        assertThat(err()).contains("info: record LIST-ORDERS has at most 552 bytes")
+            .doesNotContain("warning:");
+    }
+
+    @Test
+    void maxRecordLengthGivesAWarning() {
+        assertThat(run("generate", resource("ORDERS.cpy"), "--max-record-length", "500",
+            "--package", "com.example.orders", "--output-dir", dir.resolve("src").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(err()).contains("ORDERS.cpy:4:8: warning: record LIST-ORDERS has at most"
+            + " 552 bytes, more than the maximum record length of 500 bytes. The largest"
+            + " tables: ORDER-ENTRY (20 x 24 = 480 bytes), TOP-PRODUCT (3 x 13 = 39 bytes).");
+        assertThat(generated("ListOrders")).exists();
+    }
+
+    @Test
+    void maxRecordLengthOnTheCommandLineWinsOverConfig() throws IOException {
+        Path config = dir.resolve("config.json");
+        Files.writeString(config, "{\"maxRecordLength\": 500}");
+        assertThat(run("parse", resource("ORDERS.cpy"), "--config", config.toString(),
+            "--output", dir.resolve("a.json").toString())).isEqualTo(Main.OK);
+        assertThat(err()).contains("more than the maximum record length of 500 bytes");
+        err.reset();
+        assertThat(run("parse", resource("ORDERS.cpy"), "--config", config.toString(),
+            "--max-record-length", "552", "--output", dir.resolve("b.json").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(err()).doesNotContain("warning:");
+    }
+
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
         "|the command is missing",
@@ -203,6 +236,12 @@ class MainTest {
             + " NAME=DIRECTION, not 'A'",
         "generate A.cpy --package a --output-dir x --direction A=SIDEWAYS|unknown direction"
             + " in 'A=SIDEWAYS'. Use INPUT, OUTPUT, or INPUT_OUTPUT.",
+        "generate A.cpy --package a --output-dir x --max-record-length 0|--max-record-length"
+            + " needs a number of bytes of 1 or more, not '0'",
+        "parse A.cpy --output a.json --max-record-length 32K|--max-record-length needs a"
+            + " number of bytes of 1 or more, not '32K'",
+        "generate A.json --package a --output-dir x --max-record-length 100|parse and mapping"
+            + " options are not permitted with a model input",
     })
     void usageErrorsGiveExitCode2(String commandLine, String message) {
         String[] args = commandLine == null ? new String[0] : commandLine.split(" ");
