@@ -3,6 +3,8 @@
 The processor parses `pic` at compile time. An incorrect or unsupported `pic` is a compile error.
 
 - The prefix `PIC` or `PICTURE` and a final `.` are optional. Letters are not case-sensitive.
+- Write the picture as one word, without spaces. For example, `S9(7) V99` is a compile error. A space is necessary only between the picture and the usage clause.
+- `PIC IS` is not supported. Write `PIC X(3)`, not `PIC IS X(3)`.
 - Text: `X(n)` or a sequence of `X`.
 - Number: optional `S`, integer digits `9(n)` or `999`, and optional `V` followed by decimal digits.
   Examples: `9(5)`, `S9(13)V99`, `S9(7)V9(2)`, `V99`.
@@ -143,13 +145,14 @@ Packed dates (for example `S9(7) COMP-3` in the format `0CYYDDD`) have no built-
 - `COMP` number: never `null`. Low-values read as `0`.
 - Date or time with only spaces or low-values: `null`.
 - `LocalDate` or `LocalDateTime` with only zeros: `null`. `LocalTime` with only zeros: `LocalTime.MIDNIGHT`.
+  "Only zeros" means that each character is the digit `0`. With a pattern that has separators, for example `yyyy-MM-dd`, the text `0000-00-00` is not "only zeros": it throws `MappingException`.
 - Enum: the constant that contains the value. A blank field gives `null`, unless a constant has the blank value. An unknown value throws `MappingException`, or gives the `@CobolUnknown` constant.
 
 ### Write
 
 - Text: the codec adds spaces on the right. A `null` text writes spaces.
 - Number: a `null` number writes zero, with a positive sign. For example, `S9(3)` writes `F0 F0 C0` in EBCDIC.
-- Date or time: a `null` value writes the digit `0` in all positions. Thus, a `null` `LocalTime` reads back as midnight.
+- Date or time: a `null` value writes the digit `0` in all positions, also in the positions of the separators. For example, `yyyy-MM-dd` writes `0000000000`. Thus, a `null` `LocalTime` reads back as midnight.
 - Converter: the converter gets the `null` value.
 - Enum: the canonical value of the constant. A `null` enum writes spaces (text) or zero (number).
 - Too large a value (text, digits, or a negative value in an unsigned field) throws `MappingException`. The codec never truncates.
