@@ -59,6 +59,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # The history shows only the human authors and the release bots. An AI assistant is never
+      # an author, a committer, or a co-author.
+      - name: Check the commit authors
+        run: scripts/check-commit-authors.sh
+
       - name: Set up Java 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
