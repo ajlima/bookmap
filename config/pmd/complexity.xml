@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The PMD rules of the build: only the cyclomatic complexity of each method. -->
+<ruleset name="BookMap complexity"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+    <description>The cyclomatic complexity of a method must not be more than the limit.</description>
+    <rule ref="category/java/design.xml/CyclomaticComplexity">
+        <properties>
+            <!-- PMD reports a method with a complexity of this value or more. The limit is 35. -->
+            <property name="methodReportLevel" value="36"/>
+            <!-- The build checks the methods only, not the classes. -->
+            <property name="classReportLevel" value="10000"/>
+        </properties>
+    </rule>
+</ruleset>

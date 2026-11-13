@@ -1,8 +1,10 @@
 # Build and release BookMap.
 #
-# On each pull request to main: only the build job runs (build, tests, 100% coverage). The build
-# job also builds the standalone examples of the Gradle plugin (bookmap-examples-gradle-plugin)
-# and of the Maven plugin (bookmap-examples-maven-plugin).
+# On each pull request to main: only the build job runs (build, tests, 100% coverage, dependency
+# structure, cyclomatic complexity, and module size). A pull request that changes only documentation
+# (*.md files and the docs/ folder) skips the Gradle steps, but the build job still checks the commit
+# authors and passes. The build job also builds the standalone examples of the Gradle plugin
+# (bookmap-examples-gradle-plugin) and of the Maven plugin (bookmap-examples-maven-plugin).
 # The ruleset on main requires this check before a merge.
 #
 # On each push to main:
@@ -68,7 +70,29 @@ jobs:
             || { echo "error: cannot read the check from main"; exit 1; }
           bash "$RUNNER_TEMP/check-commit-authors.sh" HEAD
 
+      # A pull request that changes only documentation (*.md files and the docs/ folder) skips the
+      # Gradle steps, and the build job passes. A push to main always runs the full build, because the
+      # release needs it. The workflow always runs, so the required build check always reports.
+      - name: Find the changed files
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          docs_only=false
+          # The script of main runs, so a pull request cannot change the rule for itself. If main has
+          # no script, the full build runs. The checkout is the merge commit of the pull request: its
+          # first parent is the base.
+          if [ "$EVENT_NAME" = pull_request ] \
+            && git show origin/main:scripts/docs-only-change.sh > "$RUNNER_TEMP/docs-only-change.sh"; then
+            docs_only=$(bash "$RUNNER_TEMP/docs-only-change.sh" HEAD^1 HEAD)
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          if [ "$docs_only" = true ]; then
+            echo "::notice::Only documentation files changed. The Gradle steps do not run."
+          fi
+
       - name: Set up Java 21
+        if: steps.changes.outputs.docs_only != 'true'
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
@@ -77,12 +101,14 @@ jobs:
           cache: gradle
 
       - name: Set up Gradle
+        if: steps.changes.outputs.docs_only != 'true'
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           # The cache of setup-gradle v6 is a proprietary component. Do not enable it.
           cache-disabled: true
 
       - name: Calculate the next version
+        if: steps.changes.outputs.docs_only != 'true'
         id: version
         uses: mathieudutour/github-tag-action@af99e60ce8132224b8e6ebab5023449fe256ed46 # v7.0.0
         with:
@@ -92,6 +118,7 @@ jobs:
           dry_run: true
 
       - name: Build and test
+        if: steps.changes.outputs.docs_only != 'true'
         env:
           NEW_VERSION: ${{ steps.version.outputs.new_version }}
         run: |
@@ -103,10 +130,12 @@ jobs:
 
       # The example build includes the root build, so it uses the plugin from this commit.
       - name: Build the Gradle plugin example
+        if: steps.changes.outputs.docs_only != 'true'
         run: ./gradlew -p bookmap-examples-gradle-plugin build --no-daemon
 
       # The Maven example takes the snapshot of this commit from the local Maven repository.
       - name: Build the Maven plugin example
+        if: steps.changes.outputs.docs_only != 'true'
         run: |
           ./gradlew publishToMavenLocal --no-daemon
           bookmap-examples-maven-plugin/mvnw -B -f bookmap-examples-maven-plugin/pom.xml verify

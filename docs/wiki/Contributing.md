@@ -47,6 +47,59 @@ The `build` check of a pull request runs all these builds, except the native ima
 The `native-image` check of the workflow `.github/workflows/native-image.yml` runs the native image.
 `./gradlew build` needs no GraalVM.
 
+### Quality checks
+
+`./gradlew build` also runs these checks:
+
+| Check | Tool | Rule | Report |
+|---|---|---|---|
+| Dependency structure | ArchUnit, in the test `ArchitectureTest` of a module | A module must not have a package cycle. `bookmap-core`, `bookmap-processor`, and `bookmap-copybook` must depend only on a list of allowed packages. | The test report. |
+| Cyclomatic complexity | PMD, rule `CyclomaticComplexity` in `config/pmd/complexity.xml` | The complexity of a method in the main code must not be more than 35. | `build/reports/pmd/` of each module. |
+| Module size | The task `moduleSize` | No limit. | `build/reports/module-size.md`. |
+
+The module `bookmap-examples` is not included in these checks.
+
+The rule for allowed packages makes sure that `bookmap-core` and `bookmap-processor` do not depend on Spring, Quarkus, Micronaut, Guice, or a middleware library.
+`ArchitectureTest` ignores two known cycles: `annotation` and `convert` in `bookmap-core`, and `ast` and `parse` in `bookmap-copybook`.
+Each exception ignores only one dependency. A new cycle fails the test.
+
+Run the complexity check or the size report alone:
+
+```bash
+./gradlew pmdMain
+```
+
+```bash
+./gradlew moduleSize
+```
+
+### Mutation tests
+
+The mutation tests are slow, so `./gradlew build` does not run them. Run them with PIT:
+
+```bash
+./gradlew mutationTest
+```
+
+The task runs PIT on `bookmap-core`, `bookmap-processor`, and `bookmap-copybook`.
+It fails if the mutation score of a module is less than 95%. The minimum score of each module is in `build.gradle.kts`.
+Each module writes a PIT report in `build/reports/pitest/` (HTML and XML).
+The `mutation-test` check of the workflow `.github/workflows/mutation.yml` runs the mutation tests. The ruleset on `main` requires this check.
+
+### Pull requests that change only documentation
+
+A pull request that changes only documentation files does not build the modules. A documentation file is one of these files:
+
+- A Markdown file (`*.md`) in any folder, for example `README.md` or `ROADMAP.md`.
+- A file in the folder `docs/`.
+
+In this case, the `build`, `native-image`, and `mutation-test` checks skip the Gradle steps and pass.
+The `build` check always runs the commit author check.
+A push to `main` always runs the full build, because the release needs it.
+The script `scripts/docs-only-change.sh` finds the changed files. The checks run the script of `main`, so a pull request cannot change the rule for itself.
+
+**CAUTION:** Do not add `paths-ignore` to a workflow of a required check. If the workflow does not run, the check does not report, and the pull request stays blocked.
+
 ### Dependency checksums
 
 The Gradle builds verify the SHA-256 checksum of each downloaded plugin and library.
@@ -60,6 +113,7 @@ scripts/update-verification-metadata.sh
 ```
 
 The script downloads all dependencies into a temporary Gradle user home. Then it writes the two files again.
+The script also runs the mutation tests, so it takes some minutes more than `./gradlew build`.
 Read the diff of the two files, and commit them with the dependency change.
 Do this also on the branch of a Dependabot pull request for Gradle.
 For more information, see "Supply-chain protection" in [RELEASING.md](https://github.com/ajlima/bookmap/blob/main/RELEASING.md).
@@ -103,7 +157,7 @@ Start with the main design: [`2026-11-10-bookmap-design.md`](https://github.com/
 1. Open an issue, or select an issue from the [Roadmap](Roadmap).
 2. Create a branch from `main`.
 3. Commit often on the branch.
-4. Open a pull request to `main`. The `build` check must pass.
+4. Open a pull request to `main`. The `build` and `mutation-test` checks must pass.
 5. The author approves and merges the pull request.
 
 A ruleset on `main` blocks direct pushes and force pushes.

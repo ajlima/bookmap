@@ -1,6 +1,7 @@
 plugins {
     base
     alias(libs.plugins.maven.publish) apply false
+    alias(libs.plugins.pitest) apply false
 }
 
 import com.vanniktech.maven.publish.GradlePlugin
@@ -8,6 +9,7 @@ import com.vanniktech.maven.publish.JavaLibrary
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import com.vanniktech.maven.publish.SourcesJar
+import info.solidsoft.gradle.pitest.PitestPluginExtension
 
 val catalog = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
@@ -24,6 +26,13 @@ val publishedModules = mapOf(
     "bookmap-copybook-cli" to "BookMap copybook generator command-line program.",
     "bookmap-copybook-gradle-plugin" to "BookMap copybook generator Gradle plugin.",
     "bookmap-copybook-maven-plugin" to "BookMap copybook generator Maven plugin.",
+)
+
+// Modules with mutation tests (task mutationTest), with the minimum mutation score in percent.
+val mutationModules = mapOf(
+    "bookmap-core" to 95,
+    "bookmap-processor" to 95,
+    "bookmap-copybook" to 95,
 )
 
 // Modules that are Gradle plugins. They publish the plugin JAR and the plugin marker artifact.
@@ -58,6 +67,7 @@ subprojects {
         "testImplementation"(platform(catalog.junit.bom))
         "testImplementation"(catalog.junit.jupiter)
         "testImplementation"(catalog.assertj.core)
+        "testImplementation"(catalog.archunit)
         "testRuntimeOnly"(catalog.junit.platform.launcher)
     }
 
@@ -99,6 +109,31 @@ subprojects {
         tasks.named("check") {
             dependsOn(tasks.withType<JacocoCoverageVerification>())
             dependsOn(tasks.withType<JacocoReport>())
+        }
+
+        // The cyclomatic complexity of each method (config/pmd/complexity.xml). Only the main code.
+        apply(plugin = "pmd")
+        extensions.configure<PmdExtension> {
+            toolVersion = catalog.versions.pmd.get()
+            ruleSets = emptyList()
+            ruleSetFiles = rootProject.files("config/pmd/complexity.xml")
+            sourceSets = listOf(the<SourceSetContainer>()["main"])
+            isConsoleOutput = true
+        }
+    }
+
+    mutationModules[name]?.let { minimumScore ->
+        apply(plugin = "info.solidsoft.pitest")
+        extensions.configure<PitestPluginExtension> {
+            pitestVersion = catalog.versions.pitest.asProvider().get()
+            junit5PluginVersion = catalog.versions.pitest.junit5.get()
+            targetClasses = setOf("pt.dazz.bookmap.*")
+            // The architecture tests read the class files. A mutation does not change their result.
+            excludedTestClasses = setOf("*.ArchitectureTest")
+            threads = Runtime.getRuntime().availableProcessors()
+            outputFormats = setOf("HTML", "XML")
+            timestampedReports = false
+            mutationThreshold = minimumScore
         }
     }
 
@@ -164,4 +199,62 @@ subprojects {
             }
         }
     }
+}
+
+// The mutation tests are slow. The build task does not run them. CI runs them in a separate check.
+tasks.register("mutationTest") {
+    group = "verification"
+    description = "Runs the mutation tests (PIT) of " + mutationModules.keys.joinToString() + "."
+    dependsOn(mutationModules.keys.map { ":$it:pitest" })
+}
+
+// A report of the size of each module: the source files, the classes, and the lines of the main code.
+// The report is in build/reports/module-size.md. The task gives no limit.
+val sizeModules = subprojects.filter { it.name != "bookmap-examples" && it.file("src/main/java").isDirectory }
+val moduleSize = tasks.register("moduleSize") {
+    group = "verification"
+    description = "Reports the source files, classes, and lines of the main code of each module."
+    val sources = sizeModules.associate { module ->
+        module.name to module.fileTree("src/main/java") { include("**/*.java") }
+    }
+    val classes = sizeModules.associate { module ->
+        module.name to module.fileTree(module.layout.buildDirectory.dir("classes/java/main")) {
+            include("**/*.class")
+        }
+    }
+    dependsOn(sizeModules.map { "${it.path}:classes" })
+    sources.values.forEach { inputs.files(it) }
+    val report = layout.buildDirectory.file("reports/module-size.md")
+    outputs.file(report)
+    doLast {
+        val anonymous = Regex("""\$\d+$""")
+        val rows = sources.keys.sorted().map { module ->
+            val files = sources.getValue(module).files
+            val lines = files.map { it.readLines() }
+            // A code line is not blank and is not only a comment. The count is approximate.
+            val codeLines = lines.sumOf { fileLines ->
+                fileLines.map { it.trim() }.count { line ->
+                    line.isNotEmpty() && !line.startsWith("//") && !line.startsWith("/*") &&
+                        !line.startsWith("*")
+                }
+            }
+            // A named class, interface, enum, record, or annotation. Not an anonymous class.
+            val classCount = classes.getValue(module).files.count { file ->
+                val name = file.nameWithoutExtension
+                name != "package-info" && name != "module-info" && !anonymous.containsMatchIn(name)
+            }
+            val largest = files.zip(lines).maxByOrNull { it.second.size }
+            listOf(module, files.size, classCount, lines.sumOf { it.size }, codeLines,
+                largest?.let { "${it.first.name} (${it.second.size})" } ?: "-")
+        }
+        val header = listOf("Module", "Source files", "Classes", "Lines", "Code lines", "Largest file (lines)")
+        val table = (listOf(header, header.map { "---" }) + rows)
+            .joinToString("\n") { row -> row.joinToString(" | ", "| ", " |") }
+        report.get().asFile.writeText(table + "\n")
+        logger.lifecycle(table)
+    }
+}
+
+tasks.named("build") {
+    dependsOn(moduleSize)
 }
