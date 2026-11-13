@@ -166,6 +166,22 @@ class SignGenerationTest {
     }
 
     @Test
+    void picSignClauseNeedsDisplayAlsoWithTheUsageOfTheDefaults() {
+        Compilation compilation = compiler.compile(
+            source("Level", "public enum Level { @CobolValue(\"1\") LOW, @CobolValue(\"2\") HIGH }"),
+            source("Order", "@BookDefaults(usage = Usage.COMP3) @BookOperation",
+                "public class Order {",
+                field("@BookField(order = 1, pic = \"S9(3) SIGN LEADING SEPARATE\")", "int", "a"),
+                field("@BookField(order = 2, pic = \"S9 LEADING\")", "Level", "b"),
+                field("@BookField(order = 3, pic = \"S9(3) SIGN LEADING DISPLAY\")", "int", "c"),
+                field("@BookField(order = 4, pic = \"S9(3)\")", "int", "d"),
+                "}"));
+        assertError(compilation, "Order.a (order 1)", "sign is permitted only with usage DISPLAY");
+        assertError(compilation, "Order.b (order 2)", "sign is permitted only with usage DISPLAY");
+        CompilationSubject.assertThat(compilation).hadErrorCount(2);
+    }
+
+    @Test
     void converterFieldCannotHaveASignFormat() {
         Compilation compilation = compiler.compile(
             source("CodeConverter",

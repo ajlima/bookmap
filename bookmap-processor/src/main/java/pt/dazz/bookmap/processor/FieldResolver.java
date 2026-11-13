@@ -311,17 +311,17 @@ final class FieldResolver {
     }
 
     /**
-     * Checks an explicit {@code sign}. The {@code pic} parser checks a {@code SIGN} clause. A
-     * text-only field gets the error of the numeric attributes.
+     * Checks the sign. An explicit {@code sign} needs a signed field. Each sign other than the
+     * default needs the usage {@code DISPLAY}, also when the usage comes from
+     * {@code @BookDefaults}. A text-only field gets the error of the numeric attributes.
      */
     private static void checkSign(AnnotatedMember member, JavaKind kind, boolean textOnly,
                                   boolean signed, Usage usage, Sign sign, Problems problems) {
-        if (member.values().containsKey("sign") && !textOnly) {
-            if (!signed) {
-                problems.error(member, "sign needs a signed field");
-            } else if (usage != Usage.DISPLAY) {
-                problems.error(member, "sign is permitted only with usage DISPLAY");
-            }
+        boolean explicit = member.values().containsKey("sign") && !textOnly;
+        if (explicit && !signed) {
+            problems.error(member, "sign needs a signed field");
+        } else if ((explicit || sign != Sign.TRAILING) && usage != Usage.DISPLAY) {
+            problems.error(member, "sign is permitted only with usage DISPLAY");
         }
         if (kind == JavaKind.CONVERTED && sign != Sign.TRAILING) {
             problems.error(member, "sign " + sign + " is not permitted with a converter");
