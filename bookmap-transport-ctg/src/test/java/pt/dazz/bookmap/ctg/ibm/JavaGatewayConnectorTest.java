@@ -1,6 +1,7 @@
 package pt.dazz.bookmap.ctg.ibm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -152,5 +153,15 @@ class JavaGatewayConnectorTest {
         assertThat(JavaGateway.last.protocolProperties().getProperty("keyring"))
             .isEqualTo("/etc/ctg/client.p12");
         assertThat(JavaGateway.last.protocolProperties().getProperty("a")).isEqualTo("b");
+    }
+
+    @Test
+    void rejectsBadSocketConnectTimeout() {
+        JavaGatewayConnector.Builder builder = JavaGatewayConnector.builder();
+        assertThatIllegalArgumentException()
+            .isThrownBy(() -> builder.socketConnectTimeout(Duration.ofMillis(-1)));
+        assertThatIllegalArgumentException()
+            .isThrownBy(() -> builder.socketConnectTimeout(Duration.ofMillis(Integer.MAX_VALUE + 1L)));
+        builder.socketConnectTimeout(Duration.ofMillis(Integer.MAX_VALUE));
     }
 }

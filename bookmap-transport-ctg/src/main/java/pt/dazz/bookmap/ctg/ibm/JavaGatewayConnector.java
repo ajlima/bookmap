@@ -129,11 +129,17 @@ public final class JavaGatewayConnector implements EciConnector {
         /**
          * Sets the time limit to connect the socket. The default is 10 seconds.
          *
-         * @param timeout the time limit
+         * @param timeout the time limit, from 0 to {@code Integer.MAX_VALUE} milliseconds
          * @return this builder
+         * @throws IllegalArgumentException if the value is out of range
          */
         public Builder socketConnectTimeout(Duration timeout) {
-            this.socketConnectTimeout = Objects.requireNonNull(timeout, "socketConnectTimeout");
+            Objects.requireNonNull(timeout, "socketConnectTimeout");
+            if (timeout.isNegative() || timeout.compareTo(Duration.ofMillis(Integer.MAX_VALUE)) > 0) {
+                throw new IllegalArgumentException("socketConnectTimeout must be from 0 to "
+                    + Integer.MAX_VALUE + " ms: " + timeout);
+            }
+            this.socketConnectTimeout = timeout;
             return this;
         }
 

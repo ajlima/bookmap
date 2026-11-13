@@ -128,4 +128,10 @@ class CtgTransportBuilderTest {
         builder().maxConnections(3).connectionWaitTimeout(Duration.ofSeconds(1)).build();
         assertThat(connector.opened()).isZero();
     }
+
+    @Test
+    void rejectsNegativeConnectionWaitTimeout() {
+        assertThatIllegalArgumentException()
+            .isThrownBy(() -> builder().connectionWaitTimeout(Duration.ofMillis(-1)));
+    }
 }

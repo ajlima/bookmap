@@ -19,6 +19,7 @@ final class ConnectionPool implements AutoCloseable {
 
     private final EciConnector connector;
     private final Semaphore permits;
+    private final long waitNanos;
     private final Duration waitTimeout;
     private final Deque<EciConnection> free = new ArrayDeque<>();
     private boolean closed;
@@ -27,6 +28,9 @@ final class ConnectionPool implements AutoCloseable {
         this.connector = connector;
         this.permits = new Semaphore(maxConnections, true);
         this.waitTimeout = waitTimeout;
+        // A very long wait (for example "wait forever") does not fit in nanoseconds.
+        this.waitNanos = waitTimeout.compareTo(Duration.ofNanos(Long.MAX_VALUE)) > 0
+            ? Long.MAX_VALUE : waitTimeout.toNanos();
     }
 
     /**
@@ -41,7 +45,7 @@ final class ConnectionPool implements AutoCloseable {
     EciConnection acquire() {
         checkOpen();
         try {
-            if (!permits.tryAcquire(waitTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
+            if (!permits.tryAcquire(waitNanos, TimeUnit.NANOSECONDS)) {
                 throw new ConnectionException("No free CTG connection after "
                     + waitTimeout.toMillis() + " ms");
             }
@@ -93,8 +97,11 @@ final class ConnectionPool implements AutoCloseable {
                 return;
             }
         }
-        closeQuietly(connection);
-        permits.release();
+        try {
+            closeQuietly(connection);
+        } finally {
+            permits.release();
+        }
     }
 
     /**
@@ -103,8 +110,11 @@ final class ConnectionPool implements AutoCloseable {
      * @param connection the connection
      */
     void discard(EciConnection connection) {
-        closeQuietly(connection);
-        permits.release();
+        try {
+            closeQuietly(connection);
+        } finally {
+            permits.release();
+        }
     }
 
     /** Closes all free connections. A connection in use is closed when it comes back. */
@@ -125,7 +135,7 @@ final class ConnectionPool implements AutoCloseable {
     private static void closeQuietly(EciConnection connection) {
         try {
             connection.close();
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             // The connection is not used again. A failure to close it changes nothing.
         }
     }

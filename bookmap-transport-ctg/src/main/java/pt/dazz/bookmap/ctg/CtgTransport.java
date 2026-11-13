@@ -287,11 +287,17 @@ public final class CtgTransport implements Transport, AutoCloseable {
          * Sets the maximum wait for a free connection when all connections are in use. The
          * default is 30 seconds.
          *
-         * @param timeout the maximum wait
+         * @param timeout the maximum wait, zero or more
          * @return this builder
+         * @throws IllegalArgumentException if the value is negative
          */
         public Builder connectionWaitTimeout(Duration timeout) {
-            this.connectionWaitTimeout = Objects.requireNonNull(timeout, "connectionWaitTimeout");
+            Objects.requireNonNull(timeout, "connectionWaitTimeout");
+            if (timeout.isNegative()) {
+                throw new IllegalArgumentException("connectionWaitTimeout must not be negative: "
+                    + timeout);
+            }
+            this.connectionWaitTimeout = timeout;
             return this;
         }
 

@@ -78,7 +78,7 @@ A route maps an operation name to a CICS program and a transaction. The operatio
 | `credentials(String userid, String password)` | The CICS user ID and password. | `null`: no credentials. |
 | `timeout(Duration)` | The ECI timeout, in whole seconds from 0 to 32767. `Duration.ZERO` means no timeout. | 30 seconds |
 | `maxConnections(int)` | The maximum number of open gateway connections. | 10 |
-| `connectionWaitTimeout(Duration)` | The maximum wait for a free connection when all connections are in use. | 30 seconds |
+| `connectionWaitTimeout(Duration)` | The maximum wait for a free connection when all connections are in use. Zero or more. | 30 seconds |
 
 `build()` throws `IllegalStateException` if the connector is not set or if no route is set. It opens no connection.
 
@@ -90,7 +90,7 @@ A route maps an operation name to a CICS program and a transaction. The operatio
 |---|---|---|
 | `url(String)` | The URL of the gateway, for example `tcp://ctg.example.com` or `ssl://ctg.example.com`. `local:` selects local mode. Mandatory. | none |
 | `port(int)` | The port of the Gateway daemon. | 2006 |
-| `socketConnectTimeout(Duration)` | The time limit to connect the socket. | 10 seconds |
+| `socketConnectTimeout(Duration)` | The time limit to connect the socket, from 0 to `Integer.MAX_VALUE` milliseconds. | 10 seconds |
 | `protocolProperties(Properties)` | The protocol properties, for example the key ring for TLS. The builder keeps a copy. | empty |
 
 ## The COMMAREA

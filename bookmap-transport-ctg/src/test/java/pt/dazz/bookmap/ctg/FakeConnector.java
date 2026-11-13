@@ -18,7 +18,7 @@ final class FakeConnector implements EciConnector {
     private volatile Function<EciCall, EciReply> responder =
         call -> new EciReply(0, null, new byte[call.commareaLength()]);
     private volatile Exception openFailure;
-    private volatile IOException closeFailure;
+    private volatile Exception closeFailure;
 
     /** Answers each call with this function, after the scripted replies. */
     FakeConnector respond(Function<EciCall, EciReply> function) {
@@ -43,7 +43,7 @@ final class FakeConnector implements EciConnector {
         return this;
     }
 
-    FakeConnector failClose(IOException failure) {
+    FakeConnector failClose(Exception failure) {
         this.closeFailure = failure;
         return this;
     }
@@ -107,9 +107,12 @@ final class FakeConnector implements EciConnector {
         @Override
         public void close() throws IOException {
             closed = true;
-            IOException failure = closeFailure;
+            Exception failure = closeFailure;
+            if (failure instanceof IOException io) {
+                throw io;
+            }
             if (failure != null) {
-                throw failure;
+                throw (RuntimeException) failure;
             }
         }
     }

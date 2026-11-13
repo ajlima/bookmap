@@ -166,4 +166,41 @@ class ConnectionPoolTest {
         connector.failOpen(null);
         assertThat(pool.acquire()).isNotNull();
     }
+
+    @Test
+    void uncheckedCloseFailureInDiscardReleasesThePermit() {
+        connector.failClose(new IllegalStateException("broken socket"));
+        ConnectionPool pool = pool(1, Duration.ofMillis(50));
+        pool.discard(pool.acquire());
+        pool.discard(pool.acquire());
+        assertThat(pool.acquire()).isNotNull();
+    }
+
+    @Test
+    void uncheckedCloseFailureAfterCloseReleasesThePermit() {
+        connector.failClose(new IllegalStateException("broken socket"));
+        ConnectionPool pool = pool(1, Duration.ofMillis(50));
+        EciConnection inUse = pool.acquire();
+        pool.close();
+        pool.release(inUse);
+        assertThat(connector.connections().getFirst().closed()).isTrue();
+    }
+
+    @Test
+    void closeClosesAllFreeConnectionsAfterUncheckedFailure() {
+        connector.failClose(new IllegalStateException("broken socket"));
+        ConnectionPool pool = pool(2, Duration.ofSeconds(1));
+        EciConnection first = pool.acquire();
+        EciConnection second = pool.acquire();
+        pool.release(first);
+        pool.release(second);
+        pool.close();
+        assertThat(connector.connections()).hasSize(2).allMatch(FakeConnector.FakeConnection::closed);
+    }
+
+    @Test
+    void veryLongWaitTimeoutWorks() {
+        ConnectionPool pool = pool(1, Duration.ofSeconds(Long.MAX_VALUE));
+        assertThat(pool.acquire()).isNotNull();
+    }
 }
