@@ -106,6 +106,14 @@ class TemporalAndConverterTest {
         assertThat(new BookReader(filled(14, 0x00), EBCDIC).readDateTime(F, 14, DATE_TIME)).isNull();
     }
 
+    @Test void zerosWithSeparatorsAreNotOnlyZeros() {
+        var iso = Formats.of("yyyy-MM-dd");
+        assertThat(write(null, 10, iso)).isEqualTo(ebcdic("0000000000"));
+        assertThat(readDate(ebcdic("0000000000"), 10, iso)).isNull();
+        assertThatThrownBy(() -> readDate(ebcdic("0000-00-00"), 10, iso))
+            .isInstanceOf(MappingException.class).hasMessageStartingWith(F + ": ");
+    }
+
     @Test void invalidDateFails() {
         assertThatThrownBy(() -> readDate(ebcdic("20261340"), 8, DATE))
             .isInstanceOf(MappingException.class)
