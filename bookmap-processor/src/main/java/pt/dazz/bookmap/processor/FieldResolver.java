@@ -25,6 +25,7 @@ import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.codec.BookWriter;
+import pt.dazz.bookmap.codec.EditedPicture;
 import pt.dazz.bookmap.codec.Formats;
 import pt.dazz.bookmap.processor.model.EnumModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
@@ -146,6 +147,7 @@ final class FieldResolver {
             checkConverter(member, converter, fieldType, problems);
         }
         Optional<PicSpec> pic = pic(member, kind, fieldType, problems);
+        Optional<EditedPicture> edited = pic.flatMap(PicSpec::edited);
         // An enum field is numeric with a numeric pic, else it is text.
         boolean enumNumber = kind == JavaKind.ENUM
             && pic.filter(spec -> spec.category() == Category.NUMBER).isPresent();
@@ -156,7 +158,7 @@ final class FieldResolver {
             (TypeElement) member.field().getEnclosingElement());
         Usage usage = Optional.ofNullable((String) values.get("usage")).map(Usage::valueOf)
             .or(() -> pic.flatMap(PicSpec::usage))
-            .or(() -> numeric ? defaults.usage() : Optional.empty())
+            .or(() -> numeric && edited.isEmpty() ? defaults.usage() : Optional.empty())
             .orElse(Usage.DISPLAY);
         boolean signed = Optional.ofNullable((Boolean) values.get("signed"))
             .or(() -> pic.map(PicSpec::signed))
@@ -221,7 +223,9 @@ final class FieldResolver {
         }
         return new FieldModel(member.owner(), member.name(), member.order(), length,
             direction, usage, scale, signed, sign, pattern, kind, fieldType, getter.get(),
-            setter.get(), converter, BookWriter.byteLength(usage, length, sign), enumModel);
+            setter.get(), converter, edited.map(EditedPicture::byteLength)
+                .orElse(BookWriter.byteLength(usage, length, sign)), enumModel,
+            edited.orElse(null));
     }
 
     private static Direction direction(AnnotatedMember member, Direction itemDirection,
@@ -262,6 +266,9 @@ final class FieldResolver {
             return Optional.empty();
         }
         String simpleName = simpleName(fieldType);
+        if (spec.edited().isPresent()) {
+            checkEdited(member, kind, simpleName, problems);
+        }
         if (spec.category() == Category.TEXT) {
             if (NUMERIC.contains(kind)) {
                 problems.error(member, "a text pic is not permitted for " + simpleName);
@@ -276,6 +283,22 @@ final class FieldResolver {
                 + simpleName);
         }
         return Optional.of(spec);
+    }
+
+    /**
+     * Checks the Java type of a field with an edited picture. A date or time, an enum, and a
+     * converter are not permitted. {@code String} gets the error of a numeric pic.
+     */
+    private static void checkEdited(AnnotatedMember member, JavaKind kind, String simpleName,
+                                    Problems problems) {
+        if (TEMPORAL.contains(kind)) {
+            problems.error(member, "an edited pic is not permitted for " + simpleName
+                + ". Use X(n) with a pattern");
+        } else if (kind == JavaKind.ENUM) {
+            problems.error(member, "an edited pic is not permitted for an enum");
+        } else if (kind == JavaKind.CONVERTED) {
+            problems.error(member, "an edited pic is not permitted with a converter");
+        }
     }
 
     /** Gives the {@code pic} text. An empty text means that the field has no {@code pic}. */

@@ -3,6 +3,7 @@ package pt.dazz.bookmap.processor.pic;
 import java.util.Optional;
 import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.codec.EditedPicture;
 
 /**
  * Gives the result of a parsed {@code PIC} string.
@@ -13,9 +14,26 @@ import pt.dazz.bookmap.annotation.Usage;
  * @param signed {@code true} if the picture starts with {@code S}
  * @param usage the usage from the usage clause. It is empty when the string has no usage clause.
  * @param sign the sign from the sign clause. It is empty when the string has no sign clause.
+ * @param edited the edited picture, with the {@code BLANK WHEN ZERO} clause. It is empty for a
+ *     picture without edit symbols and without the clause.
  */
 public record PicSpec(Category category, int length, int scale, boolean signed,
-    Optional<Usage> usage, Optional<Sign> sign) {
+    Optional<Usage> usage, Optional<Sign> sign, Optional<EditedPicture> edited) {
+
+    /**
+     * Makes the result of a picture without edit symbols.
+     *
+     * @param category the category
+     * @param length the length
+     * @param scale the scale
+     * @param signed {@code true} for a signed picture
+     * @param usage the usage from the usage clause
+     * @param sign the sign from the sign clause
+     */
+    public PicSpec(Category category, int length, int scale, boolean signed,
+                   Optional<Usage> usage, Optional<Sign> sign) {
+        this(category, length, scale, signed, usage, sign, Optional.empty());
+    }
 
     /**
      * Gives the category of a {@code PIC} string.

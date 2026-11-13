@@ -19,12 +19,13 @@ public final class PicText {
      * @param picture the picture
      * @param usage the effective usage
      * @param sign the effective sign, or {@code null} for the default
-     * @return the text, for example {@code S9(7)V99 COMP-3} or
-     *     {@code S9(5)V99 SIGN LEADING SEPARATE}
+     * @return the text, for example {@code S9(7)V99 COMP-3},
+     *     {@code S9(5)V99 SIGN LEADING SEPARATE}, or {@code ZZ9.99 BLANK WHEN ZERO}
      */
     public static String of(Picture picture, Usage usage, Sign sign) {
         return switch (usage) {
-            case DISPLAY -> sign == null ? picture.text()
+            case DISPLAY -> picture.edited() != null ? picture.edited().toString()
+                : sign == null ? picture.text()
                 : picture.text() + " SIGN " + (sign.leading() ? "LEADING" : "TRAILING")
                     + (sign.separate() ? " SEPARATE" : "");
             case COMP, COMP5 -> picture.text() + " COMP";

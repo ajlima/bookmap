@@ -121,7 +121,7 @@ public final class JavaClassGenerator {
             TypeName javaType = javaType(member, options.packageName());
             FieldSpec.Builder field = FieldSpec.builder(javaType, member.name(),
                     Modifier.PRIVATE)
-                .addJavadoc("{@code $L}\n", member.declaration())
+                .addJavadoc(declaration(member.declaration()))
                 .addAnnotation(annotation(member, type.kind()));
             if (member instanceof FieldMember fieldMember
                 && fieldMember.initialValue() != null) {
@@ -317,5 +317,19 @@ public final class JavaClassGenerator {
         builder.addMethod(MethodSpec.methodBuilder("set" + suffix)
             .addModifiers(Modifier.PUBLIC).addParameter(javaType, name)
             .addStatement("this.$N = $N", name, name).build());
+    }
+
+    /**
+     * Gives the Javadoc of a field: its COBOL declaration. A picture such as {@code **}{@code /99}
+     * has the characters that end a comment. Then the Javadoc uses HTML, with {@code /} as
+     * {@code &#47;}.
+     */
+    static CodeBlock declaration(String declaration) {
+        if (!declaration.contains("*/")) {
+            return CodeBlock.of("{@code $L}\n", declaration);
+        }
+        String html = declaration.replace("&", "&amp;").replace("<", "&lt;")
+            .replace(">", "&gt;").replace("/", "&#47;").replace("@", "&#64;");
+        return CodeBlock.of("<code>$L</code>\n", html);
     }
 }

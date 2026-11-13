@@ -90,7 +90,7 @@ public final class TextCodec {
      * @return the text
      * @throws MappingException if the charset cannot decode a byte
      */
-    static String decodeStrict(String field, byte[] bytes, int from, int len, Charset cs) {
+    public static String decodeStrict(String field, byte[] bytes, int from, int len, Charset cs) {
         try {
             return cs.newDecoder()
                 .onMalformedInput(CodingErrorAction.REPORT)

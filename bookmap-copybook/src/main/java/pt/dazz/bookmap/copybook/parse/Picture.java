@@ -2,21 +2,36 @@ package pt.dazz.bookmap.copybook.parse;
 
 import java.util.Locale;
 import pt.dazz.bookmap.annotation.Sign;
+import pt.dazz.bookmap.codec.EditedPicture;
 import pt.dazz.bookmap.copybook.ast.Usage;
 
 /**
- * Describes a picture string that BookMap supports: {@code X(n)} or {@code S9(n)V9(m)}.
+ * Describes a picture string that BookMap supports: {@code X(n)}, {@code S9(n)V9(m)}, or a
+ * numeric edited picture such as {@code Z,ZZ9.99CR}.
  *
  * @param text the picture string, in upper case
  * @param numeric {@code true} for a number
- * @param signed {@code true} if the picture starts with {@code S}
+ * @param signed {@code true} if the picture starts with {@code S}, or an edited picture has a
+ *     sign symbol
  * @param integerDigits the number of characters for text, or the integer digits for a number
  * @param scale the number of decimal digits
+ * @param edited the edited picture, with the {@code BLANK WHEN ZERO} clause, or {@code null}
  */
 public record Picture(String text, boolean numeric, boolean signed, int integerDigits,
-                      int scale) {
+                      int scale, EditedPicture edited) {
 
-    private static final String EDIT_SYMBOLS = "Z*,.+-B0/";
+    /**
+     * Creates a picture without edit symbols.
+     *
+     * @param text the picture string
+     * @param numeric {@code true} for a number
+     * @param signed {@code true} for a signed number
+     * @param integerDigits the number of characters, or the integer digits
+     * @param scale the number of decimal digits
+     */
+    public Picture(String text, boolean numeric, boolean signed, int integerDigits, int scale) {
+        this(text, numeric, signed, integerDigits, scale, null);
+    }
 
     /**
      * Gives the length: the number of characters, or the total number of digits.
@@ -36,6 +51,9 @@ public record Picture(String text, boolean numeric, boolean signed, int integerD
      * @return the number of bytes
      */
     public int byteLength(Usage usage, Sign sign) {
+        if (edited != null) {
+            return edited.byteLength();
+        }
         int length = length();
         return switch (usage) {
             case DISPLAY -> sign != null && sign.separate() ? length + 1 : length;
@@ -53,19 +71,11 @@ public record Picture(String text, boolean numeric, boolean signed, int integerD
      */
     public static Picture parse(String text) {
         String upper = text.toUpperCase(Locale.ROOT);
+        if (EditedPicture.isEdited(upper)) {
+            return edited(upper, false);
+        }
         // The repetition counts, for example (10), are not symbols.
         String symbols = upper.replaceAll("\\([^)]*\\)", "");
-        for (char c : symbols.toCharArray()) {
-            if (EDIT_SYMBOLS.indexOf(c) >= 0) {
-                throw new IllegalArgumentException(
-                    "edited picture " + upper + " is not supported by BookMap. See issue #48.");
-            }
-        }
-        // DB is caught above through B.
-        if (symbols.contains("CR")) {
-            throw new IllegalArgumentException(
-                "edited picture " + upper + " is not supported by BookMap. See issue #48.");
-        }
         for (char c : new char[] {'P', 'A', 'N'}) {
             if (symbols.indexOf(c) >= 0) {
                 throw new IllegalArgumentException("picture symbol " + c
@@ -77,6 +87,42 @@ public record Picture(String text, boolean numeric, boolean signed, int integerD
         } catch (IllegalStateException e) {
             throw new IllegalArgumentException("picture " + upper + " is not valid", e);
         }
+    }
+
+    /**
+     * Tells if the picture has edit symbols, for example {@code Z} or {@code CR}. A
+     * {@code 9(5)} with {@code BLANK WHEN ZERO} is an edited picture without edit symbols.
+     *
+     * @return {@code true} for an edited picture with edit symbols
+     */
+    public boolean editSymbols() {
+        return edited != null && EditedPicture.isEdited(text);
+    }
+
+    /**
+     * Gives this picture with the clause {@code BLANK WHEN ZERO}. The result is an edited
+     * picture.
+     *
+     * @return the picture
+     * @throws IllegalArgumentException if the clause is not permitted with the picture
+     */
+    public Picture withBlankWhenZero() {
+        if (!numeric) {
+            throw new IllegalArgumentException("BLANK WHEN ZERO needs a numeric picture");
+        }
+        return edited(text, true);
+    }
+
+    private static Picture edited(String text, boolean blankWhenZero) {
+        EditedPicture edited;
+        try {
+            edited = EditedPicture.parse(text, blankWhenZero);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("edited picture " + text + ": " + e.getMessage(),
+                e);
+        }
+        return new Picture(text, true, edited.signed(), edited.digits() - edited.scale(),
+            edited.scale(), edited);
     }
 
     /** Counts the symbols. Throws {@link IllegalStateException} for an invalid sequence. */

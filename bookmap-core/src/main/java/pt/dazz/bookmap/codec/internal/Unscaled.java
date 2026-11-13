@@ -8,7 +8,7 @@ import pt.dazz.bookmap.exception.MappingException;
 /**
  * Checks a number against a field definition and gives its unscaled value.
  */
-final class Unscaled {
+public final class Unscaled {
 
     private Unscaled() {
     }
@@ -24,7 +24,7 @@ final class Unscaled {
      * @return the value multiplied by ten to the power of {@code scale}
      * @throws MappingException if the value does not fit in the field
      */
-    static BigInteger of(String field, BigDecimal value, int length, int scale, boolean signed) {
+    public static BigInteger of(String field, BigDecimal value, int length, int scale, boolean signed) {
         BigDecimal number = value == null ? BigDecimal.ZERO : value;
         BigInteger unscaled;
         try {

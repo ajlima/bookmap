@@ -98,6 +98,8 @@ public final class DataParser {
         boolean sync;
         boolean index;
         boolean synthetic;
+        /** The {@code BLANK} token of a {@code BLANK WHEN ZERO} clause, or {@code null}. */
+        Token blankWhenZero;
 
         DataItem build() {
             return new DataItem(level, name, picture, usage, occurs, redefines, conditions,
@@ -472,9 +474,7 @@ public final class DataParser {
             throw fail(zero, "BLANK needs WHEN ZERO");
         }
         take(item);
-        diagnostics.info(blank.source(), blank.line(), blank.column(), "BLANK WHEN ZERO on "
-            + item.name + " is ignored. BookMap reads spaces as no value and writes zero as"
-            + " digits.");
+        item.blankWhenZero = blank;
     }
 
     private void occurs(Builder item) {
@@ -609,17 +609,33 @@ public final class DataParser {
         Usage usage = item.usage != null ? item.usage : inheritedUsage;
         Sign sign = item.signClause != null ? item.signClause : inheritedSign;
         if (item.children.isEmpty() && item.picture != null) {
+            applyBlankWhenZero(item);
             resolveSign(item, usage, sign);
         }
         item.children.forEach(child -> check(child, index, usage, sign));
     }
 
+    /** Makes the picture of an item with {@code BLANK WHEN ZERO} an edited picture. */
+    private void applyBlankWhenZero(Builder item) {
+        Token blank = item.blankWhenZero;
+        if (blank != null) {
+            try {
+                item.picture = item.picture.withBlankWhenZero();
+            } catch (IllegalArgumentException e) {
+                diagnostics.error(blank.source(), blank.line(), blank.column(),
+                    "BLANK WHEN ZERO on " + item.name + ": " + e.getMessage());
+            }
+        }
+    }
+
     /**
      * Sets the effective sign of an elementary item. A sign applies only to a signed numeric
-     * {@code DISPLAY} item. A group clause does not change the other items.
+     * {@code DISPLAY} item without an edited picture. A group clause does not change the other
+     * items.
      */
     private void resolveSign(Builder item, Usage usage, Sign sign) {
-        boolean applies = item.picture.signed() && usage == Usage.DISPLAY;
+        boolean applies = item.picture.signed() && usage == Usage.DISPLAY
+            && item.picture.edited() == null;
         if (item.signClause != null && !applies) {
             diagnostics.error(item.source, item.line, item.column,
                 "SIGN on " + item.name + " needs a signed numeric DISPLAY item");

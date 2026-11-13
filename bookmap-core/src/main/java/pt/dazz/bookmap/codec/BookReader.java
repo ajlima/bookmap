@@ -181,6 +181,20 @@ public final class BookReader {
     }
 
     /**
+     * Reads a number with an edited picture, for example {@code Z,ZZ9.99CR}.
+     *
+     * @param field the field descriptor, for error messages
+     * @param picture the picture, from {@link EditedPicture#parse(String, boolean)}
+     * @return the number with the scale of the picture, or null if the field is blank
+     * @throws MappingException if the response is too short, or a byte is not valid in the
+     *     picture
+     */
+    public BigDecimal readEdited(String field, EditedPicture picture) {
+        int from = take(field, picture.byteLength());
+        return picture.decode(field, data, from, ctx.charset());
+    }
+
+    /**
      * Reads a date field.
      *
      * @param field the field descriptor, for error messages

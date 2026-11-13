@@ -279,7 +279,7 @@ It also registers the codec in `META-INF/services/pt.dazz.bookmap.spi.BookCodec`
 An incorrect book stops the build with a compile error on the field. For example:
 
 - A field without a getter or a setter.
-- A `pic` that BookMap does not support, for example an edited picture.
+- A `pic` that BookMap does not support, for example `9(3)P` or `XXBXX`.
 - A Java type that does not agree with the `pic`, for example `int` with `V99`.
 - A count field that cannot hold `maxOccurs`.
 

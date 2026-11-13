@@ -54,11 +54,12 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
      * @param maxOccurs the maximum number of entries, or 0
      * @param fixed {@code true} for a fixed collection
      * @param itemFields the fields of one entry
+     * @param edited the edited picture, with {@code BLANK WHEN ZERO}, or {@code ""}
      */
     record Member(String owner, String name, int order, String direction, int length, int scale,
         boolean signed, String usage, String pattern, int byteLength, String javaKind,
         String getter, String setter, String converter, String countField, int maxOccurs,
-        boolean fixed, List<Member> itemFields) {
+        boolean fixed, List<Member> itemFields, String edited) {
     }
 
     /**
@@ -86,7 +87,8 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
                 "", "", collection.item().byteLength(), "", collection.getter(),
                 collection.setter(), "",
                 collection.countField() == null ? "" : collection.countField().name(),
-                collection.maxOccurs(), collection.fixed(), collection.item().fields().stream().map(ModelSnapshot::field).toList());
+                collection.maxOccurs(), collection.fixed(),
+                collection.item().fields().stream().map(ModelSnapshot::field).toList(), "");
         };
     }
 
@@ -96,6 +98,6 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
             field.usage().name(), field.pattern(), field.byteLength(), field.kind().name(),
             field.getter(), field.setter(),
             field.converter() == null ? "" : field.converter().getQualifiedName().toString(), "", 0,
-            false, List.of());
+            false, List.of(), field.edited() == null ? "" : field.edited().toString());
     }
 }

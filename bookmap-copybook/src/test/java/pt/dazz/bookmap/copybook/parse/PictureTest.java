@@ -3,8 +3,10 @@ package pt.dazz.bookmap.copybook.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import pt.dazz.bookmap.copybook.ast.Usage;
 
 class PictureTest {
 
@@ -31,12 +33,10 @@ class PictureTest {
     }
 
     @ParameterizedTest
-    @CsvSource(delimiter = '|', value = {
-        "9.99|edited picture 9.99 is not supported by BookMap. See issue #48.",
-        "ZZ9|edited picture ZZ9 is not supported by BookMap. See issue #48.",
-        "-9(3)|edited picture -9(3) is not supported by BookMap. See issue #48.",
-        "9(5)CR|edited picture 9(5)CR is not supported by BookMap. See issue #48.",
-        "99/99|edited picture 99/99 is not supported by BookMap. See issue #48.",
+    @CsvSource(delimiter = '|', quoteCharacter = '"', value = {
+        "Z*9|edited picture Z*9: Z, *, and a floating string are mutually exclusive",
+        "S9.99|edited picture S9.99: S is not permitted in an edited picture. Use '+', '-', CR, or DB",
+        "9CR9|edited picture 9CR9: CR or DB must be the last symbol",
         "9(5)P|picture symbol P is not supported by BookMap",
         "A(3)|picture symbol A is not supported by BookMap",
         "N(3)|picture symbol N is not supported by BookMap. See issue #49.",
@@ -50,7 +50,6 @@ class PictureTest {
         "SX|picture SX is not valid",
         "VX|picture VX is not valid",
         "Q|picture Q is not valid",
-        "9(5)DB|edited picture 9(5)DB is not supported by BookMap. See issue #48.",
         "9X|picture 9X is not valid",
         "S(2)9|picture S(2)9 is not valid",
         "XV|picture XV is not valid",
@@ -58,6 +57,49 @@ class PictureTest {
     })
     void rejectsUnsupportedPictures(String text, String message) {
         assertThatThrownBy(() -> Picture.parse(text))
+            .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "zz9.99cr|ZZ9.99CR|true|3|2|8",
+        "$$,$$9|$$,$$9|false|4|0|6",
+        "-9(3)|-9(3)|true|3|0|4",
+    })
+    void parsesEditedPictures(String text, String upper, boolean signed, int integerDigits,
+                              int scale, int bytes) {
+        Picture picture = Picture.parse(text);
+
+        assertThat(picture.text()).isEqualTo(upper);
+        assertThat(picture.numeric()).isTrue();
+        assertThat(picture.signed()).isEqualTo(signed);
+        assertThat(picture.integerDigits()).isEqualTo(integerDigits);
+        assertThat(picture.scale()).isEqualTo(scale);
+        assertThat(picture.edited()).hasToString(upper);
+        assertThat(picture.byteLength(Usage.DISPLAY, null)).isEqualTo(bytes);
+        assertThat(picture.byteLength(Usage.COMP3, null)).isEqualTo(bytes);
+    }
+
+    @Test
+    void blankWhenZeroMakesAnEditedPicture() {
+        Picture picture = Picture.parse("9(3)V99").withBlankWhenZero();
+
+        assertThat(picture.edited()).hasToString("9(3)V99 BLANK WHEN ZERO");
+        assertThat(picture.length()).isEqualTo(5);
+        assertThat(picture.scale()).isEqualTo(2);
+        assertThat(picture.byteLength(Usage.DISPLAY, null)).isEqualTo(5);
+        assertThat(Picture.parse("ZZ9").withBlankWhenZero().edited().blankWhenZero()).isTrue();
+        assertThat(Picture.parse("9(3)").edited()).isNull();
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', quoteCharacter = '"', value = {
+        "X(3)|BLANK WHEN ZERO needs a numeric picture",
+        "S9(3)|edited picture S9(3): BLANK WHEN ZERO is not permitted with S or '*'",
+        "**9|edited picture **9: BLANK WHEN ZERO is not permitted with S or '*'",
+    })
+    void rejectsBlankWhenZero(String text, String message) {
+        assertThatThrownBy(() -> Picture.parse(text).withBlankWhenZero())
             .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
     }
 }

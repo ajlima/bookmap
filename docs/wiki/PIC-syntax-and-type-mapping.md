@@ -9,7 +9,8 @@ The processor parses `pic` at compile time. An incorrect or unsupported `pic` is
 - Number: optional `S`, integer digits `9(n)` or `999`, and optional `V` followed by decimal digits.
   Examples: `9(5)`, `S9(13)V99`, `S9(7)V9(2)`, `V99`.
 - A repeat count `(n)` is from 1 to 999999999.
-- Only the symbols `X`, `S`, `9`, and `V` are permitted. Other symbols, for example `Z`, `P`, `-`, or `.`, are compile errors.
+- The symbols `X`, `S`, `9`, and `V` are permitted. A numeric edited picture can also have `Z * . , B 0 / + - CR DB $`. See [Edited pictures](#edited-pictures).
+- Other symbols, for example `P`, `A`, or `N`, are compile errors.
 - A text picture must not have a numeric usage, for example `X(5) COMP-3`.
 - Usage clause (optional, after the picture, with an optional `USAGE` or `USAGE IS`):
 
@@ -23,7 +24,8 @@ Without a clause, the usage comes from `@BookDefaults`, else `DISPLAY`.
 Other usages, for example `COMP-1`, `COMP-2`, or `COMP-5`, are compile errors.
 
 - Sign clause (optional, after the picture): `[SIGN [IS]] LEADING|TRAILING [SEPARATE [CHARACTER]]`. See [Sign formats](#sign-formats).
-- The usage clause and the sign clause can come in the two orders. Each clause can occur one time only.
+- `BLANK [WHEN] ZERO`, `ZEROS`, or `ZEROES` (optional, after the picture): a zero writes as spaces. See [Edited pictures](#edited-pictures).
+- The clauses can come in all orders. Each clause can occur one time only.
 - The sign clause needs a signed picture (`S`) and the usage `DISPLAY`. Otherwise, it is a compile error.
 
 ```java
@@ -47,6 +49,7 @@ The byte size comes from the usage and the length:
 - `DISPLAY`: `length` bytes. A separate sign adds one byte.
 - `COMP3`: `length / 2 + 1` bytes.
 - `COMP`: 2 bytes for 1 to 4 digits, 4 bytes for 5 to 9 digits, 8 bytes for 10 to 18 digits. More than 18 digits is a compile error.
+- An edited picture: one byte for each character position. `CR` and `DB` give two bytes. `V` gives no byte.
 
 ## Type mapping
 
@@ -55,11 +58,11 @@ Only these Java types are permitted without a converter:
 | Java type | COBOL definition | Limits |
 |---|---|---|
 | `String` | `PIC X(n)` | `DISPLAY` only. |
-| `int`, `Integer` | `PIC 9` or `PIC S9`; `DISPLAY`, `COMP3`, or `COMP` | 9 digits maximum. Scale 0. |
-| `long`, `Long` | `PIC 9` or `PIC S9`; `DISPLAY`, `COMP3`, or `COMP` | 18 digits maximum. Scale 0. |
-| `BigDecimal` | Any numeric definition, with `scale` | The scale must not be more than the length. |
+| `int`, `Integer` | `PIC 9` or `PIC S9`; `DISPLAY`, `COMP3`, or `COMP`. Also an [edited picture](#edited-pictures). | 9 digits maximum. Scale 0. |
+| `long`, `Long` | `PIC 9` or `PIC S9`; `DISPLAY`, `COMP3`, or `COMP`. Also an [edited picture](#edited-pictures). | 18 digits maximum. Scale 0. |
+| `BigDecimal` | Any numeric definition, with `scale`. Also an [edited picture](#edited-pictures). | The scale must not be more than the length. |
 | `LocalDate`, `LocalTime`, `LocalDateTime` | `PIC 9(n)` or `PIC X(n)` `DISPLAY`, with a `pattern` | A numeric `pic` must be unsigned and without `V`. |
-| An enum with `@CobolValue` constants | `PIC X(n)`, or any numeric definition | Text: the rules of `String`. Number: the rules of `BigDecimal`. See [Enum fields](Annotations-reference#enum-fields). |
+| An enum with `@CobolValue` constants | `PIC X(n)`, or any numeric definition without an edited picture | Text: the rules of `String`. Number: the rules of `BigDecimal`. See [Enum fields](Annotations-reference#enum-fields). |
 | Any other type | Through a `converter` | See [Annotations reference](Annotations-reference#converters). |
 
 Other types, for example `boolean`, `short`, `double`, and `byte[]`, need a `converter`.
@@ -144,6 +147,100 @@ A field with a converter must use the default sign.
 | +12345 | `S9(5) COMP-3` | `12 34 5C` |
 | 123 | `9(3) COMP-3` | `12 3F` |
 | -2 | `S9(4) COMP` | `FF FE` |
+
+## Edited pictures
+
+A numeric edited picture gives a printable number, for example `Z,ZZ9.99CR`. The field is a number in Java: `int`, `Integer`, `long`, `Long`, or `BigDecimal`.
+The codec writes the edited text and reads it back as a number.
+
+```java
+@BookField(order = 10, pic = "ZZ9")                    // int, 3 bytes
+private int lineCount;
+
+@BookField(order = 20, pic = "$Z,ZZ9.99CR")            // BigDecimal, 11 bytes
+private BigDecimal total;
+
+@BookField(order = 30, pic = "9(3)V99 BLANK WHEN ZERO") // BigDecimal, 5 bytes
+private BigDecimal discount;
+```
+
+### Edit symbols
+
+| Symbol | Write |
+|---|---|
+| `9` | A digit. |
+| `Z` | A digit. A leading zero becomes a space. |
+| `*` | A digit. A leading zero becomes `*` (check protection). |
+| `.` | The decimal point. It sets the scale. |
+| `V` | An implied decimal point. It writes no character. |
+| `,` `B` `0` `/` | The character `,`, a space, `0`, or `/`. |
+| `+` | `+` for a positive value or zero, `-` for a negative value. |
+| `-` | A space for a positive value or zero, `-` for a negative value. |
+| `CR` `DB` | Two spaces for a positive value or zero, `CR` or `DB` for a negative value. |
+| `$` | The character `$`. |
+
+A floating string is two or more `+`, `-`, or `$`, for example `$$$,$$9.99` or `----9`. The first symbol holds only the sign or the currency sign. Each other symbol is a digit position.
+
+### Rules of the picture
+
+- A fixed `+` or `-` is the first or the last symbol. `CR` or `DB` is the last symbol.
+- A picture has one sign at most, and one decimal point at most.
+- A fixed `$` is the first symbol, or the second after a sign.
+- `Z`, `*`, and a floating string are mutually exclusive.
+- A `9` must not come before `Z`, `*`, or a floating symbol.
+- A `Z`, `*`, or floating symbol after the decimal point needs that symbol in all digit positions.
+- `S` is a compile error. Use `+`, `-`, `CR`, or `DB`.
+- An edited picture must have the usage `DISPLAY`. A `SIGN` clause is a compile error.
+- `BLANK WHEN ZERO` is permitted on an edited picture without `*`, and on an unsigned `DISPLAY` number. Then the number is also an edited picture.
+
+The attributes come from the picture:
+
+| Picture | Digits (`length`) | Scale | Signed | Bytes |
+|---|---|---|---|---|
+| `ZZ9` | 3 | 0 | no | 3 |
+| `Z,ZZ9.99CR` | 6 | 2 | yes | 10 |
+| `$$$,$$9.99` | 7 | 2 | no | 10 |
+| `-9(5)` | 5 | 0 | yes | 6 |
+
+`@BookDefaults(usage = ...)` does not apply to an edited field.
+
+### Write an edited number
+
+- The write does not round. A value with more decimal places than the scale, or with too many digits, causes a `MappingException`.
+- A negative value in a picture without a sign causes a `MappingException`.
+- A `null` value writes as zero.
+- The zero suppression stops at the first nonzero digit, at a `9`, or at the decimal point. An insertion character in the suppressed area becomes the fill character.
+- A floating string writes its character immediately left of the first digit that is not suppressed.
+- A zero writes as spaces if all digit positions are `Z` or floating symbols, and with `BLANK WHEN ZERO`. With `*` in all digit positions, a zero writes `*` in all positions, except the decimal point.
+
+| Picture | Value | Text (`_` is a space) |
+|---|---|---|
+| `ZZZZ.99` | 0 | `____.00` |
+| `****.**` | 0 | `****.**` |
+| `Z,ZZZ.ZZ+` | 123.45 | `__123.45+` |
+| `*,***.**+` | -123.45 | `**123.45-` |
+| `$Z,ZZZ,ZZZ.ZZCR` | 12345.67 | `$___12,345.67__` |
+| `$,$$$,999.99` | 1234.56 | `___$1,234.56` |
+| `+,+++,999.99` | -123456.78 | `_-123,456.78` |
+| `-9(5)` | 42 | `_00042` |
+
+### Read an edited number
+
+- A field with only spaces or LOW-VALUES reads as `null`. An `int` or a `long` gets 0.
+- A `9` position must hold a digit.
+- A `Z`, `*`, or floating position holds a digit, a space, `*`, or the floating character.
+- An insertion position holds its character, a space, or `*`.
+- A sign position holds a valid sign. For example, a fixed `-` holds a space or `-`.
+- The read does not check where the zero suppression stops. For example, `ZZZ9` reads `0 12` as 12.
+- Another byte causes a `MappingException`, for example `byte 0x41 at offset 1 of the field is not valid in the edited picture ZZ9.99`.
+
+Each value that the write accepts reads back with the scale of the picture. A zero that writes as spaces reads back as `null`.
+
+### Edited pictures that are not supported
+
+- Alphanumeric edited pictures, for example `XXBXX`. Use `X(n)`.
+- A currency sign other than `$`, and `DECIMAL-POINT IS COMMA`.
+- An edited picture on a date or time field, an enum field, a field with a converter, a discriminator, a count field, or an `emptyKey` field.
 
 ## Decimal places
 

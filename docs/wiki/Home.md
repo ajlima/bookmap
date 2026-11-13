@@ -80,7 +80,7 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 - No nested collections.
 - No `COMP-1` or `COMP-2`.
 - Single-byte charsets only.
-- Edited pictures (`Z`, `*`, `,`, `+`, `-`, `CR`, `DB`) are rejected at compile time.
+- No alphanumeric edited pictures, for example `XXBXX`. No currency sign other than `$`, and no `DECIMAL-POINT IS COMMA`.
 - No `P` scaling, `A`, or `N` in a picture, and no `COMP-5`.
 - An operation class must not be a record. `@lombok.Value` is not supported, because it gives no setters.
 - The CTG transport sends a COMMAREA. Channels and containers are not supported.

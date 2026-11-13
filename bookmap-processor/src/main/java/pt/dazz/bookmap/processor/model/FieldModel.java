@@ -5,6 +5,7 @@ import javax.lang.model.type.TypeMirror;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.codec.EditedPicture;
 
 /**
  * Describes one elementary field of a book. All conventions are already resolved.
@@ -26,12 +27,13 @@ import pt.dazz.bookmap.annotation.Usage;
  * @param converter the custom converter class, or {@code null} if the field has no converter
  * @param byteLength the number of bytes of the field in the book
  * @param enumModel the COBOL values of an enum field, or {@code null} for another kind
+ * @param edited the edited picture of a number, or {@code null} for a field without one
  */
 public record FieldModel(String ownerSimpleName, String name, int order, int length,
     Direction direction, Usage usage, int scale, boolean signed, Sign sign, String pattern,
     JavaKind kind,
     TypeMirror type, String getter, String setter, TypeElement converter, int byteLength,
-    EnumModel enumModel)
+    EnumModel enumModel, EditedPicture edited)
     implements MemberModel {
 
     /**
