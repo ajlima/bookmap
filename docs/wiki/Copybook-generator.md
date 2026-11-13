@@ -64,6 +64,7 @@ The build plugins read the file `<NAME>.json` next to `<NAME>.cpy`.
       "classNames": { "SAVINGS-DATA": "SavingsAccount" }
     }
   },
+  "conditions": { "PARTY-ROLE": "enum", "ACCOUNT-FLAG": "constants" },
   "package": "com.example.accounts",
   "lombok": false
 }
@@ -82,6 +83,7 @@ All keys are optional. An unknown key is an error.
 | `outputMarkers` | list of texts | The name parts that mark an output alternative. Write them in upper case. The list replaces the default list. | `OUTPUT`, `OUT`, `RESPONSE`, `RESP` |
 | `directions` | map | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`, in upper case) of each `REDEFINES` alternative. See [Directions](#directions). | empty |
 | `subTypes` | map | The subtype decisions. See [Subtypes](#subtypes). | empty |
+| `conditions` | map | The mode (`enum`, `constants`, or `none`) of the level 88 items of an elementary item. The mode is not case-sensitive. See [Level 88 items](#level-88-items). | empty: the generator selects the mode. |
 | `package` | text | The Java package of the classes. | The tool gives it. |
 | `lombok` | boolean | Write Lombok annotations instead of getters and setters. | `false` |
 
@@ -147,8 +149,8 @@ In both formats, lower case is permitted. The generator changes the names and th
 | `OCCURS m TO n [TIMES] DEPENDING [ON] name [OF\|IN group]` | Accepted: a variable collection. |
 | `REDEFINES` | Accepted. See [Directions](#directions) and [Subtypes](#subtypes). |
 | `SIGN [IS] TRAILING`, `TRAILING` | Accepted. It is the default sign of BookMap. |
-| `VALUE`, `VALUES` | Ignored, without a diagnostic. |
-| Level 88 | Ignored, with an `info` diagnostic: `condition CARD-ACCOUNT is ignored`. |
+| `VALUE [IS]` of an item, with one literal | Accepted: the initial value of the field. See [Initial values](#initial-values). Another form, for example `ALL '-'`, gives a warning: `the VALUE clause of NOTE is not supported and is ignored`. |
+| Level 88 with `VALUE [IS]` or `VALUES [ARE]`, values, and `THRU` or `THROUGH` ranges | Accepted. See [Level 88 items](#level-88-items). |
 | `INDEXED BY`, `ASCENDING KEY`, `DESCENDING KEY` | Ignored, with an `info` diagnostic, for example `INDEXED is ignored`. |
 | `LEADING`, `SEPARATE`, `SYNC`, `SYNCHRONIZED`, `JUST`, `JUSTIFIED`, `BLANK`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL` | Error, for example `LEADING is not supported by BookMap`. |
 | Edited pictures with `Z * , . + - B 0 / CR DB` | Error, for example `edited picture ZZ9 is not supported by BookMap`. |
@@ -161,7 +163,8 @@ Other errors:
 - `A12 has a text picture and must not have COMP or COMP-3`
 - `A13: COMP supports at most 18 digits`
 
-The diagnostic of a level 88 gives the line of its parent item, not the line of the level 88.
+A literal is a text in quotes, a number, or a figurative constant: `SPACE`, `SPACES`, `ZERO`, `ZEROS`, `ZEROES`, `HIGH-VALUE(S)`, `LOW-VALUE(S)`, or `QUOTE(S)`.
+A level 88 without a `VALUE` clause, or with another value (for example `ALL '*'` or `X'FF'`), gives a warning, and the generator ignores it: `condition CODE-HEX: the value X'FF' is not supported. The condition is ignored.`
 
 ## COPY members
 
@@ -225,7 +228,10 @@ Other messages of the `COPY` statement: `COPY needs a member name`, `REPLACING n
 | `FILLER` | A field `filler1`, `filler2`, ... See [FILLER](#filler). |
 | `REDEFINES` of an elementary item | The first definition. The other item is skipped, with a warning: `E2 redefines E1 and is skipped`. See [REDEFINES of an elementary item](#redefines-of-an-elementary-item). |
 | `REDEFINES` of a group | A direction split or subtypes. See the next sections. |
-| Level `88`, `VALUE` | Ignored. A level 88 gives an `info` diagnostic. |
+| Level `88` of an elementary item | An enum, or constants and boolean methods. See [Level 88 items](#level-88-items). |
+| Level `88` of a group | Ignored, with an `info` diagnostic: `condition CARD-ACCOUNT is ignored`. |
+| `VALUE` of an elementary item | The initial value of the field. See [Initial values](#initial-values). |
+| `VALUE` of a group | Ignored. |
 
 | Picture | Java type |
 |---|---|
@@ -233,6 +239,7 @@ Other messages of the `COPY` statement: `COPY needs a member name`, `REPLACING n
 | `9(n)` with 1 to 9 digits | `int` |
 | `9(n)` with 10 to 18 digits | `long` |
 | Decimals, or more than 18 digits | `BigDecimal` |
+| An item with level 88 items in the `enum` mode | The generated enum |
 
 The `order` values are 10, 20, 30, ... in each class.
 
@@ -357,6 +364,138 @@ public class GetOrder {
 - Without Lombok, each class gets a public getter and a public setter for each field.
 - With Lombok, each class gets `@Data` and `@NoArgsConstructor`. A subclass also gets `@EqualsAndHashCode(callSuper = true)` and `@ToString(callSuper = true)`.
 
+## Level 88 items
+
+The level 88 items of an elementary item give an enum, or constants and boolean methods.
+
+```cobol
+05  PARTY-ROLE              PIC X(8).
+    88  PARTY-IS-SELLER     VALUE 'SELLER'.
+    88  PARTY-IS-BILL-TO    VALUE 'BILL-TO'.
+    88  PARTY-IS-SHIP-TO    VALUE 'SHIP-TO'.
+```
+
+### The mode of an item
+
+The option `conditions` sets the mode of an item, by its COBOL name:
+
+| Mode | Result |
+|---|---|
+| `enum` | A Java enum, and a field of the enum type. |
+| `constants` | A constant and a boolean method for each level 88 item. |
+| `none` | Nothing. Each level 88 item gives an `info` diagnostic: `condition NOTE-A is ignored`. |
+
+Without the option, the generator writes an enum. It writes constants in these cases, with an `info` diagnostic that tells why:
+
+- The item is a `FILLER`.
+- The item is the discriminator of a subtype decision, or the item of a `DEPENDING ON`. These items keep their Java type.
+- The item has only one level 88 item, for example a flag with no opposite value.
+- A level 88 item has a `THRU` range.
+- A value is not valid for the item. See [Values](#values).
+- Two level 88 items share a value.
+
+```
+ORDERS.cpy:7:12: info: MORE-DATA: the level 88 items give constants, not an enum, because it has only one level 88 item. Set the condition mode of MORE-DATA to change this.
+```
+
+With the mode `enum`, a range and a single level 88 item are permitted. A `FILLER`, a discriminator or count item, a value that is not valid, and a shared value are errors:
+
+```
+ORDER.cpy:2:1: error: DUP: the level 88 items cannot be an enum: the level 88 items DUP-A and DUP-B share a value
+```
+
+A name in `conditions` that is not an elementary item with level 88 items is an error, at the position `<file>:1:1`.
+
+### Values
+
+The generator converts each value to a value of the item:
+
+| Item | Text literal | Number | `SPACE` | `ZERO` | Other figurative constants |
+|---|---|---|---|---|---|
+| Text (`PIC X`) | The text without the spaces on the right. It must not be longer than the item. | Not valid. | `""` | `0` in each position. | Not valid. |
+| Number (`PIC 9`) | Not valid. | The number. It must fit the picture: digits, decimal places, and sign. | Not valid. | `0` | Not valid. |
+
+The spaces on the right are not part of a text value, because the codec removes them on read. Thus, `'SELLER'` in a `PIC X(8)` item is the value `SELLER`.
+
+### Enum mode
+
+The generator writes the enum in the package of the classes. Each constant gets `@CobolValue` with the values and ranges of its level 88 item. See [Enum fields](Annotations-reference#enum-fields).
+
+```java
+/**
+ * Generated by the BookMap copybook generator from {@code GET-INVOICE.cpy}.
+ * The level 88 items of {@code PARTY-ROLE}.
+ */
+public enum PartyRole {
+    /**
+     * {@code PARTY-IS-SELLER}
+     */
+    @CobolValue("SELLER")
+    SELLER,
+    ...
+}
+```
+
+```java
+@BookField(order = 20, pic = "X(8)")
+private PartyRole partyRole;
+```
+
+- The enum name comes from the item name, with the rules of a class name. A name that a class or an enum already has gets the owner class name as a prefix, then a number.
+- The constant names are the names of the level 88 items without their longest common prefix. `PARTY-IS-SELLER`, `PARTY-IS-BILL-TO`, and `PARTY-IS-SHIP-TO` give `SELLER`, `BILL_TO`, and `SHIP_TO`.
+- The generator keeps the full names if a short name starts with a digit or is not unique.
+- An unknown value causes a `MappingException` on read. Add a `@CobolUnknown` constant by hand in scaffold mode if the program can send other values.
+
+### Constants mode
+
+Each level 88 item gives a constant with its first value, and a boolean method that tests all its values and ranges:
+
+```cobol
+05  PARTY-STATUS            PIC 9(2).
+    88  PARTY-ACTIVE        VALUE 1 THRU 5.
+    88  PARTY-CLOSED        VALUE 9.
+```
+
+```java
+/**
+ * The first value of {@code PARTY-ACTIVE}.
+ */
+public static final int PARTY_ACTIVE = 1;
+
+/**
+ * Tells if {@code partyStatus} holds a value of {@code PARTY-ACTIVE}.
+ *
+ * @return {@code true} for a value of the level 88 item
+ */
+public boolean isPartyActive() {
+    return partyStatus >= 1 && partyStatus <= 5;
+}
+```
+
+- The type of the constant is the Java type of the field: `String`, `int`, `long`, or `BigDecimal`.
+- The names come from the name of the level 88 item, with `stripPrefixes`. A name that is already in the class gets a number.
+- A level 88 item with a value that is not valid gets no constant, and a warning.
+
+## Initial values
+
+The `VALUE` clause of an elementary item gives the initial value of the field. The rules of [Values](#values) apply.
+
+| COBOL | Java |
+|---|---|
+| `PIC X(3) VALUE 'EUR'` | `private String currencyCode = "EUR";` |
+| `PIC X(30) VALUE SPACES` | `private String partyName = "";` |
+| `PIC 9(2) VALUE 1` | `private int partyStatus = 1;` |
+| `PIC S9(7)V99 COMP-3 VALUE 1000.50` | `private BigDecimal creditLimit = new BigDecimal("1000.50");` |
+| `PIC X(8) VALUE 'SELLER'`, in the enum mode | `private PartyRole partyRole = PartyRole.SELLER;` |
+
+A value that is not valid gives a warning, and the field gets no initial value:
+
+```
+ORDER.cpy:2:1: warning: the VALUE 'ABC' of A is longer than 2 characters. The field has no initial value.
+```
+
+In the enum mode, a value that no level 88 item contains gives a warning: `the VALUE of CODE is not a value of a level 88 item. The field has no initial value.`
+
 ## Directions
 
 The copybook does not give the direction of a field. Thus, all fields are `INPUT_OUTPUT`, with one exception: the alternatives of a `REDEFINES` area.
@@ -462,9 +601,13 @@ public class GetAccountSummary {
 
 The `parse` command writes the model as JSON. The `generate` command reads it again.
 
-- The root keys are `formatVersion` (now `1`), `sourceName`, and `classes`.
+- The root keys are `formatVersion` (now `1`), `sourceName`, `classes`, and the optional `enums`.
 - A class has `name`, `kind` (`OPERATION`, `ITEM`, or `SUBTYPE`), an optional `superclass`, optional `subTypes` (`discriminator`, and `types` with `value` and `className`), and `members`.
-- A field member has `kind: FIELD`, `name`, `javaType` (`STRING`, `INT`, `LONG`, or `BIG_DECIMAL`), `order`, `pic`, `direction`, `cobolName`, and `declaration`.
+- A field member has `kind: FIELD`, `name`, `javaType` (`STRING`, `INT`, `LONG`, `BIG_DECIMAL`, or `ENUM`), `order`, `pic`, `direction`, `cobolName`, and `declaration`.
+- A field member can also have `enumType` (only with `javaType: ENUM`), `initialValue`, and `conditions`. A condition has `cobolName`, `constant`, `method`, and `values`.
+- An enum has `name`, `cobolName`, and `constants`. A constant has `name`, `cobolName`, and `values`.
+- A value has `from`, and `thru` for a range.
+- The writer writes the optional keys only when they have a value. Thus, a model without level 88 items and `VALUE` clauses does not change.
 - A collection member has `kind: COLLECTION`, `name`, `order`, `direction`, `maxOccurs`, `fixed`, an optional `dependsOn`, `itemClass`, `cobolName`, and `declaration`.
 - The reader rejects an unknown key, and another `formatVersion`: `unsupported formatVersion 2. This reader supports 1.`
 - The generator does not check a model that you edit by hand. It writes the classes as the model gives them.
@@ -514,7 +657,7 @@ The severity is `error`, `warning`, or `info`. Only an `error` stops the generat
 
 - The generator reports all problems of one step before it stops.
 - If the parse step has errors, the mapping step does not run. Correct the parse errors first, then run the generator again. The mapping errors can then show.
-- An error in a direction decision or a subtype decision has the position `<file>:1:1`.
+- An error in a direction decision, a subtype decision, or a condition mode has the position `<file>:1:1`.
 
 ## Limitations of the generator
 
