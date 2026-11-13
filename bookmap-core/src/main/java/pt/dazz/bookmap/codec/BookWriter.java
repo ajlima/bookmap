@@ -168,6 +168,36 @@ public final class BookWriter {
     }
 
     /**
+     * Writes unused slots of a fixed collection. The marker gives the bytes of each slot.
+     *
+     * @param marker the marker of an empty slot
+     * @param slotLength the number of bytes of one slot
+     * @param slots the number of unused slots
+     */
+    public void writeEmptySlots(EmptySlot marker, int slotLength, int slots) {
+        byte[] slot = marker.fill(slotLength, ctx.charset());
+        for (int i = 0; i < slots; i++) {
+            out.writeBytes(slot);
+        }
+    }
+
+    /**
+     * Tells if the bytes from {@code start} to the current position make an empty slot. A
+     * codec uses this method to reject an item that a read would find empty.
+     *
+     * @param field the descriptor of the slot, for error messages
+     * @param marker the marker of an empty slot
+     * @param start the position of the first byte of the slot
+     * @return {@code true} if at least one byte is in the range and the marker finds the slot
+     *     empty
+     */
+    public boolean isEmptySlotFrom(String field, EmptySlot marker, int start) {
+        byte[] bytes = out.toByteArray();
+        return start < bytes.length
+            && marker.isEmpty(field, bytes, start, bytes.length - start, ctx.charset());
+    }
+
+    /**
      * Gives the number of bytes written so far.
      *
      * @return the current position

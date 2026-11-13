@@ -1,7 +1,7 @@
 # Empty-item markers of a fixed collection (design)
 
 Date: 2026-11-13
-Status: proposed.
+Status: approved.
 
 Related documents: `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` (fixed collections, section 2.2 lists this feature as a non-goal), `docs/design/2026-11-13-count-field-design.md` (the generator option `countFields`), `docs/design/2026-11-10-bookmap-design.md` (the main design), GitHub issue #44.
 

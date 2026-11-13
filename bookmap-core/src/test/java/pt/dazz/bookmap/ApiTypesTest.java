@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.convert.FieldContext;
@@ -56,6 +57,7 @@ class ApiTypesTest {
         assertThat(Usage.values()).containsExactly(Usage.DISPLAY, Usage.COMP3, Usage.COMP);
         assertThat(Usage.valueOf("COMP3")).isEqualTo(Usage.COMP3);
         assertThat(Direction.valueOf("INPUT")).isEqualTo(Direction.INPUT);
+        assertThat(EmptyItem.values()).containsExactly(EmptyItem.LOW_VALUES, EmptyItem.SPACES);
     }
     @Test void exceptionHierarchy() {
         assertThat(new RemoteAbendException("ASRA", "abend")).isInstanceOf(TransportException.class)
