@@ -3,7 +3,7 @@
 The processor parses `pic` at compile time. An incorrect or unsupported `pic` is a compile error.
 
 - The prefix `PIC` or `PICTURE` and a final `.` are optional. Letters are not case-sensitive.
-- Write the picture as one word, without spaces. For example, `S9(7) V99` is a compile error. A space is necessary only between the picture and the usage clause.
+- Write the picture as one word, without spaces. For example, `S9(7) V99` is a compile error. A space is necessary only between the picture and a clause.
 - `PIC IS` is not supported. Write `PIC X(3)`, not `PIC IS X(3)`.
 - Text: `X(n)` or a sequence of `X`.
 - Number: optional `S`, integer digits `9(n)` or `999`, and optional `V` followed by decimal digits.
@@ -22,9 +22,16 @@ The processor parses `pic` at compile time. An incorrect or unsupported `pic` is
 Without a clause, the usage comes from `@BookDefaults`, else `DISPLAY`.
 Other usages, for example `COMP-1`, `COMP-2`, or `COMP-5`, are compile errors.
 
+- Sign clause (optional, after the picture): `[SIGN [IS]] LEADING|TRAILING [SEPARATE [CHARACTER]]`. See [Sign formats](#sign-formats).
+- The usage clause and the sign clause can come in the two orders. Each clause can occur one time only.
+- The sign clause needs a signed picture (`S`) and the usage `DISPLAY`. Otherwise, it is a compile error.
+
 ```java
 @BookField(order = 10, pic = "S9(7)V99 COMP-3")           // BigDecimal, 5 bytes, scale 2
 private BigDecimal balance;
+
+@BookField(order = 15, pic = "S9(5)V99 SIGN LEADING SEPARATE")  // BigDecimal, 8 bytes
+private BigDecimal tax;
 
 @BookField(order = 20, pic = "9(4) COMP")                 // int, 2 bytes, big-endian
 private int lineCount;
@@ -37,7 +44,7 @@ private LocalTime shippedAt;
 
 The byte size comes from the usage and the length:
 
-- `DISPLAY`: `length` bytes.
+- `DISPLAY`: `length` bytes. A separate sign adds one byte.
 - `COMP3`: `length / 2 + 1` bytes.
 - `COMP`: 2 bytes for 1 to 4 digits, 4 bytes for 5 to 9 digits, 8 bytes for 10 to 18 digits. More than 18 digits is a compile error.
 
@@ -74,7 +81,7 @@ An incorrect combination is a compile error. For example:
 
 ### DISPLAY (zoned decimal)
 
-The codec puts the sign in the last byte. The format depends on the charset:
+By default, the codec puts the sign in the last byte (a trailing overpunch). The format depends on the charset:
 
 - **EBCDIC** (for example `IBM037`): the last byte has the zone `C` for a positive value and `D` for a negative value. The other bytes, and all bytes of an unsigned field, have the zone `F`.
 - **Other charsets**: the last character is an overpunch character: `{ABCDEFGHI` for a positive value (digits 0 to 9), and `}JKLMNOPQR` for a negative value.
@@ -82,6 +89,32 @@ The codec puts the sign in the last byte. The format depends on the charset:
 On read, the last EBCDIC byte can have the zone `C`, `F`, `A`, or `E` (positive), or `D` or `B` (negative). The other bytes must have the zone `F`.
 A space or another character inside the digits causes a `MappingException`.
 An unsigned field accepts a positive sign. A negative sign in an unsigned field causes a `MappingException`.
+
+### Sign formats
+
+A signed `DISPLAY` number can use one of four sign formats. Set the format with the `SIGN` clause in `pic`, or with the `sign` attribute.
+
+| `sign` | `pic` clause | Sign | Bytes |
+|---|---|---|---|
+| `TRAILING` (default) | none, or `SIGN TRAILING` | Overpunch in the last digit. | `length` |
+| `LEADING` | `SIGN LEADING` | Overpunch in the first digit. | `length` |
+| `TRAILING_SEPARATE` | `SIGN TRAILING SEPARATE` | `+` or `-` after the digits. | `length + 1` |
+| `LEADING_SEPARATE` | `SIGN LEADING SEPARATE` | `+` or `-` before the digits. | `length + 1` |
+
+```java
+@BookField(order = 20, length = 5, scale = 2, signed = true, sign = Sign.TRAILING_SEPARATE)
+private BigDecimal discount;
+```
+
+- An overpunch sign in the first digit follows the rules of the last digit above.
+- A separate sign is the character `+` or `-` of the charset. In EBCDIC, it is `4E` or `60`.
+- With a separate sign, all digit bytes must be plain digits: zone `F` in EBCDIC, `0` to `9` in other charsets.
+- On read, a separate sign other than `+` or `-` causes a `MappingException`, for example `byte 0x40 at offset 0 of the field is not a valid sign. The sign must be '+' or '-'`. A space is not a positive sign.
+- A blank field (all bytes, also the sign byte) reads as `null`.
+- On write, a positive value, zero, and `null` get the positive sign.
+
+Set `sign` only on a signed `DISPLAY` number. Otherwise, the compiler reports `sign needs a signed field` or `sign is permitted only with usage DISPLAY`.
+A field with a converter must use the default sign.
 
 ### COMP-3 (packed decimal)
 
@@ -104,6 +137,10 @@ An unsigned field accepts a positive sign. A negative sign in an unsigned field 
 | -123 | `S9(3)`, EBCDIC | `F1 F2 D3` |
 | +123 | `S9(3)`, ASCII | `12C` |
 | -120 | `S9(3)`, ASCII | `12}` |
+| -123 | `S9(3) SIGN LEADING`, EBCDIC | `D1 F2 F3` |
+| -123 | `S9(3) SIGN LEADING`, ASCII | `J23` |
+| -123 | `S9(3) SIGN TRAILING SEPARATE`, EBCDIC | `F1 F2 F3 60` |
+| +123 | `S9(3) SIGN LEADING SEPARATE`, ASCII | `+123` |
 | +12345 | `S9(5) COMP-3` | `12 34 5C` |
 | 123 | `9(3) COMP-3` | `12 3F` |
 | -2 | `S9(4) COMP` | `FF FE` |

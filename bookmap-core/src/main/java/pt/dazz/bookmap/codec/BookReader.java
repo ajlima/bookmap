@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.codec.internal.BinaryInteger;
 import pt.dazz.bookmap.codec.internal.PackedDecimal;
@@ -139,7 +140,7 @@ public final class BookReader {
     }
 
     /**
-     * Reads a numeric field.
+     * Reads a numeric field. A signed {@code DISPLAY} number has a trailing overpunch sign.
      *
      * @param field the field descriptor, for error messages
      * @param length the total number of digits
@@ -150,10 +151,26 @@ public final class BookReader {
      */
     public BigDecimal readNumber(String field, int length, int scale, boolean signed,
                                  Usage usage) {
-        int size = BookWriter.byteLength(usage, length);
+        return readNumber(field, length, scale, signed, usage, Sign.TRAILING);
+    }
+
+    /**
+     * Reads a numeric field.
+     *
+     * @param field the field descriptor, for error messages
+     * @param length the total number of digits
+     * @param scale the number of implied decimal places
+     * @param signed true if the field has a sign
+     * @param usage the storage format
+     * @param sign the position and the format of the sign of a {@code DISPLAY} number
+     * @return the number, or null if the field is blank
+     */
+    public BigDecimal readNumber(String field, int length, int scale, boolean signed,
+                                 Usage usage, Sign sign) {
+        int size = BookWriter.byteLength(usage, length, sign);
         int from = take(field, size);
         return switch (usage) {
-            case DISPLAY -> ZonedDecimal.decode(field, data, from, length, scale, signed,
+            case DISPLAY -> ZonedDecimal.decode(field, data, from, length, scale, signed, sign,
                 ctx.charset());
             case COMP3 -> PackedDecimal.decode(field, data, from, length, scale, signed,
                 ctx.charset());

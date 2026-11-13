@@ -827,7 +827,7 @@ public final class ModelBuilder {
         private static FieldModel withDirection(FieldModel field, Direction direction) {
             return new FieldModel(field.ownerSimpleName(), field.name(), field.order(),
                 field.length(), direction, field.usage(), field.scale(), field.signed(),
-                field.pattern(), field.kind(), field.type(), field.getter(), field.setter(),
+                field.sign(), field.pattern(), field.kind(), field.type(), field.getter(), field.setter(),
                 field.converter(), field.byteLength(), field.enumModel());
         }
 

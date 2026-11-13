@@ -125,7 +125,7 @@ The parser reads data description entries with these clauses. The design `2026-1
 | `REDEFINES name` | Redefinition. |
 | `VALUE` / `VALUES` | Accepted and ignored. |
 | `SIGN TRAILING` without `SEPARATE` | Accepted (the BookMap default). |
-| `SIGN LEADING`, `SIGN ... SEPARATE` | Error. |
+| `SIGN LEADING`, `SIGN ... SEPARATE` | Error. Changed by `2026-11-13-sign-leading-separate-design.md`: accepted. |
 | `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO` | Accepted. Changed by the 2026-11-13 design. |
 | `COMP-1`, `COMP-2`, `POINTER`, `NATIONAL` | Error. |
 | `COMP-5`, `INDEX` | Accepted as `COMP`. Changed by the 2026-11-13 design. |

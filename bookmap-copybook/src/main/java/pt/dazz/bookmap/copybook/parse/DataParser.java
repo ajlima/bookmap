@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.copybook.ast.Condition;
 import pt.dazz.bookmap.copybook.ast.ConditionValue;
 import pt.dazz.bookmap.copybook.ast.Copybook;
@@ -39,8 +40,6 @@ public final class DataParser {
 
     /** The unsupported words, with the end of their error message. */
     private static final Map<String, String> UNSUPPORTED = Map.of(
-        "LEADING", ". See issue #47.",
-        "SEPARATE", ". See issue #47.",
         "COMP-1", ". See issue #46.",
         "COMP-2", ". See issue #46.",
         "COMPUTATIONAL-1", ". See issue #46.",
@@ -60,7 +59,8 @@ public final class DataParser {
         Map.entry("QUOTE", "QUOTE"), Map.entry("QUOTES", "QUOTE"));
 
     private static final Set<String> CLAUSES = Set.of(
-        "PIC", "PICTURE", "USAGE", "OCCURS", "REDEFINES", "VALUE", "VALUES", "SIGN", "TRAILING",
+        "PIC", "PICTURE", "USAGE", "OCCURS", "REDEFINES", "VALUE", "VALUES", "SIGN", "LEADING",
+        "TRAILING",
         "INDEXED", "ASCENDING", "DESCENDING", "SYNC", "SYNCHRONIZED", "JUSTIFIED", "JUST",
         "BLANK", INDEX);
 
@@ -84,6 +84,10 @@ public final class DataParser {
         Occurs occurs;
         QualifiedName redefines;
         Literal value;
+        /** The own {@code SIGN} clause, or {@code null}. */
+        Sign signClause;
+        /** The effective sign of an elementary item, or {@code null} for the default. */
+        Sign sign;
         final List<Condition> conditions = new ArrayList<>();
         final List<Builder> children = new ArrayList<>();
         String source;
@@ -98,7 +102,7 @@ public final class DataParser {
         DataItem build() {
             return new DataItem(level, name, picture, usage, occurs, redefines, conditions,
                 children.stream().map(Builder::build).toList(), source, line, column,
-                String.join(" ", declaration) + ".", value);
+                String.join(" ", declaration) + ".", value, sign);
         }
     }
 
@@ -157,7 +161,7 @@ public final class DataParser {
         if (records.isEmpty()) {
             diagnostics.error(sourceName, 1, 1, "the copybook has no data items");
         }
-        records.forEach(record -> check(record, false));
+        records.forEach(record -> check(record, false, Usage.DISPLAY, Sign.TRAILING));
         if (!diagnostics.hasErrors()) {
             records.forEach(record -> layout(record, Usage.DISPLAY, false, 0, null, record));
         }
@@ -396,10 +400,8 @@ public final class DataParser {
                     + " is not supported and is ignored");
             }
             skipUntilClause(null);
-        } else if (word.equals("SIGN") || word.equals("TRAILING")) {
-            take(item);
-            optional(item, "IS");
-            optional(item, "TRAILING");
+        } else if (word.equals("SIGN") || word.equals("LEADING") || word.equals("TRAILING")) {
+            sign(item);
         } else if (word.equals("SYNC") || word.equals("SYNCHRONIZED")) {
             take(item);
             item.sync = true;
@@ -442,6 +444,24 @@ public final class DataParser {
     private EntryError unsupported(Token token) {
         return fail(token, token.text() + " is not supported by BookMap"
             + UNSUPPORTED.get(token.text()));
+    }
+
+    /** Reads {@code [SIGN [IS]] {LEADING | TRAILING} [SEPARATE [CHARACTER]]}. */
+    private void sign(Builder item) {
+        if (optional(item, "SIGN")) {
+            optional(item, "IS");
+        }
+        boolean leading = optional(item, "LEADING");
+        if (!leading && !optional(item, "TRAILING")) {
+            throw fail(peek(), "SIGN needs LEADING or TRAILING");
+        }
+        boolean separate = optional(item, "SEPARATE");
+        if (separate) {
+            optional(item, "CHARACTER");
+        }
+        item.signClause = leading
+            ? separate ? Sign.LEADING_SEPARATE : Sign.LEADING
+            : separate ? Sign.TRAILING_SEPARATE : Sign.TRAILING;
     }
 
     private void blankWhenZero(Builder item, Token blank) {
@@ -560,7 +580,8 @@ public final class DataParser {
 
     // ---- checks after the tree is complete ----
 
-    private void check(Builder item, boolean inheritedIndex) {
+    private void check(Builder item, boolean inheritedIndex, Usage inheritedUsage,
+                       Sign inheritedSign) {
         boolean index = item.index || inheritedIndex && item.usage == null;
         if (index && item.children.isEmpty() && !item.error) {
             if (item.picture != null) {
@@ -585,7 +606,25 @@ public final class DataParser {
         } else if (item.children.isEmpty() && item.picture == null && !item.error) {
             diagnostics.error(item.source, item.line, item.column, item.name + " has no PIC");
         }
-        item.children.forEach(child -> check(child, index));
+        Usage usage = item.usage != null ? item.usage : inheritedUsage;
+        Sign sign = item.signClause != null ? item.signClause : inheritedSign;
+        if (item.children.isEmpty() && item.picture != null) {
+            resolveSign(item, usage, sign);
+        }
+        item.children.forEach(child -> check(child, index, usage, sign));
+    }
+
+    /**
+     * Sets the effective sign of an elementary item. A sign applies only to a signed numeric
+     * {@code DISPLAY} item. A group clause does not change the other items.
+     */
+    private void resolveSign(Builder item, Usage usage, Sign sign) {
+        boolean applies = item.picture.signed() && usage == Usage.DISPLAY;
+        if (item.signClause != null && !applies) {
+            diagnostics.error(item.source, item.line, item.column,
+                "SIGN on " + item.name + " needs a signed numeric DISPLAY item");
+        }
+        item.sign = applies && sign != Sign.TRAILING ? sign : null;
     }
 
     // ---- SYNC: slack bytes ----
@@ -600,7 +639,7 @@ public final class DataParser {
         Usage usage = item.usage != null ? item.usage : inherited;
         boolean sync = inheritedSync || item.sync;
         if (item.children.isEmpty()) {
-            int single = item.picture.byteLength(usage);
+            int single = item.picture.byteLength(usage, item.sign);
             return item.occurs == null ? single : single * item.occurs.max();
         }
         Table inner = table == null && item.occurs != null

@@ -1,6 +1,7 @@
 package pt.dazz.bookmap.copybook.ast;
 
 import java.util.List;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.copybook.parse.Picture;
 
 /**
@@ -19,11 +20,14 @@ import pt.dazz.bookmap.copybook.parse.Picture;
  * @param column the column of the level number
  * @param declaration the normalized entry text without {@code VALUE} clauses
  * @param value the literal of the {@code VALUE} clause, or {@code null}
+ * @param sign the effective sign of a signed numeric {@code DISPLAY} item, from its own
+ *     {@code SIGN} clause or from the nearest group with one. It is {@code null} for the
+ *     default trailing overpunch and for a group.
  */
 public record DataItem(int level, String name, Picture picture, Usage usage, Occurs occurs,
                        QualifiedName redefines, List<Condition> conditions,
                        List<DataItem> children, String source, int line, int column,
-                       String declaration, Literal value) {
+                       String declaration, Literal value, Sign sign) {
 
     /** The name of an item without a name. */
     public static final String FILLER = "FILLER";
@@ -44,6 +48,7 @@ public record DataItem(int level, String name, Picture picture, Usage usage, Occ
      * @param column the column
      * @param declaration the declaration
      * @param value the {@code VALUE} literal
+     * @param sign the effective sign
      */
     public DataItem {
         conditions = List.copyOf(conditions);

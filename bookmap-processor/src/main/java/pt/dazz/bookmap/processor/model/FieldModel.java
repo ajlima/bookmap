@@ -3,6 +3,7 @@ package pt.dazz.bookmap.processor.model;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 
 /**
@@ -16,6 +17,7 @@ import pt.dazz.bookmap.annotation.Usage;
  * @param usage the storage format
  * @param scale the number of implied decimal places
  * @param signed {@code true} if the number has a sign
+ * @param sign the position and the format of the sign of a {@code DISPLAY} number
  * @param pattern the date or time pattern
  * @param kind the category of the Java type
  * @param type the Java type of the field
@@ -26,7 +28,8 @@ import pt.dazz.bookmap.annotation.Usage;
  * @param enumModel the COBOL values of an enum field, or {@code null} for another kind
  */
 public record FieldModel(String ownerSimpleName, String name, int order, int length,
-    Direction direction, Usage usage, int scale, boolean signed, String pattern, JavaKind kind,
+    Direction direction, Usage usage, int scale, boolean signed, Sign sign, String pattern,
+    JavaKind kind,
     TypeMirror type, String getter, String setter, TypeElement converter, int byteLength,
     EnumModel enumModel)
     implements MemberModel {

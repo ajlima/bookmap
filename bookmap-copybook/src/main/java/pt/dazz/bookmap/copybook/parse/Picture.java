@@ -1,6 +1,7 @@
 package pt.dazz.bookmap.copybook.parse;
 
 import java.util.Locale;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.copybook.ast.Usage;
 
 /**
@@ -30,12 +31,14 @@ public record Picture(String text, boolean numeric, boolean signed, int integerD
      * Gives the number of bytes of an elementary item with this picture, with the BookMap rules.
      *
      * @param usage the effective usage
+     * @param sign the effective sign, or {@code null} for the default. A separate sign adds
+     *     one byte to a {@code DISPLAY} number.
      * @return the number of bytes
      */
-    public int byteLength(Usage usage) {
+    public int byteLength(Usage usage, Sign sign) {
         int length = length();
         return switch (usage) {
-            case DISPLAY -> length;
+            case DISPLAY -> sign != null && sign.separate() ? length + 1 : length;
             case COMP3 -> length / 2 + 1;
             case COMP, COMP5 -> length <= 4 ? 2 : length <= 9 ? 4 : 8;
         };
