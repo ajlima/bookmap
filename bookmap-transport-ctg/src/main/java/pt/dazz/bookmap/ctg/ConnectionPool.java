@@ -53,12 +53,19 @@ final class ConnectionPool implements AutoCloseable {
         if (connection != null) {
             return connection;
         }
+        boolean opened = false;
         try {
-            return connector.open();
+            EciConnection opening = connector.open();
+            opened = true;
+            return opening;
         } catch (IOException e) {
-            permits.release();
             throw new ConnectionException("Cannot open a connection to the CTG gateway: "
                 + e.getMessage(), e);
+        } finally {
+            // Also for an unchecked failure, for example a missing ctgclient.jar.
+            if (!opened) {
+                permits.release();
+            }
         }
     }
 

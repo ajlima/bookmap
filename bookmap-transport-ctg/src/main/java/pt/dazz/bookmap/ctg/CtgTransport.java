@@ -85,14 +85,21 @@ public final class CtgTransport implements Transport, AutoCloseable {
             request.payload(), commareaLength, timeoutSeconds);
         EciConnection connection = pool.acquire();
         EciReply reply;
+        boolean replied = false;
         try {
             reply = connection.call(call);
-        } catch (IOException e) {
-            pool.discard(connection);
+            replied = true;
+        } catch (IOException | RuntimeException e) {
             throw new TransportException(prefix(operation, route)
-                + ": network failure during the ECI call. The program can be complete in CICS.", e);
+                + ": the ECI call failed. The program can be complete in CICS.", e);
+        } finally {
+            // Do not use a connection again after a failure.
+            if (replied) {
+                pool.release(connection);
+            } else {
+                pool.discard(connection);
+            }
         }
-        pool.release(connection);
         if (reply.returnCode() != EciReturnCodes.NO_ERROR) {
             throw translate(operation, route, reply);
         }

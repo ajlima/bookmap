@@ -17,7 +17,7 @@ final class FakeConnector implements EciConnector {
     private final Deque<Object> script = new ArrayDeque<>();
     private volatile Function<EciCall, EciReply> responder =
         call -> new EciReply(0, null, new byte[call.commareaLength()]);
-    private volatile IOException openFailure;
+    private volatile Exception openFailure;
     private volatile IOException closeFailure;
 
     /** Answers each call with this function, after the scripted replies. */
@@ -33,12 +33,12 @@ final class FakeConnector implements EciConnector {
     }
 
     /** Adds a scripted failure for the next call. */
-    synchronized FakeConnector thenFail(IOException failure) {
+    synchronized FakeConnector thenFail(Exception failure) {
         script.add(failure);
         return this;
     }
 
-    FakeConnector failOpen(IOException failure) {
+    FakeConnector failOpen(Exception failure) {
         this.openFailure = failure;
         return this;
     }
@@ -62,9 +62,12 @@ final class FakeConnector implements EciConnector {
 
     @Override
     public EciConnection open() throws IOException {
-        IOException failure = openFailure;
+        Exception failure = openFailure;
+        if (failure instanceof IOException io) {
+            throw io;
+        }
         if (failure != null) {
-            throw failure;
+            throw (RuntimeException) failure;
         }
         opened.incrementAndGet();
         FakeConnection connection = new FakeConnection();
@@ -90,6 +93,9 @@ final class FakeConnector implements EciConnector {
             calls.add(call);
             Object next = next();
             if (next instanceof IOException failure) {
+                throw failure;
+            }
+            if (next instanceof RuntimeException failure) {
                 throw failure;
             }
             if (next instanceof EciReply reply) {

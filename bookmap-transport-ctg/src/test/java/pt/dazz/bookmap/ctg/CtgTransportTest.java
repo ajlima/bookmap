@@ -180,4 +180,18 @@ class CtgTransportTest {
         transport.close();
         assertThat(connector.connections().getFirst().closed()).isTrue();
     }
+
+    @Test
+    void uncheckedCallFailureIsTransportExceptionAndDiscardsConnection() {
+        CtgTransport single = builder().maxConnections(1)
+            .connectionWaitTimeout(Duration.ofMillis(50)).build();
+        IllegalStateException failure = new IllegalStateException("broken library");
+        connector.thenFail(failure);
+        assertThatThrownBy(() -> single.exchange(request("GetInvoice", 4, 8)))
+            .isExactlyInstanceOf(TransportException.class)
+            .hasCause(failure);
+        assertThat(connector.connections().getFirst().closed()).isTrue();
+        single.exchange(request("GetInvoice", 4, 8));
+        assertThat(connector.opened()).isEqualTo(2);
+    }
 }

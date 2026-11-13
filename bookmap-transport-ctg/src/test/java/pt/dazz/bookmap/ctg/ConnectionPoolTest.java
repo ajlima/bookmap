@@ -156,4 +156,14 @@ class ConnectionPoolTest {
         pool.release(inUse);
         assertThat(connector.connections().get(0).closed()).isTrue();
     }
+
+    @Test
+    void uncheckedOpenFailureReleasesThePermit() {
+        IllegalStateException failure = new IllegalStateException("no ctgclient.jar");
+        connector.failOpen(failure);
+        ConnectionPool pool = pool(1, Duration.ofMillis(50));
+        assertThatThrownBy(pool::acquire).isSameAs(failure);
+        connector.failOpen(null);
+        assertThat(pool.acquire()).isNotNull();
+    }
 }
