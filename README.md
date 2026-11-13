@@ -193,6 +193,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 | `bookmap-core` | Annotations, `BookmapClient`, the transport SPI, exceptions, and the codec runtime. |
 | `bookmap-processor` | The annotation processor. It generates one codec for each `@BookOperation` class. |
 | `bookmap-transport-simulator` | A transport for tests. It runs handlers in the same JVM. |
+| `bookmap-transport-mq` | A transport for IBM MQ request and reply queues (Jakarta Messaging). See [IBM MQ](https://github.com/ajlima/bookmap/wiki/IBM-MQ). |
 | `bookmap-spring-boot` | Spring Boot 4 auto-configuration for `BookmapClient` (built and tested with 4.1.2). |
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
 | `bookmap-copybook-cli` | The command line of the copybook generator. |
@@ -207,6 +208,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 
 BookMap is at version `0.7.0`. GitHub Actions builds each release and publishes it to Maven Central.
 The build enforces 100% line and branch coverage for all modules except the examples.
+The IBM MQ transport is available. The CICS Transaction Gateway and HTTP transports are planned.
 See [RELEASING.md](RELEASING.md) for the release cycle, and [ROADMAP.md](ROADMAP.md) for the planned features.
 
 ## License

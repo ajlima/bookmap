@@ -1,5 +1,5 @@
 The client sends the bytes of each request through a **transport**. The transport is the only part of BookMap that knows the middleware.
-BookMap has a simulator transport for tests. Real transports (CICS Transaction Gateway, IBM MQ, HTTP) are on the [Roadmap](Roadmap).
+BookMap has a simulator transport for tests and an [IBM MQ](IBM-MQ) transport. The CICS Transaction Gateway and HTTP transports are on the [Roadmap](Roadmap).
 
 ## The transport SPI
 

@@ -22,6 +22,7 @@ Replace `<version>` with the latest version: ![Maven Central](https://img.shield
 | `bookmap-core` | Compile and runtime | The annotations, `BookmapClient`, the transport SPI, and the exceptions. Always necessary. |
 | `bookmap-processor` | Annotation processor only | The generation of the codecs at compile time. Always necessary. Do not put it on the runtime classpath. |
 | `bookmap-transport-simulator` | Test | The tests without a mainframe. |
+| `bookmap-transport-mq` | Compile and runtime | The calls through IBM MQ request and reply queues. See [IBM MQ](IBM-MQ). |
 | `bookmap-spring-boot` | Compile and runtime | The auto-configuration of `BookmapClient` in Spring Boot 4 (built and tested with 4.1.2). It includes `bookmap-core`. See [Spring Boot](Spring-Boot). |
 
 To generate the classes from copybooks, see [Copybook generator](Copybook-generator).
@@ -351,7 +352,7 @@ public class MyTransport implements Transport {
 - Return the response bytes of the program. A response shorter than the layout causes a `MappingException`.
 - Translate each technical failure to a subclass of `TransportException`. See [Error handling](Error-handling).
 
-BookMap has no transport for CICS, IBM MQ, or HTTP yet. They are on the [Roadmap](Roadmap).
+For IBM MQ, use the [IBM MQ](IBM-MQ) transport. BookMap has no transport for CICS or HTTP yet. They are on the [Roadmap](Roadmap).
 Until then, write a transport with the client library of your middleware.
 
 Then create the client with the transport:

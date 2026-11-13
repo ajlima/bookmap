@@ -222,6 +222,7 @@ Each failure has one source and one exception:
 | `open()` fails with `NOT_AUTHORIZED`. | `TransportException` |
 | `open()` fails with another failure. | `ConnectionException` |
 | `send` fails. The request can be on the queue: a persistent put can complete before the connection breaks. | `TransportException` |
+| `send` returns a `null` or blank message ID, in the mode `MESSAGE_ID`. The transport does not call `receive`, because a reply without a correlation ID can belong to another request. | `TransportException` |
 | `receive` returns `null`. | `TransportTimeoutException` |
 | `receive` fails with `NOT_BYTES`. | `TransportException` |
 | `receive` fails with another failure. The request can be complete on the server. | `TransportException` |
