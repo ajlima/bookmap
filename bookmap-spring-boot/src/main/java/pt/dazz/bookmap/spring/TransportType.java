@@ -14,8 +14,8 @@ public enum TransportType {
     /** IBM MQ, with Jakarta Messaging. This version has no auto-configuration for it. */
     MQ(null),
 
-    /** HTTP, with a binary body. This version has no auto-configuration for it. */
-    HTTP(null);
+    /** HTTP, with a binary body. */
+    HTTP("bookmap-transport-http");
 
     /** The modules and the libraries of the transport, or null without an auto-configuration. */
     private final String requirement;

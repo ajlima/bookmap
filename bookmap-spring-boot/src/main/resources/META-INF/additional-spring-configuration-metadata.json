@@ -43,7 +43,7 @@
         },
         {
           "value": "http",
-          "description": "HTTP. This version has no auto-configuration for it: declare a Transport bean."
+          "description": "HTTP, with a binary body. Add bookmap-transport-http."
         }
       ]
     }

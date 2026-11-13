@@ -145,6 +145,7 @@ class BookmapAutoConfigurationTest {
     @ParameterizedTest
     @CsvSource(delimiter = '|', value = {
         "ctg|bookmap-transport-ctg and the IBM library ctgclient.jar",
+        "http|bookmap-transport-http",
         })
     void missingTransportStopsTheApplication(String type, String requirement) {
         runner.withPropertyValues("bookmap.transport.type=" + type)
@@ -156,7 +157,7 @@ class BookmapAutoConfigurationTest {
     }
 
     @ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"mq", "http"})
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"mq"})
     void transportWithoutAutoConfigurationStopsTheApplication(String type) {
         runner.withPropertyValues("bookmap.transport.type=" + type)
             .run(context -> assertThat(context).hasFailed().getFailure()
