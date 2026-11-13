@@ -304,7 +304,7 @@ final class FieldResolver {
         try {
             String text = formatter.format(value.apply(SAMPLES.get(0)));
             formatter.parse(text, QUERIES.get(kind));
-            boolean digits = isDigits(text);
+            StringBuilder all = new StringBuilder(text);
             for (LocalDateTime sample : SAMPLES.subList(1, SAMPLES.size())) {
                 String other = formatter.format(value.apply(sample));
                 if (other.length() != text.length()) {
@@ -312,9 +312,9 @@ final class FieldResolver {
                         + "' gives text of variable length for " + simpleName(fieldType));
                     return null;
                 }
-                digits &= isDigits(other);
+                all.append(other);
             }
-            if (packed && !digits) {
+            if (packed && !isDigits(all.toString())) {
                 problems.error(member, "pattern '" + pattern + "' gives characters that are"
                     + " not digits, but a COMP3 field holds only digits");
                 return null;
