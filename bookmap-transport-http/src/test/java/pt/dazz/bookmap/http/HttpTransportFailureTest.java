@@ -130,4 +130,15 @@ class HttpTransportFailureTest {
         assertThat(sends).hasValue(0);
         assertThatCode(transport::close).doesNotThrowAnyException();
     }
+
+    @Test
+    void incorrectSuppliedHeaderNamesOnlyTheHeader() {
+        try (HttpTransport transport = builder(new CompletableFuture<>())
+                .headerSupplier(() -> Map.of("X-Token", "secret\u0000")).build()) {
+            assertThatThrownBy(() -> transport.exchange(REQUEST))
+                .isExactlyInstanceOf(TransportException.class)
+                .hasMessage(TARGET + ": header supplier gave an incorrect header: X-Token")
+                .hasNoCause();
+        }
+    }
 }

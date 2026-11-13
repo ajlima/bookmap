@@ -114,8 +114,8 @@ final class FailureTranslator {
      */
     static byte[] checkResponse(String target, HttpResponse<byte[]> response, String abendHeader) {
         if (abendHeader != null) {
-            String abendCode = response.headers().firstValue(abendHeader).orElse("")
-                .replaceAll("\\p{Cntrl}", " ").strip();
+            String abendCode = clean(response.headers().firstValue(abendHeader).orElse(""))
+                .strip();
             if (abendCode.length() > MAX_ABEND_CODE) {
                 abendCode = abendCode.substring(0, MAX_ABEND_CODE);
             }
@@ -139,6 +139,16 @@ final class FailureTranslator {
     }
 
     /**
+     * Replaces each control character (Unicode category {@code Cc}) with a space.
+     *
+     * @param text the text of the server
+     * @return the text without control characters
+     */
+    static String clean(String text) {
+        return text.replaceAll("\\p{Cc}", " ");
+    }
+
+    /**
      * Gives an excerpt of a response body. For a text, JSON, or XML content type, the excerpt is
      * the start of the body as UTF-8 text, with control characters as spaces. Otherwise, it is
      * the start of the body in hexadecimal.
@@ -157,7 +167,7 @@ final class FailureTranslator {
             if (text.length() > MAX_TEXT) {
                 text = text.substring(0, MAX_TEXT);
             }
-            return text.replaceAll("\\p{Cntrl}", " ");
+            return clean(text);
         }
         int length = Math.min(body.length, MAX_HEX_BYTES);
         return "hex " + HexFormat.of().withUpperCase().formatHex(body, 0, length);

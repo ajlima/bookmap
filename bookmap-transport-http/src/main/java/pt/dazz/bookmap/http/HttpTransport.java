@@ -137,10 +137,14 @@ public final class HttpTransport implements Transport, AutoCloseable {
         if (supplied == null) {
             throw new TransportException(target + ": header supplier returned null");
         }
-        try {
-            supplied.forEach(HeaderRules::check);
-        } catch (IllegalArgumentException | NullPointerException e) {
-            throw new TransportException(target + ": header supplier gave an incorrect header", e);
+        for (Map.Entry<String, String> header : supplied.entrySet()) {
+            try {
+                HeaderRules.check(header.getKey(), header.getValue());
+            } catch (IllegalArgumentException | NullPointerException e) {
+                // The cause can contain the value, for example a token. Only the name goes out.
+                throw new TransportException(target
+                    + ": header supplier gave an incorrect header: " + header.getKey());
+            }
         }
         return supplied;
     }

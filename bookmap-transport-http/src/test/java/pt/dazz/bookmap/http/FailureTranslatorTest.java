@@ -73,4 +73,16 @@ class FailureTranslatorTest {
     void emptyBodyGivesNoExcerpt() {
         assertThat(FailureTranslator.excerpt(contentType("text/plain"), new byte[0])).isEmpty();
     }
+
+    @Test
+    void cleanReplacesUnicodeControlCharacters() {
+        assertThat(FailureTranslator.clean("a\u0085b\u009Bc\u0007d")).isEqualTo("a b c d");
+    }
+
+    @Test
+    void textExcerptReplacesUnicodeControlCharacters() {
+        byte[] body = "a\u0085b".getBytes(StandardCharsets.UTF_8);
+
+        assertThat(FailureTranslator.excerpt(contentType("text/plain"), body)).isEqualTo("a b");
+    }
 }
