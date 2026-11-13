@@ -252,6 +252,20 @@ class BookmapCopybookPluginFunctionalTest {
     }
 
     @Test
+    void maxRecordLengthGivesAWarning() throws IOException {
+        TestCopybooks.copy("warning", dir);
+        javaBuild("""
+                    sourceDir = layout.projectDirectory.dir("warning")
+                    packageName = "com.example.mainframe"
+                    maxRecordLength = 4
+            """);
+        String output = build("generateCopybookClasses").getOutput();
+        assertThat(output).contains("PAYMENT.cpy:1:8: info: record PAYMENT has 8 bytes",
+            "PAYMENT.cpy:1:8: warning: record PAYMENT has 8 bytes, more than the maximum record"
+                + " length of 4 bytes.");
+    }
+
+    @Test
     void copybookErrorFailsTheBuild() throws IOException {
         TestCopybooks.copy("broken", dir);
         javaBuild("""
