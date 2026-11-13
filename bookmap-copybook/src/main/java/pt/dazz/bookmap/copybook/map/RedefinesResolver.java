@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.copybook.ast.DataItem;
-import pt.dazz.bookmap.copybook.ast.QualifiedName;
 import pt.dazz.bookmap.copybook.ast.Usage;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.FieldMember;
@@ -44,7 +43,7 @@ final class RedefinesResolver {
         mapper.options.subTypes().forEach((name, decision) -> {
             DataItem item = alternativeNamed("subtype decision", name);
             if (item != null && subTypes.put(baseOf(item), decision) != null) {
-                decisionError("subtype decision: two decisions name the REDEFINES area "
+                mapper.optionError("subtype decision: two decisions name the REDEFINES area "
                     + baseOf(item).name());
             }
         });
@@ -52,48 +51,21 @@ final class RedefinesResolver {
 
     /** Finds an alternative group by name, or reports an error. */
     private DataItem alternativeNamed(String kind, String name) {
-        DataItem item = find(kind, name);
+        DataItem item = mapper.findNamed(kind, name);
         if (item == null) {
             return null;
         }
         if (mapper.index.pathTo(item).stream().anyMatch(this::isAlternative)) {
-            decisionError(kind + ": " + name + " is inside a REDEFINES alternative."
+            mapper.optionError(kind + ": " + name + " is inside a REDEFINES alternative."
                 + " Set the decision on the alternative group.");
             return null;
         }
         if (!isAlternative(item)) {
-            decisionError(kind + ": " + name + " is not a REDEFINES alternative. Outside a"
+            mapper.optionError(kind + ": " + name + " is not a REDEFINES alternative. Outside a"
                 + " REDEFINES area, a direction would move the offsets of the items after it.");
             return null;
         }
         return item;
-    }
-
-    /** Finds an item by a bare or qualified name, or reports an error. */
-    private DataItem find(String kind, String name) {
-        QualifiedName qualified;
-        try {
-            qualified = QualifiedName.parse(name);
-        } catch (IllegalArgumentException e) {
-            decisionError(kind + ": " + e.getMessage());
-            return null;
-        }
-        return switch (mapper.index.find(qualified)) {
-            case ItemIndex.Found found -> found.item();
-            case ItemIndex.NotFound notFound -> {
-                decisionError(kind + ": item " + name + " does not exist");
-                yield null;
-            }
-            case ItemIndex.Ambiguous ambiguous -> {
-                decisionError(kind + ": item " + name + " is ambiguous. Qualify it: "
-                    + String.join(", ", ambiguous.matches()));
-                yield null;
-            }
-        };
-    }
-
-    private void decisionError(String message) {
-        mapper.diagnostics.error(mapper.sourceName, 1, 1, message);
     }
 
     private List<DataItem> siblings(DataItem item) {
@@ -298,7 +270,7 @@ final class RedefinesResolver {
     private String discriminator(DataItem base, SubTypeDecision decision,
                                  ModelMapper.ClassBuilder owner) {
         String name = decision.discriminator();
-        DataItem item = find("subtype decision for " + base.name(), name);
+        DataItem item = mapper.findNamed("subtype decision for " + base.name(), name);
         if (item == null) {
             return null;
         }
@@ -320,7 +292,7 @@ final class RedefinesResolver {
                                                 Map<String, String> byName) {
         Map<DataItem, String> resolved = new IdentityHashMap<>();
         byName.forEach((name, value) -> {
-            DataItem item = find(kind, name);
+            DataItem item = mapper.findNamed(kind, name);
             if (item != null && !contains(all, item)) {
                 mapper.error(base, kind + ": " + name + " is not an alternative of the"
                     + " REDEFINES area " + base.name());

@@ -251,7 +251,8 @@ class ModelMapperTest {
             "05 CODES OCCURS 5 PIC X.");
         assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.INFO, "QTY: a COMP value of 0 is all LOW-VALUES and"
-                + " cannot be written. Add dependsOn if the program has a count field."));
+                + " cannot be written. Link the count field with the option countFields if the"
+                + " program has one."));
     }
 
     @Test
