@@ -2,6 +2,8 @@ package pt.dazz.bookmap.copybook.map;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import pt.dazz.bookmap.copybook.diag.Diagnostic;
+import pt.dazz.bookmap.copybook.diag.Severity;
 import pt.dazz.bookmap.copybook.model.ClassModel;
 import pt.dazz.bookmap.copybook.model.MemberModel;
 import pt.dazz.bookmap.copybook.parse.CopybookParser;
@@ -26,6 +28,12 @@ final class Mapping {
 
     static MapResult map(String... lines) {
         return map(MappingOptions.defaults(), lines);
+    }
+
+    /** Gives the diagnostics without the info diagnostics of the record lengths. */
+    static List<Diagnostic> diagnostics(MapResult result) {
+        return result.diagnostics().stream().filter(d -> d.severity() != Severity.INFO
+            || !d.message().matches("record \\S+ has .*bytes")).toList();
     }
 
     static ClassModel type(MapResult result, String name) {

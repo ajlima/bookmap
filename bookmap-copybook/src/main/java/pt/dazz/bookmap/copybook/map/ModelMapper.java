@@ -127,6 +127,7 @@ public final class ModelMapper {
         mapper.redefines.checkDecisions();
         for (DataItem record : copybook.records()) {
             info(mapper, record);
+            RecordLength.check(record, options.maxRecordLength(), mapper.diagnostics);
             ClassBuilder operation = mapper.newClass(mapper.names.className(record.name()),
                 null, ClassKind.OPERATION);
             Usage usage = record.usage() != null ? record.usage() : Usage.DISPLAY;

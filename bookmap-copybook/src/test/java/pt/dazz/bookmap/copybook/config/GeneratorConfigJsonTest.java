@@ -38,6 +38,7 @@ class GeneratorConfigJsonTest {
               "classNames": { "SAVINGS-DATA": "SavingsAccount" }
             }
           },
+          "maxRecordLength": 32500,
           "package": "com.example.accounts",
           "lombok": false
         }
@@ -57,6 +58,7 @@ class GeneratorConfigJsonTest {
         assertThat(config.mapping().subTypes()).isEqualTo(Map.of("CHECKING-DATA",
             new SubTypeDecision("ACCOUNT-TYPE", Map.of("CHECKING-DATA", "01", "SAVINGS-DATA",
                 "02"), Map.of("SAVINGS-DATA", "SavingsAccount"))));
+        assertThat(config.mapping().maxRecordLength()).isEqualTo(32500);
         assertThat(config.packageName()).isEqualTo("com.example.accounts");
         assertThat(config.lombok()).isFalse();
     }
@@ -106,6 +108,8 @@ class GeneratorConfigJsonTest {
         "{\"subTypes\": {\"A\": {\"values\": {}}}}|missing key 'discriminator' in $.subTypes.A",
         "{\"subTypes\": {\"A\": {\"discriminator\": \"T\", \"values\": {}, \"x\": 1}}}"
             + "|unknown key 'x' in $.subTypes.A",
+        "{\"maxRecordLength\": \"32K\"}|key 'maxRecordLength' in $ must be an integer",
+        "{\"maxRecordLength\": 0}|key 'maxRecordLength' in $ must be 1 or more, not 0",
     })
     void rejectsInvalidConfigurations(String json, String message) {
         assertThatThrownBy(() -> GeneratorConfigJson.read(json, BASE))

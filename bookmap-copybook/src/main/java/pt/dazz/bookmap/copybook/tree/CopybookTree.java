@@ -44,10 +44,13 @@ public final class CopybookTree {
      *     in the words of the build tool
      * @param packagePerCopybookHint the setting that turns on {@code packagePerCopybook}, in
      *     the syntax of the build tool, for the collision message
+     * @param maxRecordLength the maximum record length in bytes, or {@code null} for no
+     *     check. The value of an options file has priority.
      */
     public record Settings(Path sourceDir, List<Path> copyDirs, String basePackage,
                            boolean lombok, boolean packagePerCopybook,
-                           String missingPackageMessage, String packagePerCopybookHint) {
+                           String missingPackageMessage, String packagePerCopybookHint,
+                           Integer maxRecordLength) {
 
         /**
          * Creates the settings.
@@ -59,6 +62,7 @@ public final class CopybookTree {
          * @param packagePerCopybook the package-per-copybook setting
          * @param missingPackageMessage the missing-package message
          * @param packagePerCopybookHint the package-per-copybook hint
+         * @param maxRecordLength the maximum record length
          */
         public Settings {
             copyDirs = List.copyOf(copyDirs);
@@ -67,6 +71,13 @@ public final class CopybookTree {
 
     /** Receives the messages of a generation. */
     public interface Log {
+
+        /**
+         * Writes a note, for example the length of a record.
+         *
+         * @param message the message
+         */
+        void info(String message);
 
         /**
          * Writes a warning.
@@ -101,6 +112,11 @@ public final class CopybookTree {
      */
     public static void run(Settings settings, List<Path> copybooks, Path outputDir, Log log)
         throws IOException {
+        Integer maxRecordLength = settings.maxRecordLength();
+        if (maxRecordLength != null && maxRecordLength < 1) {
+            throw new CopybookTreeException("The maximum record length must be 1 or more, not "
+                + maxRecordLength + ".");
+        }
         clean(outputDir);
         List<Path> sorted = copybooks.stream()
             .sorted(Comparator.comparing(c -> relative(settings.sourceDir(), c))).toList();
@@ -182,14 +198,20 @@ public final class CopybookTree {
         copyDirs.addAll(settings.copyDirs());
         ParseOptions parse = new ParseOptions(fileParse.format(), fileParse.charset(), copyDirs,
             fileParse.recordName());
-        MappingOptions mapping = config == null ? MappingOptions.defaults() : config.mapping();
+        MappingOptions file = config == null ? MappingOptions.defaults() : config.mapping();
+        MappingOptions mapping = new MappingOptions(file.stripPrefixes(), file.inputMarkers(),
+            file.outputMarkers(), file.directions(), file.subTypes(),
+            file.maxRecordLength() != null ? file.maxRecordLength()
+                : settings.maxRecordLength());
         Copybooks.Result result = Copybooks.generate(copybook, parse, mapping,
             new GenerateOptions(packageName, lombok));
         for (Diagnostic diagnostic : result.diagnostics()) {
             if (diagnostic.severity() == Severity.ERROR) {
                 log.error(diagnostic.format());
-            } else {
+            } else if (diagnostic.severity() == Severity.WARNING) {
                 log.warn(diagnostic.format());
+            } else {
+                log.info(diagnostic.format());
             }
         }
         if (result.hasErrors()) {
