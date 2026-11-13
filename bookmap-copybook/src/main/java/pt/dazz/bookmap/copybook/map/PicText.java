@@ -1,5 +1,6 @@
 package pt.dazz.bookmap.copybook.map;
 
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.copybook.ast.Usage;
 import pt.dazz.bookmap.copybook.parse.Picture;
 
@@ -12,15 +13,20 @@ public final class PicText {
     }
 
     /**
-     * Gives the picture with the effective usage. A {@code DISPLAY} usage is not written.
+     * Gives the picture with the effective usage and sign. A {@code DISPLAY} usage and the
+     * default sign are not written.
      *
      * @param picture the picture
      * @param usage the effective usage
-     * @return the text, for example {@code S9(7)V99 COMP-3}
+     * @param sign the effective sign, or {@code null} for the default
+     * @return the text, for example {@code S9(7)V99 COMP-3} or
+     *     {@code S9(5)V99 SIGN LEADING SEPARATE}
      */
-    public static String of(Picture picture, Usage usage) {
+    public static String of(Picture picture, Usage usage, Sign sign) {
         return switch (usage) {
-            case DISPLAY -> picture.text();
+            case DISPLAY -> sign == null ? picture.text()
+                : picture.text() + " SIGN " + (sign.leading() ? "LEADING" : "TRAILING")
+                    + (sign.separate() ? " SEPARATE" : "");
             case COMP, COMP5 -> picture.text() + " COMP";
             case COMP3 -> picture.text() + " COMP-3";
         };
@@ -31,9 +37,10 @@ public final class PicText {
      *
      * @param picture the picture
      * @param usage the effective usage
+     * @param sign the effective sign, or {@code null} for the default
      * @return the number of bytes
      */
-    public static int byteLength(Picture picture, Usage usage) {
-        return picture.byteLength(usage);
+    public static int byteLength(Picture picture, Usage usage, Sign sign) {
+        return picture.byteLength(usage, sign);
     }
 }

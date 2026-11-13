@@ -287,13 +287,13 @@ public final class ModelMapper {
                     + item.name() + " is ignored, because " + item.name() + " has a date hint");
             }
             field = new FieldMember(name, date.type(), owner.nextOrder(),
-                PicText.of(picture, usage), context.direction(), item.name(), item.declaration(),
+                PicText.of(picture, usage, item.sign()), context.direction(), item.name(), item.declaration(),
                 date.pattern());
         } else {
             ConditionMapper.Decision decision = conditions.decide(item, owner,
                 javaType(picture, usage));
             field = new FieldMember(name, decision.javaType(), owner.nextOrder(),
-                PicText.of(picture, usage), context.direction(), item.name(), item.declaration(),
+                PicText.of(picture, usage, item.sign()), context.direction(), item.name(), item.declaration(),
                 decision.enumType(), decision.initialValue(), decision.conditions());
         }
         owner.members.add(field);
@@ -309,7 +309,7 @@ public final class ModelMapper {
         }
         if (usage == Usage.COMP5) {
             // The type holds all values of the bytes, not only the digits of the picture.
-            return switch (picture.byteLength(usage)) {
+            return switch (picture.byteLength(usage, null)) {
                 case 2 -> JavaType.INT;
                 case 4 -> picture.signed() ? JavaType.INT : JavaType.LONG;
                 default -> picture.signed() ? JavaType.LONG : JavaType.BIG_DECIMAL;

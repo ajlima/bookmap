@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.codec.internal.BinaryInteger;
 import pt.dazz.bookmap.codec.internal.PackedDecimal;
@@ -44,8 +45,21 @@ public final class BookWriter {
      * @return the length in bytes
      */
     public static int byteLength(Usage usage, int length) {
+        return byteLength(usage, length, Sign.TRAILING);
+    }
+
+    /**
+     * Gives the field length in bytes. A separate sign adds one byte to a {@code DISPLAY}
+     * number. The other usages ignore the sign.
+     *
+     * @param usage the storage format
+     * @param length the number of digits
+     * @param sign the position and the format of the sign of a {@code DISPLAY} number
+     * @return the length in bytes
+     */
+    public static int byteLength(Usage usage, int length, Sign sign) {
         return switch (usage) {
-            case DISPLAY -> length;
+            case DISPLAY -> sign.separate() ? length + 1 : length;
             case COMP3 -> length / 2 + 1;
             case COMP -> length <= 4 ? 2 : length <= 9 ? 4 : 8;
         };
@@ -63,7 +77,7 @@ public final class BookWriter {
     }
 
     /**
-     * Writes a numeric field.
+     * Writes a numeric field. A signed {@code DISPLAY} number gets a trailing overpunch sign.
      *
      * @param field the field descriptor, for error messages
      * @param value the number, or null
@@ -74,8 +88,24 @@ public final class BookWriter {
      */
     public void writeNumber(String field, BigDecimal value, int length, int scale,
                             boolean signed, Usage usage) {
+        writeNumber(field, value, length, scale, signed, usage, Sign.TRAILING);
+    }
+
+    /**
+     * Writes a numeric field.
+     *
+     * @param field the field descriptor, for error messages
+     * @param value the number, or null
+     * @param length the total number of digits
+     * @param scale the number of implied decimal places
+     * @param signed true if the field has a sign
+     * @param usage the storage format
+     * @param sign the position and the format of the sign of a {@code DISPLAY} number
+     */
+    public void writeNumber(String field, BigDecimal value, int length, int scale,
+                            boolean signed, Usage usage, Sign sign) {
         out.writeBytes(switch (usage) {
-            case DISPLAY -> ZonedDecimal.encode(field, value, length, scale, signed,
+            case DISPLAY -> ZonedDecimal.encode(field, value, length, scale, signed, sign,
                 ctx.charset());
             case COMP3 -> PackedDecimal.encode(field, value, length, scale, signed);
             case COMP -> BinaryInteger.encode(field, value, length, scale, signed,

@@ -29,6 +29,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.EmptyItem;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.EnumModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
@@ -791,9 +792,15 @@ final class CodecGenerator {
             n.formatter());
     }
 
+    /**
+     * Gives the arguments of a number. The sign comes only when it is not the default. Thus,
+     * the codecs of the books without a {@code SIGN} clause do not change.
+     */
     private static CodeBlock numberAttributes(FieldModel field) {
-        return CodeBlock.of("$L, $L, $L, $T.$N", field.length(), field.scale(), field.signed(),
-            USAGE, field.usage().name());
+        CodeBlock attributes = CodeBlock.of("$L, $L, $L, $T.$N", field.length(), field.scale(),
+            field.signed(), USAGE, field.usage().name());
+        return field.sign() == Sign.TRAILING ? attributes
+            : CodeBlock.of("$L, $T.$N", attributes, Sign.class, field.sign().name());
     }
 
     private static CodeBlock fieldContext(FieldModel field) {

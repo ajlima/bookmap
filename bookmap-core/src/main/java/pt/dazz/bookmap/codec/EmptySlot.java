@@ -3,6 +3,7 @@ package pt.dazz.bookmap.codec;
 import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.codec.internal.BinaryInteger;
 import pt.dazz.bookmap.codec.internal.Blank;
@@ -31,8 +32,10 @@ public final class EmptySlot {
      * @param scale the number of implied decimal places of a number key
      * @param signed true if the number key has a sign
      * @param usage the storage format of a number key, or null for a text key
+     * @param sign the sign of a {@code DISPLAY} number key
      */
-    private record Key(int offset, int length, int scale, boolean signed, Usage usage) {
+    private record Key(int offset, int length, int scale, boolean signed, Usage usage,
+                       Sign sign) {
     }
 
     private EmptySlot(boolean spaces, Key key) {
@@ -67,7 +70,7 @@ public final class EmptySlot {
      * @return the new marker
      */
     public EmptySlot withTextKey(int offset, int length) {
-        return new EmptySlot(spaces, new Key(offset, length, 0, false, null));
+        return new EmptySlot(spaces, new Key(offset, length, 0, false, null, Sign.TRAILING));
     }
 
     /**
@@ -83,7 +86,24 @@ public final class EmptySlot {
      */
     public EmptySlot withNumberKey(int offset, int length, int scale, boolean signed,
                                    Usage usage) {
-        return new EmptySlot(spaces, new Key(offset, length, scale, signed, usage));
+        return withNumberKey(offset, length, scale, signed, usage, Sign.TRAILING);
+    }
+
+    /**
+     * Gives a marker with a number key. A slot is empty if its key is blank or zero. In an
+     * unused slot, the key gets the value zero, with the positive sign.
+     *
+     * @param offset the offset of the key in the slot
+     * @param length the number of digits of the key
+     * @param scale the number of implied decimal places
+     * @param signed true if the key has a sign
+     * @param usage the storage format
+     * @param sign the position and the format of the sign of a {@code DISPLAY} key
+     * @return the new marker
+     */
+    public EmptySlot withNumberKey(int offset, int length, int scale, boolean signed,
+                                   Usage usage, Sign sign) {
+        return new EmptySlot(spaces, new Key(offset, length, scale, signed, usage, sign));
     }
 
     /**
@@ -110,7 +130,7 @@ public final class EmptySlot {
         }
         BigDecimal value = switch (key.usage()) {
             case DISPLAY -> ZonedDecimal.decode(field, data, start, key.length(), key.scale(),
-                key.signed(), charset);
+                key.signed(), key.sign(), charset);
             case COMP3 -> PackedDecimal.decode(field, data, start, key.length(), key.scale(),
                 key.signed(), charset);
             case COMP -> BinaryInteger.decode(data, start,
@@ -143,7 +163,7 @@ public final class EmptySlot {
         if (key != null && key.usage() != null) {
             byte[] zero = switch (key.usage()) {
                 case DISPLAY -> ZonedDecimal.encode("key", BigDecimal.ZERO, key.length(),
-                    key.scale(), key.signed(), charset);
+                    key.scale(), key.signed(), key.sign(), charset);
                 case COMP3 -> PackedDecimal.encode("key", BigDecimal.ZERO, key.length(),
                     key.scale(), key.signed());
                 case COMP -> BinaryInteger.encode("key", BigDecimal.ZERO, key.length(),

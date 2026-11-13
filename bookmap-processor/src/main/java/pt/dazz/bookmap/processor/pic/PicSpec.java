@@ -1,6 +1,7 @@
 package pt.dazz.bookmap.processor.pic;
 
 import java.util.Optional;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 
 /**
@@ -11,9 +12,10 @@ import pt.dazz.bookmap.annotation.Usage;
  * @param scale the number of implied decimal places. It is 0 for text.
  * @param signed {@code true} if the picture starts with {@code S}
  * @param usage the usage from the usage clause. It is empty when the string has no usage clause.
+ * @param sign the sign from the sign clause. It is empty when the string has no sign clause.
  */
 public record PicSpec(Category category, int length, int scale, boolean signed,
-    Optional<Usage> usage) {
+    Optional<Usage> usage, Optional<Sign> sign) {
 
     /**
      * Gives the category of a {@code PIC} string.

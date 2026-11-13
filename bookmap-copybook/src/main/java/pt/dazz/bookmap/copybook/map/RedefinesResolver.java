@@ -357,7 +357,7 @@ final class RedefinesResolver {
     static int entryLength(DataItem item, Usage inherited) {
         Usage usage = usageOf(item, inherited);
         return item.isGroup() ? groupLength(item.children(), usage)
-            : PicText.byteLength(item.picture(), usage);
+            : PicText.byteLength(item.picture(), usage, item.sign());
     }
 
     private static int groupLength(List<DataItem> children, Usage usage) {

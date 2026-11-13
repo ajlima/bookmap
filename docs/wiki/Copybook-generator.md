@@ -168,11 +168,10 @@ In both formats, lower case is permitted. The generator changes the names and th
 | `OCCURS n [TIMES]` | Accepted: a fixed collection. |
 | `OCCURS m TO n [TIMES] DEPENDING [ON] name [OF\|IN group]` | Accepted: a variable collection. |
 | `REDEFINES` | Accepted. See [Directions](#directions) and [Subtypes](#subtypes). |
-| `SIGN [IS] TRAILING`, `TRAILING` | Accepted. It is the default sign of BookMap. |
+| `[SIGN [IS]] LEADING` or `TRAILING`, with `SEPARATE [CHARACTER]` | Accepted on a signed numeric `DISPLAY` item and on a group. The generator writes the clause in `pic`, for example `S9(5)V99 SIGN LEADING SEPARATE`. `SIGN TRAILING` is the default and is not written. See [Sign clause](#sign-clause). |
 | `VALUE [IS]` of an item, with one literal | Accepted: the initial value of the field. See [Initial values](#initial-values). Another form, for example `ALL '-'`, gives a warning: `the VALUE clause of NOTE is not supported and is ignored`. |
 | Level 88 with `VALUE [IS]` or `VALUES [ARE]`, values, and `THRU` or `THROUGH` ranges | Accepted. See [Level 88 items](#level-88-items). |
 | `INDEXED BY`, `ASCENDING KEY`, `DESCENDING KEY` | Ignored, with an `info` diagnostic, for example `INDEXED is ignored`. |
-| `LEADING`, `SEPARATE` | Error: `LEADING is not supported by BookMap. See issue #47.` |
 | `COMP-1`, `COMP-2`, `COMPUTATIONAL-1`, `COMPUTATIONAL-2` | Error: `COMP-1 is not supported by BookMap. See issue #46.` |
 | `NATIONAL` | Error: `NATIONAL is not supported by BookMap. See issue #49.` |
 | `POINTER` | Error. See [POINTER](#pointer). |
@@ -1073,12 +1072,37 @@ GET-INVOICE.cpy:1:8: warning: record GET-INVOICE has 35556 bytes, more than the 
 The warning names the three largest tables (`OCCURS` items) of the record, because a table is usually the cause.
 The warning does not stop the generation. To make the record shorter, decrease the number of occurrences, or split the operation into more calls.
 
+## Sign clause
+
+A `SIGN` clause on a group applies to all signed numeric `DISPLAY` items of the group, also in the groups below it.
+The clause of an item replaces the clause of its group.
+The group clause does not change the other items, for example `PIC X`, `PIC 9`, or `COMP-3` items.
+
+```cobol
+05 AMOUNTS SIGN IS LEADING SEPARATE CHARACTER.
+   10 NET-AMOUNT PIC S9(7)V99.
+   10 TAX-AMOUNT PIC S9(5)V99 SIGN TRAILING.
+   10 LINE-COUNT PIC 9(3).
+```
+
+```java
+@BookField(order = 10, pic = "S9(7)V99 SIGN LEADING SEPARATE")
+private BigDecimal netAmount;
+@BookField(order = 20, pic = "S9(5)V99")
+private BigDecimal taxAmount;
+@BookField(order = 30, pic = "9(3)")
+private int lineCount;
+```
+
+A separate sign adds one byte to the item. The record length, the `SYNC` slack bytes, and the `REDEFINES` sizes include this byte.
+A `SIGN` clause on an item that is not a signed numeric `DISPLAY` item is an error, for example `SIGN on LINE-COUNT needs a signed numeric DISPLAY item`.
+
 ## Limitations of the generator
 
 - The generator does not detect dates. A `PIC 9(8)` date stays an `int`, unless a [date hint](#date-hints) names it.
 - Packed dates, for example `S9(7) COMP-3`, cannot get a date hint. Write a `FieldConverter` for them.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` and without `emptyKey` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields, or the key item with the option emptyKeys, if the program has one.`
-- These items are errors: `SIGN LEADING` and `SEPARATE` (#47), `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), edited pictures (#48), `POINTER`, `P`, `A`, and an `OCCURS` in an `OCCURS` (#43).
+- These items are errors: `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), edited pictures (#48), `POINTER`, `P`, `A`, and an `OCCURS` in an `OCCURS` (#43).
 - The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).
 - `SYNC` in an `OCCURS` is an error if the item needs slack bytes.
 - BookMap writes a `COMP-5` value only if it has the digits of the picture.

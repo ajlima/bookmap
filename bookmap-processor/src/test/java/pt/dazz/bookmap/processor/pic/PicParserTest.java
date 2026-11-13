@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.processor.pic.PicSpec.Category;
 
@@ -36,7 +37,8 @@ class PicParserTest {
     void parsesValidPictures(String pic, Category category, int length, int scale, boolean signed,
         Usage usage) {
         assertThat(PicParser.parse(pic))
-            .isEqualTo(new PicSpec(category, length, scale, signed, Optional.ofNullable(usage)));
+            .isEqualTo(new PicSpec(category, length, scale, signed, Optional.ofNullable(usage),
+                Optional.empty()));
     }
 
     @ParameterizedTest
@@ -71,7 +73,8 @@ class PicParserTest {
     void parsesOtherValidForms(String pic, Category category, int length, int scale,
         boolean signed, Usage usage) {
         assertThat(PicParser.parse(pic))
-            .isEqualTo(new PicSpec(category, length, scale, signed, Optional.ofNullable(usage)));
+            .isEqualTo(new PicSpec(category, length, scale, signed, Optional.ofNullable(usage),
+                Optional.empty()));
     }
 
     @ParameterizedTest
@@ -101,11 +104,38 @@ class PicParserTest {
         "9(3) COMP-5                             | unknown or unsupported usage 'COMP-5'",
         "9(3) COMP SYNC                          | unexpected text 'SYNC' after the usage",
         "X(3) BINARY                             | a text picture must not have a numeric usage",
+        "S9(3) SIGN                              | SIGN needs LEADING or TRAILING",
+        "S9(3) SIGN IS                           | SIGN needs LEADING or TRAILING",
+        "S9(3) SIGN IS SEPARATE                  | SIGN needs LEADING or TRAILING",
+        "S9(3) LEADING SIGN TRAILING             | unexpected text 'SIGN' after the sign clause",
+        "S9(3) LEADING FOO                       | unexpected text 'FOO' after the sign clause",
+        "S9(3) LEADING CHARACTER                 | unexpected text 'CHARACTER' after the sign",
+        "S9(3) COMP-3 COMP                       | unexpected text 'COMP' after the usage",
+        "9(3) LEADING                            | a SIGN clause needs a signed numeric picture",
+        "X(3) SIGN TRAILING                      | a SIGN clause needs a signed numeric picture",
+        "S9(3) COMP-3 SIGN LEADING               | a SIGN clause is permitted only with usage DISPLAY",
+        "S9(3) LEADING BINARY                    | a SIGN clause is permitted only with usage DISPLAY",
     })
     void namesTheProblemAndTheOriginalString(String pic, String problem) {
         assertThatThrownBy(() -> PicParser.parse(pic))
             .isInstanceOf(PicSyntaxException.class)
             .hasMessageStartingWith("Invalid PIC string \"" + pic + "\": ")
             .hasMessageContaining(problem);
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        // pic                                          | usage   | sign
+        "S9(5)V99 SIGN LEADING                          |         | LEADING",
+        "S9(5)V99 SIGN IS TRAILING                      |         | TRAILING",
+        "S9(5)V99 LEADING SEPARATE                      |         | LEADING_SEPARATE",
+        "S9(5)V99 SIGN TRAILING SEPARATE CHARACTER      |         | TRAILING_SEPARATE",
+        "PIC S9(5)V99 DISPLAY SIGN IS LEADING SEPARATE. | DISPLAY | LEADING_SEPARATE",
+        "s9(5)v99 sign leading separate usage display   | DISPLAY | LEADING_SEPARATE",
+        "S9(5)V99 TRAILING                              |         | TRAILING",
+    })
+    void parsesTheSignClause(String pic, Usage usage, Sign sign) {
+        assertThat(PicParser.parse(pic)).isEqualTo(new PicSpec(Category.NUMBER, 7, 2, true,
+            Optional.ofNullable(usage), Optional.of(sign)));
     }
 }
