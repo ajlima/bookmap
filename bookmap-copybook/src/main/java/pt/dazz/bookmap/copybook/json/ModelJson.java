@@ -28,7 +28,7 @@ public final class ModelJson {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Set<String> MODEL_KEYS = Set.of("formatVersion", "sourceName", "classes");
     private static final Set<String> CLASS_KEYS = Set.of("name", "kind", "superclass",
-        "subTypes", "members");
+        "subTypes", "continuable", "validatable", "members");
     private static final Set<String> SUBTYPES_KEYS = Set.of("discriminator", "types");
     private static final Set<String> TYPE_KEYS = Set.of("value", "className");
     private static final Set<String> FIELD_KEYS = Set.of("kind", "name", "javaType", "order",
@@ -72,6 +72,12 @@ public final class ModelJson {
                 types.addObject().put("value", entry.value()).put("className",
                     entry.className());
             }
+        }
+        if (type.continuable() != null) {
+            node.put("continuable", type.continuable());
+        }
+        if (type.validatable() != null) {
+            node.put("validatable", type.validatable());
         }
         ArrayNode members = node.putArray("members");
         for (MemberModel member : type.members()) {
@@ -162,7 +168,8 @@ public final class ModelJson {
             members.add(readMember(nodes.get(i), type.path("members") + "[" + i + "]"));
         }
         return new ClassModel(type.text("name"), type.enumValue("kind", ClassKind.class),
-            type.optionalText("superclass"), subTypes, members);
+            type.optionalText("superclass"), subTypes, members, type.optionalText("continuable"),
+            type.optionalText("validatable"));
     }
 
     private static MemberModel readMember(JsonNode node, String path) {

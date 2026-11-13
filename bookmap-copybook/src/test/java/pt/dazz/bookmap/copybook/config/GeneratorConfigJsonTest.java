@@ -39,6 +39,8 @@ class GeneratorConfigJsonTest {
             }
           },
           "dates": { "OPENED-ON": "yyyyMMdd", "*-TIME": "HHmmss" },
+          "continuable": { "GET-ACCOUNT": "com.example.accounts.AccountPaging" },
+          "validatable": { "GET-ACCOUNT": "ReturnCodes" },
           "package": "com.example.accounts",
           "lombok": false
         }
@@ -60,6 +62,10 @@ class GeneratorConfigJsonTest {
                 "02"), Map.of("SAVINGS-DATA", "SavingsAccount"))));
         assertThat(config.mapping().dates()).containsExactly(
             Map.entry("OPENED-ON", "yyyyMMdd"), Map.entry("*-TIME", "HHmmss"));
+        assertThat(config.mapping().continuable()).isEqualTo(Map.of("GET-ACCOUNT",
+            "com.example.accounts.AccountPaging"));
+        assertThat(config.mapping().validatable()).isEqualTo(Map.of("GET-ACCOUNT",
+            "ReturnCodes"));
         assertThat(config.packageName()).isEqualTo("com.example.accounts");
         assertThat(config.lombok()).isFalse();
     }

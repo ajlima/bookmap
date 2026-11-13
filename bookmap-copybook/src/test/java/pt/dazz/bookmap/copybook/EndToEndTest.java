@@ -1,20 +1,31 @@
 package pt.dazz.bookmap.copybook;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static pt.dazz.bookmap.copybook.Compiled.get;
 import static pt.dazz.bookmap.copybook.Compiled.set;
 
+import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.JavaFile;
+import com.palantir.javapoet.MethodSpec;
+import com.palantir.javapoet.TypeSpec;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.lang.model.element.Modifier;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import pt.dazz.bookmap.Continuable;
+import pt.dazz.bookmap.Validatable;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.copybook.diag.Diagnostic;
 import pt.dazz.bookmap.copybook.generate.GenerateOptions;
@@ -23,6 +34,7 @@ import pt.dazz.bookmap.copybook.map.MappingOptions;
 import pt.dazz.bookmap.copybook.map.SubTypeDecision;
 import pt.dazz.bookmap.copybook.parse.ParseOptions;
 import pt.dazz.bookmap.copybook.parse.SourceFormat;
+import pt.dazz.bookmap.exception.BusinessException;
 import pt.dazz.bookmap.spi.BookCodec;
 
 class EndToEndTest {
@@ -159,6 +171,69 @@ class EndToEndTest {
         Object decoded = codec.newInstance();
         codec.decodeResponse(bytes, decoded, LATIN);
         assertThat(get(decoded, "dueDate")).isEqualTo(LocalDate.of(2026, 12, 31));
+    }
+
+    /** Writes a handler class with one static method that calls a getter of the page. */
+    private static JavaFile handler(String packageName, String name, MethodSpec method) {
+        return JavaFile.builder(packageName, TypeSpec.classBuilder(name)
+            .addModifiers(Modifier.PUBLIC, Modifier.FINAL).addMethod(method).build()).build();
+    }
+
+    @Test
+    void pagedListWithDatesAndHandlersRoundTrips() {
+        Map<String, String> dates = new LinkedHashMap<>();
+        dates.put("*-DATE", "yyyyMMdd");
+        dates.put("SHIP-TIME", "HH:mm:ss");
+        dates.put("LAST-UPDATE", "yyyyMMddHHmmss");
+        MappingOptions options = new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
+            MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), dates,
+            Map.of("LIST-SHIPMENTS", "com.example.handlers.ShipmentPaging"),
+            Map.of("LIST-SHIPMENTS", "ShipmentChecks"));
+        Copybooks.Result result = Copybooks.generate(copybook("LIST-SHIPMENTS.cpy"),
+            parseOptions(), options, PLAIN);
+        assertThat(result.diagnostics()).isEmpty();
+        ClassName page = ClassName.get(PACKAGE, "ListShipments");
+        List<JavaFile> files = new ArrayList<>(result.files());
+        files.add(handler("com.example.handlers", "ShipmentPaging", MethodSpec
+            .methodBuilder("hasContinuation").addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+            .returns(boolean.class).addParameter(page, "page")
+            .addStatement("return $S.equals(page.getMoreData())", "Y").build()));
+        files.add(handler(PACKAGE, "ShipmentChecks", MethodSpec.methodBuilder("validate")
+            .addModifiers(Modifier.PUBLIC, Modifier.STATIC).addParameter(page, "page")
+            .beginControlFlow("if (!$S.equals(page.getReturnCode()))", "00")
+            .addStatement("throw new $T($S + page.getReturnCode())", BusinessException.class,
+                "return code ")
+            .endControlFlow().build()));
+        Compiled classes = Compiled.compile(files);
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".ListShipments");
+
+        Object request = codec.newInstance();
+        set(request, "customerId", "CUST000042");
+        set(request, "fromDate", LocalDate.of(2026, 11, 1));
+        Object decodedRequest = codec.decodeRequest(codec.encodeRequest(request, LATIN), LATIN);
+        assertThat(get(decodedRequest, "fromDate")).isEqualTo(LocalDate.of(2026, 11, 1));
+
+        Object response = codec.newInstance();
+        set(response, "returnCode", "00");
+        set(response, "moreData", "Y");
+        Object entry = classes.create(PACKAGE + ".ShipmentEntry");
+        set(entry, "shipmentId", "SHP000000001");
+        set(entry, "shipDate", LocalDate.of(2026, 11, 12));
+        set(entry, "shipTime", LocalTime.of(14, 30, 5));
+        set(entry, "lastUpdate", LocalDateTime.of(2026, 11, 12, 14, 31, 0));
+        set(response, "shipmentEntry", List.of(entry));
+        Object decoded = codec.newInstance();
+        codec.decodeResponse(codec.encodeResponse(response, LATIN), decoded, LATIN);
+
+        Object shipment = ((List<?>) get(decoded, "shipmentEntry")).get(0);
+        assertThat(get(shipment, "shipTime")).isEqualTo(LocalTime.of(14, 30, 5));
+        assertThat(get(shipment, "lastUpdate"))
+            .isEqualTo(LocalDateTime.of(2026, 11, 12, 14, 31, 0));
+        assertThat(((Continuable) decoded).hasContinuation()).isTrue();
+        ((Validatable) decoded).validate();
+        set(decoded, "returnCode", "12");
+        assertThatThrownBy(((Validatable) decoded)::validate)
+            .isInstanceOf(BusinessException.class).hasMessage("return code 12");
     }
 
     @Test

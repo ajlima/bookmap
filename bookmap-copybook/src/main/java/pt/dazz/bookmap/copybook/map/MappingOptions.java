@@ -16,10 +16,13 @@ import pt.dazz.bookmap.annotation.Direction;
  * @param subTypes subtype decisions, by COBOL name of an alternative group
  * @param dates date hints: a date or time pattern, by COBOL name or by name pattern with
  *     {@code *}. The map keeps the order of the hints.
+ * @param continuable the handler classes of {@code Continuable} records, by record name
+ * @param validatable the handler classes of {@code Validatable} records, by record name
  */
 public record MappingOptions(List<String> stripPrefixes, List<String> inputMarkers,
                              List<String> outputMarkers, Map<String, Direction> directions,
-                             Map<String, SubTypeDecision> subTypes, Map<String, String> dates) {
+                             Map<String, SubTypeDecision> subTypes, Map<String, String> dates,
+                             Map<String, String> continuable, Map<String, String> validatable) {
 
     /** The default input markers. */
     public static final List<String> INPUT_MARKERS = List.of("INPUT", "IN", "REQUEST", "REQ");
@@ -36,6 +39,8 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
      * @param directions the directions
      * @param subTypes the subtype decisions
      * @param dates the date hints
+     * @param continuable the {@code Continuable} handlers
+     * @param validatable the {@code Validatable} handlers
      */
     public MappingOptions {
         stripPrefixes = List.copyOf(stripPrefixes);
@@ -43,7 +48,26 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
         outputMarkers = List.copyOf(outputMarkers);
         directions = Map.copyOf(directions);
         subTypes = Map.copyOf(subTypes);
-        dates = Collections.unmodifiableMap(new LinkedHashMap<>(dates));
+        dates = ordered(dates);
+        continuable = ordered(continuable);
+        validatable = ordered(validatable);
+    }
+
+    /**
+     * Creates the options without {@code Continuable} and {@code Validatable} handlers.
+     *
+     * @param stripPrefixes the prefixes
+     * @param inputMarkers the input markers
+     * @param outputMarkers the output markers
+     * @param directions the directions
+     * @param subTypes the subtype decisions
+     * @param dates the date hints
+     */
+    public MappingOptions(List<String> stripPrefixes, List<String> inputMarkers,
+                          List<String> outputMarkers, Map<String, Direction> directions,
+                          Map<String, SubTypeDecision> subTypes, Map<String, String> dates) {
+        this(stripPrefixes, inputMarkers, outputMarkers, directions, subTypes, dates, Map.of(),
+            Map.of());
     }
 
     /**
@@ -68,5 +92,10 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
      */
     public static MappingOptions defaults() {
         return new MappingOptions(List.of(), INPUT_MARKERS, OUTPUT_MARKERS, Map.of(), Map.of());
+    }
+
+    /** Copies a map and keeps its order, for deterministic diagnostics. */
+    private static <V> Map<String, V> ordered(Map<String, V> map) {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(map));
     }
 }
