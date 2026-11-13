@@ -15,12 +15,17 @@ if [ -z "$identities" ]; then
   exit 1
 fi
 
-# One field at a time: an email at anthropic.com, or the name Claude (with any case).
+# Test every field of each line, so a tab in a name cannot move a value to another field.
+# A name or an email that contains "claude" or "anthropic" (with any case) is an AI assistant.
 bad_identities=$(awk -F '\t' '
-  function bad_name(n) { n = tolower(n); return n == "claude" || n ~ /^claude[ (]/ }
-  function bad_email(e) { return tolower(e) ~ /anthropic\.com/ }
-  bad_name($2) || bad_email($3) || bad_name($4) || bad_email($5) {
-    print $1 " author=" $2 " <" $3 "> committer=" $4 " <" $5 ">"
+  function bad(v) { v = tolower(v); gsub(/[^a-z0-9.@]/, "", v); return v ~ /claude|anthropic/ }
+  {
+    for (i = 2; i <= NF; i++) {
+      if (bad($i)) {
+        print $1 " author=" $2 " <" $3 "> committer=" $4 " <" $5 ">"
+        next
+      }
+    }
   }' <<<"$identities")
 if [ -n "$bad_identities" ]; then
   echo "error: these commits have an AI assistant as author or committer:"
