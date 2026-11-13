@@ -301,6 +301,21 @@ class EmptyItemMarkerTest {
     }
 
     @Test
+    void emptyKeyMustNotBeAFieldOfASubtype() {
+        Compilation compilation = compiler.compile(listLines("Entry", ", emptyKey = \"amount\""),
+            source("Entry",
+                "@BookSubTypes(discriminator = \"kind\", value = {",
+                "  @BookSubTypes.Type(value = \"C\", type = CardEntry.class)})",
+                "public abstract class Entry {",
+                field("@BookField(order = 1, pic = \"X\")", "String", "kind"),
+                "}"),
+            source("CardEntry", "public class CardEntry extends Entry {",
+                field("@BookField(order = 2, pic = \"9(2)\")", "int", "amount"), "}"));
+        CompilationSubject.assertThat(compilation).hadErrorContaining("ListLines.lines (order"
+            + " 10): emptyKey field 'amount' is not a field of item class test.Entry");
+    }
+
+    @Test
     void emptyKeyMustBeTextOrNumber() {
         assertError(", emptyKey = \"shipDate\"", "DatedLine",
             source("DatedLine", "public class DatedLine {",

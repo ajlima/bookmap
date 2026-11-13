@@ -191,6 +191,7 @@ The mapper gives these errors:
 | The key is an elementary item of the table entry. It is not in a `REDEFINES` alternative of the entry. | `empty key option: K is not an elementary item of the entry of T` |
 | The key maps to a `String` or a number field (not a date hint, not a level 88 enum). | `empty key option: K must map to a text or a number field` |
 | A table with an empty key has no count field (`countFields`). | `empty key option: T has a count field. Remove one of the two options.` |
+| A table with an option is in a generated class. | `empty item options: T is not in a generated class, so the options have no effect` |
 
 The existing `info` diagnostic for a fixed table of `COMP` items (`a COMP value of 0 is all LOW-VALUES and cannot be written`) does not apply to a table with an empty key. Its text also gives the option `emptyKeys`.
 
