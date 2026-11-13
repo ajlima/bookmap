@@ -48,7 +48,12 @@ class ConfigurationMetadataTest {
             "bookmap.transport.ctg.server", "bookmap.transport.ctg.default-transaction",
             "bookmap.transport.ctg.userid", "bookmap.transport.ctg.password",
             "bookmap.transport.ctg.timeout", "bookmap.transport.ctg.max-connections",
-            "bookmap.transport.ctg.connection-wait-timeout", "bookmap.transport.ctg.routes");
+            "bookmap.transport.ctg.connection-wait-timeout", "bookmap.transport.ctg.routes",
+            "bookmap.transport.http.base-uri", "bookmap.transport.http.headers",
+            "bookmap.transport.http.username", "bookmap.transport.http.password",
+            "bookmap.transport.http.abend-header", "bookmap.transport.http.timeout",
+            "bookmap.transport.http.connect-timeout", "bookmap.transport.http.ssl.bundle",
+            "bookmap.transport.http.routes");
     }
 
     @Test
@@ -134,5 +139,21 @@ class ConfigurationMetadataTest {
             .startsWith("The route of each operation.");
         assertThat(properties.get("bookmap.transport.ctg.password").getDescription())
             .contains("environment variable");
+    }
+
+    @Test
+    void httpPropertiesHaveTypesDefaultsAndDescriptions() throws IOException {
+        Map<String, ConfigurationMetadataProperty> properties = properties();
+        ConfigurationMetadataProperty timeout = properties.get("bookmap.transport.http.timeout");
+        assertThat(timeout.getType()).isEqualTo("java.time.Duration");
+        assertThat(timeout.getDefaultValue()).isEqualTo("30s");
+        assertThat(properties.get("bookmap.transport.http.connect-timeout").getDefaultValue()).isNull();
+        assertThat(properties.get("bookmap.transport.http.base-uri").getType()).isEqualTo("java.net.URI");
+        assertThat(properties.get("bookmap.transport.http.ssl.bundle").getDescription())
+            .startsWith("The name of a Spring Boot SSL bundle");
+        assertThat(properties.get("bookmap.transport.http.password").getDescription())
+            .contains("environment variable");
+        assertThat(properties.get("bookmap.transport.http.routes").getDescription())
+            .startsWith("The route of each operation.");
     }
 }

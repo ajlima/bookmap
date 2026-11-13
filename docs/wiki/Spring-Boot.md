@@ -101,7 +101,7 @@ Set `bookmap.transport.type` to select the transport auto-configuration:
 |---|---|---|
 | `ctg` | [CICS Transaction Gateway](#cics-transaction-gateway) | `bookmap-transport-ctg` and the IBM library `ctgclient.jar`. |
 | `mq` | IBM MQ. This version has no auto-configuration for it. | Declare a `Transport` bean. |
-| `http` | HTTP. This version has no auto-configuration for it. | Declare a `Transport` bean. |
+| `http` | [HTTP](#http) | `bookmap-transport-http`. |
 
 Without `bookmap.transport.type`, no transport auto-configuration runs. Then declare a `Transport` bean.
 A `Transport` bean of your application always wins. The transport auto-configuration then does nothing.
@@ -181,6 +181,79 @@ CtgTransportBuilderCustomizer extraRoute() {
 ```
 
 Spring Boot closes the transport when the context closes.
+
+## HTTP
+
+With `bookmap.transport.type=http`, the auto-configuration creates an `HttpTransport` bean from the `bookmap.transport.http.*` properties.
+For the transport itself, see [HTTP transport](HTTP-transport).
+
+```kotlin
+dependencies {
+    implementation("pt.dazz.bookmap:bookmap-spring-boot:<version>")
+    implementation("pt.dazz.bookmap:bookmap-transport-http:<version>")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:<version>")
+}
+```
+
+```properties
+bookmap.transport.type=http
+bookmap.transport.http.base-uri=https://gateway.example.com/orders/
+bookmap.transport.http.username=ORDUSER
+bookmap.transport.http.password=${GATEWAY_PASSWORD}
+bookmap.transport.http.headers[X-Client-Id]=order-service
+bookmap.transport.http.abend-header=X-Abend-Code
+bookmap.transport.http.routes[GetCustomerOrders].uri=customer-orders
+bookmap.transport.http.routes[GetInvoice].uri=https://billing.example.com/invoices
+bookmap.transport.http.routes[GetInvoice].method=PUT
+```
+
+| Property | Default | Meaning |
+|---|---|---|
+| `bookmap.transport.http.base-uri` | none | The URI that resolves a relative route URI. It must be an absolute `http` or `https` URI. |
+| `bookmap.transport.http.headers[<name>]` | none | A header of each request. |
+| `bookmap.transport.http.username` | none | The user for basic authentication. It needs a password. |
+| `bookmap.transport.http.password` | none | The password for basic authentication. It needs a user. |
+| `bookmap.transport.http.abend-header` | none: no abend check. | The name of a response header that contains an abend code. |
+| `bookmap.transport.http.timeout` | `30s` | The time limit of one exchange, until the last byte of the response. |
+| `bookmap.transport.http.connect-timeout` | none: 10 seconds. | The time limit to connect. |
+| `bookmap.transport.http.ssl.bundle` | none | The name of a Spring Boot SSL bundle for TLS. See [TLS with an SSL bundle](#tls-with-an-ssl-bundle). |
+| `bookmap.transport.http.routes[<operation>].uri` | none | The URI of the operation, absolute or relative to `base-uri`. Mandatory. |
+| `bookmap.transport.http.routes[<operation>].method` | `POST` | The HTTP method of the operation. |
+| `bookmap.transport.http.routes[<operation>].headers[<name>]` | none | A header of this route. It replaces a header of the transport with the same name. |
+
+The rules of the routes and of the secrets are the same as for the [CICS Transaction Gateway](#cics-transaction-gateway). The `toString()` of `HttpTransportProperties` shows only the names of the headers, not their values.
+
+The application does not start in these cases: no route, a route without `uri`, a relative URI without `base-uri`, a user without a password or a password without a user, or an incorrect header.
+
+### TLS with an SSL bundle
+
+Set `bookmap.transport.http.ssl.bundle` to the name of a [Spring Boot SSL bundle](https://docs.spring.io/spring-boot/reference/features/ssl.html).
+The HTTP client then uses the trust store, the key store, the protocols, and the ciphers of the bundle. A key store in the bundle gives mutual TLS.
+
+```properties
+spring.ssl.bundle.pem.mainframe.truststore.certificate=classpath:certs/gateway-ca.crt
+spring.ssl.bundle.pem.mainframe.keystore.certificate=classpath:certs/client.crt
+spring.ssl.bundle.pem.mainframe.keystore.private-key=file:/run/secrets/client.key
+bookmap.transport.http.ssl.bundle=mainframe
+```
+
+The client uses HTTP/1.1, does not follow redirects, and uses `connect-timeout` (10 seconds by default). Spring Boot stops the client when the context closes.
+An unknown bundle name stops the application.
+
+### Customize the builder of the HTTP transport
+
+An `HttpTransportBuilderCustomizer` bean changes the builder after the properties, and before `build()`. The order is the `@Order` of the beans.
+For example, send a bearer token that can change:
+
+```java
+@Bean
+HttpTransportBuilderCustomizer bearerToken(TokenService tokens) {
+    return builder -> builder.headerSupplier(
+        () -> Map.of("Authorization", "Bearer " + tokens.current()));
+}
+```
+
+A customizer can also set your own `HttpClient`, for example with a proxy. Then do not set `connect-timeout`: the application does not start. Set the connect timeout on your client.
 
 ## Replace the beans
 

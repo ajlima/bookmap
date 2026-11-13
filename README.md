@@ -310,6 +310,7 @@ class OrderService {
 **CAUTION:** Do not write the password as a plain value in `application.properties`. Each person who can read the repository can then read the password.
 
 See [Spring Boot](https://github.com/ajlima/bookmap/wiki/Spring-Boot#cics-transaction-gateway) for all properties, the secrets, and the customizer.
+For an HTTP endpoint, set `bookmap.transport.type=http` and the `bookmap.transport.http.*` properties. See [Spring Boot](https://github.com/ajlima/bookmap/wiki/Spring-Boot#http).
 
 ### 7. Test without CICS
 
@@ -392,7 +393,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 
 BookMap is at version `0.11.0`. GitHub Actions builds each release and publishes it to Maven Central.
 The build enforces 100% line and branch coverage for all modules except the examples.
-BookMap has transports for the CICS Transaction Gateway (ECI), for HTTP (binary body), and for IBM MQ. The Spring Boot module creates the CTG transport from properties.
+BookMap has transports for the CICS Transaction Gateway (ECI), for HTTP (binary body), and for IBM MQ. The Spring Boot module creates the CTG and HTTP transports from properties.
 See [RELEASING.md](RELEASING.md) for the release cycle, and [ROADMAP.md](ROADMAP.md) for the planned features.
 
 ## License

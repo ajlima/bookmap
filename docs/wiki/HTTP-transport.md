@@ -178,6 +178,11 @@ GetInvoice (PUT https://billing.example.com/invoices): HTTP status 500: {"error"
 If the transport created its client, `close()` calls `HttpClient.shutdown()`. The client accepts no new request.
 A request that runs continues until it completes or until its timeout. `close()` does not wait for it.
 
+## Spring Boot
+
+`bookmap-spring-boot` creates the transport from properties. Set `bookmap.transport.type=http` and the `bookmap.transport.http.*` properties.
+For TLS, use a Spring Boot SSL bundle. See [Spring Boot](Spring-Boot#http).
+
 ## Test without a mainframe
 
 Use the [simulator](Transports-and-simulator#the-simulator) for unit tests.
