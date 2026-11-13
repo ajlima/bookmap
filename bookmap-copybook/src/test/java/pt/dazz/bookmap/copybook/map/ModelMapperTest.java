@@ -2,6 +2,7 @@ package pt.dazz.bookmap.copybook.map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static pt.dazz.bookmap.copybook.map.Mapping.diagnostics;
 import static pt.dazz.bookmap.copybook.map.Mapping.map;
 import static pt.dazz.bookmap.copybook.map.Mapping.member;
 import static pt.dazz.bookmap.copybook.map.Mapping.type;
@@ -201,7 +202,7 @@ class ModelMapperTest {
             "05 ORDER-DATE-X REDEFINES ORDER-DATE PIC X(8).");
         assertThat(type(result, "Order").members()).extracting(MemberModel::name)
             .containsExactly("orderDate");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.WARNING,
                 "ORDER-DATE-X redefines ORDER-DATE and is skipped"));
         assertThat(result.hasErrors()).isFalse();
@@ -210,7 +211,7 @@ class ModelMapperTest {
     @Test
     void elementaryRedefinesOfAMissingItemIsSkipped() {
         MapResult result = map("01 ORDER.", "05 A PIC X(2).", "05 B REDEFINES NOWHERE PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity)
             .containsExactly(Severity.WARNING);
     }
 
@@ -241,7 +242,7 @@ class ModelMapperTest {
     @Test
     void conditionsAreInfo() {
         MapResult result = map("01 ORDER.", "05 STATUS PIC X.", "88 STATUS-OPEN VALUE 'O'.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.INFO, "condition STATUS-OPEN is ignored"));
     }
 
@@ -250,9 +251,10 @@ class ModelMapperTest {
         MapResult result = map("01 ORDER.", "05 QTY OCCURS 5 PIC 9(4) COMP.",
             "05 N PIC 9(2).", "05 OTHER OCCURS 5 DEPENDING ON N PIC 9(4) COMP.",
             "05 CODES OCCURS 5 PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.INFO, "QTY: a COMP value of 0 is all LOW-VALUES and"
-                + " cannot be written. Add dependsOn if the program has a count field."));
+                + " cannot be written. Link the count field with the option countFields if the"
+                + " program has one."));
     }
 
     @Test
@@ -276,9 +278,10 @@ class ModelMapperTest {
                 tuple(JavaType.INT, "S9(9) COMP"), tuple(JavaType.LONG, "9(9) COMP"),
                 tuple(JavaType.LONG, "S9(18) COMP"), tuple(JavaType.BIG_DECIMAL, "9(10) COMP"),
                 tuple(JavaType.BIG_DECIMAL, "S9(5)V99 COMP"));
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity).containsOnly(
-            Severity.WARNING);
-        assertThat(result.diagnostics().get(0).message()).isEqualTo("COMP-5 on A is mapped as"
+        List<Diagnostic> warnings = result.diagnostics().stream()
+            .filter(d -> d.severity() == Severity.WARNING).toList();
+        assertThat(warnings).hasSize(7);
+        assertThat(warnings.get(0).message()).isEqualTo("COMP-5 on A is mapped as"
             + " COMP. BookMap reads all binary values, but writes only values with at most 4"
             + " digits.");
     }

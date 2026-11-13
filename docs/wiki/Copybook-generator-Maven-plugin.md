@@ -124,6 +124,7 @@ The goal is declared thread-safe. Thus, Maven runs it in a parallel build (`-T`)
 | `packageName` | `bookmap.copybook.packageName` | none | The base package. It is required if a copybook exists and its options file does not set `package`. |
 | `lombok` | `bookmap.copybook.lombok` | `false` | Write Lombok annotations instead of getters and setters. |
 | `packagePerCopybook` | `bookmap.copybook.packagePerCopybook` | `false` | Add one package segment from the copybook name. See [Class name collisions](#class-name-collisions). |
+| `maxRecordLength` | `bookmap.copybook.maxRecordLength` | none | The maximum record length in bytes. A longer record gives a warning. See [Record length](Copybook-generator#record-length). |
 | `outputDir` | `bookmap.copybook.outputDir` | `${project.build.directory}/generated-sources/copybook` | The directory for the generated Java files. |
 | `includes` | none | `**/*.cpy` | The patterns of the copybook files in `sourceDir`. Your patterns replace the default. An empty list uses the default. |
 | `excludes` | none | none | The patterns of the files in `sourceDir` that are not copybooks. |
@@ -174,9 +175,13 @@ The file has the format of the [options file](Copybook-generator#options-file).
 
 - `package` in the file has priority over the package from the directories.
 - `lombok` in the file has priority over the `lombok` parameter.
+- `maxRecordLength` in the file has priority over the `maxRecordLength` parameter.
 - `copyDirs` in the file come first in the search order. The `copyDirs` parameter comes after them.
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file.
+
+Mapping options such as `stripPrefixes`, `directions`, `subTypes`, and `countFields` name items of one copybook. Thus, the goal has no parameter for them. Put them in the options file.
+For example, `countFields` links a count field to a fixed table. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table).
 
 If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The message starts with the path of the file.
 
@@ -241,7 +246,7 @@ Maven has no input and output tracking. The goal does its own check:
   - the copybooks and all `.json` files below `sourceDir`. The `excludes` do not apply to the `.json` files;
   - the files directly in each copy directory, not in its subdirectories;
   - the order of the copy directories;
-  - the parameters `packageName`, `lombok`, `packagePerCopybook`, `outputDir`, `includes`, and `excludes`;
+  - the parameters `packageName`, `lombok`, `packagePerCopybook`, `maxRecordLength`, `outputDir`, `includes`, and `excludes`;
   - the plugin version.
 - In the next build, if the fingerprint is the same and `outputDir` exists, the goal logs `The generated classes are up to date.` and does not generate again.
 - A changed, added, or removed file, or a changed parameter, makes the goal generate again. Each run deletes the old files in `outputDir` first, so a removed copybook removes its classes.
@@ -299,7 +304,7 @@ Give each execution its own `sourceDir` and its own `outputDir`. Each execution 
 
 ## Messages and build failures
 
-The goal writes each diagnostic of the generator to the Maven log as `[ERROR]` or `[WARNING]`. An `info:` diagnostic also shows as `[WARNING]`.
+The goal writes each diagnostic of the generator to the Maven log as `[ERROR]`, `[WARNING]`, or `[INFO]`. An `info:` diagnostic shows as `[INFO]`.
 The file in each line is the name of the copybook or of the `COPY` member, without the directory.
 
 - The goal checks all copybooks before it fails. Then the build fails with `N copybook(s) have errors. See the messages above.`
@@ -394,7 +399,7 @@ bookmap-examples-maven-plugin/
   mainframe-model/
     src/main/copybook/orders/GET-ORDER.cpy           -> package ...orders
     src/main/copybook/billing/GET-INVOICE.cpy        -> package ...billing
-    src/main/copybook/billing/GET-INVOICE.json       { "stripPrefixes": ["INV-"] }
+    src/main/copybook/billing/GET-INVOICE.json       { "stripPrefixes": ["INV-"], "countFields": {...} }
     src/main/copylib/ADDRESS.cpy                     the COPY member
   orders-service/
     src/test/java/.../MavenPluginEndToEndTest.java   a test with the simulator transport

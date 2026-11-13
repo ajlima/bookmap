@@ -92,6 +92,7 @@ class PluginDescriptorTest {
         expected.put("packageName", "${bookmap.copybook.packageName}|");
         expected.put("lombok", "${bookmap.copybook.lombok}|false");
         expected.put("packagePerCopybook", "${bookmap.copybook.packagePerCopybook}|false");
+        expected.put("maxRecordLength", "${bookmap.copybook.maxRecordLength}");
         expected.put("outputDir", "${bookmap.copybook.outputDir}|"
             + "${project.build.directory}/generated-sources/copybook");
         expected.put("skip", "${bookmap.copybook.skip}|false");

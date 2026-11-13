@@ -2,6 +2,7 @@ package pt.dazz.bookmap.copybook.map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static pt.dazz.bookmap.copybook.map.Mapping.diagnostics;
 import static pt.dazz.bookmap.copybook.map.Mapping.map;
 import static pt.dazz.bookmap.copybook.map.Mapping.member;
 import static pt.dazz.bookmap.copybook.map.Mapping.type;
@@ -73,7 +74,7 @@ class RedefinesMappingTest {
     @Test
     void directionSplitByMarkers() {
         MapResult result = map(INVOICE);
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(diagnostics(result)).isEmpty();
         ClassModel invoice = type(result, "GetInvoice");
         assertThat(invoice.members()).extracting(MemberModel::name, MemberModel::direction,
                 MemberModel::order)
@@ -180,9 +181,9 @@ class RedefinesMappingTest {
     void bothMarkersIsAWarning() {
         MapResult result = map("01 ORDER.", "05 IN-OUT-DATA.", "10 X PIC X.",
             "05 OUT-DATA REDEFINES IN-OUT-DATA.", "10 Y PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity)
             .containsExactly(Severity.WARNING, Severity.ERROR);
-        assertThat(result.diagnostics().get(0).message()).isEqualTo("IN-OUT-DATA has an input"
+        assertThat(diagnostics(result).get(0).message()).isEqualTo("IN-OUT-DATA has an input"
             + " marker and an output marker. Its direction is not clear.");
     }
 
@@ -207,7 +208,7 @@ class RedefinesMappingTest {
     })
     void directionDecisionErrors(String name, String message) {
         MapResult result = map(directions(Map.of(name, Direction.INPUT)), INVOICE);
-        assertThat(result.diagnostics()).extracting(Diagnostic::source, Diagnostic::line,
+        assertThat(diagnostics(result)).extracting(Diagnostic::source, Diagnostic::line,
                 Diagnostic::message)
             .containsExactly(tuple("ORDER.cpy", 1, message));
     }
@@ -241,7 +242,7 @@ class RedefinesMappingTest {
     @Test
     void subtypesFromDecision() {
         MapResult result = map(subTypes(Map.of("SAVINGS-DATA", accountDecision())), ACCOUNT);
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(diagnostics(result)).isEmpty();
         ClassModel account = type(result, "GetAccount");
         assertThat(account.subTypes()).isEqualTo(new SubTypes("accountType", List.of(
             new SubTypeEntry("01", "CheckingData"), new SubTypeEntry("02", "SavingsAccount"))));
@@ -335,8 +336,8 @@ class RedefinesMappingTest {
             "01 GET-ACCOUNT.", "05 ACCOUNT-TYPE PIC 9(2).", "05 CHECKING-DATA.",
             "10 LIMITS.", "15 L1 PIC 9.", "10 OTHER-LIMITS REDEFINES LIMITS.", "15 L2 PIC 9.",
             "05 SAVINGS-DATA REDEFINES CHECKING-DATA.", "10 RATE PIC 9.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::line,
-                Diagnostic::message)
+        assertThat(result.diagnostics()).filteredOn(d -> d.severity() != Severity.INFO)
+            .extracting(Diagnostic::severity, Diagnostic::line, Diagnostic::message)
             .containsExactly(tuple(Severity.WARNING, 6, "the REDEFINES area LIMITS is inside"
                 + " another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS."
                 + " See issues #38 and #39."));
@@ -351,8 +352,8 @@ class RedefinesMappingTest {
             "05 ORDER-OUT REDEFINES ORDER-IN.", "10 Z PIC X(2).");
         assertThat(errors(result)).containsExactly("C redefines A and is longer than A."
             + " BookMap keeps A, so the items after it would move.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
-            .containsExactly(Severity.WARNING, Severity.ERROR);
+        assertThat(result.diagnostics()).filteredOn(d -> d.severity() != Severity.INFO)
+            .extracting(Diagnostic::severity).containsExactly(Severity.WARNING, Severity.ERROR);
         MapResult accepted = map("01 ORDER.", "05 ORDER-IN.", "10 A OCCURS 2.", "15 X PIC X.",
             "10 B REDEFINES A.", "15 Y PIC X(2).", "05 ORDER-OUT REDEFINES ORDER-IN.",
             "10 Z PIC X(2).");

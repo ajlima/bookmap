@@ -45,6 +45,7 @@ public class BookmapCopybookPlugin implements Plugin<Project> {
                 t.getPackageName().set(spec.getPackageName());
                 t.getLombok().set(spec.getLombok());
                 t.getPackagePerCopybook().set(spec.getPackagePerCopybook());
+                t.getMaxRecordLength().set(spec.getMaxRecordLength());
                 t.getOutputDir().set(spec.getOutputDir());
             });
 

@@ -72,7 +72,13 @@ final class Mirrors {
         return values;
     }
 
-    private static Object value(AnnotationValue value) {
+    /**
+     * Gives the value of one attribute. An enum constant gives its name.
+     *
+     * @param value the attribute value
+     * @return the value, or {@link #UNRESOLVED} if javac could not resolve it
+     */
+    static Object value(AnnotationValue value) {
         Object raw = value.getValue();
         // javac gives the text "<error>" for an unresolved value. A string literal with the
         // same text is a correct value: its source form has quotes.
