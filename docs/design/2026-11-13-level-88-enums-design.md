@@ -1,7 +1,7 @@
 # bookmap — Enums from level 88 items and `VALUE` initial values (design)
 
 Date: 2026-11-13
-Status: proposed.
+Status: implemented in v0.19.0. The enum fields of the core and the processor are in v0.14.0.
 Base package: `pt.dazz.bookmap`
 Parent specs: `2026-11-10-bookmap-design.md`, `2026-11-11-bookmap-copybook-design.md`
 Issue: [#36](https://github.com/ajlima/bookmap/issues/36)

@@ -1,7 +1,7 @@
 # BookMap Spring Boot auto-configuration of the transports: design
 
 Date: 2026-11-13
-Status: approved, not released.
+Status: implemented in v0.13.0. The CTG part is in v0.11.0, and the HTTP part is in v0.12.0.
 
 Related documents: `docs/design/2026-11-10-bookmap-design.md` (the main design, section 5.12), `docs/design/2026-11-13-ctg-transport-design.md` (#26), `docs/design/2026-11-13-mq-transport-design.md` (#27), `docs/design/2026-11-13-http-transport-design.md` (#28), `CLAUDE.md` (project rules), GitHub issue #29.
 

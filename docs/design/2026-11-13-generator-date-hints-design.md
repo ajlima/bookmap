@@ -1,7 +1,7 @@
 # Copybook generator: date hints and optional Continuable/Validatable (design)
 
 Date: 2026-11-13
-Status: proposed.
+Status: implemented in v0.18.0.
 Issue: [#35](https://github.com/ajlima/bookmap/issues/35)
 Parent spec: `2026-11-11-bookmap-copybook-design.md`
 

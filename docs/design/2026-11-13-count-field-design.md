@@ -1,7 +1,7 @@
 # Copybook generator: count field of a fixed table
 
 Date: 2026-11-13
-Status: proposed.
+Status: implemented in v0.16.0.
 
 Related documents: `docs/design/2026-11-11-bookmap-copybook-design.md` (the copybook generator), `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` (fixed collections and count mode), GitHub issue #81.
 

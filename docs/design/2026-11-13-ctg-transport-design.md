@@ -1,7 +1,7 @@
 # BookMap CICS Transaction Gateway transport: design
 
 Date: 2026-11-13
-Status: approved, not released.
+Status: implemented in v0.8.0.
 
 Related documents: `docs/design/2026-11-10-bookmap-design.md` (the main design, sections 2.2, 5.9, and 5.10), `CLAUDE.md` (project rules), GitHub issue #26.
 
