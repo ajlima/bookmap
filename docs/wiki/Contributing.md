@@ -113,6 +113,7 @@ scripts/update-verification-metadata.sh
 ```
 
 The script downloads all dependencies into a temporary Gradle user home. Then it writes the two files again.
+The script also runs the mutation tests, so it takes some minutes more than `./gradlew build`.
 Read the diff of the two files, and commit them with the dependency change.
 Do this also on the branch of a Dependabot pull request for Gradle.
 For more information, see "Supply-chain protection" in [RELEASING.md](https://github.com/ajlima/bookmap/blob/main/RELEASING.md).
