@@ -166,7 +166,7 @@ The parser accepts this clause in a data description entry:
 
 ### 10.2 The effective sign
 
-The layout step resolves the effective sign of each elementary item:
+The parser resolves the effective sign of each elementary item, in the check step after the parse:
 
 1. The clause of the item, if it has one.
 2. Else the clause of the nearest group that has one.
