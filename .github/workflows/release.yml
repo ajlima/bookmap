@@ -20,7 +20,7 @@
 #      The release job does not wait for it: if it fails, run the job again.
 #   4. The release job runs after a successful publish. It has write access and runs no Gradle
 #      build. It creates the tag vX.Y.Z and a GitHub release with the JARs that the publish
-#      job sent to Maven Central (the same bytes). Then it sets the new version in the README files
+#      job staged for Maven Central (the same bytes). Then it sets the new version in the README files
 #      (scripts/set-readme-version.sh) and pushes the commit "docs: set the README version to
 #      X.Y.Z" to main. A docs commit gives no new release. The push uses a short-lived token of
 #      the BookMap release GitHub App, because the ruleset on main blocks the GITHUB_TOKEN and a
@@ -146,29 +146,11 @@ jobs:
           done
           ./gradlew publishAndReleaseToMavenCentral --no-daemon -PreleaseVersion="$NEW_VERSION"
 
-      # The GitHub release gets the same bytes that went to Maven Central.
-      - name: Collect the published JARs
-        run: |
-          mkdir -p published
-          for module in bookmap-core bookmap-processor bookmap-transport-simulator bookmap-spring-boot \
-                        bookmap-copybook bookmap-copybook-cli bookmap-copybook-gradle-plugin \
-                        bookmap-copybook-maven-plugin; do
-            cp "$module"/build/libs/*.jar published/
-          done
-          ls -l published
-
-      - name: Upload the published JARs
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: published-jars
-          path: published/*.jar
-          if-no-files-found: error
-          retention-days: 7
-
       # The publish plugin (com.vanniktech.maven.publish) stages the files of each module in
       # build/publishing/mavenCentral, then uploads them in one bundle. The attest job attests
-      # these files, so the attested bytes are the bytes on Maven Central.
-      - name: Upload the published files for the attestation
+      # these files, and the release job attaches the JARs of these files to the GitHub release.
+      # Thus the attested bytes, the GitHub release, and Maven Central have the same bytes.
+      - name: Upload the published files
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: maven-central-files
@@ -215,10 +197,10 @@ jobs:
       # The GitHub release uses the GITHUB_TOKEN. The README push uses the token of the app.
       contents: write
     steps:
-      - name: Download the published JARs
+      - name: Download the published files
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: published-jars
+          name: maven-central-files
           path: release
 
       - name: Create the tag and the GitHub release
@@ -228,7 +210,7 @@ jobs:
           name: BookMap ${{ needs.build.outputs.new_version }}
           target_commitish: ${{ github.sha }}
           body: ${{ needs.build.outputs.changelog }}
-          files: release/*.jar
+          files: release/**/*.jar
           fail_on_unmatched_files: true
 
       - name: Check the release app settings
