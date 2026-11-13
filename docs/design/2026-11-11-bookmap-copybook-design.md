@@ -104,17 +104,17 @@ The CLI and the future plugins must not need more than this API.
 - Support the common tag convention, for example `REPLACING ==:PREFIX:== BY ==ORD==` on `05 :PREFIX:-ID`. The builder chooses the exact matching rule. Tests must cover this case.
 - A nested `COPY` is supported. A cycle is an error.
 - A missing member is an error.
-- The `REPLACE` statement is an error.
+- The `REPLACE` statement is an error. The 2026-11-13 design changes this: the generator applies it.
 
 ### 4.3 Data items
 
-The parser reads data description entries with these clauses:
+The parser reads data description entries with these clauses. The design `2026-11-13-generator-accept-items-design.md` changes the rows for level 66, level 77, `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO`, `COMP-5`, `INDEX`, and `POINTER`, and the `REPLACE` statement.
 
 | Clause | Parse result |
 |---|---|
 | Level `01`–`49` | Item in the tree. |
-| Level `66` (`RENAMES`) | Error (not supported by BookMap). |
-| Level `77` | Error. **[builder call]** |
+| Level `66` (`RENAMES`) | Ignored (info diagnostic). Changed by the 2026-11-13 design. |
+| Level `77` | Skipped (warning). Changed by the 2026-11-13 design. |
 | Level `88` | Condition. Kept in the AST, ignored by the mapper (info diagnostic). |
 | Name or `FILLER` (or no name, which COBOL treats as `FILLER`) | Name. |
 | `PIC` / `PICTURE` | Picture string. |
@@ -125,8 +125,10 @@ The parser reads data description entries with these clauses:
 | `REDEFINES name` | Redefinition. |
 | `VALUE` / `VALUES` | Accepted and ignored. |
 | `SIGN TRAILING` without `SEPARATE` | Accepted (the BookMap default). |
-| `SIGN LEADING`, `SIGN ... SEPARATE`, `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO` | Error. |
-| `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL` | Error. |
+| `SIGN LEADING`, `SIGN ... SEPARATE` | Error. |
+| `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO` | Accepted. Changed by the 2026-11-13 design. |
+| `COMP-1`, `COMP-2`, `POINTER`, `NATIONAL` | Error. |
+| `COMP-5`, `INDEX` | Accepted as `COMP`. Changed by the 2026-11-13 design. |
 | Edited pictures (`Z`, `*`, `,`, `.`, `+`, `-`, `CR`, `DB`, `B`, `0`, `/`), `P`, `A`, `N` | Error. |
 
 The parser keeps the line and column of each item for diagnostics. The parser also keeps the normalized declaration text, for example `05 ORDER-AMOUNT PIC S9(7)V99 COMP-3.`.

@@ -1,6 +1,7 @@
 package pt.dazz.bookmap.copybook.parse;
 
 import java.util.Locale;
+import pt.dazz.bookmap.copybook.ast.Usage;
 
 /**
  * Describes a picture string that BookMap supports: {@code X(n)} or {@code S9(n)V9(m)}.
@@ -26,6 +27,21 @@ public record Picture(String text, boolean numeric, boolean signed, int integerD
     }
 
     /**
+     * Gives the number of bytes of an elementary item with this picture, with the BookMap rules.
+     *
+     * @param usage the effective usage
+     * @return the number of bytes
+     */
+    public int byteLength(Usage usage) {
+        int length = length();
+        return switch (usage) {
+            case DISPLAY -> length;
+            case COMP3 -> length / 2 + 1;
+            case COMP, COMP5 -> length <= 4 ? 2 : length <= 9 ? 4 : 8;
+        };
+    }
+
+    /**
      * Parses a picture string.
      *
      * @param text the picture string
@@ -39,18 +55,18 @@ public record Picture(String text, boolean numeric, boolean signed, int integerD
         for (char c : symbols.toCharArray()) {
             if (EDIT_SYMBOLS.indexOf(c) >= 0) {
                 throw new IllegalArgumentException(
-                    "edited picture " + upper + " is not supported by BookMap");
+                    "edited picture " + upper + " is not supported by BookMap. See issue #48.");
             }
         }
         // DB is caught above through B.
         if (symbols.contains("CR")) {
             throw new IllegalArgumentException(
-                "edited picture " + upper + " is not supported by BookMap");
+                "edited picture " + upper + " is not supported by BookMap. See issue #48.");
         }
         for (char c : new char[] {'P', 'A', 'N'}) {
             if (symbols.indexOf(c) >= 0) {
-                throw new IllegalArgumentException(
-                    "picture symbol " + c + " is not supported by BookMap");
+                throw new IllegalArgumentException("picture symbol " + c
+                    + " is not supported by BookMap" + (c == 'N' ? ". See issue #49." : ""));
             }
         }
         try {

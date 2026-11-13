@@ -133,10 +133,13 @@ In both formats, lower case is permitted. The generator changes the names and th
 
 ### Levels
 
-- Levels 01 to 49 and 88 are permitted. Each level `01` gives one class with `@BookOperation`.
+- Levels 01 to 49, 66, 77, and 88 are permitted. Each level `01` gives one class with `@BookOperation`.
 - One copybook can have more than one level `01`. Each one gives its own class.
 - If the first item is not level `01`, the generator adds a record. The record name comes from `recordName`.
-- Level 66 and level 77 are errors: `level 66 is not supported by BookMap`. Another level is an error, for example `level 50 is not valid`.
+- A level 66 item (`RENAMES`) adds no bytes. The generator ignores it, with an `info` diagnostic: `level 66 item AB is ignored. RENAMES adds no bytes.`
+- A level 77 item is not part of a record. The generator skips it, with a warning: `level 77 item COUNTER is not part of a record and is skipped`.
+- A level 77 item ends the record. Put a level `01` before the next item of level 02 to 49. Otherwise, the error is `level 05 item D must follow a level 01 item, not a level 77 item`.
+- Another level is an error, for example `level 50 is not valid`.
 - A level `01` with `REDEFINES` gives a warning: `record OTHER-REC redefines record MAIN-REC. Both records are kept.`
 - A group with a `PIC` is an error: `GRP is a group and must not have a PIC`. An elementary item without a `PIC` is an error: `NOPIC has no PIC`.
 - A level 88 must follow an item: `a level 88 condition needs an item before it`.
@@ -147,6 +150,11 @@ In both formats, lower case is permitted. The generator changes the names and th
 |---|---|
 | `PIC` or `PICTURE [IS]` with `X`, `9`, `S` (first), `V`, and repeat counts | Accepted. |
 | `USAGE [IS]` with `DISPLAY`, `COMP`, `COMPUTATIONAL`, `COMP-4`, `COMPUTATIONAL-4`, `BINARY`, `COMP-3`, `COMPUTATIONAL-3`, `PACKED-DECIMAL` | Accepted. A usage on a group applies to its items. |
+| `COMP-5`, `COMPUTATIONAL-5` | Accepted as `COMP`, with a warning. See [COMP-5](#comp-5). |
+| `INDEX` | Accepted as `PIC S9(9) COMP`, with an `info` diagnostic. See [INDEX](#index). |
+| `SYNC`, `SYNCHRONIZED`, with `LEFT` or `RIGHT` | Accepted. The generator adds slack bytes. See [SYNC](#sync). |
+| `JUSTIFIED`, `JUST`, with `RIGHT` | Accepted, with a warning: `JUSTIFIED on D is ignored. BookMap writes the text on the left and keeps the spaces on the left when it reads.` |
+| `BLANK [WHEN] ZERO`, `ZEROS`, or `ZEROES` | Accepted, with an `info` diagnostic: `BLANK WHEN ZERO on F is ignored. BookMap reads spaces as no value and writes zero as digits.` |
 | `OCCURS n [TIMES]` | Accepted: a fixed collection. |
 | `OCCURS m TO n [TIMES] DEPENDING [ON] name [OF\|IN group]` | Accepted: a variable collection. |
 | `REDEFINES` | Accepted. See [Directions](#directions) and [Subtypes](#subtypes). |
@@ -154,9 +162,12 @@ In both formats, lower case is permitted. The generator changes the names and th
 | `VALUE`, `VALUES` | Ignored, without a diagnostic. |
 | Level 88 | Ignored, with an `info` diagnostic: `condition CARD-ACCOUNT is ignored`. |
 | `INDEXED BY`, `ASCENDING KEY`, `DESCENDING KEY` | Ignored, with an `info` diagnostic, for example `INDEXED is ignored`. |
-| `LEADING`, `SEPARATE`, `SYNC`, `SYNCHRONIZED`, `JUST`, `JUSTIFIED`, `BLANK`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL` | Error, for example `LEADING is not supported by BookMap`. |
-| Edited pictures with `Z * , . + - B 0 / CR DB` | Error, for example `edited picture ZZ9 is not supported by BookMap`. |
-| Pictures with `P`, `A`, or `N` | Error, for example `picture symbol A is not supported by BookMap`. |
+| `LEADING`, `SEPARATE` | Error: `LEADING is not supported by BookMap. See issue #47.` |
+| `COMP-1`, `COMP-2`, `COMPUTATIONAL-1`, `COMPUTATIONAL-2` | Error: `COMP-1 is not supported by BookMap. See issue #46.` |
+| `NATIONAL` | Error: `NATIONAL is not supported by BookMap. See issue #49.` |
+| `POINTER` | Error. See [POINTER](#pointer). |
+| Edited pictures with `Z * , . + - B 0 / CR DB` | Error, for example `edited picture ZZ9 is not supported by BookMap. See issue #48.` |
+| Pictures with `P`, `A`, or `N` | Error, for example `picture symbol A is not supported by BookMap`. The message for `N` gives issue #49. |
 | A picture with an incorrect form, for example `X9` | Error: `picture X9 is not valid`. |
 | Another word | Error, for example `unknown clause FOO`. |
 
@@ -164,8 +175,66 @@ Other errors:
 
 - `A12 has a text picture and must not have COMP or COMP-3`
 - `A13: COMP supports at most 18 digits`
+- `BLANK needs WHEN ZERO`
+- `the INDEX item IDX must not have a PIC`
 
 The diagnostic of a level 88 gives the line of its parent item, not the line of the level 88.
+
+### SYNC
+
+`SYNC` aligns a binary item (`COMP`, `COMP-4`, `BINARY`, `COMP-5`, or `INDEX`) on a boundary from the start of the record. The generator uses the rules of IBM Enterprise COBOL:
+
+| Item | Boundary |
+|---|---|
+| Binary, 1 to 4 digits | 2 bytes |
+| Binary, 5 to 18 digits, and `INDEX` | 4 bytes |
+
+If the item is not on its boundary, the compiler adds slack bytes before it. The generator adds a `FILLER` with the same length, with an `info` diagnostic: `SYNC adds 1 slack byte before B. The generator adds a FILLER.`
+
+- `SYNC` on a group applies to each item in the group.
+- `SYNC` on a `DISPLAY` or `COMP-3` item has no effect and gives no diagnostic.
+- Each alternative of a `REDEFINES` area starts at the offset of the redefined item.
+- In an `OCCURS`, the generator cannot add slack bytes. An item that needs them is an error: `SYNC on B in OCCURS T needs slack bytes. BookMap cannot add them in a table. Align the item by hand.`
+- An elementary item with `REDEFINES` that needs slack bytes is an error: `SYNC on C needs slack bytes, but C has REDEFINES. Align the item by hand.`
+
+**CAUTION:** If the copybook has no level `01`, the generator does not know the offset of the copybook in the record. It assumes offset 0, with a warning: `the copybook has no level 01. SYNC assumes that ORDER starts on a doubleword boundary.` Make sure that the first item starts on a doubleword boundary. Otherwise, the offsets are incorrect.
+
+### COMP-5
+
+A `COMP-5` item has the same bytes as a `COMP` item. But it can hold all values of its bytes, for example 65535 in a `PIC 9(4) COMP-5`.
+
+- The `pic` of the field is `COMP`, for example `pic = "9(4) COMP"`. The Javadoc keeps `COMP-5`.
+- The Java type holds all values of the bytes:
+
+| Picture | Java type |
+|---|---|
+| 1 to 4 digits | `int` |
+| 5 to 9 digits, signed | `int` |
+| 5 to 9 digits, unsigned | `long` |
+| 10 to 18 digits, signed | `long` |
+| 10 to 18 digits, unsigned, or decimals | `BigDecimal` |
+
+BookMap reads all values. But it writes only the values with the digits of the picture. A larger value gives a `MappingException`. The generator gives a warning: `COMP-5 on I is mapped as COMP. BookMap reads all binary values, but writes only values with at most 4 digits.`
+
+### INDEX
+
+An index data item (`USAGE INDEX`) has no `PIC`. It has 4 bytes of signed binary data: a byte offset in a table.
+
+The generator maps it as `PIC S9(9) COMP`, with the Java type `int`. The `info` diagnostic is `INDEX item IDX is mapped as PIC S9(9) COMP. Its value is a byte offset in a table.`
+`USAGE INDEX` on a group applies to each item in the group.
+
+### POINTER
+
+A `POINTER` item is an error. Its size is 4 or 8 bytes, and it depends on the compiler option `LP`. The copybook does not give this option.
+The message is `POINTER is not supported by BookMap: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with the REPLACE statement.`
+
+Use the [REPLACE statement](#the-replace-statement) to change the item without a change to the copybook file:
+
+```cobol
+           REPLACE ==USAGE POINTER== BY ==PIC X(4)==.
+```
+
+Write the old text as it is in the copybook. For `05 P POINTER.`, use `==POINTER==`.
 
 ## COPY members
 
@@ -197,7 +266,6 @@ The parser expands each `COPY` statement with the member from a copy directory.
 - To replace a picture string, put `PIC` in the pseudo-text: `==PIC S9(5)V99== BY ==PIC S9(7)V99==`.
 - The generator applies the replacements one time. It does not scan the replaced text again.
 - `REPLACING LEADING` and `REPLACING TRAILING` are not supported. They give `REPLACING needs BY`.
-- The `REPLACE` statement is an error: `the REPLACE statement is not supported by BookMap`.
 
 ```
       * lib/PARTY.cpy
@@ -215,6 +283,27 @@ The class `Shipment` gets the fields `senderName`, `senderPhone`, `receiverName`
 
 Other messages of the `COPY` statement: `COPY needs a member name`, `REPLACING needs a value after BY`, `the COPY statement has an unknown word X`, `the COPY statement has no closing period`, `the pseudo-text has no closing ==`, and `the literal has no closing quote`.
 
+### The REPLACE statement
+
+The `REPLACE` statement changes the text after it, as in a COBOL compiler.
+
+- Write `REPLACE ==old== BY ==new==.` Give one or more pairs. The operands must be pseudo-text.
+- A new `REPLACE` statement replaces the current pairs. `REPLACE OFF.` stops the replacements.
+- The generator applies `REPLACE` after the `COPY` expansion and after `REPLACING`. Thus, it also changes the text of the `COPY` members.
+- The comparison and the tags (`==:PFX:==`) follow the rules of [REPLACING](#replacing).
+
+```cobol
+           REPLACE ==:TAG:== BY ==TRK==.
+       01  GET-TRACKING.
+           05  :TAG:-SHIPMENT-ID        PIC X(10).
+           REPLACE OFF.
+```
+
+The field is `trkShipmentId`.
+
+Messages: `REPLACE needs pseudo-text, for example REPLACE ==A== BY ==B==.`, `REPLACE needs BY`, `REPLACE needs a text to replace`, `the REPLACE statement has an unknown word X`, and `the REPLACE statement has no closing period`.
+`REPLACE ALSO` and `REPLACE LAST` are not supported. They give the pseudo-text message.
+
 ## Mapping
 
 | COBOL | Java |
@@ -230,6 +319,9 @@ Other messages of the `COPY` statement: `COPY needs a member name`, `REPLACING n
 | `REDEFINES` of an elementary item | The first definition. The other item is skipped, with a warning: `E2 redefines E1 and is skipped`. See [REDEFINES of an elementary item](#redefines-of-an-elementary-item). |
 | `REDEFINES` of a group | A direction split or subtypes. See the next sections. |
 | Level `88`, `VALUE` | Ignored. A level 88 gives an `info` diagnostic. |
+| Level `66` | Ignored, with an `info` diagnostic. |
+| Level `77` | Skipped, with a warning. |
+| `SYNC` on a binary item | A slack `FILLER` before the item, if necessary. See [SYNC](#sync). |
 
 | Picture | Java type |
 |---|---|
@@ -284,7 +376,7 @@ The class names are compared without case. If an item class name is in use, the 
 | `DEPENDING ON item LATER must be in the same class, before the table` | The count item is after the table, or in another class. |
 | `DEPENDING ON item CNTX must be an integer` | The count item is text, or has decimals. |
 | `DEPENDING ON item CNT has 1 digits and cannot hold 20` | The count item is too small for the maximum. |
-| `OCCURS T4B is inside OCCURS T4. BookMap does not support nested collections.` | A table in a table. |
+| `OCCURS T4B is inside OCCURS T4. BookMap does not support nested collections. See issue #43.` | A table in a table. |
 
 ### Count field of a fixed table
 
@@ -355,6 +447,16 @@ The generator keeps the first definition and skips the other item, with the warn
 
 - The redefining item is longer: `E3 redefines E1 and is longer than E1. BookMap keeps E1, so the items after it would move.`
 - An elementary item redefines a group: `... is an elementary item that redefines the group ... BookMap does not support this.`
+
+### A REDEFINES area in another REDEFINES area
+
+BookMap cannot map a group `REDEFINES` area in an alternative of another area (see issues #38 and #39). The generator uses the rule of an elementary item: it keeps the redefined group, and it skips each group that redefines it, with a warning:
+
+```
+the REDEFINES area LIMITS is inside another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS. See issues #38 and #39.
+```
+
+The bytes of the skipped group stay in the fields of the kept group. A skipped group that is longer than the kept group is an error: `C redefines A and is longer than A. BookMap keeps A, so the items after it would move.`
 
 ### Example
 
@@ -606,6 +708,9 @@ The warning does not stop the generation. To make the record shorter, decrease t
 - The generator does not detect dates. A `PIC 9(8)` date stays an `int`.
 - The generated operation classes do not implement `Continuable` or `Validatable`. In scaffold mode, add them by hand.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields if the program has one.`
-- These items are errors: level `66` and `77`, `SIGN LEADING`, `SEPARATE`, `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL`, edited pictures, `P`, `A`, `N`, `REPLACE`, an `OCCURS` in an `OCCURS`, and a `REDEFINES` area in another one.
+- These items are errors: `SIGN LEADING` and `SEPARATE` (#47), `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), edited pictures (#48), `POINTER`, `P`, `A`, and an `OCCURS` in an `OCCURS` (#43).
+- The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).
+- `SYNC` in an `OCCURS` is an error if the item needs slack bytes.
+- BookMap writes a `COMP-5` value only if it has the digits of the picture.
 
 The [Roadmap](Roadmap) lists the plan for these limitations.
