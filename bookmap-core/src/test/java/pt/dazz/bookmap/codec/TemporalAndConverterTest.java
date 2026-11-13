@@ -289,6 +289,26 @@ class TemporalAndConverterTest {
             .hasCause(failure);
     }
 
+    @Test void converterExceptionWithoutMessageNamesTheClass() {
+        FieldConverter<Boolean> failing = new FieldConverter<>() {
+            @Override public Boolean decode(byte[] bytes, FieldContext context) {
+                throw new IllegalStateException();
+            }
+
+            @Override public byte[] encode(Boolean value, FieldContext context) {
+                throw new IllegalStateException();
+            }
+        };
+        var w = new BookWriter(EBCDIC);
+        assertThatThrownBy(() -> w.writeConverted(F, true, failing, ONE_BYTE))
+            .isInstanceOf(MappingException.class)
+            .hasMessage(F + ": converter failed (java.lang.IllegalStateException)");
+        var r = new BookReader(new byte[1], EBCDIC);
+        assertThatThrownBy(() -> r.readConverted(F, failing, ONE_BYTE))
+            .isInstanceOf(MappingException.class)
+            .hasMessage(F + ": converter failed (java.lang.IllegalStateException)");
+    }
+
     @Test void bookmapExceptionFromConverterPassesThrough() {
         var original = new BookmapException("own error") { };
         FieldConverter<Boolean> failing = new FieldConverter<>() {

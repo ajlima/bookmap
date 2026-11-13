@@ -119,7 +119,7 @@ Most messages start with the field. The field has the format `Owner.field (order
 | `<field>: value <value> does not fit int` | A number in the response is too large for the Java type. |
 | `<field>: byte 0xNN at offset K of the field is not valid in a packed decimal` | The response has bytes that are not a `COMP-3` number. The same message exists for a zoned decimal (`DISPLAY`). |
 | `<field>: value <value> cannot be represented by the pattern (...)` | The date or time pattern cannot keep the value. See [Dates and times](PIC-syntax-and-type-mapping#dates-and-times). |
-| `<field>: converter failed (<message>)` | Your `FieldConverter` threw a `RuntimeException`. The cause is the original exception. A `BookmapException` from a converter goes to the caller unchanged. |
+| `<field>: converter failed (<message>)` | Your `FieldConverter` threw a `RuntimeException`. The cause is the original exception. When the exception has no message, the message is the exception class. A `BookmapException` from a converter goes to the caller unchanged. |
 | `<field>: converter must return N bytes but returned M bytes` | Your `FieldConverter` returned the wrong number of bytes. |
 
 For the messages of collections and subtypes, see [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#messages) and [Subtypes (REDEFINES)](Subtypes-REDEFINES#behavior).
