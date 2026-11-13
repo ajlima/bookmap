@@ -100,7 +100,7 @@ Set `bookmap.transport.type` to select the transport auto-configuration:
 | Value | Transport | Add to the class path |
 |---|---|---|
 | `ctg` | [CICS Transaction Gateway](#cics-transaction-gateway) | `bookmap-transport-ctg` and the IBM library `ctgclient.jar`. |
-| `mq` | IBM MQ. This version has no auto-configuration for it. | Declare a `Transport` bean. |
+| `mq` | [IBM MQ](#ibm-mq) | `bookmap-transport-mq`. The context also needs a `jakarta.jms.ConnectionFactory` bean. |
 | `http` | [HTTP](#http) | `bookmap-transport-http`. |
 
 Without `bookmap.transport.type`, no transport auto-configuration runs. Then declare a `Transport` bean.
@@ -254,6 +254,66 @@ HttpTransportBuilderCustomizer bearerToken(TokenService tokens) {
 ```
 
 A customizer can also set your own `HttpClient`, for example with a proxy. Then do not set `connect-timeout`: the application does not start. Set the connect timeout on your client.
+
+## IBM MQ
+
+With `bookmap.transport.type=mq`, the auto-configuration creates an `MqTransport` bean from the `bookmap.transport.mq.*` properties.
+For the transport itself, see [IBM MQ](IBM-MQ).
+
+The transport needs a `jakarta.jms.ConnectionFactory` bean. BookMap does not create it. Use the IBM starter `com.ibm.mq:mq-jms-spring-boot-starter`: it creates the factory from the `ibm.mq.*` properties.
+Another source is also correct, for example the Artemis auto-configuration of Spring Boot, or your own `@Bean`.
+
+```kotlin
+dependencies {
+    implementation("pt.dazz.bookmap:bookmap-spring-boot:<version>")
+    implementation("pt.dazz.bookmap:bookmap-transport-mq:<version>")
+    implementation("com.ibm.mq:mq-jms-spring-boot-starter:<version>")   // IBM license
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:<version>")
+}
+```
+
+```properties
+ibm.mq.queue-manager=QM1
+ibm.mq.channel=APP.SVRCONN
+ibm.mq.conn-name=mq.example.com(1414)
+ibm.mq.user=ORDUSER
+ibm.mq.password=${MQ_PASSWORD}
+
+bookmap.transport.type=mq
+bookmap.transport.mq.default-reply-queue=ORDERS.REPLY
+bookmap.transport.mq.routes[GetCustomerOrders].request-queue=ORDERS.REQUEST
+bookmap.transport.mq.routes[GetInvoice].request-queue=INVOICE.REQUEST
+bookmap.transport.mq.routes[GetInvoice].reply-queue=INVOICE.REPLY
+```
+
+| Property | Default | Meaning |
+|---|---|---|
+| `bookmap.transport.mq.user` | none: the credentials of the factory. | The user for the connection. |
+| `bookmap.transport.mq.password` | none | The password for the connection. It needs a user. |
+| `bookmap.transport.mq.mq-native-messages` | `true` | Sends the messages without an RFH2 header. Set `false` only for a provider that is not IBM MQ. |
+| `bookmap.transport.mq.default-reply-queue` | none: a temporary queue. | The reply queue for a route without a reply queue. |
+| `bookmap.transport.mq.correlation` | `message-id` | `message-id` or `correlation-id`. See [Correlation](IBM-MQ#correlation). |
+| `bookmap.transport.mq.timeout` | `30s` | The maximum wait for the reply. It is also the expiry of the request message. |
+| `bookmap.transport.mq.persistent` | `false` | Sends persistent request messages. A temporary reply queue does not accept them. |
+| `bookmap.transport.mq.max-sessions` | `10` | The maximum number of open sessions. |
+| `bookmap.transport.mq.session-wait-timeout` | `30s` | The maximum wait for a free session. |
+| `bookmap.transport.mq.routes[<operation>].request-queue` | none | The request queue of the operation. Mandatory. |
+| `bookmap.transport.mq.routes[<operation>].reply-queue` | none: the default reply queue. | The reply queue of the operation. |
+
+Usually, the credentials are in the factory (`ibm.mq.user`, `ibm.mq.password`). Set `bookmap.transport.mq.user` only to use other credentials.
+
+**CAUTION:** Do not set `bookmap.transport.mq.user` with a `CachingConnectionFactory` or a `SingleConnectionFactory`. These factories do not accept a user and a password for each connection, and each exchange then fails. Put the credentials in the factory, or set `spring.jms.cache.enabled=false`.
+The rules of the routes and of the secrets are the same as for the [CICS Transaction Gateway](#cics-transaction-gateway).
+
+The application does not start in these cases: no route, a route without `request-queue`, a password without a user, persistent messages with a temporary reply queue, or no single `ConnectionFactory` bean.
+With two or more factories, mark one with `@Primary`, or declare an `MqConnector` bean.
+
+**CAUTION:** Spring Boot and the IBM starter can wrap the factory in a `CachingConnectionFactory`. Then all the sessions of the transport use one connection, and a broken connection affects all the sessions. The temporary reply queue of a session that the transport closes also stays open until the shared connection closes. To stop this, set `spring.jms.cache.enabled=false`, or use the pool of the IBM starter.
+
+### Customize the builder of the MQ transport
+
+An `MqTransportBuilderCustomizer` bean changes the builder after the properties, and before `build()`. The order is the `@Order` of the beans.
+Declare your own `MqConnector` bean to use another client, for example a fake in a test.
 
 ## Replace the beans
 
