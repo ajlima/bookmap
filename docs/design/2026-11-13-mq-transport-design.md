@@ -247,10 +247,10 @@ The IBM MQ classes for Jakarta Messaging use subclasses of these standard types.
 
 - The transport keeps a pool of open sessions. A `Semaphore` with `maxSessions` permits limits the number of sessions in use. A queue holds the free sessions.
 - To get a session, the transport waits for a permit, for a maximum of `sessionWaitTimeout`. Then it takes a free session from the queue, or it opens a new session.
-- After an exchange that gives a reply or a timeout, the session goes back to the queue.
-- After an `MqException` from `send` or `receive`, the transport closes the session and ignores an `MqException` from `close`. The next exchange opens a new session. Thus, the transport connects again after a broken connection.
+- After an exchange that gives a reply, the session goes back to the queue. After a timeout, the session goes back to the queue only if the reply queue is a named queue. A session with a temporary queue is closed: this deletes the queue and the late reply on it.
+- After an `MqException` from `send` or `receive`, the transport closes the session and ignores an `MqException` or a `RuntimeException` from `close`. The next exchange opens a new session. Thus, the transport connects again after a broken connection.
 - The permit is always released.
-- `close()` closes all free sessions and marks the transport closed. An `exchange` after `close()` throws `TransportException`. A session that is in use at `close()` is closed when its exchange ends. `close()` ignores an `MqException` of a session. A second `close()` does nothing.
+- `close()` closes all free sessions and marks the transport closed. An `exchange` after `close()` throws `TransportException`. A session that is in use at `close()` is closed when its exchange ends. `close()` ignores an `MqException` or a `RuntimeException` of a session. A second `close()` does nothing.
 
 The transport opens no session in `build()`. The first exchange opens the first session.
 

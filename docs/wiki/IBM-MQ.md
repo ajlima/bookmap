@@ -90,6 +90,8 @@ The transport selects the reply queue in this order:
 2. The default reply queue of the builder.
 3. A temporary queue of the session. IBM MQ makes it from the model queue of the factory (property `TEMPMODEL`, default `SYSTEM.DEFAULT.MODEL.QUEUE`).
 
+After a timeout, the transport closes a session with a temporary queue. This deletes the queue and the late reply on it. The next request opens a new session.
+
 A temporary dynamic queue does not accept persistent messages. Many server programs copy the persistence of the request to the reply. Thus, `build()` throws `IllegalStateException` if you set `persistent(true)` and a route uses a temporary queue.
 
 ## The contract of the server program

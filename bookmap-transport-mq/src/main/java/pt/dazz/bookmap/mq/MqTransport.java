@@ -120,10 +120,13 @@ public final class MqTransport implements Transport, AutoCloseable {
                     ? "the reply is not a bytes message" : "receive failed";
                 throw new TransportException(prefix + text + " (" + e.failure() + ")", e);
             }
-            reusable = true;
             if (reply == null) {
+                // A late reply stays on the reply queue. On a temporary queue, it stays for the
+                // life of the session, so the transport closes the session to delete the queue.
+                reusable = replyQueue != null;
                 throw new TransportTimeoutException(prefix + "no reply after " + timeout);
             }
+            reusable = true;
             return reply;
         } finally {
             release(session, reusable);
@@ -148,7 +151,9 @@ public final class MqTransport implements Transport, AutoCloseable {
 
     private MqSession acquire(String prefix) {
         try {
-            if (!permits.tryAcquire(sessionWaitTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
+            // The conversion saturates: a very long wait does not overflow.
+            long waitNanos = TimeUnit.NANOSECONDS.convert(sessionWaitTimeout);
+            if (!permits.tryAcquire(waitNanos, TimeUnit.NANOSECONDS)) {
                 throw new ConnectionException(
                     prefix + "no free MQ session after " + sessionWaitTimeout);
             }
@@ -206,7 +211,7 @@ public final class MqTransport implements Transport, AutoCloseable {
     private static void closeQuietly(MqSession session) {
         try {
             session.close();
-        } catch (MqException e) {
+        } catch (MqException | RuntimeException e) {
             // The session is not used again. A failure to close it changes nothing.
         }
     }

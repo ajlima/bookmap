@@ -64,6 +64,53 @@ class MqTransportPoolTest {
     }
 
     @Test
+    void timeoutOnTemporaryQueueDiscardsSession() {
+        fake.responder = (queue, correlationId) -> null;
+        try (MqTransport transport = MqTransport.builder().connector(fake)
+                .route("GetInvoice", "INVOICE.REQUEST").build()) {
+            assertThatThrownBy(() -> transport.exchange(REQUEST))
+                .isInstanceOf(TransportTimeoutException.class);
+            assertThat(fake.closed).hasValue(1);
+            assertThatThrownBy(() -> transport.exchange(REQUEST))
+                .isInstanceOf(TransportTimeoutException.class);
+        }
+        assertThat(fake.opened).hasValue(2);
+        assertThat(fake.closed).hasValue(2);
+    }
+
+    @Test
+    void closeContinuesAfterRuntimeException() throws Exception {
+        CountDownLatch entered = new CountDownLatch(2);
+        CountDownLatch release = new CountDownLatch(1);
+        blockReceive(entered, release);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        MqTransport transport = builder().maxSessions(2).build();
+        try {
+            Future<byte[]> first = executor.submit(() -> transport.exchange(REQUEST));
+            Future<byte[]> second = executor.submit(() -> transport.exchange(REQUEST));
+            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+            release.countDown();
+            first.get(10, TimeUnit.SECONDS);
+            second.get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+        fake.closeRuntimeFailure = new IllegalStateException("provider failure");
+
+        transport.close();
+
+        assertThat(fake.closed).hasValue(2);
+    }
+
+    @Test
+    void hugeSessionWaitTimeoutWorks() {
+        try (MqTransport transport = builder()
+                .sessionWaitTimeout(Duration.ofSeconds(Long.MAX_VALUE)).build()) {
+            assertThat(transport.exchange(REQUEST)).containsExactly(0xF1);
+        }
+    }
+
+    @Test
     void failedSessionIsClosedAndReplaced() {
         fake.sendFailure = FakeConnector.failure(MqFailure.OTHER);
         fake.closeFailure = FakeConnector.failure(MqFailure.OTHER);
