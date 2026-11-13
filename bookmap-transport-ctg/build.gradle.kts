@@ -17,6 +17,17 @@ tasks.named<JavaCompile>("compileCtgStubJava") {
     options.release = 21
 }
 
+// The stub for the tests of other modules, for example bookmap-spring-boot.
+// This configuration is not a variant of the java component. Thus, it is not published.
+val ctgStubJar = tasks.register<Jar>("ctgStubJar") {
+    archiveClassifier = "ctg-stub"
+    from(ctgStub.output)
+}
+
+configurations.consumable("ctgStubElements") {
+    outgoing.artifact(ctgStubJar)
+}
+
 // The published jar must not contain IBM classes.
 val verifyNoIbmClasses by tasks.registering {
     val jarFile = tasks.named<Jar>("jar").flatMap { it.archiveFile }

@@ -6,6 +6,9 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import pt.dazz.bookmap.BookmapClient;
@@ -136,6 +139,52 @@ class BookmapAutoConfigurationTest {
     void invalidCharsetPropertyFails() {
         runner.withBean(Transport.class, CountingTransport::new)
             .withPropertyValues("bookmap.charset=UTF-8")
+            .run(context -> assertThat(context).hasFailed());
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "ctg|bookmap-transport-ctg and the IBM library ctgclient.jar",
+        })
+    void missingTransportStopsTheApplication(String type, String requirement) {
+        runner.withPropertyValues("bookmap.transport.type=" + type)
+            .run(context -> assertThat(context).hasFailed().getFailure()
+                .rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("bookmap.transport.type=" + type + ", but no Transport bean exists. Add "
+                    + requirement + " to the class path."));
+    }
+
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"mq", "http"})
+    void transportWithoutAutoConfigurationStopsTheApplication(String type) {
+        runner.withPropertyValues("bookmap.transport.type=" + type)
+            .run(context -> assertThat(context).hasFailed().getFailure()
+                .rootCause()
+                .hasMessage("bookmap.transport.type=" + type + ", but no Transport bean exists. "
+                    + "This version of bookmap-spring-boot has no auto-configuration for " + type
+                    + ". Declare a Transport bean."));
+    }
+
+    @Test
+    void missingTransportFailsAlsoWithLazyInitialization() {
+        runner.withInitializer(context ->
+                context.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor()))
+            .withPropertyValues("bookmap.transport.type=ctg")
+            .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void typeWithApplicationTransportStarts() {
+        runner.withBean(Transport.class, CountingTransport::new)
+            .withPropertyValues("bookmap.transport.type=http")
+            .run(context -> assertThat(context).hasSingleBean(BookmapClient.class));
+    }
+
+    @Test
+    void invalidTypeFails() {
+        runner.withBean(Transport.class, CountingTransport::new)
+            .withPropertyValues("bookmap.transport.type=ctgg")
             .run(context -> assertThat(context).hasFailed());
     }
 }

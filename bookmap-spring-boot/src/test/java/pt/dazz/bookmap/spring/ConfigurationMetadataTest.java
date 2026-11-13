@@ -9,6 +9,8 @@ import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.configurationmetadata.ConfigurationMetadataProperty;
 import org.springframework.boot.configurationmetadata.ConfigurationMetadataRepositoryJsonBuilder;
@@ -39,7 +41,14 @@ class ConfigurationMetadataTest {
 
     @Test
     void listsOnlyTheBookmapProperties() throws IOException {
-        assertThat(properties()).containsOnlyKeys("bookmap.charset", "bookmap.max-calls");
+        assertThat(properties()).containsOnlyKeys("bookmap.charset", "bookmap.max-calls",
+            "bookmap.transport.type",
+            "bookmap.transport.ctg.url", "bookmap.transport.ctg.port",
+            "bookmap.transport.ctg.socket-connect-timeout", "bookmap.transport.ctg.protocol-properties",
+            "bookmap.transport.ctg.server", "bookmap.transport.ctg.default-transaction",
+            "bookmap.transport.ctg.userid", "bookmap.transport.ctg.password",
+            "bookmap.transport.ctg.timeout", "bookmap.transport.ctg.max-connections",
+            "bookmap.transport.ctg.connection-wait-timeout", "bookmap.transport.ctg.routes");
     }
 
     @Test
@@ -87,5 +96,43 @@ class ConfigurationMetadataTest {
         assertThat(properties().get("bookmap.charset").getHints().getValueHints())
             .extracting(ValueHint::getDescription)
             .allSatisfy(description -> assertThat(description).isNotBlank());
+    }
+
+    @Test
+    void transportTypeHasTypeDescriptionAndHints() throws IOException {
+        ConfigurationMetadataProperty type = properties().get("bookmap.transport.type");
+        assertThat(type.getType()).isEqualTo("pt.dazz.bookmap.spring.TransportType");
+        assertThat(type.getDescription()).startsWith("The transport that");
+        assertThat(type.getHints().getValueHints())
+            .extracting(ValueHint::getValue)
+            .containsExactly("ctg", "mq", "http");
+        assertThat(type.getHints().getValueHints())
+            .extracting(ValueHint::getDescription)
+            .allSatisfy(description -> assertThat(description).isNotBlank());
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "port|java.lang.Integer|2006",
+        "socket-connect-timeout|java.time.Duration|10s",
+        "timeout|java.time.Duration|30s",
+        "max-connections|java.lang.Integer|10",
+        "connection-wait-timeout|java.time.Duration|30s"})
+    void ctgPropertyHasTypeAndDefault(String name, String type, String defaultValue) throws IOException {
+        ConfigurationMetadataProperty property = properties().get("bookmap.transport.ctg." + name);
+        assertThat(property.getType()).isEqualTo(type);
+        assertThat(String.valueOf(property.getDefaultValue())).isEqualTo(defaultValue);
+        assertThat(property.getDescription()).isNotBlank();
+    }
+
+    @Test
+    void ctgRoutesAndPasswordHaveDescriptions() throws IOException {
+        Map<String, ConfigurationMetadataProperty> properties = properties();
+        assertThat(properties.get("bookmap.transport.ctg.routes").getType())
+            .isEqualTo("java.util.Map<java.lang.String,pt.dazz.bookmap.spring.ctg.CtgTransportProperties$Route>");
+        assertThat(properties.get("bookmap.transport.ctg.routes").getDescription())
+            .startsWith("The route of each operation.");
+        assertThat(properties.get("bookmap.transport.ctg.password").getDescription())
+            .contains("environment variable");
     }
 }

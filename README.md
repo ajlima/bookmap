@@ -212,7 +212,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 
 BookMap is at version `0.10.0`. GitHub Actions builds each release and publishes it to Maven Central.
 The build enforces 100% line and branch coverage for all modules except the examples.
-BookMap has transports for the CICS Transaction Gateway (ECI), for HTTP (binary body), and for IBM MQ.
+BookMap has transports for the CICS Transaction Gateway (ECI), for HTTP (binary body), and for IBM MQ. The Spring Boot module creates the CTG transport from properties.
 See [RELEASING.md](RELEASING.md) for the release cycle, and [ROADMAP.md](ROADMAP.md) for the planned features.
 
 ## License

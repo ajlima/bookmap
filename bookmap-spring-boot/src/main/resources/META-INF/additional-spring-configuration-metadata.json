@@ -29,6 +29,23 @@
           "name": "any"
         }
       ]
+    },
+    {
+      "name": "bookmap.transport.type",
+      "values": [
+        {
+          "value": "ctg",
+          "description": "The CICS Transaction Gateway (ECI). Add bookmap-transport-ctg and the IBM library ctgclient.jar."
+        },
+        {
+          "value": "mq",
+          "description": "IBM MQ. This version has no auto-configuration for it: declare a Transport bean."
+        },
+        {
+          "value": "http",
+          "description": "HTTP. This version has no auto-configuration for it: declare a Transport bean."
+        }
+      ]
     }
   ]
 }

@@ -1,1 +1,2 @@
 pt.dazz.bookmap.spring.BookmapAutoConfiguration
+pt.dazz.bookmap.spring.ctg.CtgTransportAutoConfiguration
