@@ -573,7 +573,9 @@ public final class ModelBuilder {
             }
             FieldModel field = resolved.get();
             int before = problems.count();
-            if (field.kind() == JavaKind.CONVERTED) {
+            if (field.edited() != null) {
+                problems.error(member, "discriminator must not have an edited pic");
+            } else if (field.kind() == JavaKind.CONVERTED) {
                 problems.error(member, "discriminator must not have a converter");
             } else if (field.kind() != JavaKind.STRING
                 && !SubTypesResolver.NUMERIC_KINDS.contains(field.kind())) {
@@ -653,6 +655,9 @@ public final class ModelBuilder {
                 } else if (!KEY_KINDS.contains(emptyKey.kind())) {
                     problems.error(member, "emptyKey field '" + keyName
                         + "' must be String or a number without a converter");
+                } else if (emptyKey.edited() != null) {
+                    problems.error(member, "emptyKey field '" + keyName
+                        + "' must not have an edited pic");
                 }
             }
             Optional<String> getter = fieldResolver.getter(owner, member, codecPackage, problems);
@@ -781,6 +786,10 @@ public final class ModelBuilder {
                 problems.error(collection, prefix + "must be int, Integer, long, or Long");
                 return null;
             }
+            if (count != null && count.edited() != null) {
+                problems.error(collection, prefix + "must not have an edited pic");
+                return null;
+            }
             if (count == null) {
                 // The count field has its own errors.
                 return null;
@@ -828,7 +837,7 @@ public final class ModelBuilder {
             return new FieldModel(field.ownerSimpleName(), field.name(), field.order(),
                 field.length(), direction, field.usage(), field.scale(), field.signed(),
                 field.sign(), field.pattern(), field.kind(), field.type(), field.getter(), field.setter(),
-                field.converter(), field.byteLength(), field.enumModel());
+                field.converter(), field.byteLength(), field.enumModel(), field.edited());
         }
 
         private boolean implementsInterface(TypeElement element, String interfaceName) {

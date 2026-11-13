@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.Set;
 import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.codec.EditedPicture;
 import pt.dazz.bookmap.processor.pic.PicSpec.Category;
 
 /**
@@ -30,6 +31,8 @@ public final class PicParser {
 
     private static final Set<String> SIGN_WORDS = Set.of("SIGN", "LEADING", "TRAILING");
 
+    private static final Set<String> ZEROS = Set.of("ZERO", "ZEROS", "ZEROES");
+
     private final String original;
     private String picture;
     private int pos;
@@ -37,6 +40,7 @@ public final class PicParser {
     private int index;
     private Optional<Usage> usage = Optional.empty();
     private Optional<Sign> sign = Optional.empty();
+    private boolean blankWhenZero;
 
     private PicParser(String original) {
         this.original = original;
@@ -70,8 +74,12 @@ public final class PicParser {
             throw error("the picture is missing");
         }
         picture = words[index++];
-        PicSpec spec = scanPicture();
+        boolean edited = EditedPicture.isEdited(picture);
+        PicSpec spec = edited ? null : scanPicture();
         scanClauses();
+        if (edited || blankWhenZero) {
+            return edited();
+        }
         boolean numericUsage = usage.filter(u -> u != Usage.DISPLAY).isPresent();
         if (spec.category() == Category.TEXT && numericUsage) {
             throw error("a text picture must not have a numeric usage");
@@ -87,14 +95,38 @@ public final class PicParser {
     }
 
     /**
-     * Reads the usage clause and the sign clause after the picture. They can come in the two
-     * orders. Each clause can occur one time only.
+     * Gives the result of an edited picture, or of a picture with {@code BLANK WHEN ZERO}.
+     * The usage must be {@code DISPLAY}, and a sign clause is not permitted.
+     */
+    private PicSpec edited() {
+        if (usage.filter(u -> u != Usage.DISPLAY).isPresent()) {
+            throw error("an edited picture must have usage DISPLAY");
+        }
+        if (sign.isPresent()) {
+            throw error("a SIGN clause is not permitted with an edited picture");
+        }
+        EditedPicture edited;
+        try {
+            edited = EditedPicture.parse(picture, blankWhenZero);
+        } catch (IllegalArgumentException e) {
+            throw error(e.getMessage());
+        }
+        return new PicSpec(Category.NUMBER, edited.digits(), edited.scale(), edited.signed(),
+            usage, sign, Optional.of(edited));
+    }
+
+    /**
+     * Reads the usage clause, the sign clause, and the {@code BLANK WHEN ZERO} clause after the
+     * picture. They can come in all orders. Each clause can occur one time only.
      */
     private void scanClauses() {
         String last = null;
         while (index < words.length) {
             String word = words[index];
-            if (sign.isEmpty() && SIGN_WORDS.contains(word)) {
+            if (!blankWhenZero && word.equals("BLANK")) {
+                scanBlankWhenZero();
+                last = "BLANK WHEN ZERO";
+            } else if (sign.isEmpty() && SIGN_WORDS.contains(word)) {
                 scanSign();
                 last = "the sign clause";
             } else if (usage.isEmpty() && (last == null || word.equals("USAGE")
@@ -121,6 +153,17 @@ public final class PicParser {
         }
         index++;
         usage = Optional.of(found);
+    }
+
+    /** Reads {@code BLANK [WHEN] {ZERO | ZEROS | ZEROES}}. */
+    private void scanBlankWhenZero() {
+        index++;
+        acceptWord("WHEN");
+        if (index == words.length || !ZEROS.contains(words[index])) {
+            throw error("BLANK needs WHEN ZERO");
+        }
+        index++;
+        blankWhenZero = true;
     }
 
     /** Reads {@code [SIGN [IS]] {LEADING | TRAILING} [SEPARATE [CHARACTER]]}. */

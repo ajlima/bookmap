@@ -95,7 +95,7 @@ class ConventionTest {
             .containsExactly("day", "amount");
         assertThat(model.members().get(1)).isEqualTo(new ModelSnapshot.Member("Order", "amount", 5,
             "INPUT", 15, 2, true, "COMP3", "yyyyMMdd", 8, "BIG_DECIMAL", "getAmount",
-            "setAmount", "", "", 0, false, List.of()));
+            "setAmount", "", "", 0, false, List.of(), ""));
         assertThat(model.members().get(0).pattern()).isEqualTo("yyMMdd");
         assertThat(model.members().get(0).direction()).isEqualTo("INPUT_OUTPUT");
     }

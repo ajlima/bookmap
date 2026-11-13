@@ -1380,8 +1380,8 @@ class ValidationTest {
 
     @Test
     void invalidPic() {
-        assertError(compile(order(field("@BookField(order = 1, pic = \"ZZ9\")", "int", "qty"))),
-            "Order.qty (order 1)", "Invalid PIC string \"ZZ9\"");
+        assertError(compile(order(field("@BookField(order = 1, pic = \"9(3)P\")", "int", "qty"))),
+            "Order.qty (order 1)", "Invalid PIC string \"9(3)P\"");
     }
 
     @Test

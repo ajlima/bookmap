@@ -68,6 +68,8 @@ final class CodecGenerator {
     private static final ClassName BOOK_READER = ClassName.get("pt.dazz.bookmap.codec",
         "BookReader");
     private static final ClassName FORMATS = ClassName.get("pt.dazz.bookmap.codec", "Formats");
+    private static final ClassName EDITED_PICTURE = ClassName.get("pt.dazz.bookmap.codec",
+        "EditedPicture");
     private static final ClassName EMPTY_SLOT = ClassName.get("pt.dazz.bookmap.codec",
         "EmptySlot");
     private static final ClassName CODEC_CONTEXT = ClassName.get("pt.dazz.bookmap.convert",
@@ -90,7 +92,7 @@ final class CodecGenerator {
 
     /** The names of the generated members of one field. */
     private record Names(String descriptor, String formatter, String converter,
-                         EnumMethods enumMethods) {
+                         EnumMethods enumMethods, String picture) {
     }
 
     /** The names of the methods that read and write one enum type in one category. */
@@ -294,7 +296,15 @@ final class CodecGenerator {
                 // Text and numbers need no other member.
             }
         }
-        names.put(field, new Names(descriptor, formatter, converter, enumMethods));
+        String picture = null;
+        if (field.edited() != null) {
+            picture = allocator.newName(constant + "_PICTURE");
+            builder.addField(FieldSpec.builder(EDITED_PICTURE, picture, Modifier.PRIVATE,
+                    Modifier.STATIC, Modifier.FINAL)
+                .initializer("$T.parse($S, $L)", EDITED_PICTURE, field.edited().text(),
+                    field.edited().blankWhenZero()).build());
+        }
+        names.put(field, new Names(descriptor, formatter, converter, enumMethods, picture));
     }
 
     /** Adds the one instance of a converter class. */
@@ -757,14 +767,18 @@ final class CodecGenerator {
     }
 
     private CodeBlock writeNumber(FieldModel field, CodeBlock decimal) {
-        return CodeBlock.of("writer.writeNumber($N, $L, $L)", names.get(field).descriptor(),
-            decimal, numberAttributes(field));
+        Names n = names.get(field);
+        return field.edited() != null
+            ? CodeBlock.of("writer.writeEdited($N, $L, $N)", n.descriptor(), decimal, n.picture())
+            : CodeBlock.of("writer.writeNumber($N, $L, $L)", n.descriptor(), decimal,
+                numberAttributes(field));
     }
 
     private CodeBlock read(FieldModel field) {
         Names n = names.get(field);
-        CodeBlock number = CodeBlock.of("reader.readNumber($N, $L)", n.descriptor(),
-            numberAttributes(field));
+        CodeBlock number = field.edited() != null
+            ? CodeBlock.of("reader.readEdited($N, $N)", n.descriptor(), n.picture())
+            : CodeBlock.of("reader.readNumber($N, $L)", n.descriptor(), numberAttributes(field));
         CodeBlock descriptor = CodeBlock.of("$N", n.descriptor());
         return switch (field.kind()) {
             case STRING -> CodeBlock.of("reader.readText($N, $L)", n.descriptor(), field.length());

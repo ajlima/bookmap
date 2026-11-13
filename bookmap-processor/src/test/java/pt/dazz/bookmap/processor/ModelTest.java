@@ -24,7 +24,7 @@ class ModelTest {
     void descriptorIdentifiesClassFieldAndOrder() {
         FieldModel count = new FieldModel("Order", "lineCount", 3, 3, Direction.OUTPUT,
             Usage.DISPLAY, 0, false, Sign.TRAILING, "yyyyMMdd", FieldModel.JavaKind.INT, null, "getLineCount",
-            "setLineCount", null, 3, null);
+            "setLineCount", null, 3, null, null);
         MemberModel lines = new CollectionModel("Order", "lines", 4, Direction.OUTPUT, count, 5,
             false, new ItemModel(null, List.of(), 0, null), "getLines", "setLines",
             EmptyItem.LOW_VALUES, null, 0);

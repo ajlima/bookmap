@@ -10,6 +10,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.codec.EditedPicture;
 import pt.dazz.bookmap.processor.pic.PicSpec.Category;
 
 class PicParserTest {
@@ -43,7 +44,7 @@ class PicParserTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
-        "X(0)", "X(", "9(3", "ZZ9", "9(5).99", "-9(3)", "9(3)CR", "S9(5) COMP-1", "S9(5) COMP-2",
+        "X(0)", "X(", "9(3", "S9(5) COMP-1", "S9(5) COMP-2",
         "S9(5) COMP-5", "A(3)", "N(3)", "9(3)P", "X(3) COMP-3", "SX(3)", "9(3)V", "9(3) FOO"
     })
     void rejectsInvalidOrUnsupportedPictures(String pic) {
@@ -94,11 +95,8 @@ class PicParserTest {
         "X(999999999)X(999999999)X(999999999)    | the length is too large",
         "9(999999999)9(999999999)V9(999999999)   | the length is too large",
         "9(3)X                                   | unexpected or unsupported character 'X'",
-        "ZZ9                                     | unexpected or unsupported character 'Z'",
         "SX(3)                                   | unexpected or unsupported character 'X'",
         "A(3)                                    | unexpected or unsupported character 'A'",
-        "-9(3)                                   | unexpected or unsupported character '-'",
-        "VZ                                      | unexpected or unsupported character 'Z'",
         "9(3) USAGE                              | the usage is missing after USAGE",
         "9(3) USAGE IS                           | the usage is missing after USAGE",
         "9(3) COMP-5                             | unknown or unsupported usage 'COMP-5'",
@@ -137,5 +135,43 @@ class PicParserTest {
     void parsesTheSignClause(String pic, Usage usage, Sign sign) {
         assertThat(PicParser.parse(pic)).isEqualTo(new PicSpec(Category.NUMBER, 7, 2, true,
             Optional.ofNullable(usage), Optional.of(sign)));
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        // pic                                  | picture    | blank | length | scale | signed | usage
+        "ZZ9                                    | ZZ9        | false | 3 | 0 | false | ",
+        "PIC $Z,ZZ9.99CR.                       | $Z,ZZ9.99CR | false | 6 | 2 | true | ",
+        "-9(3) DISPLAY                          | -9(3)      | false | 3 | 0 | true  | DISPLAY",
+        "zz9.99 usage is display blank when zero | ZZ9.99    | true  | 5 | 2 | false | DISPLAY",
+        "9(5) BLANK ZERO                        | 9(5)       | true  | 5 | 0 | false | ",
+        "9(3)V99 BLANK WHEN ZEROS DISPLAY       | 9(3)V99    | true  | 5 | 2 | false | DISPLAY",
+        "ZZ9 BLANK WHEN ZEROES                  | ZZ9        | true  | 3 | 0 | false | ",
+    })
+    void parsesEditedPictures(String pic, String picture, boolean blank, int length, int scale,
+        boolean signed, Usage usage) {
+        assertThat(PicParser.parse(pic)).isEqualTo(new PicSpec(Category.NUMBER, length, scale,
+            signed, Optional.ofNullable(usage), Optional.empty(),
+            Optional.of(EditedPicture.parse(picture, blank))));
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', quoteCharacter = '"', value = {
+        "ZZ9 COMP-3|an edited picture must have usage DISPLAY",
+        "9(5) BLANK WHEN ZERO COMP|an edited picture must have usage DISPLAY",
+        "-9(3) SIGN LEADING|a SIGN clause is not permitted with an edited picture",
+        "ZZ9 BLANK|BLANK needs WHEN ZERO",
+        "ZZ9 BLANK WHEN|BLANK needs WHEN ZERO",
+        "ZZ9 BLANK WHEN NULL|BLANK needs WHEN ZERO",
+        "ZZ9 BLANK WHEN ZERO BLANK WHEN ZERO|unexpected text 'BLANK' after BLANK WHEN ZERO",
+        "S9(5) BLANK WHEN ZERO|BLANK WHEN ZERO is not permitted with S or '*'",
+        "**9 BLANK WHEN ZERO|BLANK WHEN ZERO is not permitted with S or '*'",
+        "Z*9|Z, *, and a floating string are mutually exclusive",
+        "X(3) BLANK WHEN ZERO|unexpected or unsupported character 'X' in the edited picture",
+    })
+    void rejectsIncorrectEditedPictures(String pic, String problem) {
+        assertThatThrownBy(() -> PicParser.parse(pic))
+            .isInstanceOf(PicSyntaxException.class)
+            .hasMessage("Invalid PIC string \"" + pic + "\": " + problem);
     }
 }
