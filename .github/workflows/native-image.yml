@@ -4,6 +4,8 @@
 # bookmap-native-test as a GraalVM native image and runs it (task nativeRun). The program runs
 # one operation through the simulator transport with the EBCDIC charset IBM1047. It fails if the
 # native image does not contain the charset (option -H:+AddAllCharsets of bookmap-core).
+# A pull request that changes only documentation (*.md files and the docs/ folder) skips the Gradle
+# steps, and the check passes.
 #
 # The build job of release.yml needs no GraalVM. This workflow is separate, so a plain JDK 21
 # stays sufficient for ./gradlew build. The job has read-only access and keeps no credential in
@@ -33,9 +35,33 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The full history gives the base of the pull request and the branch main.
+          fetch-depth: 0
           persist-credentials: false
 
+      # A pull request that changes only documentation (*.md files and the docs/ folder) skips the
+      # Gradle steps, and the check passes. A push to main always runs the native image. The workflow
+      # always runs, so the check always reports.
+      - name: Find the changed files
+        id: changes
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          docs_only=false
+          # The script of main runs, so a pull request cannot change the rule for itself. If main has
+          # no script, the full build runs. The checkout is the merge commit of the pull request: its
+          # first parent is the base.
+          if [ "$EVENT_NAME" = pull_request ] \
+            && git show origin/main:scripts/docs-only-change.sh > "$RUNNER_TEMP/docs-only-change.sh"; then
+            docs_only=$(bash "$RUNNER_TEMP/docs-only-change.sh" HEAD^1 HEAD)
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          if [ "$docs_only" = true ]; then
+            echo "::notice::Only documentation files changed. The Gradle steps do not run."
+          fi
+
       - name: Set up GraalVM for JDK 21
+        if: steps.changes.outputs.docs_only != 'true'
         uses: graalvm/setup-graalvm@d6eca2595046623d69d636041513c80abf745406 # v1.6.9
         with:
           distribution: graalvm-community
@@ -45,10 +71,12 @@ jobs:
           check-for-updates: false
 
       - name: Set up Gradle
+        if: steps.changes.outputs.docs_only != 'true'
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           # The cache of setup-gradle v6 is a proprietary component. Do not enable it.
           cache-disabled: true
 
       - name: Build and run the native image
+        if: steps.changes.outputs.docs_only != 'true'
         run: ./gradlew -p bookmap-native-test nativeRun --no-daemon
