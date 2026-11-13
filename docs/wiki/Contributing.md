@@ -136,7 +136,7 @@ The workflow `.github/workflows/release.yml` has four jobs:
 | `attest` | After a successful `publish`. | `id-token: write` and `attestations: write`. No environment and no secret. | A build provenance attestation for each file on Maven Central. |
 | `release` | After a successful `publish`. | `contents: write`. The `readme-update` environment gives the key of the release app. | The tag, the GitHub release, and the README version commit. |
 
-These modules go to Maven Central: `bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-spring-boot`, `bookmap-copybook`, `bookmap-copybook-cli`, `bookmap-copybook-gradle-plugin`, and `bookmap-copybook-maven-plugin`.
+These modules go to Maven Central: `bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-transport-ctg`, `bookmap-spring-boot`, `bookmap-copybook`, `bookmap-copybook-cli`, `bookmap-copybook-gradle-plugin`, and `bookmap-copybook-maven-plugin`.
 
 ### The release app
 

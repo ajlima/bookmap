@@ -12,7 +12,6 @@ To propose a new item, open an issue.
 
 Real transports for the transport SPI. The SPI accepts them without a change to the core. Milestone: [Transports](https://github.com/ajlima/bookmap/milestone/2).
 
-- [#26](https://github.com/ajlima/bookmap/issues/26) Add a CICS Transaction Gateway (CTG/ECI) transport
 - [#27](https://github.com/ajlima/bookmap/issues/27) Add an IBM MQ transport
 - [#28](https://github.com/ajlima/bookmap/issues/28) Add an HTTP transport (z/OS Connect)
 - [#29](https://github.com/ajlima/bookmap/issues/29) Add Spring Boot auto-configuration for each transport
