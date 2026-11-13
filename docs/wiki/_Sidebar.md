@@ -13,9 +13,9 @@
 
 **Runtime**
 - [Transports and simulator](Transports-and-simulator)
-- [CICS Transaction Gateway](CICS-Transaction-Gateway)
-- [HTTP transport](HTTP-transport)
-- [IBM MQ](IBM-MQ)
+  - [CICS Transaction Gateway](CICS-Transaction-Gateway)
+  - [HTTP transport](HTTP-transport)
+  - [IBM MQ](IBM-MQ)
 - [Spring Boot](Spring-Boot)
 
 **Tools**

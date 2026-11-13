@@ -21,6 +21,7 @@
   <a href="https://github.com/ajlima/bookmap/wiki">Wiki</a> ·
   <a href="https://github.com/ajlima/bookmap/wiki/Getting-started">Getting started</a> ·
   <a href="https://github.com/ajlima/bookmap/wiki/Annotations-reference">Annotations</a> ·
+  <a href="https://github.com/ajlima/bookmap/wiki/Transports-and-simulator">Transports</a> ·
   <a href="https://github.com/ajlima/bookmap/wiki/Copybook-generator">Copybook generator</a> ·
   <a href="ROADMAP.md">Roadmap</a>
 </p>
@@ -91,9 +92,33 @@ gh attestation verify bookmap-core-X.Y.Z.jar --repo ajlima/bookmap --signer-work
 
 The command fails if no attestation of this repository and this workflow has the same SHA-256 digest as the file.
 
-## Quick start
+## Quick start: from Java to CICS
 
-`GetCustomerOrders` is a book in convention style. It lists the orders of a customer.
+This example calls the CICS program `PGMORD01` through the CICS Transaction Gateway (CTG). The program lists the orders of a customer.
+The steps are the same for the other transports. Only the transport object changes.
+
+### 1. The copybook
+
+`PGMORD01` uses this COMMAREA:
+
+```cobol
+       01  GET-CUSTOMER-ORDERS.
+           05  CUSTOMER-ID             PIC X(10).
+           05  RESTART-KEY             PIC X(12).
+           05  RETURN-CODE             PIC X(4).
+           05  RETURN-MESSAGE          PIC X(60).
+           05  MORE-DATA               PIC X.
+           05  ORDER-COUNT             PIC 9(3).
+           05  ORDERS OCCURS 0 TO 50 TIMES
+                   DEPENDING ON ORDER-COUNT.
+               10  ORDER-NUMBER        PIC X(10).
+               10  TOTAL-AMOUNT        PIC S9(13)V99 COMP-3.
+               10  ORDER-DATE          PIC 9(8).
+```
+
+### 2. The book class
+
+`GetCustomerOrders` maps the copybook in convention style. Each field is one line, with the `pic` of the copybook.
 
 ```java
 @BookOperation
@@ -115,16 +140,26 @@ public class GetCustomerOrders implements Continuable, Validatable {
     private String moreData;
 
     @BookField(order = 60, pic = "9(3)")
-    private int orderCount;
+    private int orderCount;                       // the count of ORDERS (DEPENDING ON)
 
     @BookCollection(order = 70, maxOccurs = 50)
     private List<Order> orders;
 
-    // validate(), hasContinuation(), getters, and setters: see bookmap-examples
+    @Override
+    public void validate() {                      // the client calls it after each response
+        if (!"0000".equals(returnCode)) {
+            throw new OrderQueryException(returnCode, returnMessage);
+        }
+    }
+
+    @Override
+    public boolean hasContinuation() {            // "Y": the client calls the program again
+        return "Y".equals(moreData);
+    }
+
+    // getters and setters: see bookmap-examples
 }
 ```
-
-Each order is a class with `@BookField` fields.
 
 ```java
 public class Order {
@@ -136,26 +171,170 @@ public class Order {
     private BigDecimal totalAmount;
 
     @BookField(order = 30)
-    private LocalDate orderDate;
+    private LocalDate orderDate;                  // PIC 9(8), pattern yyyyMMdd by default
 }
 ```
 
-Send the request:
+`OrderQueryException` extends `BusinessException`. The annotation processor generates the codec of `GetCustomerOrders` at compile time.
+You can also generate the classes from the copybook. See [Copybook generator](#copybook-generator).
+
+### 3. The dependencies
+
+Add the core, the processor, and the CTG transport. The IBM library `ctgclient.jar` has an IBM license, and it is not on Maven Central.
+Get it from your CICS TG installation, and add it yourself.
+
+Gradle:
+
+```kotlin
+dependencies {
+    implementation("pt.dazz.bookmap:bookmap-transport-ctg:0.11.0")       // includes bookmap-core
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.11.0")
+    runtimeOnly(files("libs/ctgclient.jar"))                             // or the artifact in your company repository
+    testImplementation("pt.dazz.bookmap:bookmap-transport-simulator:0.11.0")
+}
+```
+
+Maven:
+
+```xml
+<dependency>
+  <groupId>pt.dazz.bookmap</groupId>
+  <artifactId>bookmap-transport-ctg</artifactId>
+  <version>0.11.0</version>
+</dependency>
+<!-- The IBM library, from the repository of your company. Use your own coordinates. -->
+<dependency>
+  <groupId>com.example.ibm</groupId>
+  <artifactId>ctgclient</artifactId>
+  <version>9.3</version>
+  <scope>runtime</scope>
+</dependency>
+```
+
+With Maven, add `bookmap-processor` to the `annotationProcessorPaths` of the `maven-compiler-plugin`.
+
+### 4. The transport and the client
 
 ```java
-BookmapClient client = BookmapClient.builder()
-    .transport(transport)
-    .charset(Charset.forName("IBM037"))   // default
-    .maxCalls(1000)                        // default; safety limit
+CtgTransport transport = CtgTransport.builder()
+    .connector(JavaGatewayConnector.builder()
+        .url("tcp://ctg.example.com")                          // the Gateway daemon
+        .port(2006)
+        .build())
+    .server("CICSPROD")                                        // the CICS server in the CTG configuration
+    .credentials("ORDUSER", System.getenv("CTG_PASSWORD"))     // the CICS user ID and password
+    .route("GetCustomerOrders", "PGMORD01", "TX01")            // operation -> program and transaction
     .build();
 
+BookmapClient client = BookmapClient.builder()
+    .transport(transport)
+    .build();
+```
+
+A route maps the operation name to a CICS program and a transaction. The operation name is the simple class name, or the value of `@BookOperation`.
+`BookmapClient` and `CtgTransport` are thread-safe. Make one of each for the application. Close the transport when the application stops.
+
+### 5. The call and the response
+
+```java
 GetCustomerOrders request = new GetCustomerOrders();
 request.setCustomerId("CUST000042");
 request.setRestartKey("");
-GetCustomerOrders result = client.execute(request);   // the response object
+
+try {
+    GetCustomerOrders result = client.execute(request);   // all pages, while hasContinuation() is true
+    for (Order order : result.getOrders()) {
+        System.out.println(order.getOrderNumber() + " " + order.getOrderDate() + " " + order.getTotalAmount());
+    }
+} catch (OrderQueryException e) {          // validate(): the program returned an error code
+    System.out.println("Refused: " + e.returnCode());
+} catch (RemoteAbendException e) {         // the CICS program stopped abnormally
+    System.out.println("Abend " + e.abendCode());
+} catch (TransportException e) {           // a timeout, no connection, no route, or another failure
+    System.out.println("Technical failure: " + e.getMessage());
+}
 ```
 
-`BookmapClient` is immutable and thread-safe. The request object is not thread-safe. It belongs to the caller.
+The client encodes the request in EBCDIC (`IBM037` by default), and CTG sends it to `PGMORD01` in a COMMAREA.
+The client decodes the response into the result object. It calls `validate()`, and it calls the program again while `hasContinuation()` returns `true`.
+The request object is not thread-safe. It belongs to the caller.
+
+**WARNING:** Do not retry a call after a timeout or a failure during the call without a check. CICS can have run the program and changed data.
+
+### 6. The same flow in Spring Boot
+
+Add `bookmap-spring-boot` and the CTG transport:
+
+```kotlin
+dependencies {
+    implementation("pt.dazz.bookmap:bookmap-spring-boot:0.11.0")
+    implementation("pt.dazz.bookmap:bookmap-transport-ctg:0.11.0")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.11.0")
+    runtimeOnly(files("libs/ctgclient.jar"))
+}
+```
+
+Set the transport in `application.properties`. The auto-configuration creates the `CtgTransport` and the `BookmapClient` beans:
+
+```properties
+bookmap.transport.type=ctg
+bookmap.transport.ctg.url=tcp://ctg.example.com
+bookmap.transport.ctg.server=CICSPROD
+bookmap.transport.ctg.userid=ORDUSER
+bookmap.transport.ctg.password=${CTG_PASSWORD}
+bookmap.transport.ctg.routes[GetCustomerOrders].program=PGMORD01
+bookmap.transport.ctg.routes[GetCustomerOrders].transaction=TX01
+```
+
+Inject the client:
+
+```java
+@Service
+class OrderService {
+
+    private final BookmapClient client;
+
+    OrderService(BookmapClient client) {
+        this.client = client;
+    }
+
+    List<Order> ordersOf(String customerId) {
+        GetCustomerOrders request = new GetCustomerOrders();
+        request.setCustomerId(customerId);
+        request.setRestartKey("");
+        return client.execute(request).getOrders();
+    }
+}
+```
+
+**CAUTION:** Do not write the password as a plain value in `application.properties`. Each person who can read the repository can then read the password.
+
+See [Spring Boot](https://github.com/ajlima/bookmap/wiki/Spring-Boot#cics-transaction-gateway) for all properties, the secrets, and the customizer.
+
+### 7. Test without CICS
+
+The simulator replaces the transport in tests. It uses the same book classes, and it needs no mainframe:
+
+```java
+SimulatorTransport simulator = SimulatorTransport.builder().build();
+BookmapClient client = BookmapClient.builder().transport(simulator).build();
+
+simulator.register(GetCustomerOrders.class, call -> {
+    call.setOrders(List.of());
+    call.setReturnCode("0000");
+    call.setReturnMessage("OK");
+    call.setMoreData("N");
+});
+```
+
+See [Transports and simulator](https://github.com/ajlima/bookmap/wiki/Transports-and-simulator) for the failures that the simulator can give.
+
+### Other transports
+
+- [HTTP transport](https://github.com/ajlima/bookmap/wiki/HTTP-transport): `HttpTransport` sends the book bytes to an HTTP endpoint with a binary body.
+- [IBM MQ](https://github.com/ajlima/bookmap/wiki/IBM-MQ): `MqTransport` puts the book bytes on a request queue, and gets the reply from a reply queue.
+
+[Transports and simulator](https://github.com/ajlima/bookmap/wiki/Transports-and-simulator#choose-a-transport) compares the transports, and tells how to write your own transport.
 
 ## Copybook generator
 
@@ -178,9 +357,10 @@ See [Copybook generator](https://github.com/ajlima/bookmap/wiki/Copybook-generat
 | `OCCURS DEPENDING ON`, pagination, and fixed `OCCURS` | [Collections and fixed OCCURS](https://github.com/ajlima/bookmap/wiki/Collections-and-fixed-OCCURS) |
 | `REDEFINES` with a discriminator | [Subtypes (REDEFINES)](https://github.com/ajlima/bookmap/wiki/Subtypes-REDEFINES) |
 | The exception hierarchy | [Error handling](https://github.com/ajlima/bookmap/wiki/Error-handling) |
-| The transport SPI and the simulator | [Transports and simulator](https://github.com/ajlima/bookmap/wiki/Transports-and-simulator) |
-| The CICS Transaction Gateway transport | [CICS Transaction Gateway](https://github.com/ajlima/bookmap/wiki/CICS-Transaction-Gateway) |
-| The HTTP transport | [HTTP transport](https://github.com/ajlima/bookmap/wiki/HTTP-transport) |
+| The comparison of the transports, the transport SPI, and the simulator | [Transports and simulator](https://github.com/ajlima/bookmap/wiki/Transports-and-simulator) |
+| &nbsp;&nbsp;↳ The CICS Transaction Gateway transport | [CICS Transaction Gateway](https://github.com/ajlima/bookmap/wiki/CICS-Transaction-Gateway) |
+| &nbsp;&nbsp;↳ The HTTP transport | [HTTP transport](https://github.com/ajlima/bookmap/wiki/HTTP-transport) |
+| &nbsp;&nbsp;↳ The IBM MQ transport | [IBM MQ](https://github.com/ajlima/bookmap/wiki/IBM-MQ) |
 | The Spring Boot auto-configuration | [Spring Boot](https://github.com/ajlima/bookmap/wiki/Spring-Boot) |
 | The copybook generator, the CLI, and the build plugins | [Copybook generator](https://github.com/ajlima/bookmap/wiki/Copybook-generator) |
 | Frequent problems | [FAQ and troubleshooting](https://github.com/ajlima/bookmap/wiki/FAQ-and-troubleshooting) |
