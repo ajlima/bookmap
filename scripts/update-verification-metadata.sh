@@ -39,9 +39,9 @@ gradle_home="$(mktemp -d)"
 trap 'rm -rf "$gradle_home"' EXIT
 
 # The release job runs publishAndReleaseToMavenCentral. Its dependencies are the same as the
-# dependencies of publishToMavenLocal.
+# dependencies of publishToMavenLocal. The mutation check runs mutationTest (PIT).
 ./gradlew --gradle-user-home "$gradle_home" --write-verification-metadata sha256 \
-  clean build publishToMavenLocal "$@"
+  clean build publishToMavenLocal mutationTest "$@"
 ./gradlew --gradle-user-home "$gradle_home" -p bookmap-examples-gradle-plugin \
   --write-verification-metadata sha256 clean build "$@"
 

@@ -1,6 +1,7 @@
 plugins {
     base
     alias(libs.plugins.maven.publish) apply false
+    alias(libs.plugins.pitest) apply false
 }
 
 import com.vanniktech.maven.publish.GradlePlugin
@@ -8,6 +9,7 @@ import com.vanniktech.maven.publish.JavaLibrary
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import com.vanniktech.maven.publish.SourcesJar
+import info.solidsoft.gradle.pitest.PitestPluginExtension
 
 val catalog = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
@@ -24,6 +26,13 @@ val publishedModules = mapOf(
     "bookmap-copybook-cli" to "BookMap copybook generator command-line program.",
     "bookmap-copybook-gradle-plugin" to "BookMap copybook generator Gradle plugin.",
     "bookmap-copybook-maven-plugin" to "BookMap copybook generator Maven plugin.",
+)
+
+// Modules with mutation tests (task mutationTest), with the minimum mutation score in percent.
+val mutationModules = mapOf(
+    "bookmap-core" to 95,
+    "bookmap-processor" to 95,
+    "bookmap-copybook" to 95,
 )
 
 // Modules that are Gradle plugins. They publish the plugin JAR and the plugin marker artifact.
@@ -113,6 +122,21 @@ subprojects {
         }
     }
 
+    mutationModules[name]?.let { minimumScore ->
+        apply(plugin = "info.solidsoft.pitest")
+        extensions.configure<PitestPluginExtension> {
+            pitestVersion = catalog.versions.pitest.asProvider().get()
+            junit5PluginVersion = catalog.versions.pitest.junit5.get()
+            targetClasses = setOf("pt.dazz.bookmap.*")
+            // The architecture tests read the class files. A mutation does not change their result.
+            excludedTestClasses = setOf("*.ArchitectureTest")
+            threads = Runtime.getRuntime().availableProcessors()
+            outputFormats = setOf("HTML", "XML")
+            timestampedReports = false
+            mutationThreshold = minimumScore
+        }
+    }
+
     publishedModules[name]?.let { moduleDescription ->
         apply(plugin = "com.vanniktech.maven.publish")
 
@@ -175,6 +199,13 @@ subprojects {
             }
         }
     }
+}
+
+// The mutation tests are slow. The build task does not run them. CI runs them in a separate check.
+tasks.register("mutationTest") {
+    group = "verification"
+    description = "Runs the mutation tests (PIT) of " + mutationModules.keys.joinToString() + "."
+    dependsOn(mutationModules.keys.map { ":$it:pitest" })
 }
 
 // A report of the size of each module: the source files, the classes, and the lines of the main code.

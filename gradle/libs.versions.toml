@@ -15,6 +15,9 @@ jakarta-jms = "3.1.0"
 artemis = "2.54.0"
 archunit = "1.5.1"
 pmd = "7.29.0"
+pitest = "1.30.1"
+pitest-junit5 = "1.2.3"
+pitest-plugin = "1.19.0"
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -36,4 +39,5 @@ archunit = { module = "com.tngtech.archunit:archunit", version.ref = "archunit" 
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 
 [plugins]
+pitest = { id = "info.solidsoft.pitest", version.ref = "pitest-plugin" }
 maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
