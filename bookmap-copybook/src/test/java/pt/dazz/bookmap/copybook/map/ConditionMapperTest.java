@@ -24,7 +24,7 @@ class ConditionMapperTest {
 
     private static MappingOptions modes(Map<String, ConditionMode> modes) {
         return new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
-            MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), modes);
+            MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of(), null, modes);
     }
 
     private static MappingOptions mode(String name, ConditionMode mode) {
@@ -36,7 +36,7 @@ class ConditionMapperTest {
     }
 
     private static List<String> messages(MapResult result) {
-        return result.diagnostics().stream().map(Diagnostic::message).toList();
+        return Mapping.diagnostics(result).stream().map(Diagnostic::message).toList();
     }
 
     private static ValueRange one(String value) {
@@ -53,7 +53,7 @@ class ConditionMapperTest {
     @Test
     void discreteValuesGiveAnEnum() {
         MapResult result = map(PARTY);
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(Mapping.diagnostics(result)).isEmpty();
         FieldMember role = field(result, "partyRole");
         assertThat(role.javaType()).isEqualTo(JavaType.ENUM);
         assertThat(role.enumType()).isEqualTo("PartyRole");
@@ -71,7 +71,7 @@ class ConditionMapperTest {
         MapResult result = map("01 ORDER.", "05 PRIORITY OCCURS 2.", "10 LEVEL PIC X.",
             "05 PRIO OCCURS 2.", "10 PRIORITY PIC S9(2)V9 VALUE +01.0.",
             "88 HIGH VALUE 1.", "88 LOW VALUES -1.5 2.");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(Mapping.diagnostics(result)).isEmpty();
         FieldMember priority = (FieldMember) member(type(result, "Prio"), "priority");
         assertThat(priority.enumType()).isEqualTo("PrioPriority");
         assertThat(priority.initialValue()).isEqualTo("HIGH");
@@ -97,7 +97,7 @@ class ConditionMapperTest {
             "01 ORDER.", "05 CODE PIC X VALUE 'C'.",
             "88 CODE-LOW VALUE 'A' THRU 'D'.", "88 CODE-HIGH VALUE 'E' THRU 'H' 'Z'.",
             "05 FLAG PIC 9.", "88 FLAG-ON VALUE 1.");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(Mapping.diagnostics(result)).isEmpty();
         assertThat(field(result, "code").initialValue()).isEqualTo("LOW");
         assertThat(result.model().enums()).extracting(EnumModel::name)
             .containsExactly("Code", "Flag");
@@ -122,7 +122,7 @@ class ConditionMapperTest {
             "05 DUP PIC 9.", "88 DUP-A VALUE 1 2.", "88 DUP-B VALUE 2.",
             "05 ALT-A.", "10 A-1 PIC X.",
             "05 ALT-B REDEFINES ALT-A.", "10 B-1 PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
+        assertThat(Mapping.diagnostics(result)).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(
                 tuple(Severity.INFO, info("FILLER", "the item is a FILLER")),
                 tuple(Severity.INFO, info("KIND",
@@ -153,6 +153,19 @@ class ConditionMapperTest {
         assertThat(field(result, "n").javaType()).isEqualTo(JavaType.INT);
     }
 
+    @Test
+    void countFieldOfAFixedTableKeepsItsType() {
+        MapResult result = map(new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
+                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of("LINES", "N")),
+            "01 ORDER.", "05 N PIC 9.", "88 N-ONE VALUE 1.", "88 N-TWO VALUE 2.",
+            "05 LINES OCCURS 3 PIC X.");
+        assertThat(field(result, "n").javaType()).isEqualTo(JavaType.INT);
+        MapResult badName = map(new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
+                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of("LINES", "N OF")),
+            "01 ORDER.", "05 N PIC 9.", "05 LINES OCCURS 3 PIC X.");
+        assertThat(badName.model()).isNull();
+    }
+
     private static String info(String item, String reason) {
         return item + ": the level 88 items give constants, not an enum, because " + reason
             + ". Set the condition mode of " + item + " to change this.";
@@ -173,9 +186,9 @@ class ConditionMapperTest {
                 "NOTE", ConditionMode.NONE)), "01 ORDER.",
             "05 STATUS PIC X.", "88 ACTIVE VALUE 'A'.", "88 CLOSED VALUE 'C'.",
             "05 NOTE PIC X.", "88 NOTE-A VALUE 'A'.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::message).containsExactly(
+        assertThat(Mapping.diagnostics(result)).extracting(Diagnostic::message).containsExactly(
             "condition NOTE-A is ignored");
-        assertThat(result.diagnostics().get(0).line()).isEqualTo(6);
+        assertThat(Mapping.diagnostics(result).get(0).line()).isEqualTo(6);
         assertThat(field(result, "status").conditions()).containsExactly(
             new ConditionMember("ACTIVE", "ACTIVE", "isActive", List.of(one("A"))),
             new ConditionMember("CLOSED", "CLOSED", "isClosed", List.of(one("C"))));
@@ -232,7 +245,7 @@ class ConditionMapperTest {
             "05 TOTAL PIC 9(12) VALUE 7.",
             "05 RATE PIC S9(3)V99 VALUE -12.50.",
             "05 PLAIN PIC X.");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(Mapping.diagnostics(result)).isEmpty();
         assertThat(type(result, "Order").members()).extracting(m -> ((FieldMember) m)
                 .initialValue())
             .containsExactly("EUR", "", "000", "0", "7", "-12.50", null);
@@ -273,13 +286,13 @@ class ConditionMapperTest {
             + " enum: the level 88 items N-A and N-B share a value");
         MapResult apart = map(modes(Map.of("N", ConditionMode.ENUM)), "01 ORDER.",
             "05 N PIC 9(3).", "88 N-A VALUE 1 THRU 10.", "88 N-B VALUE 11 THRU 20.");
-        assertThat(apart.diagnostics()).isEmpty();
+        assertThat(Mapping.diagnostics(apart)).isEmpty();
     }
 
     @Test
     void stripPrefixesApplyToConditionNames() {
         MapResult result = map(new MappingOptions(List.of("WS-"), MappingOptions.INPUT_MARKERS,
-                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of()),
+                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of()),
             "01 ORDER.", "05 WS-FLAG PIC X.", "88 WS-FLAG-ON VALUE 'Y'.");
         assertThat(((FieldMember) member(type(result, "Order"), "flag")).conditions())
             .extracting(ConditionMember::constant, ConditionMember::method)

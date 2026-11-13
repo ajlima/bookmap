@@ -2,6 +2,7 @@ package pt.dazz.bookmap.copybook.map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static pt.dazz.bookmap.copybook.map.Mapping.diagnostics;
 import static pt.dazz.bookmap.copybook.map.Mapping.map;
 import static pt.dazz.bookmap.copybook.map.Mapping.member;
 import static pt.dazz.bookmap.copybook.map.Mapping.type;
@@ -200,7 +201,7 @@ class ModelMapperTest {
             "05 ORDER-DATE-X REDEFINES ORDER-DATE PIC X(8).");
         assertThat(type(result, "Order").members()).extracting(MemberModel::name)
             .containsExactly("orderDate");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.WARNING,
                 "ORDER-DATE-X redefines ORDER-DATE and is skipped"));
         assertThat(result.hasErrors()).isFalse();
@@ -209,7 +210,7 @@ class ModelMapperTest {
     @Test
     void elementaryRedefinesOfAMissingItemIsSkipped() {
         MapResult result = map("01 ORDER.", "05 A PIC X(2).", "05 B REDEFINES NOWHERE PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity)
             .containsExactly(Severity.WARNING);
     }
 
@@ -241,7 +242,7 @@ class ModelMapperTest {
     void conditionsOfAGroupAreInfo() {
         MapResult result = map("01 ORDER.", "05 STATUS.", "88 STATUS-OPEN VALUE 'O'.",
             "10 CODE PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.INFO, "condition STATUS-OPEN is ignored"));
     }
 
@@ -250,9 +251,10 @@ class ModelMapperTest {
         MapResult result = map("01 ORDER.", "05 QTY OCCURS 5 PIC 9(4) COMP.",
             "05 N PIC 9(2).", "05 OTHER OCCURS 5 DEPENDING ON N PIC 9(4) COMP.",
             "05 CODES OCCURS 5 PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::message)
+        assertThat(diagnostics(result)).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.INFO, "QTY: a COMP value of 0 is all LOW-VALUES and"
-                + " cannot be written. Add dependsOn if the program has a count field."));
+                + " cannot be written. Link the count field with the option countFields if the"
+                + " program has one."));
     }
 
     @Test

@@ -59,6 +59,10 @@ public final class Main {
           --direction <name>=<dir>   The direction (INPUT or OUTPUT) of an alternative.
           --conditions <name>=<mode> The mode (enum, constants, or none) of the level 88
                                      items of an item.
+          --count-field <table>=<field>
+                                     The count field of a fixed table (OCCURS n).
+          --max-record-length <bytes>
+                                     Warn if a record is longer. Default: no check.
           --config <file.json>       A file with all options. The command line has priority.
         """;
 
@@ -247,11 +251,38 @@ public final class Main {
                     + "'. Use enum, constants, or none.");
             }
         }
+        Map<String, String> countFields = new LinkedHashMap<>(base.countFields());
+        for (String value : arguments.all("--count-field")) {
+            int equals = value.indexOf('=');
+            if (equals < 1) {
+                throw new UsageException("--count-field needs TABLE=FIELD, not '" + value
+                    + "'");
+            }
+            countFields.put(value.substring(0, equals), value.substring(equals + 1));
+        }
         return new MappingOptions(
             concat(base.stripPrefixes(), arguments.all("--strip-prefix")),
             concat(base.inputMarkers(), arguments.all("--input-marker")),
             concat(base.outputMarkers(), arguments.all("--output-marker")),
-            directions, base.subTypes(), conditions);
+            directions, base.subTypes(), countFields, maxRecordLength(arguments, base),
+            conditions);
+    }
+
+    private static Integer maxRecordLength(Arguments arguments, MappingOptions base) {
+        String value = arguments.value("--max-record-length");
+        if (value == null) {
+            return base.maxRecordLength();
+        }
+        try {
+            int length = Integer.parseInt(value);
+            if (length >= 1) {
+                return length;
+            }
+        } catch (NumberFormatException e) {
+            // The message below applies.
+        }
+        throw new UsageException("--max-record-length needs a number of bytes of 1 or more,"
+            + " not '" + value + "'");
     }
 
     private static List<String> concat(List<String> first, List<String> second) {

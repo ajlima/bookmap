@@ -57,6 +57,14 @@ public abstract class CopybooksSpec {
     public abstract Property<Boolean> getPackagePerCopybook();
 
     /**
+     * Gives the maximum record length in bytes. A longer record gives a warning. Not set
+     * means no check. The value of an options file has priority.
+     *
+     * @return the maximum record length
+     */
+    public abstract Property<Integer> getMaxRecordLength();
+
+    /**
      * Gives the directory for the generated Java files. The default is
      * {@code build/generated/sources/copybook/main}.
      *

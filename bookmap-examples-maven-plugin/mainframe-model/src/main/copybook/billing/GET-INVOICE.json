@@ -1,3 +1,7 @@
 {
-  "stripPrefixes": ["INV-"]
+  "stripPrefixes": ["INV-"],
+  "countFields": {
+    "INVOICE-LINE": "INVOICE-LINE-COUNT",
+    "TAX-SUMMARY-ENTRY": "TAX-SUMMARY-COUNT"
+  }
 }
