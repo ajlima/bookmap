@@ -24,7 +24,7 @@ New features of the copybook generator and its build plugins. Milestone: [Copybo
 - [#33](https://github.com/ajlima/bookmap/issues/33) Read copybooks from a dependency artifact
 - [#34](https://github.com/ajlima/bookmap/issues/34) Support Maven 4 in the Maven plugin
 - [#35](https://github.com/ajlima/bookmap/issues/35) Generator: date hints and optional Continuable/Validatable
-- [#36](https://github.com/ajlima/bookmap/issues/36) Generator: level 88 constants and VALUE initial values
+- [#36](https://github.com/ajlima/bookmap/issues/36) Generator: enums from level 88 items and VALUE initial values
 - [#37](https://github.com/ajlima/bookmap/issues/37) Generator: accept the COBOL items that are errors today
 
 ## 3. Mapping

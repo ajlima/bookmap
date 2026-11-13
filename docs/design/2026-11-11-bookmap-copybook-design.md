@@ -74,7 +74,7 @@ The CLI and the future plugins must not need more than this API.
 - A Gradle plugin or a Maven plugin (later work).
 - Persistence of models, a comparison of two models, or a merge of developer edits. Future modules do this.
 - Detection of dates. The copybook does not tell if `PIC 9(8)` is a date. The field stays a number.
-- Constants from level 88, and initial values from `VALUE`.
+- Enums (or constants) from level 88, and initial values from `VALUE`.
 - A parser for the PROCEDURE DIVISION or for full COBOL programs.
 
 ### 3.3 Anti-goals
