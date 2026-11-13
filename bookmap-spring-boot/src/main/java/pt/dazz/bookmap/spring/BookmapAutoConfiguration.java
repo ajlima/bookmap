@@ -1,7 +1,6 @@
 package pt.dazz.bookmap.spring;
 
 import java.nio.charset.Charset;
-import java.util.Locale;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -81,9 +80,7 @@ public class BookmapAutoConfiguration {
     @ConditionalOnProperty("bookmap.transport.type")
     @ConditionalOnMissingBean(Transport.class)
     MissingTransport bookmapMissingTransport(BookmapTransportProperties properties) {
-        TransportType type = properties.type();
-        throw new IllegalStateException("bookmap.transport.type=" + type.name().toLowerCase(Locale.ROOT)
-            + ", but no Transport bean exists. Add " + type.requirement() + " to the class path.");
+        throw new IllegalStateException(properties.type().missingTransportMessage());
     }
 
     /** The type of the bean of the missing-transport check. No instance exists. */

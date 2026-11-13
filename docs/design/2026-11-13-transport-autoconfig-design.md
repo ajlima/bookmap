@@ -143,6 +143,10 @@ public class CtgTransportAutoConfiguration {
 
 `bookmap.transport.type=ctg, but no Transport bean exists. Add bookmap-transport-ctg and the IBM library ctgclient.jar to the class path.`
 
+Until the increment of a transport is released, its message is: `bookmap.transport.type=mq, but no Transport bean exists. This version of bookmap-spring-boot has no auto-configuration for mq. Declare a Transport bean.` Each increment changes the message of its transport.
+
+The connector beans (`EciConnector`, `MqConnector`) also have the condition `@ConditionalOnMissingBean(Transport.class)`. Thus, a `Transport` bean of the application stops the whole transport auto-configuration.
+
 `BookmapAutoConfiguration` runs after the transport auto-configurations. Thus, the condition sees their beans.
 
 ### 5.3 CTG

@@ -1,5 +1,7 @@
 package pt.dazz.bookmap.spring;
 
+import java.util.Locale;
+
 /**
  * The transport that the Spring Boot auto-configuration creates. The property
  * {@code bookmap.transport.type} selects it.
@@ -9,12 +11,13 @@ public enum TransportType {
     /** The CICS Transaction Gateway (ECI). */
     CTG("bookmap-transport-ctg and the IBM library ctgclient.jar"),
 
-    /** IBM MQ, with Jakarta Messaging. */
-    MQ("bookmap-transport-mq"),
+    /** IBM MQ, with Jakarta Messaging. This version has no auto-configuration for it. */
+    MQ(null),
 
-    /** HTTP, with a binary body. */
-    HTTP("bookmap-transport-http");
+    /** HTTP, with a binary body. This version has no auto-configuration for it. */
+    HTTP(null);
 
+    /** The modules and the libraries of the transport, or null without an auto-configuration. */
     private final String requirement;
 
     TransportType(String requirement) {
@@ -22,11 +25,18 @@ public enum TransportType {
     }
 
     /**
-     * Tells what the class path must contain for this transport.
+     * Gives the message for an application that selects this transport and has no
+     * {@code Transport} bean.
      *
-     * @return the modules and the libraries, for an error message
+     * @return the message, with what to add to the class path
      */
-    String requirement() {
-        return requirement;
+    String missingTransportMessage() {
+        String name = name().toLowerCase(Locale.ROOT);
+        String start = "bookmap.transport.type=" + name + ", but no Transport bean exists. ";
+        if (requirement == null) {
+            return start + "This version of bookmap-spring-boot has no auto-configuration for " + name
+                + ". Declare a Transport bean.";
+        }
+        return start + "Add " + requirement + " to the class path.";
     }
 }

@@ -346,4 +346,13 @@ class CtgTransportAutoConfigurationTest {
                 "bookmap.transport.ctg.url=tcp://ctg.example.com")
             .run(context -> assertThat(context).getBean(EciConnector.class).isSameAs(connector));
     }
+
+    @Test
+    void applicationTransportStopsTheConnectorToo() {
+        runner.withBean(Transport.class, () -> request -> new byte[0])
+            .withPropertyValues("bookmap.transport.type=ctg")
+            .run(context -> assertThat(context).hasNotFailed()
+                .doesNotHaveBean(EciConnector.class)
+                .doesNotHaveBean(CtgTransport.class));
+    }
 }

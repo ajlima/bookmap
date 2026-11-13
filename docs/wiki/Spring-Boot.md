@@ -100,8 +100,8 @@ Set `bookmap.transport.type` to select the transport auto-configuration:
 | Value | Transport | Add to the class path |
 |---|---|---|
 | `ctg` | [CICS Transaction Gateway](#cics-transaction-gateway) | `bookmap-transport-ctg` and the IBM library `ctgclient.jar`. |
-| `mq` | IBM MQ. Not available yet. | `bookmap-transport-mq`. |
-| `http` | HTTP. Not available yet. | `bookmap-transport-http`. |
+| `mq` | IBM MQ. This version has no auto-configuration for it. | Declare a `Transport` bean. |
+| `http` | HTTP. This version has no auto-configuration for it. | Declare a `Transport` bean. |
 
 Without `bookmap.transport.type`, no transport auto-configuration runs. Then declare a `Transport` bean.
 A `Transport` bean of your application always wins. The transport auto-configuration then does nothing.

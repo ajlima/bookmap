@@ -85,7 +85,8 @@ public class CtgTransportAutoConfiguration {
     }
 
     /**
-     * Creates the connector of the IBM library, when the library is on the class path.
+     * Creates the connector of the IBM library, when the library is on the class path, and when no
+     * {@code Transport} bean of the application exists.
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = "com.ibm.ctg.client.JavaGateway")
@@ -99,7 +100,7 @@ public class CtgTransportAutoConfiguration {
          * @throws IllegalStateException if the URL is not set
          */
         @Bean
-        @ConditionalOnMissingBean(EciConnector.class)
+        @ConditionalOnMissingBean({EciConnector.class, Transport.class})
         JavaGatewayConnector javaGatewayConnector(CtgTransportProperties properties) {
             Properties protocolProperties = new Properties();
             protocolProperties.putAll(properties.protocolProperties());
