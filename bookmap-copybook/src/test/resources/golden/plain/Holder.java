@@ -1,5 +1,8 @@
 package com.example.accounts;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import pt.dazz.bookmap.annotation.BookField;
 
 /**
@@ -15,11 +18,65 @@ public class Holder {
     )
     private String holderName;
 
+    /**
+     * {@code 10 SINCE PIC 9(8).}
+     */
+    @BookField(
+            order = 20,
+            pic = "9(8)",
+            pattern = "yyyyMMdd"
+    )
+    private LocalDate since;
+
+    /**
+     * {@code 10 OPENED-AT PIC X(8).}
+     */
+    @BookField(
+            order = 30,
+            pic = "X(8)",
+            pattern = "HH:mm:ss"
+    )
+    private LocalTime openedAt;
+
+    /**
+     * {@code 10 LAST-UPDATE PIC 9(14).}
+     */
+    @BookField(
+            order = 40,
+            pic = "9(14)",
+            pattern = "yyyyMMddHHmmss"
+    )
+    private LocalDateTime lastUpdate;
+
     public String getHolderName() {
         return holderName;
     }
 
     public void setHolderName(String holderName) {
         this.holderName = holderName;
+    }
+
+    public LocalDate getSince() {
+        return since;
+    }
+
+    public void setSince(LocalDate since) {
+        this.since = since;
+    }
+
+    public LocalTime getOpenedAt() {
+        return openedAt;
+    }
+
+    public void setOpenedAt(LocalTime openedAt) {
+        this.openedAt = openedAt;
+    }
+
+    public LocalDateTime getLastUpdate() {
+        return lastUpdate;
+    }
+
+    public void setLastUpdate(LocalDateTime lastUpdate) {
+        this.lastUpdate = lastUpdate;
     }
 }

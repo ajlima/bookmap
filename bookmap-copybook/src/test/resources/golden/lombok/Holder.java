@@ -1,5 +1,8 @@
 package com.example.accounts;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import pt.dazz.bookmap.annotation.BookField;
@@ -18,4 +21,34 @@ public class Holder {
             pic = "X(30)"
     )
     private String holderName;
+
+    /**
+     * {@code 10 SINCE PIC 9(8).}
+     */
+    @BookField(
+            order = 20,
+            pic = "9(8)",
+            pattern = "yyyyMMdd"
+    )
+    private LocalDate since;
+
+    /**
+     * {@code 10 OPENED-AT PIC X(8).}
+     */
+    @BookField(
+            order = 30,
+            pic = "X(8)",
+            pattern = "HH:mm:ss"
+    )
+    private LocalTime openedAt;
+
+    /**
+     * {@code 10 LAST-UPDATE PIC 9(14).}
+     */
+    @BookField(
+            order = 40,
+            pic = "9(14)",
+            pattern = "yyyyMMddHHmmss"
+    )
+    private LocalDateTime lastUpdate;
 }
