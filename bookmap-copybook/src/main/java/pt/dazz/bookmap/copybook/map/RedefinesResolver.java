@@ -165,8 +165,7 @@ final class RedefinesResolver {
         all.addAll(redefiners);
         if (context.direction() != Direction.INPUT_OUTPUT || subTypeAreas.containsKey(owner)
             || owner.kind == ClassKind.SUBTYPE) {
-            mapper.error(base, "the REDEFINES area " + base.name()
-                + " is inside another REDEFINES area. BookMap does not support this.");
+            nested(base, redefiners, owner, context);
             return;
         }
         for (DataItem alternative : all) {
@@ -208,6 +207,27 @@ final class RedefinesResolver {
             + " Or add a subtype decision, for example \"subTypes\": {\"" + first
             + "\": {\"discriminator\": \"...\", \"values\": {\"" + first + "\": \"01\", \""
             + second + "\": \"02\"}}}.");
+    }
+
+    /**
+     * Maps a {@code REDEFINES} area inside another one. BookMap keeps the redefined group and
+     * skips the other alternatives, as for an elementary item with {@code REDEFINES}.
+     */
+    private void nested(DataItem base, List<DataItem> redefiners, ModelMapper.ClassBuilder owner,
+                        ModelMapper.Context context) {
+        int baseLength = length(base, context.usage());
+        for (DataItem redefiner : redefiners) {
+            if (length(redefiner, context.usage()) > baseLength) {
+                mapper.error(redefiner, redefiner.name() + " redefines " + base.name()
+                    + " and is longer than " + base.name() + ". BookMap keeps " + base.name()
+                    + ", so the items after it would move.");
+            } else {
+                mapper.warning(redefiner, "the REDEFINES area " + base.name() + " is inside"
+                    + " another REDEFINES area. BookMap keeps " + base.name() + " and skips "
+                    + redefiner.name() + ". See issues #38 and #39.");
+            }
+        }
+        mapper.item(base, owner, context);
     }
 
     /** Gives the direction of an alternative from a decision or a marker, or {@code null}. */
