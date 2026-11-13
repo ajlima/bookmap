@@ -50,9 +50,10 @@ Only these Java types are permitted without a converter:
 | `long`, `Long` | `PIC 9` or `PIC S9`; `DISPLAY`, `COMP3`, or `COMP` | 18 digits maximum. Scale 0. |
 | `BigDecimal` | Any numeric definition, with `scale` | The scale must not be more than the length. |
 | `LocalDate`, `LocalTime`, `LocalDateTime` | `PIC 9(n)` or `PIC X(n)` `DISPLAY`, with a `pattern` | A numeric `pic` must be unsigned and without `V`. |
+| An enum with `@CobolValue` constants | `PIC X(n)`, or any numeric definition | Text: the rules of `String`. Number: the rules of `BigDecimal`. See [Enum fields](Annotations-reference#enum-fields). |
 | Any other type | Through a `converter` | See [Annotations reference](Annotations-reference#converters). |
 
-Other types, for example `boolean`, `short`, `double`, enums, and `byte[]`, need a `converter`.
+Other types, for example `boolean`, `short`, `double`, and `byte[]`, need a `converter`.
 Without a converter, the compiler reports `type <T> is not supported without a converter`.
 
 An incorrect combination is a compile error. For example:
@@ -142,6 +143,7 @@ Packed dates (for example `S9(7) COMP-3` in the format `0CYYDDD`) have no built-
 - `COMP` number: never `null`. Low-values read as `0`.
 - Date or time with only spaces or low-values: `null`.
 - `LocalDate` or `LocalDateTime` with only zeros: `null`. `LocalTime` with only zeros: `LocalTime.MIDNIGHT`.
+- Enum: the constant that contains the value. A blank field gives `null`, unless a constant has the blank value. An unknown value throws `MappingException`, or gives the `@CobolUnknown` constant.
 
 ### Write
 
@@ -149,4 +151,5 @@ Packed dates (for example `S9(7) COMP-3` in the format `0CYYDDD`) have no built-
 - Number: a `null` number writes zero, with a positive sign. For example, `S9(3)` writes `F0 F0 C0` in EBCDIC.
 - Date or time: a `null` value writes the digit `0` in all positions. Thus, a `null` `LocalTime` reads back as midnight.
 - Converter: the converter gets the `null` value.
+- Enum: the canonical value of the constant. A `null` enum writes spaces (text) or zero (number).
 - Too large a value (text, digits, or a negative value in an unsigned field) throws `MappingException`. The codec never truncates.
