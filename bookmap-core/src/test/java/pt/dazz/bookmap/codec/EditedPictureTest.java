@@ -30,6 +30,9 @@ class EditedPictureTest {
         "$$$.$$|4|2|false|6",
         "9(5)|5|0|false|5",
         "zz9.99cr|5|2|true|8",
+        "Z(000000002)9|3|0|false|3",
+        "$,$$9|3|0|false|5",
+        "+B++9|3|0|true|5",
     })
     void givesTheAttributes(String text, int digits, int scale, boolean signed, int bytes) {
         EditedPicture picture = EditedPicture.parse(text, false);
@@ -101,6 +104,7 @@ class EditedPictureTest {
         "$$++9|the picture has more than one floating string",
         "++9++|the picture has more than one floating string",
         "$$9$$|the picture has more than one floating string",
+        "$$9$|the picture has more than one floating string",
         "$$9.$$|the picture has more than one floating string",
         "9Z|a '9' must not come before 'Z', '*', or a floating symbol",
         "9**|a '9' must not come before 'Z', '*', or a floating symbol",
@@ -137,11 +141,15 @@ class EditedPictureTest {
     @Test
     void acceptsTheMaximumLength() {
         assertThat(EditedPicture.parse("Z(999)9", false).byteLength()).isEqualTo(1000);
+        assertThat(EditedPicture.parse("Z(997)9CR", false).byteLength()).isEqualTo(1000);
+        assertThatThrownBy(() -> EditedPicture.parse("Z(998)9CR", false))
+            .hasMessage("the edited picture has more than 1000 characters");
     }
 
-    @Test
-    void rejectsBlankWhenZeroWithCheckProtection() {
-        assertThatThrownBy(() -> EditedPicture.parse("**9.99", true))
+    @ParameterizedTest
+    @CsvSource({"**9.99", "S9(5)", "s9(3)V99"})
+    void rejectsBlankWhenZeroWithASignOrCheckProtection(String text) {
+        assertThatThrownBy(() -> EditedPicture.parse(text, true))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("BLANK WHEN ZERO is not permitted with S or '*'");
     }

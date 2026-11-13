@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.util.Locale;
+import java.util.Objects;
 import pt.dazz.bookmap.codec.internal.Blank;
 import pt.dazz.bookmap.codec.internal.TextCodec;
 import pt.dazz.bookmap.codec.internal.Unscaled;
@@ -87,6 +88,9 @@ public final class EditedPicture {
      */
     public static EditedPicture parse(String picture, boolean blankWhenZero) {
         String upper = picture.toUpperCase(Locale.ROOT);
+        if (blankWhenZero && upper.startsWith("S")) {
+            throw new IllegalArgumentException("BLANK WHEN ZERO is not permitted with S or '*'");
+        }
         Parser parser = new Parser(Parser.expand(upper));
         parser.classify();
         if (blankWhenZero && parser.suppress == '*') {
@@ -260,22 +264,20 @@ public final class EditedPicture {
         while (i < kinds.length) {
             char c = text.charAt(i);
             char kind = kinds[i];
-            int bad;
-            if (kind == LETTER) {
-                bad = letters(text, i);
-                negative |= bad < 0 && c != ' ' && c != '*';
-                i++;
-            } else {
-                bad = valid(kind, chars[i], c) ? -1 : i;
-                negative |= bad < 0 && c == '-';
-                if (bad < 0 && (kind == DIGIT || kind == SUPPRESS)) {
-                    number.append(Character.isDigit(c) ? c : '0');
-                }
-            }
+            int bad = kind == LETTER ? letters(text, i) : valid(kind, chars[i], c) ? -1 : i;
             if (bad >= 0) {
                 throw new MappingException(field + ": byte 0x"
                     + String.format("%02X", bytes[from + bad] & 0xFF) + " at offset " + bad
                     + " of the field is not valid in the edited picture " + this.text);
+            }
+            if (kind == LETTER) {
+                negative |= c == chars[i];
+                i++;
+            } else {
+                negative |= c == '-';
+            }
+            if (kind == DIGIT || kind == SUPPRESS) {
+                number.append(Character.isDigit(c) ? c : '0');
             }
             i++;
         }
@@ -324,7 +326,7 @@ public final class EditedPicture {
 
     @Override
     public int hashCode() {
-        return text.hashCode() * 2 + (blankWhenZero ? 1 : 0);
+        return Objects.hash(text, blankWhenZero);
     }
 
     /**
@@ -379,13 +381,13 @@ public final class EditedPicture {
                             "a repeat count must come after a symbol");
                     }
                     int close = picture.indexOf(')', i);
-                    if (close < 0) {
+                    if (close == -1) {
                         throw new IllegalArgumentException("a '(' must have a ')' after it");
                     }
                     count = count(picture.substring(i + 1, close));
                     i = close + 1;
                 }
-                if (out.length() + count * (letters ? 2 : 1) > MAX_LENGTH) {
+                if (out.length() + (letters ? 2 : count) > MAX_LENGTH) {
                     throw new IllegalArgumentException(
                         "the edited picture has more than " + MAX_LENGTH + " characters");
                 }
@@ -463,22 +465,22 @@ public final class EditedPicture {
         private void findFloating() {
             for (char c : FLOATING_SYMBOLS.toCharArray()) {
                 int first = symbols.indexOf(c);
-                if (first >= 0 && symbols.indexOf(c, first + 1) > 0) {
+                int last = symbols.lastIndexOf(c);
+                if (last > first) {
                     if (floating != 0) {
                         throw moreThanOneFloatingString();
                     }
                     floating = c;
-                    for (int k = first; k <= symbols.lastIndexOf(c); k++) {
-                        char inside = symbols.charAt(k);
-                        if (inside != c && (INSERTION_SYMBOLS + ".V").indexOf(inside) < 0) {
-                            throw moreThanOneFloatingString();
-                        }
+                    boolean contiguous = symbols.substring(first, last + 1).chars()
+                        .allMatch(inside -> inside == c || ",B0/.V".indexOf(inside) >= 0);
+                    if (!contiguous) {
+                        throw moreThanOneFloatingString();
                     }
                 }
             }
         }
 
-        private static IllegalArgumentException moreThanOneFloatingString() {
+    private static IllegalArgumentException moreThanOneFloatingString() {
             return new IllegalArgumentException("the picture has more than one floating string");
         }
 
