@@ -71,6 +71,26 @@ Maven:
 With Maven, add `bookmap-processor` to the `annotationProcessorPaths` of the `maven-compiler-plugin`.
 See [Getting started](https://github.com/ajlima/bookmap/wiki/Getting-started) for Lombok, charsets, and the client builder.
 
+### Verify an artifact
+
+Each release after `0.6.0` has a build provenance attestation for each JAR, POM, and Gradle module file on Maven Central.
+The attestation shows that the release workflow of this repository built the file.
+Use the [GitHub CLI](https://cli.github.com/) to verify a file. Sign in with `gh auth login` first.
+
+Download the file. Replace `X.Y.Z` with the version:
+
+```bash
+curl -fsSLO https://repo1.maven.org/maven2/pt/dazz/bookmap/bookmap-core/X.Y.Z/bookmap-core-X.Y.Z.jar
+```
+
+Verify the file:
+
+```bash
+gh attestation verify bookmap-core-X.Y.Z.jar --repo ajlima/bookmap --signer-workflow ajlima/bookmap/.github/workflows/release.yml
+```
+
+The command fails if no attestation of this repository and this workflow has the same SHA-256 digest as the file.
+
 ## Quick start
 
 `GetCustomerOrders` is a book in convention style. It lists the orders of a customer.
