@@ -93,6 +93,7 @@ bookmap {
         packageName = "com.example.mainframe"                        // required
         lombok = false                                               // the default
         packagePerCopybook = false                                   // the default
+        maxRecordLength = 32500                                      // optional
         exclude("**/members/**")                                     // optional
     }
 }
@@ -105,6 +106,7 @@ bookmap {
 | `packageName` | none | The base package. It is required if a copybook exists and its options file does not set `package`. |
 | `lombok` | `false` | Write Lombok annotations instead of getters and setters. |
 | `packagePerCopybook` | `false` | Add one package segment from the copybook name. See [Class name collisions](#class-name-collisions). |
+| `maxRecordLength` | none | The maximum record length in bytes. A longer record gives a warning. See [Record length](Copybook-generator#record-length). |
 | `outputDir` | `build/generated/sources/copybook/main` | The directory for the generated Java files. |
 | `include(...)` | `**/*.cpy` | The patterns of the copybook files in `sourceDir`. Your patterns replace the default. Each call adds patterns to the list `includes`. |
 | `exclude(...)` | none | The patterns of the files in `sourceDir` that are not copybooks. Each call adds patterns to the list `excludes`. |
@@ -158,6 +160,7 @@ These rules apply:
 
 - `package` in the file has priority over the package from the directories.
 - `lombok` in the file has priority over the `lombok` property of the extension.
+- `maxRecordLength` in the file has priority over the `maxRecordLength` property of the extension.
 - `copyDirs` in the file come first in the search order. The `copyDirs` of the extension come after them.
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file. Without a file, the plugin uses the defaults of the generator.
@@ -237,7 +240,7 @@ bookmap {
   - the copybooks and all `.json` files below `sourceDir`, with their paths relative to `sourceDir`. The `exclude` patterns do not apply to the `.json` files;
   - all files in the copy directories, of the extension and of the options files;
   - the order of the copy directories;
-  - `include`, `exclude`, `packageName`, `lombok`, and `packagePerCopybook`.
+  - `include`, `exclude`, `packageName`, `lombok`, `packagePerCopybook`, and `maxRecordLength`.
 - The inputs use relative paths. Thus, two checkouts in different directories share the entries of the build cache. One exception exists: a copy directory on another drive than `sourceDir` gives an absolute path.
 - The task is cacheable. With `--build-cache`, a clean build can take the generated files from the cache.
 - The task supports the configuration cache.
@@ -248,7 +251,7 @@ bookmap {
 The task writes each diagnostic of the generator to the build log, in the format `<file>:<line>:<column>: <severity>: <message>`.
 The file is the name of the copybook or of the `COPY` member, without the directory.
 
-- Errors have the level ERROR. Warnings and infos both have the level WARN. Thus, an `info:` line also shows in the normal output.
+- Errors have the level ERROR. Warnings have the level WARN. Infos have the level LIFECYCLE. Thus, an `info:` line also shows in the normal output, but it is not a warning.
 - The task checks all copybooks before it fails. Then the build fails with this message: `N copybook(s) have errors. See the messages above.`
 - The task checks for class name collisions only when no copybook has an error.
 - A missing `packageName` stops the task at once, with `Set bookmap.copybooks.packageName.`

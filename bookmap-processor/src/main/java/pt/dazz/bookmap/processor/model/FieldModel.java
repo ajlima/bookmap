@@ -23,10 +23,12 @@ import pt.dazz.bookmap.annotation.Usage;
  * @param setter the name of the setter method
  * @param converter the custom converter class, or {@code null} if the field has no converter
  * @param byteLength the number of bytes of the field in the book
+ * @param enumModel the COBOL values of an enum field, or {@code null} for another kind
  */
 public record FieldModel(String ownerSimpleName, String name, int order, int length,
     Direction direction, Usage usage, int scale, boolean signed, String pattern, JavaKind kind,
-    TypeMirror type, String getter, String setter, TypeElement converter, int byteLength)
+    TypeMirror type, String getter, String setter, TypeElement converter, int byteLength,
+    EnumModel enumModel)
     implements MemberModel {
 
     /**
@@ -51,6 +53,8 @@ public record FieldModel(String ownerSimpleName, String name, int order, int len
         LOCAL_TIME,
         /** {@code LocalDateTime}. */
         LOCAL_DATE_TIME,
+        /** An enum with {@code @CobolValue} constants, without a converter. */
+        ENUM,
         /** Any type with a custom converter. */
         CONVERTED
     }

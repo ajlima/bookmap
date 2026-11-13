@@ -26,7 +26,6 @@ New features of the copybook generator and its build plugins. Milestone: [Copybo
 - [#35](https://github.com/ajlima/bookmap/issues/35) Generator: date hints and optional Continuable/Validatable
 - [#36](https://github.com/ajlima/bookmap/issues/36) Generator: enums from level 88 items and VALUE initial values
 - [#37](https://github.com/ajlima/bookmap/issues/37) Generator: accept the COBOL items that are errors today
-- [#80](https://github.com/ajlima/bookmap/issues/80) Generator: warn when a record is longer than a maximum length
 - [#81](https://github.com/ajlima/bookmap/issues/81) Generator: link a count field to a fixed table
 
 ## 3. Mapping
