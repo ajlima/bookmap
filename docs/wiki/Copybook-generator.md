@@ -1128,9 +1128,9 @@ private BigDecimal invDiscount;
 
 - The item must have the usage `DISPLAY`. A `COMP` or `COMP-3` usage, also from a group, is an error: `INV-TOTAL has an edited picture and must have usage DISPLAY`.
 - The `SIGN` clause of a group does not apply to an edited item. The picture has its own sign.
-- The `VALUE` and the level 88 items of an edited item are ignored, with an `info` diagnostic, for example `condition INV-NONE is ignored, because INV-TOTAL has an edited picture`.
-- A date hint on an edited item is an error: `INV-DATE has an edited picture. A date hint needs PIC 9(n) or PIC X(n).`
-- An edited item cannot be the count field of a table: `DEPENDING ON item LINE-COUNT must not have an edited picture`.
+- The `VALUE` and the level 88 items of an item with edit symbols are ignored, with an `info` diagnostic, for example `condition INV-NONE is ignored, because INV-TOTAL has an edited picture`. A `9(n)` with `BLANK WHEN ZERO` keeps its `VALUE` and its level 88 items.
+- A date hint on an item with edit symbols is an error: `INV-DATE has an edited picture. A date hint needs PIC 9(n) or PIC X(n).` On a `9(n)` with `BLANK WHEN ZERO`, the date hint applies, and the generator ignores the clause with an `info` diagnostic.
+- An edited item, also a `9(n)` with `BLANK WHEN ZERO`, cannot be a count field, an empty key, or a discriminator. For example: `DEPENDING ON item LINE-COUNT must not have an edited picture`.
 - A comma in a picture is part of the picture. A comma is a separator only before a space.
 
 ## Limitations of the generator

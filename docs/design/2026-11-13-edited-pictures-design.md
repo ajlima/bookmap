@@ -229,8 +229,10 @@ The processor and the copybook generator both use `EditedPicture.parse`. Thus, t
 - `DataParser`: `BLANK WHEN ZERO` is kept on the item, and is not ignored. See decision D6.
 - `Lexer`: in a picture, a comma or a semicolon is a separator only before a space, as in COBOL. Thus, `Z,ZZ9` is one picture.
 - An edited item with a `USAGE` other than `DISPLAY`, also from the group, is an error: `<NAME> has an edited picture and must have usage DISPLAY`.
-- An edited item with level 88 items or a `VALUE`: the generator ignores them with an info message, like a date hint. The `VALUE` of an edited item is a text literal in COBOL.
-- A date hint on an edited item is an error: `<NAME> has an edited picture. A date hint needs PIC 9(n) or PIC X(n)`.
+- An item with edit symbols and with level 88 items or a `VALUE`: the generator ignores them with an info message, like a date hint. The `VALUE` of an edited item is a text literal in COBOL. A `9(n)` with `BLANK WHEN ZERO` keeps its numeric `VALUE` and its level 88 items.
+- A date hint on an item with edit symbols is an error: `<NAME> has an edited picture. A date hint needs PIC 9(n) or PIC X(n)`. On a `9(n)` with `BLANK WHEN ZERO`, the date hint applies, and the generator ignores the clause with an info message.
+- An edited item as an `emptyKeys` key or as a discriminator is an error: `empty key option: <NAME> must not have an edited picture`, `the discriminator <NAME> must not have an edited picture`.
+- The Javadoc of a generated field holds the COBOL declaration. A picture with `*/`, for example `**/**/99`, uses HTML in the Javadoc, so that the comment does not end.
 - An edited item as a count field is an error: `DEPENDING ON item <NAME> must not have an edited picture`. The generator does not suggest an edited item as a count field.
 - `RecordLength` and `RedefinesResolver` use `Picture.byteLength`. Thus, they get the correct size without other change.
 - No change to `MappingOptions`, the model JSON format, the CLI, or the plugins.
