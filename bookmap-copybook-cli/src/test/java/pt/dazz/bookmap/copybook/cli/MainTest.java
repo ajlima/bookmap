@@ -169,6 +169,30 @@ class MainTest {
     }
 
     @Test
+    void emptyItemOptionsMarkAFixedTable() throws IOException {
+        Path copybook = dir.resolve("INVOICE.cpy");
+        Files.writeString(copybook, String.join("\n",
+            "       01  LIST-INVOICES.",
+            "           05  INVOICE-LINE OCCURS 5 TIMES.",
+            "               10  INVOICE-NUMBER PIC X(10).",
+            "               10  INVOICE-ID PIC 9(8)."));
+        Path config = dir.resolve("config.json");
+        Files.writeString(config, "{\"emptyItems\": {\"INVOICE-LINE\": \"LOW-VALUES\"},"
+            + " \"emptyKeys\": {\"INVOICE-LINE\": \"INVOICE-ID\"}}");
+        assertThat(run("generate", copybook.toString(), "--config", config.toString(),
+            "--empty-item", "INVOICE-LINE=SPACES", "--empty-key",
+            "INVOICE-LINE=INVOICE-NUMBER", "--package", "com.example.billing",
+            "--output-dir", dir.resolve("src").toString())).isEqualTo(Main.OK);
+        assertThat(Files.readString(dir.resolve("src/com/example/billing/ListInvoices.java")))
+            .contains("emptyKey = \"invoiceNumber\"", "emptyItem = EmptyItem.SPACES");
+        assertThat(run("generate", copybook.toString(), "--config", config.toString(),
+            "--package", "com.example.billing", "--output-dir", dir.resolve("src2").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(Files.readString(dir.resolve("src2/com/example/billing/ListInvoices.java")))
+            .contains("emptyKey = \"invoiceId\"").doesNotContain("emptyItem");
+    }
+
+    @Test
     void countFieldSuggestionIsPrinted() throws IOException {
         Path copybook = dir.resolve("INVOICE.cpy");
         Files.writeString(copybook, String.join("\n",
@@ -321,6 +345,12 @@ class MainTest {
         "generate A.cpy --package a --output-dir x --count-field LINE|--count-field needs"
             + " TABLE=FIELD, not 'LINE'",
         "generate A.json --package a --output-dir x --count-field A=B|parse and mapping"
+            + " options are not permitted with a model input",
+        "generate A.cpy --package a --output-dir x --empty-item LINE|--empty-item needs"
+            + " TABLE=SPACES or TABLE=LOW-VALUES, not 'LINE'",
+        "generate A.cpy --package a --output-dir x --empty-key LINE=|--empty-key needs"
+            + " TABLE=ITEM, not 'LINE='",
+        "generate A.json --package a --output-dir x --empty-key A=B|parse and mapping"
             + " options are not permitted with a model input",
         "generate A.cpy --package a --output-dir x --max-record-length 0|--max-record-length"
             + " needs a number of bytes of 1 or more, not '0'",

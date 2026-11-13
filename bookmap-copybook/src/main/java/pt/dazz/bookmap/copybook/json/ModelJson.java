@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.copybook.model.BookModel;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
@@ -45,7 +46,8 @@ public final class ModelJson {
     private static final Set<String> ENUM_KEYS = Set.of("name", "cobolName", "constants");
     private static final Set<String> CONSTANT_KEYS = Set.of("name", "cobolName", "values");
     private static final Set<String> COLLECTION_KEYS = Set.of("kind", "name", "order",
-        "direction", "maxOccurs", "fixed", "dependsOn", "itemClass", "cobolName", "declaration");
+        "direction", "maxOccurs", "fixed", "dependsOn", "itemClass", "cobolName", "declaration",
+        "emptyItem", "emptyKey");
 
     private ModelJson() {
     }
@@ -149,6 +151,12 @@ public final class ModelJson {
                     node.put("dependsOn", collection.dependsOn());
                 }
                 node.put("itemClass", collection.itemClass());
+                if (collection.emptyItem() != EmptyItem.LOW_VALUES) {
+                    node.put("emptyItem", collection.emptyItem().name());
+                }
+                if (collection.emptyKey() != null) {
+                    node.put("emptyKey", collection.emptyKey());
+                }
             }
         }
         node.put("cobolName", member.cobolName());
@@ -256,7 +264,10 @@ public final class ModelJson {
             return new CollectionMember(member.text("name"), member.integer("order"),
                 member.enumValue("direction", Direction.class), member.text("cobolName"),
                 member.text("declaration"), member.integer("maxOccurs"), member.bool("fixed"),
-                member.optionalText("dependsOn"), member.text("itemClass"));
+                member.optionalText("dependsOn"), member.text("itemClass"),
+                member.has("emptyItem") ? member.enumValue("emptyItem", EmptyItem.class)
+                    : EmptyItem.LOW_VALUES,
+                member.optionalText("emptyKey"));
         }
         JsonObject member = JsonObject.of(node, path, FIELD_KEYS);
         if (!"FIELD".equals(member.text("kind"))) {

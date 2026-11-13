@@ -2,6 +2,7 @@ package pt.dazz.bookmap.copybook;
 
 import java.util.List;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.copybook.model.BookModel;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
@@ -57,4 +58,15 @@ public final class Models {
             List.of(account, holder, checking));
     }
 
+    /** A model with a fixed table that has the markers SPACES and a key. */
+    public static BookModel markerModel() {
+        FieldMember number = new FieldMember("invoiceNumber", JavaType.STRING, 10, "X(10)",
+            Direction.INPUT_OUTPUT, "INVOICE-NUMBER", "10 INVOICE-NUMBER PIC X(10).");
+        return new BookModel(BookModel.FORMAT_VERSION, "LIST-INVOICES.cpy", List.of(
+            new ClassModel("ListInvoices", ClassKind.OPERATION, null, null, List.of(
+                new CollectionMember("invoiceLine", 10, Direction.OUTPUT, "INVOICE-LINE",
+                    "05 INVOICE-LINE OCCURS 5 TIMES.", 5, true, null, "InvoiceLine",
+                    EmptyItem.SPACES, "invoiceNumber"))),
+            new ClassModel("InvoiceLine", ClassKind.ITEM, null, null, List.of(number))));
+    }
 }

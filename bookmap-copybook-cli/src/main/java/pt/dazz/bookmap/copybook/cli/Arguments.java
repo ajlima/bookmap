@@ -28,6 +28,8 @@ final class Arguments {
         Map.entry("--date", Set.of("parse", "generate")),
         Map.entry("--continuable", Set.of("parse", "generate")),
         Map.entry("--validatable", Set.of("parse", "generate")),
+        Map.entry("--empty-item", Set.of("parse", "generate")),
+        Map.entry("--empty-key", Set.of("parse", "generate")),
         Map.entry("--config", Set.of("parse", "generate")),
         Map.entry("--output", Set.of("parse")),
         Map.entry("--package", Set.of("generate")),
@@ -37,7 +39,7 @@ final class Arguments {
     static final Set<String> MODEL_OPTIONS = Set.of("--format", "--charset", "--copy-dir",
         "--record-name", "--strip-prefix", "--input-marker", "--output-marker", "--direction",
         "--conditions", "--count-field", "--max-record-length", "--date", "--continuable",
-        "--validatable");
+        "--validatable", "--empty-item", "--empty-key");
 
     final String command;
     final Path input;

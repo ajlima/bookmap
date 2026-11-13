@@ -67,6 +67,14 @@ class JavaClassGeneratorTest {
     }
 
     @Test
+    void collectionGetsTheEmptyItemMarkers() {
+        assertThat(JavaClassGenerator.generate(
+            Models.markerModel(), PLAIN).get(0).toString())
+            .contains("fixed = true,", "emptyKey = \"invoiceNumber\",",
+                "emptyItem = EmptyItem.SPACES");
+    }
+
+    @Test
     void writeToCreatesPackageDirectoriesAndOverwrites(@TempDir Path dir) throws IOException {
         Path file = dir.resolve("com/example/accounts/Holder.java");
         Files.createDirectories(file.getParent());

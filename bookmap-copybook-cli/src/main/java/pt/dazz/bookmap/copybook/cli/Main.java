@@ -67,6 +67,10 @@ public final class Main {
                                      is a name pattern, for example *-DATE=yyyyMMdd.
           --continuable <rec>=<cls>  The class with hasContinuation(record) of a record.
           --validatable <rec>=<cls>  The class with validate(record) of a record.
+          --empty-item <table>=SPACES|LOW-VALUES
+                                     The bytes of an unused slot of a fixed table.
+          --empty-key <table>=<item> The key item that marks an empty slot of a fixed
+                                     table: blank or zero.
           --config <file.json>       A file with all options. The command line has priority.
         """;
 
@@ -272,7 +276,9 @@ public final class Main {
             pairs(arguments, "--date", "NAME=PATTERN", base.dates()),
             pairs(arguments, "--continuable", "RECORD=CLASS", base.continuable()),
             pairs(arguments, "--validatable", "RECORD=CLASS", base.validatable()),
-            conditions);
+            conditions,
+            pairs(arguments, "--empty-item", "TABLE=SPACES or TABLE=LOW-VALUES", base.emptyItems()),
+            pairs(arguments, "--empty-key", "TABLE=ITEM", base.emptyKeys()));
     }
 
     /** Adds the KEY=VALUE values of an option to the values of the options file. */

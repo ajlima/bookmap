@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.copybook.ast.Condition;
 import pt.dazz.bookmap.copybook.ast.Copybook;
 import pt.dazz.bookmap.copybook.ast.DataItem;
@@ -124,6 +125,7 @@ public final class ModelMapper {
     /** The handler of the record that the mapper maps now, if the record is Continuable. */
     private String continuable;
     private final CountFieldResolver countFields;
+    private final EmptyItemResolver emptyItems;
     private final ConditionMapper conditions;
 
     private ModelMapper(Copybook copybook, MappingOptions options) {
@@ -133,6 +135,7 @@ public final class ModelMapper {
         this.index = new ItemIndex(copybook);
         this.redefines = new RedefinesResolver(this);
         this.countFields = new CountFieldResolver(this);
+        this.emptyItems = new EmptyItemResolver(this);
         this.conditions = new ConditionMapper(this, copybook);
     }
 
@@ -149,6 +152,7 @@ public final class ModelMapper {
         mapper.dates = new DateHints(mapper);
         OperationHandlers handlers = new OperationHandlers(mapper, copybook.records());
         mapper.countFields.checkOptions();
+        mapper.emptyItems.checkOptions(mapper.countFields);
         mapper.conditions.checkOptions();
         for (DataItem record : copybook.records()) {
             info(mapper, record);
@@ -165,6 +169,7 @@ public final class ModelMapper {
         mapper.redefines.checkSubTypeAreas();
         mapper.dates.checkUnused();
         mapper.countFields.checkUnmapped();
+        mapper.emptyItems.checkUnmapped();
         BookModel model = new BookModel(BookModel.FORMAT_VERSION, copybook.sourceName(),
             mapper.classes.stream().map(ClassBuilder::build).toList(), mapper.conditions.enums);
         return new MapResult(mapper.diagnostics.hasErrors() ? null : model,
@@ -356,15 +361,19 @@ public final class ModelMapper {
                 + " REDEFINES area.");
         }
         boolean fixed = item.occurs().dependingOn() == null;
+        EmptyItem emptyItem = emptyItems.fillOf(item);
+        String emptyKey = emptyItems.keyOf(item, type);
         // An item class has only fields: a nested OCCURS is an error above.
-        if (fixed && dependsOn == null && type.members.stream()
+        if (fixed && dependsOn == null && !emptyItems.hasKey(item) && type.members.stream()
             .anyMatch(member -> ((FieldMember) member).pic().endsWith(" COMP"))) {
             diagnostics.info(item.source(), item.line(), item.column(), item.name()
                 + ": a COMP value of 0 is all LOW-VALUES and cannot be written."
-                + " Link the count field with the option countFields if the program has one.");
+                + " Link the count field with the option countFields, or the key item with"
+                + " the option emptyKeys, if the program has one.");
         }
         owner.members.add(new CollectionMember(name, order, context.direction(), item.name(),
-            item.declaration(), item.occurs().max(), fixed, dependsOn, type.name));
+            item.declaration(), item.occurs().max(), fixed, dependsOn, type.name, emptyItem,
+            emptyKey));
     }
 
     /** Resolves the {@code DEPENDING ON} item. Gives its field name, or {@code null}. */
