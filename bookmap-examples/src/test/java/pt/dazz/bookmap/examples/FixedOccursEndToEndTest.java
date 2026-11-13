@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.BookmapClient;
 import pt.dazz.bookmap.examples.orders.GetOrder;
+import pt.dazz.bookmap.examples.orders.Backorder;
+import pt.dazz.bookmap.examples.orders.ListBackorders;
 import pt.dazz.bookmap.examples.orders.ListShipments;
 import pt.dazz.bookmap.examples.orders.OrderLine;
 import pt.dazz.bookmap.examples.orders.ShipmentSummary;
@@ -101,6 +103,30 @@ class FixedOccursEndToEndTest {
         assertThat(result.getShipments()).extracting(ShipmentSummary::getShipmentId)
             .containsExactly("SHP000000001", "SHP000000002");
         assertThat(result.getShipmentCount()).isEqualTo(2);
+        assertThat(result.getReturnCode()).isEqualTo("0000");
+    }
+
+    @Test
+    void listBackordersKeyMode() {
+        simulator.register(ListBackorders.class, call -> {
+            List<Backorder> backorders = new ArrayList<>();
+            for (long number : List.of(10000001L, 10000002L)) {
+                Backorder backorder = new Backorder();
+                backorder.setOrderNumber(number);
+                backorder.setCurrency("EUR");
+                backorder.setAmount(new BigDecimal("250.00"));
+                backorders.add(backorder);
+            }
+            call.setBackorders(backorders);
+            call.setReturnCode("0000");
+        });
+        ListBackorders request = new ListBackorders();
+        request.setCustomerId("CUST000042");
+
+        ListBackorders result = client.execute(request);
+
+        assertThat(result.getBackorders()).extracting(Backorder::getOrderNumber)
+            .containsExactly(10000001L, 10000002L);
         assertThat(result.getReturnCode()).isEqualTo("0000");
     }
 }
