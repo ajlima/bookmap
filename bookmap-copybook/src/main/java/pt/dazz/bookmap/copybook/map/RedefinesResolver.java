@@ -355,10 +355,15 @@ final class RedefinesResolver {
 
     /** Gives the number of bytes of an item with the BookMap rules. */
     static int length(DataItem item, Usage inherited) {
-        Usage usage = usageOf(item, inherited);
-        int single = item.isGroup() ? groupLength(item.children(), usage)
-            : PicText.byteLength(item.picture(), usage);
+        int single = entryLength(item, inherited);
         return item.occurs() == null ? single : single * item.occurs().max();
+    }
+
+    /** Gives the number of bytes of one entry of an item, without its {@code OCCURS}. */
+    static int entryLength(DataItem item, Usage inherited) {
+        Usage usage = usageOf(item, inherited);
+        return item.isGroup() ? groupLength(item.children(), usage)
+            : PicText.byteLength(item.picture(), usage);
     }
 
     private static int groupLength(List<DataItem> children, Usage usage) {
