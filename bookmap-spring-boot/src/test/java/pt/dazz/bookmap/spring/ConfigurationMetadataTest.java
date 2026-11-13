@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.configurationmetadata.ConfigurationMetadataProperty;
 import org.springframework.boot.configurationmetadata.ConfigurationMetadataRepositoryJsonBuilder;
 import org.springframework.boot.configurationmetadata.ValueHint;
+import org.springframework.boot.configurationmetadata.ValueProvider;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import pt.dazz.bookmap.BookmapClient;
 import pt.dazz.bookmap.spi.Transport;
@@ -21,10 +24,15 @@ import pt.dazz.bookmap.spi.Transport;
  */
 class ConfigurationMetadataTest {
 
+    /**
+     * Reads the metadata file of this module. Other JARs on the classpath, for example
+     * spring-boot-autoconfigure, contain a file with the same name. Thus, the test finds the file
+     * next to the compiled {@code BookmapProperties} class.
+     */
     private static Map<String, ConfigurationMetadataProperty> properties() throws IOException {
-        try (InputStream in = ConfigurationMetadataTest.class.getClassLoader()
-                .getResourceAsStream("META-INF/spring-configuration-metadata.json")) {
-            assertThat(in).as("META-INF/spring-configuration-metadata.json on the classpath").isNotNull();
+        URL classes = BookmapProperties.class.getProtectionDomain().getCodeSource().getLocation();
+        URL metadata = URI.create(classes + "META-INF/spring-configuration-metadata.json").toURL();
+        try (InputStream in = metadata.openStream()) {
             return ConfigurationMetadataRepositoryJsonBuilder.create(in).build().getAllProperties();
         }
     }
@@ -65,6 +73,13 @@ class ConfigurationMetadataTest {
                 .run(context -> assertThat(context).as(value).hasNotFailed()
                     .hasSingleBean(BookmapClient.class));
         }
+    }
+
+    @Test
+    void charsetHintAcceptsAnyOtherValue() throws IOException {
+        assertThat(properties().get("bookmap.charset").getHints().getValueProviders())
+            .extracting(ValueProvider::getName)
+            .containsExactly("any");
     }
 
     @Test
