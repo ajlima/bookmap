@@ -63,14 +63,14 @@ On a group, `SYNC` applies to each elementary item of the group.
 | Binary, 5 to 18 digits | 4 bytes (fullword) |
 | `INDEX` | 4 bytes (fullword) |
 
-If the offset of the item is not on the boundary, the compiler adds slack bytes before the item. The generator does the same: it adds a `FILLER PIC X(n)` item before the item, with an `info` diagnostic: `SYNC adds 2 slack bytes before AMOUNT. The generator adds a FILLER.`
+If the offset of the item is not on the boundary, the compiler adds slack bytes before the item. The generator does the same: it adds a `FILLER PIC X(n)` item before the item, with an `info` diagnostic: `SYNC adds 2 slack bytes before AMOUNT. The generator adds a FILLER.` For one byte, the message says `1 slack byte`.
 
 The generator calculates the offsets with the rules of the mapper. Each alternative of a `REDEFINES` area starts at the offset of the redefined item. The group length is the length of its longest alternative.
 
 These cases are errors, because the generator cannot add the slack bytes in the correct place:
 
 - An item in an `OCCURS` that needs slack bytes. This includes the slack bytes between two occurrences. The message is `SYNC on AMOUNT in OCCURS LINES needs slack bytes. BookMap cannot add them in a table. Align the item by hand.`
-- An elementary item with `REDEFINES` that needs slack bytes.
+- An elementary item with `REDEFINES` that needs slack bytes. The message is `SYNC on C needs slack bytes, but C has REDEFINES. Align the item by hand.`
 
 A copybook without level `01` has a synthetic record. The generator does not know the offset of the copybook in the real record. If a binary item has `SYNC`, the generator gives a `warning`: `the copybook has no level 01. SYNC assumes that ORDER starts on a doubleword boundary.`
 
@@ -120,7 +120,7 @@ An index data item (`USAGE INDEX`) has no picture. In IBM Enterprise COBOL, it h
 
 A pointer has 4 bytes or 8 bytes. The size depends on the compiler option `LP`, and the copybook does not tell it. A size guess can give incorrect offsets. Also, an address has no meaning outside the program.
 
-The message tells the developer what to do: `POINTER is not supported by BookMap: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with REPLACE ==POINTER== BY ==PIC X(4)==.`
+The message tells the developer what to do: `POINTER is not supported by BookMap: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with the REPLACE statement.`
 
 ### 3.9 The `REPLACE` statement
 
