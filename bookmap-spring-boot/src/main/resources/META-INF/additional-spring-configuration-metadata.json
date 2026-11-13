@@ -23,6 +23,11 @@
           "value": "IBM1148",
           "description": "EBCDIC International, with the euro sign."
         }
+      ],
+      "providers": [
+        {
+          "name": "any"
+        }
       ]
     }
   ]
