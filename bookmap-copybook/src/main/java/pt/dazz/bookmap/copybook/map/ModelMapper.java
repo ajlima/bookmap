@@ -168,7 +168,6 @@ public final class ModelMapper {
         for (int i = 0; i < items.size(); i++) {
             DataItem item = items.get(i);
             info(this, item);
-            Usage usage = item.usage() != null ? item.usage() : context.usage();
             if (item.redefines() != null) {
                 redefines.redefiningItem(item, items, context.usage());
                 continue;
@@ -177,13 +176,21 @@ public final class ModelMapper {
             if (item.isGroup() && !alternatives.isEmpty()) {
                 redefines.area(item, alternatives, items.subList(i + 1, items.size()), owner,
                     context);
-            } else if (item.occurs() != null) {
-                collection(item, owner, context, usage);
-            } else if (item.isGroup()) {
-                walk(item.children(), owner, context.withGroup(item, usage));
             } else {
-                field(item, owner, context, usage, null);
+                item(item, owner, context);
             }
+        }
+    }
+
+    /** Maps an item without a {@code REDEFINES} area: a collection, a group, or a field. */
+    void item(DataItem item, ClassBuilder owner, Context context) {
+        Usage usage = item.usage() != null ? item.usage() : context.usage();
+        if (item.occurs() != null) {
+            collection(item, owner, context, usage);
+        } else if (item.isGroup()) {
+            walk(item.children(), owner, context.withGroup(item, usage));
+        } else {
+            field(item, owner, context, usage, null);
         }
     }
 
@@ -195,9 +202,15 @@ public final class ModelMapper {
             error(item, item.name() + " has a text picture and must not have COMP or COMP-3");
             return;
         }
-        if (usage == Usage.COMP && picture.length() > MAX_LONG_DIGITS) {
+        if (usage != Usage.DISPLAY && usage != Usage.COMP3
+            && picture.length() > MAX_LONG_DIGITS) {
             error(item, item.name() + ": COMP supports at most 18 digits");
             return;
+        }
+        if (usage == Usage.COMP5) {
+            warning(item, "COMP-5 on " + item.name() + " is mapped as COMP. BookMap reads all"
+                + " binary values, but writes only values with at most " + picture.length()
+                + " digits.");
         }
         String name;
         if (forcedName != null) {
@@ -207,18 +220,26 @@ public final class ModelMapper {
         } else {
             name = owner.fieldName(names.fieldName(item.name()), context.groups());
         }
-        FieldMember field = new FieldMember(name, javaType(picture), owner.nextOrder(),
+        FieldMember field = new FieldMember(name, javaType(picture, usage), owner.nextOrder(),
             PicText.of(picture, usage), context.direction(), item.name(), item.declaration());
         owner.members.add(field);
         placed.put(item, new Placed(owner, field, item, usage));
     }
 
-    private static JavaType javaType(Picture picture) {
+    private static JavaType javaType(Picture picture, Usage usage) {
         if (!picture.numeric()) {
             return JavaType.STRING;
         }
         if (picture.scale() > 0 || picture.length() > MAX_LONG_DIGITS) {
             return JavaType.BIG_DECIMAL;
+        }
+        if (usage == Usage.COMP5) {
+            // The type holds all values of the bytes, not only the digits of the picture.
+            return switch (picture.byteLength(usage)) {
+                case 2 -> JavaType.INT;
+                case 4 -> picture.signed() ? JavaType.INT : JavaType.LONG;
+                default -> picture.signed() ? JavaType.LONG : JavaType.BIG_DECIMAL;
+            };
         }
         return picture.length() <= MAX_INT_DIGITS ? JavaType.INT : JavaType.LONG;
     }
@@ -227,7 +248,7 @@ public final class ModelMapper {
     private void collection(DataItem item, ClassBuilder owner, Context context, Usage usage) {
         if (context.occurs() != null) {
             error(item, "OCCURS " + item.name() + " is inside OCCURS " + context.occurs()
-                + ". BookMap does not support nested collections.");
+                + ". BookMap does not support nested collections. See issue #43.");
             return;
         }
         String dependsOn = null;

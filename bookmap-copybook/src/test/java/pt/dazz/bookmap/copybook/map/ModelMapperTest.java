@@ -173,7 +173,8 @@ class ModelMapperTest {
     void nestedOccursIsAnError() {
         MapResult result = map("01 ORDER.", "05 LINE OCCURS 2.", "10 TAG OCCURS 3 PIC X.");
         assertThat(errors(result)).containsExactly(
-            "OCCURS TAG is inside OCCURS LINE. BookMap does not support nested collections.");
+            "OCCURS TAG is inside OCCURS LINE. BookMap does not support nested collections."
+                + " See issue #43.");
     }
 
     @Test
@@ -257,10 +258,29 @@ class ModelMapperTest {
     @Test
     void textWithCompUsageIsAnError() {
         MapResult result = map("01 ORDER.", "05 CODE PIC X(4) COMP.",
-            "05 BIG PIC 9(19) COMP.");
+            "05 BIG PIC 9(19) COMP.", "05 HUGE PIC 9(19) COMP-5.", "05 PACKED PIC 9(19) COMP-3.");
         assertThat(errors(result)).containsExactly(
             "CODE has a text picture and must not have COMP or COMP-3",
-            "BIG: COMP supports at most 18 digits");
+            "BIG: COMP supports at most 18 digits",
+            "HUGE: COMP supports at most 18 digits");
+    }
+
+    @Test
+    void comp5IsMappedAsCompWithTheTypeOfTheBytes() {
+        MapResult result = map("01 ORDER COMP-5.", "05 A PIC 9(4).", "05 B PIC S9(4).",
+            "05 C PIC S9(9).", "05 D PIC 9(9).", "05 E PIC S9(18).", "05 F PIC 9(10).",
+            "05 G PIC S9(5)V99.");
+        assertThat(result.model().classes().get(0).members())
+            .extracting(m -> ((FieldMember) m).javaType(), m -> ((FieldMember) m).pic())
+            .containsExactly(tuple(JavaType.INT, "9(4) COMP"), tuple(JavaType.INT, "S9(4) COMP"),
+                tuple(JavaType.INT, "S9(9) COMP"), tuple(JavaType.LONG, "9(9) COMP"),
+                tuple(JavaType.LONG, "S9(18) COMP"), tuple(JavaType.BIG_DECIMAL, "9(10) COMP"),
+                tuple(JavaType.BIG_DECIMAL, "S9(5)V99 COMP"));
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity).containsOnly(
+            Severity.WARNING);
+        assertThat(result.diagnostics().get(0).message()).isEqualTo("COMP-5 on A is mapped as"
+            + " COMP. BookMap reads all binary values, but writes only values with at most 4"
+            + " digits.");
     }
 
     @Test

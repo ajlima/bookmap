@@ -330,22 +330,36 @@ class RedefinesMappingTest {
     }
 
     @Test
-    void subtypeAreaInsideAnotherAreaIsAnError() {
+    void subtypeAreaInsideAnotherAreaKeepsTheRedefinedGroup() {
         MapResult result = map(subTypes(Map.of("SAVINGS-DATA", accountDecision())),
             "01 GET-ACCOUNT.", "05 ACCOUNT-TYPE PIC 9(2).", "05 CHECKING-DATA.",
             "10 LIMITS.", "15 L1 PIC 9.", "10 OTHER-LIMITS REDEFINES LIMITS.", "15 L2 PIC 9.",
             "05 SAVINGS-DATA REDEFINES CHECKING-DATA.", "10 RATE PIC 9.");
-        assertThat(errors(result)).containsExactly("the REDEFINES area LIMITS is inside another"
-            + " REDEFINES area. BookMap does not support this.");
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::line,
+                Diagnostic::message)
+            .containsExactly(tuple(Severity.WARNING, 6, "the REDEFINES area LIMITS is inside"
+                + " another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS."
+                + " See issues #38 and #39."));
+        assertThat(type(result, "CheckingData").members()).extracting(MemberModel::name)
+            .containsExactly("l1");
     }
 
     @Test
-    void areaInsideADirectionSplitIsAnError() {
+    void areaInsideADirectionSplitKeepsTheRedefinedGroup() {
         MapResult result = map("01 ORDER.", "05 ORDER-IN.", "10 A.", "15 X PIC X.",
-            "10 B REDEFINES A.", "15 Y PIC X.", "05 ORDER-OUT REDEFINES ORDER-IN.",
-            "10 Z PIC X.");
-        assertThat(errors(result)).containsExactly("the REDEFINES area A is inside another"
-            + " REDEFINES area. BookMap does not support this.");
+            "10 B REDEFINES A.", "15 Y PIC X.", "10 C REDEFINES A.", "15 OCC OCCURS 2 PIC X.",
+            "05 ORDER-OUT REDEFINES ORDER-IN.", "10 Z PIC X(2).");
+        assertThat(errors(result)).containsExactly("C redefines A and is longer than A."
+            + " BookMap keeps A, so the items after it would move.");
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+            .containsExactly(Severity.WARNING, Severity.ERROR);
+        MapResult accepted = map("01 ORDER.", "05 ORDER-IN.", "10 A OCCURS 2.", "15 X PIC X.",
+            "10 B REDEFINES A.", "15 Y PIC X(2).", "05 ORDER-OUT REDEFINES ORDER-IN.",
+            "10 Z PIC X(2).");
+        assertThat(errors(accepted)).isEmpty();
+        assertThat(type(accepted, "Order").members())
+            .extracting(MemberModel::name, MemberModel::direction)
+            .containsExactly(tuple("a", Direction.INPUT), tuple("z", Direction.OUTPUT));
     }
 
     @Test
@@ -354,8 +368,8 @@ class RedefinesMappingTest {
                 Map.of("A", "1", "B", "2"), Map.of()))),
             "01 ORDER.", "05 T PIC 9.", "05 A.", "10 X PIC X.", "05 B REDEFINES A.",
             "10 Y PIC X.", "05 C.", "10 Z PIC X.", "05 D REDEFINES C.", "10 W PIC X.");
-        assertThat(errors(result)).contains("the REDEFINES area C is inside another REDEFINES"
-            + " area. BookMap does not support this.");
+        assertThat(errors(result)).containsExactly("Z comes after the REDEFINES area A."
+            + " BookMap needs the redefined area at the end of the layout.");
     }
 
     @Test
