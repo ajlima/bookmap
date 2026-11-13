@@ -284,6 +284,21 @@ class MqTransportTest {
         assertThat(fake.received).isEmpty();
     }
 
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.NullAndEmptySource
+    @org.junit.jupiter.params.provider.ValueSource(strings = " ")
+    void missingMessageIdFailsClosed(String messageId) {
+        fake.useFixedMessageId = true;
+        fake.fixedMessageId = messageId;
+        try (MqTransport transport = builder().build()) {
+            assertThatThrownBy(() -> transport.exchange(request("GetInvoice")))
+                .isExactlyInstanceOf(TransportException.class)
+                .hasMessage("GetInvoice (INVOICE.REQUEST): the MQ session gave no message ID");
+        }
+        assertThat(fake.received).isEmpty();
+        assertThat(fake.closed).hasValue(1);
+    }
+
     @Test
     void noReplyIsTimeout() {
         fake.responder = (queue, correlationId) -> null;

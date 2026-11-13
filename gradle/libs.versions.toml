@@ -12,6 +12,7 @@ maven-api = "3.6.3"
 plexus-utils = "4.1.0"
 jimfs = "1.3.2"
 jakarta-jms = "3.1.0"
+artemis = "2.54.0"
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
@@ -27,6 +28,8 @@ maven-core = { module = "org.apache.maven:maven-core", version.ref = "maven-api"
 jimfs = { module = "com.google.jimfs:jimfs", version.ref = "jimfs" }
 plexus-utils = { module = "org.codehaus.plexus:plexus-utils", version.ref = "plexus-utils" }
 jakarta-jms-api = { module = "jakarta.jms:jakarta.jms-api", version.ref = "jakarta-jms" }
+artemis-server = { module = "org.apache.activemq:artemis-server", version.ref = "artemis" }
+artemis-jakarta-client = { module = "org.apache.activemq:artemis-jakarta-client", version.ref = "artemis" }
 spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 
 [plugins]

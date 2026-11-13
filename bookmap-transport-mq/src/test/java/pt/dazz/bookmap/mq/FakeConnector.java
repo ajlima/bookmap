@@ -30,6 +30,9 @@ final class FakeConnector implements MqConnector {
     final AtomicReference<MqException> openFailure = new AtomicReference<>();
     volatile MqException sendFailure;
     volatile MqException closeFailure;
+    /** The message ID of each send call, or {@code null} for the default {@code ID:<n>}. */
+    volatile String fixedMessageId;
+    volatile boolean useFixedMessageId;
     volatile Responder responder = (queue, correlationId) -> new byte[] {(byte) 0xF1};
 
     @Override
@@ -55,6 +58,10 @@ final class FakeConnector implements MqConnector {
             if (sendFailure != null) {
                 inUse.decrementAndGet();
                 throw sendFailure;
+            }
+            if (useFixedMessageId) {
+                inUse.decrementAndGet();
+                return fixedMessageId;
             }
             return "ID:" + messageIds.incrementAndGet();
         }

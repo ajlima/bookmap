@@ -107,10 +107,14 @@ public final class MqTransport implements Transport, AutoCloseable {
             } catch (MqException e) {
                 throw new TransportException(prefix + "send failed (" + e.failure() + ")", e);
             }
+            String replyCorrelationId = correlationId != null ? correlationId : messageId;
+            if (replyCorrelationId == null || replyCorrelationId.isBlank()) {
+                // Without a correlation ID, the transport could get the reply of another request.
+                throw new TransportException(prefix + "the MQ session gave no message ID");
+            }
             byte[] reply;
             try {
-                reply = session.receive(replyQueue,
-                    correlationId != null ? correlationId : messageId, timeout);
+                reply = session.receive(replyQueue, replyCorrelationId, timeout);
             } catch (MqException e) {
                 String text = e.failure() == MqFailure.NOT_BYTES
                     ? "the reply is not a bytes message" : "receive failed";
