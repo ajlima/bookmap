@@ -9,5 +9,10 @@ public enum Usage {
     /** Binary ({@code COMP}, {@code COMP-4}, {@code BINARY}). */
     COMP,
     /** Packed decimal ({@code COMP-3}, {@code PACKED-DECIMAL}). */
-    COMP3
+    COMP3,
+    /**
+     * Native binary ({@code COMP-5}). The bytes are the same as {@link #COMP}, but the item can
+     * hold all values of its bytes.
+     */
+    COMP5
 }

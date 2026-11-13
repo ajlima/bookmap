@@ -3,6 +3,7 @@ package pt.dazz.bookmap.copybook.parse;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,22 +20,50 @@ import pt.dazz.bookmap.copybook.diag.Diagnostics;
  */
 public final class DataParser {
 
-    private static final Map<String, Usage> USAGES = Map.of(
-        "DISPLAY", Usage.DISPLAY,
-        "COMP", Usage.COMP, "COMPUTATIONAL", Usage.COMP,
-        "COMP-4", Usage.COMP, "COMPUTATIONAL-4", Usage.COMP, "BINARY", Usage.COMP,
-        "COMP-3", Usage.COMP3, "COMPUTATIONAL-3", Usage.COMP3, "PACKED-DECIMAL", Usage.COMP3);
+    private static final Map<String, Usage> USAGES = Map.ofEntries(
+        Map.entry("DISPLAY", Usage.DISPLAY),
+        Map.entry("COMP", Usage.COMP), Map.entry("COMPUTATIONAL", Usage.COMP),
+        Map.entry("COMP-4", Usage.COMP), Map.entry("COMPUTATIONAL-4", Usage.COMP),
+        Map.entry("BINARY", Usage.COMP),
+        Map.entry("COMP-3", Usage.COMP3), Map.entry("COMPUTATIONAL-3", Usage.COMP3),
+        Map.entry("PACKED-DECIMAL", Usage.COMP3),
+        Map.entry("COMP-5", Usage.COMP5), Map.entry("COMPUTATIONAL-5", Usage.COMP5));
 
-    private static final Set<String> UNSUPPORTED = Set.of(
-        "LEADING", "SEPARATE", "SYNC", "SYNCHRONIZED", "JUSTIFIED", "JUST", "BLANK",
-        "COMP-1", "COMP-2", "COMP-5", "COMPUTATIONAL-1", "COMPUTATIONAL-2", "COMPUTATIONAL-5",
-        "INDEX", "POINTER", "NATIONAL");
+    /** The usage word of an index data item. It has no picture. */
+    private static final String INDEX = "INDEX";
+
+    /** The picture of an index data item: 4 bytes of signed binary data. */
+    private static final String INDEX_PICTURE = "S9(9)";
+
+    /** The unsupported words, with the end of their error message. */
+    private static final Map<String, String> UNSUPPORTED = Map.of(
+        "LEADING", ". See issue #47.",
+        "SEPARATE", ". See issue #47.",
+        "COMP-1", ". See issue #46.",
+        "COMP-2", ". See issue #46.",
+        "COMPUTATIONAL-1", ". See issue #46.",
+        "COMPUTATIONAL-2", ". See issue #46.",
+        "NATIONAL", ". See issue #49.",
+        "POINTER", ": its size depends on the compiler option LP. Replace it with PIC X(4) or"
+            + " PIC X(8), for example with the REPLACE statement.");
 
     private static final Set<String> IGNORED = Set.of("INDEXED", "ASCENDING", "DESCENDING");
 
     private static final Set<String> CLAUSES = Set.of(
         "PIC", "PICTURE", "USAGE", "OCCURS", "REDEFINES", "VALUE", "VALUES", "SIGN", "TRAILING",
-        "INDEXED", "ASCENDING", "DESCENDING");
+        "INDEXED", "ASCENDING", "DESCENDING", "SYNC", "SYNCHRONIZED", "JUSTIFIED", "JUST",
+        "BLANK", INDEX);
+
+    private static final Set<String> ZEROS = Set.of("ZERO", "ZEROS", "ZEROES");
+
+    /** The halfword boundary of a binary item with 1 to 4 digits. */
+    private static final int HALFWORD = 2;
+
+    /** The fullword boundary of a binary item with 5 to 18 digits. */
+    private static final int FULLWORD = 4;
+
+    /** The maximum number of digits of a binary item on a halfword boundary. */
+    private static final int HALFWORD_DIGITS = 4;
 
     /** Mutable form of a data item while the tree grows. */
     private static final class Builder {
@@ -51,12 +80,23 @@ public final class DataParser {
         int column;
         final List<String> declaration = new ArrayList<>();
         boolean error;
+        boolean sync;
+        boolean index;
+        boolean synthetic;
 
         DataItem build() {
             return new DataItem(level, name, picture, usage, occurs, redefines, conditions,
                 children.stream().map(Builder::build).toList(), source, line, column,
                 String.join(" ", declaration) + ".");
         }
+    }
+
+    /** A {@code SYNC} item in a table, with its offset in the table entry. */
+    private record Slot(Builder item, int boundary, int offset) {
+    }
+
+    /** The offset of the {@code OCCURS} item that contains a layout, and its SYNC items. */
+    private record Table(int offset, List<Slot> slots) {
     }
 
     /** Thrown to stop the clauses of one entry after an error. */
@@ -106,7 +146,10 @@ public final class DataParser {
         if (records.isEmpty()) {
             diagnostics.error(sourceName, 1, 1, "the copybook has no data items");
         }
-        records.forEach(this::check);
+        records.forEach(record -> check(record, false));
+        if (!diagnostics.hasErrors()) {
+            records.forEach(record -> layout(record, Usage.DISPLAY, false, 0, null, record));
+        }
     }
 
     private void entry() {
@@ -120,8 +163,16 @@ public final class DataParser {
         pos++;
         if (level == 88) {
             condition(first);
-        } else if (level == 66 || level == 77) {
-            error(first, "level " + level + " is not supported by BookMap");
+        } else if (level == 66) {
+            diagnostics.info(first.source(), first.line(), first.column(),
+                "level 66 item " + nameAt(pos) + " is ignored. RENAMES adds no bytes.");
+            skipEntry();
+        } else if (level == 77) {
+            diagnostics.warning(first.source(), first.line(), first.column(),
+                "level 77 item " + nameAt(pos) + " is not part of a record and is skipped");
+            stack.clear();
+            // A level 88 after the level 77 item attaches to the skipped item.
+            last = new Builder();
             skipEntry();
         } else if (level < 1 || level > 49) {
             error(first, "level " + level + " is not valid");
@@ -129,6 +180,11 @@ public final class DataParser {
         } else {
             item(first, level);
         }
+    }
+
+    /** Gives the text of the token at an index, or an empty text after the last token. */
+    private String nameAt(int index) {
+        return index < tokens.size() ? tokens.get(index).text() : "";
     }
 
     private static Integer levelOf(String text) {
@@ -146,6 +202,13 @@ public final class DataParser {
     }
 
     private void item(Token levelToken, int level) {
+        if (level > 1 && !records.isEmpty() && stack.isEmpty()) {
+            error(levelToken, "level " + levelToken.text() + " item " + nameAt(pos)
+                + " must follow a level 01 item, not a level 77 item");
+            last = new Builder();
+            skipEntry();
+            return;
+        }
         Builder item = new Builder();
         item.level = level;
         item.source = levelToken.source();
@@ -182,6 +245,7 @@ public final class DataParser {
                 record.column = item.column;
                 record.declaration.add("01");
                 record.declaration.add(recordName);
+                record.synthetic = true;
                 records.add(record);
                 stack.push(record);
             }
@@ -225,12 +289,12 @@ public final class DataParser {
             take(item);
             optional(item, "IS");
             Token usage = peek();
-            if (usage == null || usage.type() != TokenType.WORD
-                || !USAGES.containsKey(usage.text()) && !UNSUPPORTED.contains(usage.text())) {
+            if (usage == null || usage.type() != TokenType.WORD || !isUsage(usage.text())) {
                 throw fail(usage, "USAGE needs a usage word");
             }
             usage(item, usage);
-        } else if (USAGES.containsKey(word)) {
+        } else if (isUsage(word)) {
+            // An unsupported word also comes here and gives an error.
             usage(item, token);
         } else if (word.equals("OCCURS")) {
             occurs(item);
@@ -248,23 +312,61 @@ public final class DataParser {
             take(item);
             optional(item, "IS");
             optional(item, "TRAILING");
+        } else if (word.equals("SYNC") || word.equals("SYNCHRONIZED")) {
+            take(item);
+            item.sync = true;
+            if (!optional(item, "LEFT")) {
+                optional(item, "RIGHT");
+            }
+        } else if (word.equals("JUSTIFIED") || word.equals("JUST")) {
+            take(item);
+            optional(item, "RIGHT");
+            diagnostics.warning(token.source(), token.line(), token.column(), "JUSTIFIED on "
+                + item.name + " is ignored. BookMap writes the text on the left and keeps the"
+                + " spaces on the left when it reads.");
+        } else if (word.equals("BLANK")) {
+            blankWhenZero(item, token);
         } else if (IGNORED.contains(word)) {
             diagnostics.info(token.source(), token.line(), token.column(), word + " is ignored");
             take(item);
             skipUntilClause(item);
-        } else if (UNSUPPORTED.contains(word)) {
-            throw fail(token, word + " is not supported by BookMap");
         } else {
             throw fail(token, "unknown clause " + token.text());
         }
     }
 
+    private static boolean isUsage(String word) {
+        return USAGES.containsKey(word) || word.equals(INDEX) || UNSUPPORTED.containsKey(word);
+    }
+
     private void usage(Builder item, Token token) {
-        if (UNSUPPORTED.contains(token.text())) {
-            throw fail(token, token.text() + " is not supported by BookMap");
+        if (UNSUPPORTED.containsKey(token.text())) {
+            throw unsupported(token);
         }
-        item.usage = USAGES.get(token.text());
+        if (token.is(INDEX)) {
+            item.index = true;
+        } else {
+            item.usage = USAGES.get(token.text());
+        }
         take(item);
+    }
+
+    private EntryError unsupported(Token token) {
+        return fail(token, token.text() + " is not supported by BookMap"
+            + UNSUPPORTED.get(token.text()));
+    }
+
+    private void blankWhenZero(Builder item, Token blank) {
+        take(item);
+        optional(item, "WHEN");
+        Token zero = peek();
+        if (zero == null || !ZEROS.contains(zero.text())) {
+            throw fail(zero, "BLANK needs WHEN ZERO");
+        }
+        take(item);
+        diagnostics.info(blank.source(), blank.line(), blank.column(), "BLANK WHEN ZERO on "
+            + item.name + " is ignored. BookMap reads spaces as no value and writes zero as"
+            + " digits.");
     }
 
     private void occurs(Builder item) {
@@ -352,7 +454,7 @@ public final class DataParser {
     }
 
     private static boolean isClause(String word) {
-        return CLAUSES.contains(word) || USAGES.containsKey(word) || UNSUPPORTED.contains(word);
+        return CLAUSES.contains(word) || isUsage(word);
     }
 
     private EntryError fail(Token token, String message) {
@@ -366,7 +468,20 @@ public final class DataParser {
 
     // ---- checks after the tree is complete ----
 
-    private void check(Builder item) {
+    private void check(Builder item, boolean inheritedIndex) {
+        boolean index = item.index || inheritedIndex && item.usage == null;
+        if (index && item.children.isEmpty() && !item.error) {
+            if (item.picture != null) {
+                diagnostics.error(item.source, item.line, item.column,
+                    "the INDEX item " + item.name + " must not have a PIC");
+            } else {
+                item.picture = Picture.parse(INDEX_PICTURE);
+                item.usage = Usage.COMP;
+                diagnostics.info(item.source, item.line, item.column, "INDEX item " + item.name
+                    + " is mapped as PIC " + INDEX_PICTURE + " COMP. Its value is a byte offset"
+                    + " in a table.");
+            }
+        }
         if (item.level == 1 && item.redefines != null) {
             diagnostics.warning(item.source, item.line, item.column, "record " + item.name
                 + " redefines record " + item.redefines + ". Both records are kept.");
@@ -378,6 +493,106 @@ public final class DataParser {
         } else if (item.children.isEmpty() && item.picture == null && !item.error) {
             diagnostics.error(item.source, item.line, item.column, item.name + " has no PIC");
         }
-        item.children.forEach(this::check);
+        item.children.forEach(child -> check(child, index));
+    }
+
+    // ---- SYNC: slack bytes ----
+
+    /**
+     * Calculates the offsets of the items, from the start of the record, and gives the length
+     * of an item. Adds a slack {@code FILLER} before each {@code SYNC} binary item that is not
+     * on its boundary, as the compiler does.
+     */
+    private int layout(Builder item, Usage inherited, boolean inheritedSync, int offset,
+                       Table table, Builder record) {
+        Usage usage = item.usage != null ? item.usage : inherited;
+        boolean sync = inheritedSync || item.sync;
+        if (item.children.isEmpty()) {
+            int single = item.picture.byteLength(usage);
+            return item.occurs == null ? single : single * item.occurs.max();
+        }
+        Table inner = table == null && item.occurs != null
+            ? new Table(offset, new ArrayList<>()) : table;
+        int single = layoutChildren(item, usage, sync, offset, inner, record);
+        if (inner != table) {
+            for (Slot slot : inner.slots()) {
+                if ((offset + slot.offset()) % slot.boundary() != 0
+                    || single % slot.boundary() != 0) {
+                    diagnostics.error(slot.item().source, slot.item().line, slot.item().column,
+                        "SYNC on " + slot.item().name + " in OCCURS " + item.name + " needs"
+                            + " slack bytes. BookMap cannot add them in a table. Align the item"
+                            + " by hand.");
+                }
+            }
+        }
+        return item.occurs == null ? single : single * item.occurs.max();
+    }
+
+    private int layoutChildren(Builder group, Usage usage, boolean sync, int offset,
+                               Table table, Builder record) {
+        Map<String, Integer> starts = new HashMap<>();
+        int end = 0;
+        for (int i = 0; i < group.children.size(); i++) {
+            Builder child = group.children.get(i);
+            Integer redefined = child.redefines == null ? null
+                : starts.get(child.redefines.name());
+            int start = redefined != null ? redefined : end;
+            int boundary = boundary(child, usage, sync);
+            if (boundary > 0 && record.synthetic) {
+                diagnostics.warning(record.source, record.line, record.column, "the copybook"
+                    + " has no level 01. SYNC assumes that " + record.name + " starts on a"
+                    + " doubleword boundary.");
+                record.synthetic = false;
+            }
+            if (boundary > 0 && table != null) {
+                table.slots().add(new Slot(child, boundary, offset + start - table.offset()));
+            } else if (boundary > 0) {
+                int slack = (boundary - (offset + start) % boundary) % boundary;
+                if (slack > 0 && child.redefines != null) {
+                    diagnostics.error(child.source, child.line, child.column, "SYNC on "
+                        + child.name + " needs slack bytes, but " + child.name
+                        + " has REDEFINES. Align the item by hand.");
+                } else if (slack > 0) {
+                    group.children.add(i++, slackFiller(child, slack));
+                    start += slack;
+                }
+            }
+            int length = layout(child, usage, sync, offset + start, table, record);
+            if (child.redefines == null) {
+                starts.put(child.name, start);
+                end = start + length;
+            } else {
+                end = Math.max(end, start + length);
+            }
+        }
+        return end;
+    }
+
+    /** Gives the boundary of a {@code SYNC} binary item, or 0 if {@code SYNC} has no effect. */
+    private static int boundary(Builder item, Usage inherited, boolean inheritedSync) {
+        Usage usage = item.usage != null ? item.usage : inherited;
+        if (!(inheritedSync || item.sync) || !item.children.isEmpty()
+            || usage != Usage.COMP && usage != Usage.COMP5 || !item.picture.numeric()) {
+            return 0;
+        }
+        return item.picture.length() <= HALFWORD_DIGITS ? HALFWORD : FULLWORD;
+    }
+
+    private Builder slackFiller(Builder item, int slack) {
+        Builder filler = new Builder();
+        filler.level = item.level;
+        filler.picture = Picture.parse("X(" + slack + ")");
+        filler.usage = Usage.DISPLAY;
+        filler.source = item.source;
+        filler.line = item.line;
+        filler.column = item.column;
+        filler.declaration.add(item.declaration.get(0));
+        filler.declaration.add(DataItem.FILLER);
+        filler.declaration.add("PIC");
+        filler.declaration.add("X(" + slack + "). Slack bytes before " + item.name + " for SYNC");
+        diagnostics.info(item.source, item.line, item.column, "SYNC adds " + slack
+            + (slack == 1 ? " slack byte" : " slack bytes") + " before " + item.name
+            + ". The generator adds a FILLER.");
+        return filler;
     }
 }

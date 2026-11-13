@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,14 +80,16 @@ class EndToEndTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy"})
+    @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy",
+        "TRACKING.cpy"})
     void generatesCompilableClasses(String name) {
         compile(name);
         Compiled.compile(generate(name, new GenerateOptions(PACKAGE, true)).files(), true);
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy"})
+    @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy",
+        "TRACKING.cpy"})
     void modelJsonRoundTripGivesSameJava(String name) {
         Copybooks.Result direct = generate(name, PLAIN);
         Copybooks.Result viaJson = Copybooks.generate(
@@ -271,6 +274,53 @@ class EndToEndTest {
         assertThat(get(decoded, "shipToCity")).isEqualTo("Rotterdam");
         assertThat(get(decoded, "weightKg")).isEqualTo(new BigDecimal("12.500"));
         assertThat(get(decoded, "packageCount")).isEqualTo(3);
+    }
+
+    @Test
+    void trackingRoundTripKeepsTheCobolOffsets() {
+        Copybooks.Result result = generate("TRACKING.cpy", PLAIN);
+        assertThat(result.diagnostics()).extracting(Diagnostic::message).containsExactly(
+            "level 77 item WS-RETRY-COUNT is not part of a record and is skipped",
+            "JUSTIFIED on TRK-CARRIER is ignored. BookMap writes the text on the left and keeps"
+                + " the spaces on the left when it reads.",
+            "BLANK WHEN ZERO on TRK-CHARGE is ignored. BookMap reads spaces as no value and"
+                + " writes zero as digits.",
+            "level 66 item TRK-KEY is ignored. RENAMES adds no bytes.",
+            "INDEX item TRK-EVENT-IDX is mapped as PIC S9(9) COMP. Its value is a byte offset"
+                + " in a table.",
+            "SYNC adds 1 slack byte before TRK-EVENT-COUNT. The generator adds a FILLER.",
+            "SYNC adds 2 slack bytes before TRK-WEIGHT-GRAMS. The generator adds a FILLER.",
+            "record GET-TRACKING has 39 bytes",
+            "COMP-5 on TRK-WEIGHT-GRAMS is mapped as COMP. BookMap reads all binary values, but"
+                + " writes only values with at most 9 digits.");
+        Compiled classes = Compiled.compile(result.files());
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".GetTracking");
+        Object tracking = codec.newInstance();
+        set(tracking, "trkShipmentId", "SHP0000042");
+        set(tracking, "trkStatus", "D");
+        set(tracking, "trkEventCount", 7);
+        set(tracking, "trkWeightGrams", 125000L);
+        set(tracking, "trkCarrier", "OCEAN");
+        set(tracking, "trkCharge", new BigDecimal("99.90"));
+        set(tracking, "trkEventIdx", 48);
+
+        byte[] bytes = codec.encodeRequest(tracking, LATIN);
+        // 10 + 1 + 1 slack + 2 + 2 slack + 4 + 8 + 7 + 4: the offsets of the COBOL compiler.
+        assertThat(bytes).hasSize(39);
+        assertThat(new String(bytes, 20, 8, StandardCharsets.ISO_8859_1)).isEqualTo("OCEAN   ");
+        // COMP-5 can hold all values of its 4 bytes, and the long field reads them.
+        bytes[16] = (byte) 0xFF;
+        bytes[17] = (byte) 0xFF;
+        bytes[18] = (byte) 0xFF;
+        bytes[19] = (byte) 0xFF;
+        // BLANK WHEN ZERO: a zero amount is all spaces.
+        Arrays.fill(bytes, 28, 35, (byte) ' ');
+        Object decoded = codec.decodeRequest(bytes, LATIN);
+        assertThat(get(decoded, "trkEventCount")).isEqualTo(7);
+        assertThat(get(decoded, "trkWeightGrams")).isEqualTo(4_294_967_295L);
+        assertThat(get(decoded, "trkCarrier")).isEqualTo("OCEAN");
+        assertThat(get(decoded, "trkCharge")).isNull();
+        assertThat(get(decoded, "trkEventIdx")).isEqualTo(48);
     }
 
     @Test
