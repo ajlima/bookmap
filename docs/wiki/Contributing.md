@@ -49,6 +49,8 @@ The `native-image` check of the workflow `.github/workflows/native-image.yml` ru
 
 ### Quality checks
 
+The build runs the tasks of independent modules in parallel (`org.gradle.parallel` in `gradle.properties`).
+
 `./gradlew build` also runs these checks:
 
 | Check | Tool | Rule | Report |
@@ -84,7 +86,12 @@ The mutation tests are slow, so `./gradlew build` does not run them. Run them wi
 The task runs PIT on `bookmap-core`, `bookmap-processor`, and `bookmap-copybook`.
 It fails if the mutation score of a module is less than 95%. The minimum score of each module is in `build.gradle.kts`.
 Each module writes a PIT report in `build/reports/pitest/` (HTML and XML).
-The `mutation-test` check of the workflow `.github/workflows/mutation.yml` runs the mutation tests. The ruleset on `main` requires this check.
+The workflow `.github/workflows/mutation.yml` runs the mutation tests on `main` each night, at 02:00 UTC. It does not run on a pull request.
+A scheduled run does nothing if `main` has no new commit in the last 25 hours.
+To run the mutation tests on request, open **Actions** > **Mutation tests** > **Run workflow**, and select a branch.
+GitHub sends an email for a failed scheduled run to the user who last changed the schedule.
+
+**CAUTION:** Run `./gradlew mutationTest` before you open a pull request that changes `bookmap-core`, `bookmap-processor`, or `bookmap-copybook`. A pull request does not run the mutation tests, so a low score shows only in the next night run.
 
 ### Pull requests that change only documentation
 
@@ -93,7 +100,7 @@ A pull request that changes only documentation files does not build the modules.
 - A Markdown file (`*.md`) in any folder, for example `README.md` or `ROADMAP.md`.
 - A file in the folder `docs/`.
 
-In this case, the `build`, `native-image`, and `mutation-test` checks skip the Gradle steps and pass.
+In this case, the `build` and `native-image` checks skip the Gradle steps and pass.
 The `build` check always runs the commit author check.
 A push to `main` always runs the full build, because the release needs it.
 The script `scripts/docs-only-change.sh` finds the changed files. The checks run the script of `main`, so a pull request cannot change the rule for itself.
@@ -157,7 +164,7 @@ Start with the main design: [`2026-11-10-bookmap-design.md`](https://github.com/
 1. Open an issue, or select an issue from the [Roadmap](Roadmap).
 2. Create a branch from `main`.
 3. Commit often on the branch.
-4. Open a pull request to `main`. The `build` and `mutation-test` checks must pass.
+4. Open a pull request to `main`. The `build` check must pass.
 5. The author approves and merges the pull request.
 
 A ruleset on `main` blocks direct pushes and force pushes.

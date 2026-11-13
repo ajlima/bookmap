@@ -158,7 +158,7 @@ scripts/set-readme-version.sh X.Y.Z
 
 ## Make a release
 
-Open a Pull Request to `main`. The `build` and `mutation-test` checks must pass before the merge.
+Open a Pull Request to `main`. The `build` check must pass before the merge.
 Merge a commit with the type `feat:` or `fix:` into `main`. The workflow does the rest.
 
 Use a merge commit or a rebase merge. Do not use a squash merge.
