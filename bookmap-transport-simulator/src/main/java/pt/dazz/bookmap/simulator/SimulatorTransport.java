@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -32,7 +31,8 @@ import pt.dazz.bookmap.spi.Transport;
  *
  * <p>Each request runs on a virtual thread. A request that takes more than the timeout is
  * interrupted and fails with {@link TransportTimeoutException}. The transport records every
- * request. Registrations and the request list are thread-safe.
+ * request. A handler gets a copy of the request bytes, so a change in the handler does not change
+ * the recorded request. Registrations and the request list are thread-safe.
  */
 public final class SimulatorTransport implements Transport {
 
@@ -159,7 +159,8 @@ public final class SimulatorTransport implements Transport {
             throw new OperationNotFoundException(
                 "No simulated operation registered: " + request.operation());
         }
-        Future<byte[]> future = executor.submit(() -> operation.handle(request.payload()));
+        byte[] payload = request.payload().clone();
+        Future<byte[]> future = executor.submit(() -> operation.handle(payload));
         try {
             return future.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException e) {
@@ -220,11 +221,16 @@ public final class SimulatorTransport implements Transport {
         /**
          * Sets the time limit for one operation. The default is 5 seconds.
          *
-         * @param timeout the time limit
+         * @param timeout the time limit, more than zero
          * @return this builder
+         * @throws IllegalArgumentException if the timeout is zero or negative
          */
         public Builder timeout(Duration timeout) {
-            this.timeout = Objects.requireNonNull(timeout, "timeout");
+            Objects.requireNonNull(timeout, "timeout");
+            if (timeout.isZero() || timeout.isNegative()) {
+                throw new IllegalArgumentException("The timeout must be more than zero: " + timeout);
+            }
+            this.timeout = timeout;
             return this;
         }
 
