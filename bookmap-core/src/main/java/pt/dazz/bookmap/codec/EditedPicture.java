@@ -1,6 +1,13 @@
 package pt.dazz.bookmap.codec;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.charset.Charset;
 import java.util.Locale;
+import pt.dazz.bookmap.codec.internal.Blank;
+import pt.dazz.bookmap.codec.internal.TextCodec;
+import pt.dazz.bookmap.codec.internal.Unscaled;
+import pt.dazz.bookmap.exception.MappingException;
 
 /**
  * Describes a numeric edited picture, for example {@code Z,ZZ9.99CR} or {@code $$$,$$9.99}.
@@ -53,6 +60,8 @@ public final class EditedPicture {
     private final int digits;
     private final int scale;
     private final boolean signed;
+    /** {@code true} if all digit positions are {@code Z}, {@code *}, or floating symbols. */
+    private final boolean allSuppressed;
 
     private EditedPicture(String text, boolean blankWhenZero, Parser parser) {
         this.text = text;
@@ -64,6 +73,7 @@ public final class EditedPicture {
         this.digits = parser.digits;
         this.scale = parser.scale;
         this.signed = parser.signs > 0;
+        this.allSuppressed = parser.nines == 0;
     }
 
     /**
@@ -157,6 +167,153 @@ public final class EditedPicture {
      */
     public int byteLength() {
         return kinds.length;
+    }
+
+    /**
+     * Writes a number as edited text.
+     *
+     * @param field the field descriptor, for error messages
+     * @param value the number, or null for zero
+     * @param cs the single-byte charset
+     * @return {@link #byteLength()} bytes
+     * @throws MappingException if the value does not fit the picture
+     */
+    byte[] encode(String field, BigDecimal value, Charset cs) {
+        BigInteger unscaled = Unscaled.of(field, value, digits, scale, signed);
+        boolean zero = unscaled.signum() == 0;
+        String text;
+        if (zero && (blankWhenZero || allSuppressed && suppress != '*')) {
+            text = null;
+        } else if (zero && allSuppressed) {
+            text = checkProtectedZero();
+        } else {
+            text = edit(unscaled);
+        }
+        return TextCodec.encode(field, text, kinds.length, cs);
+    }
+
+    /** Gives {@code *} in all positions, except the decimal point. */
+    private String checkProtectedZero() {
+        StringBuilder out = new StringBuilder(kinds.length);
+        for (char kind : kinds) {
+            out.append(kind == POINT ? '.' : '*');
+        }
+        return out.toString();
+    }
+
+    /** Applies the editing rules to a number. */
+    private String edit(BigInteger unscaled) {
+        boolean negative = unscaled.signum() < 0;
+        String number = unscaled.abs().toString();
+        String padded = "0".repeat(digits - number.length()) + number;
+        char fill = suppress == '*' ? '*' : ' ';
+        char[] out = new char[kinds.length];
+        int next = 0;
+        boolean significant = false;
+        boolean suppressing = false;
+        int lastFill = 0;
+        for (int i = 0; i < kinds.length; i++) {
+            char kind = kinds[i];
+            char c = kind == DIGIT || kind == SUPPRESS ? padded.charAt(next++) : chars[i];
+            boolean fills = !significant && (kind == FLOAT_LEAD
+                || kind == SUPPRESS && c == '0' || kind == INSERT && suppressing);
+            suppressing |= kind == SUPPRESS || kind == FLOAT_LEAD;
+            significant |= !fills && (kind == DIGIT || kind == SUPPRESS || kind == POINT);
+            if (fills) {
+                out[i] = kind == FLOAT_LEAD ? ' ' : fill;
+                lastFill = i;
+            } else {
+                out[i] = kind == PLUS || kind == MINUS ? sign(kind, negative)
+                    : kind == LETTER && !negative ? ' ' : c;
+            }
+        }
+        if (floating != 0) {
+            out[lastFill] = floating == '$' ? '$' : sign(floating, negative);
+        }
+        return new String(out);
+    }
+
+    /** Gives the character of a {@code +} or a {@code -} sign. */
+    private static char sign(char symbol, boolean negative) {
+        return negative ? '-' : symbol == '+' ? '+' : ' ';
+    }
+
+    /**
+     * Reads edited text as a number. A field with only spaces or {@code 0x00} bytes gives
+     * {@code null}.
+     *
+     * @param field the field descriptor, for error messages
+     * @param bytes the buffer
+     * @param from the index of the first byte
+     * @param cs the single-byte charset
+     * @return the number with the scale of the picture, or null for a blank field
+     * @throws MappingException if a byte is not valid in the picture
+     */
+    BigDecimal decode(String field, byte[] bytes, int from, Charset cs) {
+        if (Blank.isBlank(bytes, from, kinds.length, cs)) {
+            return null;
+        }
+        String text = TextCodec.decodeStrict(field, bytes, from, kinds.length, cs);
+        StringBuilder number = new StringBuilder(digits);
+        boolean negative = false;
+        int i = 0;
+        while (i < kinds.length) {
+            char c = text.charAt(i);
+            char kind = kinds[i];
+            int bad;
+            if (kind == LETTER) {
+                bad = letters(text, i);
+                negative |= bad < 0 && c != ' ' && c != '*';
+                i++;
+            } else {
+                bad = valid(kind, chars[i], c) ? -1 : i;
+                negative |= bad < 0 && c == '-';
+                if (bad < 0 && (kind == DIGIT || kind == SUPPRESS)) {
+                    number.append(Character.isDigit(c) ? c : '0');
+                }
+            }
+            if (bad >= 0) {
+                throw new MappingException(field + ": byte 0x"
+                    + String.format("%02X", bytes[from + bad] & 0xFF) + " at offset " + bad
+                    + " of the field is not valid in the edited picture " + this.text);
+            }
+            i++;
+        }
+        BigDecimal result = new BigDecimal(new BigInteger(number.toString()), scale);
+        return negative ? result.negate() : result;
+    }
+
+    /** Tells if a character is valid in a position of a kind other than {@link #LETTER}. */
+    private boolean valid(char kind, char expected, char c) {
+        boolean digit = c >= '0' && c <= '9';
+        boolean fill = c == ' ' || c == '*';
+        boolean floats = floating != 0 && (c == floating || floating == '+' && c == '-');
+        return switch (kind) {
+            case DIGIT -> digit;
+            case SUPPRESS -> digit || fill || floats;
+            case FLOAT_LEAD -> fill || floats;
+            case INSERT -> c == expected || fill || floats;
+            case PLUS -> c == '+' || c == '-' || c == '*' && suppress == '*';
+            case MINUS -> c == ' ' || c == '-' || c == '*' && suppress == '*';
+            // POINT and CURRENCY
+            default -> c == expected || fill;
+        };
+    }
+
+    /**
+     * Checks the two positions of {@code CR} or {@code DB}. They hold the two letters, or two
+     * spaces, or two {@code *} in a picture with {@code *}.
+     *
+     * @return -1 if the positions are valid, else the offset of the first byte that is not
+     */
+    private int letters(String text, int i) {
+        char first = text.charAt(i);
+        char second = text.charAt(i + 1);
+        boolean fill = first == ' ' || first == '*' && suppress == '*';
+        if (first == chars[i] && second == chars[i + 1] || fill && second == first) {
+            return -1;
+        }
+        return first == chars[i] || fill ? i + 1 : i;
     }
 
     @Override

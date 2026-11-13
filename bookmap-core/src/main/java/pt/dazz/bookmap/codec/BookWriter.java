@@ -114,6 +114,20 @@ public final class BookWriter {
     }
 
     /**
+     * Writes a number with an edited picture, for example {@code Z,ZZ9.99CR}. A null value
+     * writes zero.
+     *
+     * @param field the field descriptor, for error messages
+     * @param value the number, or null
+     * @param picture the picture, from {@link EditedPicture#parse(String, boolean)}
+     * @throws MappingException if the value has more decimal places than the picture, has
+     *     more integer digits, or is negative and the picture has no sign
+     */
+    public void writeEdited(String field, BigDecimal value, EditedPicture picture) {
+        out.writeBytes(picture.encode(field, value, ctx.charset()));
+    }
+
+    /**
      * Writes a date or time field as text. A null value writes zeros.
      *
      * @param field the field descriptor, for error messages
