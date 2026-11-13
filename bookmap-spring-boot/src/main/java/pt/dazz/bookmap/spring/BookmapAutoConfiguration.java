@@ -1,11 +1,14 @@
 package pt.dazz.bookmap.spring;
 
 import java.nio.charset.Charset;
+import java.util.Locale;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Lazy;
 import pt.dazz.bookmap.BookmapClient;
 import pt.dazz.bookmap.codec.BookCodecRegistry;
 import pt.dazz.bookmap.spi.Transport;
@@ -17,9 +20,12 @@ import pt.dazz.bookmap.spi.Transport;
  * A transport auto-configuration must declare
  * {@code @AutoConfiguration(before = BookmapAutoConfiguration.class)}.
  * Then the {@code Transport} bean is known when this class runs.
+ *
+ * <p>If {@code bookmap.transport.type} is set and no {@code Transport} bean exists, the
+ * application does not start.
  */
 @AutoConfiguration
-@EnableConfigurationProperties(BookmapProperties.class)
+@EnableConfigurationProperties({BookmapProperties.class, BookmapTransportProperties.class})
 public class BookmapAutoConfiguration {
 
     /**
@@ -59,5 +65,28 @@ public class BookmapAutoConfiguration {
             .maxCalls(properties.maxCalls())
             .codecRegistry(registry)
             .build();
+    }
+
+    /**
+     * Stops the application when {@code bookmap.transport.type} is set and no transport
+     * auto-configuration created a {@code Transport} bean. The bean is not lazy. Thus, the check
+     * also runs with lazy initialization.
+     *
+     * @param properties the {@code bookmap.transport.*} settings
+     * @return never
+     * @throws IllegalStateException always
+     */
+    @Bean
+    @Lazy(false)
+    @ConditionalOnProperty("bookmap.transport.type")
+    @ConditionalOnMissingBean(Transport.class)
+    MissingTransport bookmapMissingTransport(BookmapTransportProperties properties) {
+        TransportType type = properties.type();
+        throw new IllegalStateException("bookmap.transport.type=" + type.name().toLowerCase(Locale.ROOT)
+            + ", but no Transport bean exists. Add " + type.requirement() + " to the class path.");
+    }
+
+    /** The type of the bean of the missing-transport check. No instance exists. */
+    interface MissingTransport {
     }
 }

@@ -39,7 +39,8 @@ class ConfigurationMetadataTest {
 
     @Test
     void listsOnlyTheBookmapProperties() throws IOException {
-        assertThat(properties()).containsOnlyKeys("bookmap.charset", "bookmap.max-calls");
+        assertThat(properties()).containsOnlyKeys("bookmap.charset", "bookmap.max-calls",
+            "bookmap.transport.type");
     }
 
     @Test
@@ -85,6 +86,19 @@ class ConfigurationMetadataTest {
     @Test
     void eachCharsetHintHasADescription() throws IOException {
         assertThat(properties().get("bookmap.charset").getHints().getValueHints())
+            .extracting(ValueHint::getDescription)
+            .allSatisfy(description -> assertThat(description).isNotBlank());
+    }
+
+    @Test
+    void transportTypeHasTypeDescriptionAndHints() throws IOException {
+        ConfigurationMetadataProperty type = properties().get("bookmap.transport.type");
+        assertThat(type.getType()).isEqualTo("pt.dazz.bookmap.spring.TransportType");
+        assertThat(type.getDescription()).startsWith("The transport that");
+        assertThat(type.getHints().getValueHints())
+            .extracting(ValueHint::getValue)
+            .containsExactly("ctg", "mq", "http");
+        assertThat(type.getHints().getValueHints())
             .extracting(ValueHint::getDescription)
             .allSatisfy(description -> assertThat(description).isNotBlank());
     }
