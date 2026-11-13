@@ -50,7 +50,7 @@ New layout features in the core and the processor. Milestone: [Mapping](https://
 Other DI containers and API styles. Milestone: [Integrations](https://github.com/ajlima/bookmap/milestone/5).
 
 - [#51](https://github.com/ajlima/bookmap/issues/51) Add a Quarkus extension
-- [#52](https://github.com/ajlima/bookmap/issues/52) Add a Guice module
+- [#52](https://github.com/ajlima/bookmap/issues/52) Add a Micronaut integration
 - [#53](https://github.com/ajlima/bookmap/issues/53) Add an asynchronous or reactive API
 
 ## 5. Maintenance

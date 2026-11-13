@@ -14,7 +14,7 @@ The project owner had a framework (`cicsannotations`). It mapped COBOL books of 
 
 1. **No middleware dependency.** The book ↔ POJO mapping does not know about CICS. CICS is only one possible transport. Other transports are CTG/ECI, HTTP (z/OS Connect), MQ, and a simulator.
 2. **No reflection at runtime.** An annotation processor generates all serialization code at compile time. Thus, native images (GraalVM, Spring AOT, Quarkus) need no reflection configuration. The EBCDIC charsets are in the JDK module `jdk.charsets`. `bookmap-core` ships a `native-image.properties` file that adds them (`-H:+AddAllCharsets`). The standalone build `bookmap-native-test` tests this configuration in a native image.
-3. **No DI container dependency.** The core is plain Java. Optional modules connect it to Spring, Quarkus, or Guice.
+3. **No DI container dependency.** The core is plain Java. Optional modules connect it to Spring, Quarkus, or Micronaut.
 
 The owner has no access to a CICS system now. Thus, the first transport is a **simulator**. The simulator must let you test the full cycle, including pagination and errors.
 
@@ -35,7 +35,7 @@ You can use the code of the old framework as an inspiration. It is not a limit.
 ### 2.2 Non-goals (v1, possible later)
 
 - Real transports (CTG/ECI, MQ, HTTP/z/OS Connect). The transport SPI must let you add them without a change to the core.
-- Quarkus and Guice integrations.
+- Quarkus and Micronaut integrations.
 - Generation of POJOs from copybook source (a COBOL parser).
 - `REDEFINES` without a discriminator, nested collections (a collection in a collection item), `COMP-1`/`COMP-2` (floating point), `SIGN LEADING`/`SIGN SEPARATE`. A `REDEFINES` with a discriminator is supported through subtypes: see `2026-11-11-bookmap-subtypes-design.md`.
 - Separate request and response classes. One class holds both directions (see 4.1).
@@ -43,7 +43,7 @@ You can use the code of the old framework as an inspiration. It is not a limit.
 
 ### 2.3 Anti-goals (failure, even if the code works)
 
-- A class in the core or processor module depends on Spring, Quarkus, Guice, or a middleware library.
+- A class in the core or processor module depends on Spring, Quarkus, Micronaut, Guice, or a middleware library.
 - The core API contains concepts of one middleware (for example, CICS transaction, program, or COMMAREA).
 - The framework uses reflection at runtime to read fields, call methods, or create instances of user classes.
 - Silent data corruption: the framework truncates text, or loses digits or decimal places, without an error.

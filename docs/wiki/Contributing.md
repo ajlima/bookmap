@@ -69,7 +69,7 @@ For more information, see "Supply-chain protection" in [RELEASING.md](https://gi
 - Write all code, comments, Javadoc, and messages in English.
 - Do not use reflection at runtime. Use compile-time code generation.
 - Use JavaPoet for code generation in the annotation processor.
-- The core and processor modules must not depend on Spring, Quarkus, Guice, or any middleware library.
+- The core and processor modules must not depend on Spring, Quarkus, Micronaut, Guice, or any middleware library.
 - Write examples and test data in English. Use an international business domain, for example orders, invoices, or shipments.
 - Do not use identifiers that are specific to one country, for example a national tax ID.
 - Keep the line and branch coverage of each module at 100%.
