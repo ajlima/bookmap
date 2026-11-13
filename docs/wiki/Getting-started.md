@@ -391,7 +391,11 @@ Only single-byte charsets are permitted. The default charset is `IBM037` (EBCDIC
 Set the charset on the client with `BookmapClient.builder().charset(...)`. Set a charset for one book with `@BookDefaults(charset = "...")`.
 
 For a GraalVM native image, `bookmap-core` contains a `native-image.properties` file.
-It sets `-H:+AddAllCharsets`. This configuration is included, but it is not tested yet.
+It sets `-H:+AddAllCharsets`. Thus, the native image contains the EBCDIC charsets, and you add no option.
+The generated codecs need no reflection configuration. The runtime finds them through `ServiceLoader`, and GraalVM supports it.
+
+A smoke test checks this configuration with GraalVM Community for JDK 21. It runs one operation through the simulator transport, with the charset `IBM1047`.
+See the standalone build `bookmap-native-test`.
 
 ## Next steps
 

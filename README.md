@@ -201,6 +201,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 | `bookmap-examples` | Working examples. The wiki uses them. |
 | `bookmap-examples-gradle-plugin` | A standalone build that uses the Gradle plugin. |
 | `bookmap-examples-maven-plugin` | A standalone multi-module Maven build that uses the Maven plugin. |
+| `bookmap-native-test` | A standalone build that tests BookMap in a GraalVM native image. |
 
 ## Project status
 
