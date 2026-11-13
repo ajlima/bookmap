@@ -29,6 +29,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.processor.model.CollectionModel;
+import pt.dazz.bookmap.processor.model.EnumModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
 import pt.dazz.bookmap.processor.model.ItemModel;
@@ -83,7 +84,12 @@ final class CodecGenerator {
     }
 
     /** The names of the generated members of one field. */
-    private record Names(String descriptor, String formatter, String converter) {
+    private record Names(String descriptor, String formatter, String converter,
+                         EnumMethods enumMethods) {
+    }
+
+    /** The names of the methods that read and write one enum type in one category. */
+    private record EnumMethods(String read, String write) {
     }
 
     /** The names of the generated members and local variables of one collection. */
@@ -103,7 +109,10 @@ final class CodecGenerator {
     private final Map<String, String> converters = new HashMap<>();
     /** The item methods of each item class, by qualified class name. */
     private final Map<String, ItemMethods> items = new HashMap<>();
+    /** The methods of each enum type and category, by qualified name and category. */
+    private final Map<String, EnumMethods> enums = new HashMap<>();
     private final List<MethodSpec> itemMethods = new ArrayList<>();
+    private final List<MethodSpec> enumMethodSpecs = new ArrayList<>();
     private final Set<Helper> helpers = EnumSet.noneOf(Helper.class);
     /** The layouts of the codec: one without subtypes, else one for each class. */
     private final List<Layout> layouts;
@@ -239,6 +248,7 @@ final class CodecGenerator {
             new SubTypesGenerator().addMethods(builder);
         }
         builder.addMethods(itemMethods);
+        builder.addMethods(enumMethodSpecs);
         helpers.forEach(helper -> builder.addMethod(helper(helper)));
         return JavaFile.builder(codec.packageName(), builder.build()).build();
     }
@@ -255,6 +265,7 @@ final class CodecGenerator {
             Modifier.STATIC, Modifier.FINAL).initializer("$S", field.descriptor()).build());
         String formatter = null;
         String converter = null;
+        EnumMethods enumMethods = null;
         switch (field.kind()) {
             case LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME -> {
                 formatter = allocator.newName(constant + "_FORMAT");
@@ -265,11 +276,15 @@ final class CodecGenerator {
             case CONVERTED -> converter = converters.computeIfAbsent(
                 field.converter().getQualifiedName().toString(),
                 key -> addConverter(builder, field.converter()));
+            case ENUM -> enumMethods = enums.computeIfAbsent(
+                field.enumModel().type().getQualifiedName() + (field.enumModel().numeric()
+                    ? "/number" : "/text"),
+                key -> addEnumMethods(field.enumModel()));
             default -> {
                 // Text and numbers need no other member.
             }
         }
-        names.put(field, new Names(descriptor, formatter, converter));
+        names.put(field, new Names(descriptor, formatter, converter, enumMethods));
     }
 
     /** Adds the one instance of a converter class. */
@@ -281,6 +296,71 @@ final class CodecGenerator {
         builder.addField(FieldSpec.builder(converterType, name, Modifier.PRIVATE,
             Modifier.FINAL).initializer("new $T()", converterType).build());
         return name;
+    }
+
+    /**
+     * Adds the methods that read and write one enum type in one category. The read method
+     * gives the constant that contains a value. The write method gives the canonical value of
+     * a constant. The methods use {@code ==} and {@code equals}, not a {@code switch}, which
+     * needs a synthetic class.
+     */
+    private EnumMethods addEnumMethods(EnumModel model) {
+        ClassName enumType = ClassName.get(model.type());
+        String suffix = String.join("", enumType.simpleNames());
+        String base = Character.toLowerCase(suffix.charAt(0)) + suffix.substring(1);
+        EnumMethods methods = new EnumMethods(allocator.newName(base + "Of"),
+            allocator.newName(base + "Value"));
+        TypeName valueType = model.numeric() ? DECIMAL : ClassName.get(String.class);
+        MethodSpec.Builder read = MethodSpec.methodBuilder(methods.read())
+            .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(enumType)
+            .addParameter(valueType, "key").addParameter(String.class, "field");
+        if (model.numeric()) {
+            read.beginControlFlow("if (key == null)").addStatement("return null")
+                .endControlFlow();
+        }
+        MethodSpec.Builder write = MethodSpec.methodBuilder(methods.write())
+            .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(valueType)
+            .addParameter(enumType, "value").addParameter(String.class, "field")
+            .beginControlFlow("if (value == null)").addStatement("return null")
+            .endControlFlow();
+        for (EnumModel.Constant constant : model.constants()) {
+            List<CodeBlock> tests = new ArrayList<>();
+            constant.values().forEach(value -> tests.add(model.numeric()
+                ? CodeBlock.of("key.compareTo($L) == 0", enumValue(model, value))
+                : CodeBlock.of("key.equals($S)", value)));
+            constant.ranges().forEach(range -> tests.add(CodeBlock.of(
+                "key.compareTo($L) >= 0 && key.compareTo($L) <= 0",
+                enumValue(model, range.from()), enumValue(model, range.thru()))));
+            read.beginControlFlow("if ($L)", CodeBlock.join(tests.stream()
+                    .map(test -> CodeBlock.of("($L)", test)).toList(), " || "))
+                .addStatement("return $T.$N", enumType, constant.name())
+                .endControlFlow();
+            write.beginControlFlow("if (value == $T.$N)", enumType, constant.name())
+                .addStatement("return $L", enumValue(model, constant.canonical()))
+                .endControlFlow();
+        }
+        if (!model.numeric()) {
+            read.beginControlFlow("if (key.isEmpty())").addStatement("return null")
+                .endControlFlow();
+        }
+        if (model.unknown() == null) {
+            read.addStatement("throw new $T(field + $S + $L + $S)", MAPPING_EXCEPTION,
+                ": unknown value '", model.numeric() ? "key.toPlainString()" : "key",
+                "' for enum " + enumType.simpleName());
+        } else {
+            read.addStatement("return $T.$N", enumType, model.unknown());
+        }
+        write.addStatement("throw new $T(field + $S + value.name() + $S)", MAPPING_EXCEPTION,
+            ": the constant ", " of enum " + enumType.simpleName() + " has no COBOL value");
+        enumMethodSpecs.add(read.build());
+        enumMethodSpecs.add(write.build());
+        return methods;
+    }
+
+    /** Gives one value of an enum as a Java expression. */
+    private static CodeBlock enumValue(EnumModel model, String value) {
+        return model.numeric() ? CodeBlock.of("new $T($S)", DECIMAL, value)
+            : CodeBlock.of("$S", value);
     }
 
     private void addCollectionMembers(TypeSpec.Builder builder, CollectionModel collection) {
@@ -612,6 +692,13 @@ final class CodecGenerator {
             case LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME -> CodeBlock.of(
                 "writer.writeTemporal($N, $L, $L, $N)", n.descriptor(), value, field.length(),
                 n.formatter());
+            case ENUM -> {
+                CodeBlock text = CodeBlock.of("$N($L, $N)", n.enumMethods().write(), value,
+                    n.descriptor());
+                yield field.enumModel().numeric() ? writeNumber(field, text)
+                    : CodeBlock.of("writer.writeText($N, $L, $L)", n.descriptor(), text,
+                        field.length());
+            }
             case CONVERTED -> CodeBlock.of("writer.writeConverted($N, $L, $N, $L)",
                 n.descriptor(), value, n.converter(), fieldContext(field));
         };
@@ -637,6 +724,10 @@ final class CodecGenerator {
             case LOCAL_DATE -> readTemporal("readDate", field);
             case LOCAL_TIME -> readTemporal("readTime", field);
             case LOCAL_DATE_TIME -> readTemporal("readDateTime", field);
+            case ENUM -> CodeBlock.of("$N($L, $N)", n.enumMethods().read(),
+                field.enumModel().numeric() ? number
+                    : CodeBlock.of("reader.readText($N, $L)", n.descriptor(), field.length()),
+                n.descriptor());
             case CONVERTED -> {
                 CodeBlock converted = CodeBlock.of("reader.readConverted($N, $N, $L)",
                     n.descriptor(), n.converter(), fieldContext(field));

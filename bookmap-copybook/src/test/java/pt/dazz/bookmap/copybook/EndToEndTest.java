@@ -194,6 +194,7 @@ class EndToEndTest {
                 + " in a table.",
             "SYNC adds 1 slack byte before TRK-EVENT-COUNT. The generator adds a FILLER.",
             "SYNC adds 2 slack bytes before TRK-WEIGHT-GRAMS. The generator adds a FILLER.",
+            "record GET-TRACKING has 39 bytes",
             "COMP-5 on TRK-WEIGHT-GRAMS is mapped as COMP. BookMap reads all binary values, but"
                 + " writes only values with at most 9 digits.");
         Compiled classes = Compiled.compile(result.files());

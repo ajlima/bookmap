@@ -167,6 +167,26 @@ class GenerateMojoTest {
             .hasMessage("2 copybook(s) have errors. See the messages above.");
         assertThat(log.warnings).anySatisfy(w -> assertThat(w).contains("is skipped"));
         assertThat(log.errors).hasSize(2);
+        assertThat(log.infos).anySatisfy(i -> assertThat(i)
+            .endsWith("info: record PAYMENT has 8 bytes"));
+    }
+
+    @Test
+    void maxRecordLengthGivesAWarning() throws Exception {
+        mojo.sourceDir = TestCopybooks.copy("warning", dir).toFile();
+        mojo.maxRecordLength = 4;
+        mojo.execute();
+        assertThat(log.warnings).anySatisfy(w -> assertThat(w).endsWith("warning: record"
+            + " PAYMENT has 8 bytes, more than the maximum record length of 4 bytes."));
+    }
+
+    @Test
+    void maxRecordLengthChangeRunsAgain() throws Exception {
+        mojo.sourceDir = TestCopybooks.copy("warning", dir).toFile();
+        mojo.execute();
+        mojo.maxRecordLength = 4;
+        mojo.execute();
+        assertThat(log.infos).doesNotContain("The generated classes are up to date.");
     }
 
     private Path fingerprint() throws IOException {
@@ -244,8 +264,10 @@ class GenerateMojoTest {
         other.execute();
         mojo.execute();
         other.execute();
-        assertThat(log.infos).containsExactly("The generated classes are up to date.");
-        assertThat(otherLog.infos).containsExactly("The generated classes are up to date.");
+        assertThat(log.infos).containsOnlyOnce("The generated classes are up to date.")
+            .last().isEqualTo("The generated classes are up to date.");
+        assertThat(otherLog.infos).containsOnlyOnce("The generated classes are up to date.")
+            .last().isEqualTo("The generated classes are up to date.");
         assertThat(out("com/example/mainframe/orders/Order.java")).exists();
         assertThat(mojo.project.getCompileSourceRoots()).containsExactlyInAnyOrder(
             mojo.outputDir.getAbsolutePath(), other.outputDir.getAbsolutePath());

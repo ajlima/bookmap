@@ -38,6 +38,8 @@ class GeneratorConfigJsonTest {
               "classNames": { "SAVINGS-DATA": "SavingsAccount" }
             }
           },
+          "countFields": { "INVOICE-LINE": "INVOICE-LINE-COUNT" },
+          "maxRecordLength": 32500,
           "package": "com.example.accounts",
           "lombok": false
         }
@@ -57,6 +59,9 @@ class GeneratorConfigJsonTest {
         assertThat(config.mapping().subTypes()).isEqualTo(Map.of("CHECKING-DATA",
             new SubTypeDecision("ACCOUNT-TYPE", Map.of("CHECKING-DATA", "01", "SAVINGS-DATA",
                 "02"), Map.of("SAVINGS-DATA", "SavingsAccount"))));
+        assertThat(config.mapping().countFields()).isEqualTo(Map.of("INVOICE-LINE",
+            "INVOICE-LINE-COUNT"));
+        assertThat(config.mapping().maxRecordLength()).isEqualTo(32500);
         assertThat(config.packageName()).isEqualTo("com.example.accounts");
         assertThat(config.lombok()).isFalse();
     }
@@ -102,10 +107,13 @@ class GeneratorConfigJsonTest {
         "{\"directions\": {\"A\": \"BOTH\"}}|key 'A' in $.directions has the unknown direction"
             + " 'BOTH'. Use INPUT, OUTPUT, or INPUT_OUTPUT.",
         "{\"directions\": {\"A\": 1}}|key 'A' in $.directions must be a string",
+        "{\"countFields\": {\"A\": 1}}|key 'A' in $.countFields must be a string",
         "{\"directions\": []}|key 'directions' in $ must be an object",
         "{\"subTypes\": {\"A\": {\"values\": {}}}}|missing key 'discriminator' in $.subTypes.A",
         "{\"subTypes\": {\"A\": {\"discriminator\": \"T\", \"values\": {}, \"x\": 1}}}"
             + "|unknown key 'x' in $.subTypes.A",
+        "{\"maxRecordLength\": \"32K\"}|key 'maxRecordLength' in $ must be an integer",
+        "{\"maxRecordLength\": 0}|key 'maxRecordLength' in $ must be 1 or more, not 0",
     })
     void rejectsInvalidConfigurations(String json, String message) {
         assertThatThrownBy(() -> GeneratorConfigJson.read(json, BASE))
