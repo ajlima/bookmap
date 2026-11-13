@@ -12,9 +12,14 @@ import com.palantir.javapoet.TypeSpec;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import javax.lang.model.element.Modifier;
+import pt.dazz.bookmap.Continuable;
+import pt.dazz.bookmap.Validatable;
 import pt.dazz.bookmap.annotation.BookCollection;
 import pt.dazz.bookmap.annotation.BookField;
 import pt.dazz.bookmap.annotation.BookOperation;
@@ -111,7 +116,31 @@ public final class JavaClassGenerator {
                 addAccessors(builder, javaType, member.name());
             }
         }
+        if (type.continuable() != null) {
+            ClassName handler = handler(type.continuable(), options.packageName());
+            builder.addSuperinterface(Continuable.class).addMethod(MethodSpec
+                .methodBuilder("hasContinuation")
+                .addJavadoc("Calls {@code $L.hasContinuation(this)}.\n", handler.simpleName())
+                .addAnnotation(Override.class).addModifiers(Modifier.PUBLIC)
+                .returns(TypeName.BOOLEAN)
+                .addStatement("return $T.hasContinuation(this)", handler).build());
+        }
+        if (type.validatable() != null) {
+            ClassName handler = handler(type.validatable(), options.packageName());
+            builder.addSuperinterface(Validatable.class).addMethod(MethodSpec
+                .methodBuilder("validate")
+                .addJavadoc("Calls {@code $L.validate(this)}.\n", handler.simpleName())
+                .addAnnotation(Override.class).addModifiers(Modifier.PUBLIC)
+                .addStatement("$T.validate(this)", handler).build());
+        }
         return builder.build();
+    }
+
+    /** Gives the handler class. A name without a package is in the generated package. */
+    private static ClassName handler(String name, String packageName) {
+        int dot = name.lastIndexOf('.');
+        return dot < 0 ? ClassName.get(packageName, name)
+            : ClassName.get(name.substring(0, dot), name.substring(dot + 1));
     }
 
     private static ClassName lombok(String name) {
@@ -127,6 +156,9 @@ public final class JavaClassGenerator {
                 case INT -> TypeName.INT;
                 case LONG -> TypeName.LONG;
                 case BIG_DECIMAL -> ClassName.get(BigDecimal.class);
+                case LOCAL_DATE -> ClassName.get(LocalDate.class);
+                case LOCAL_TIME -> ClassName.get(LocalTime.class);
+                case LOCAL_DATE_TIME -> ClassName.get(LocalDateTime.class);
             };
         };
     }
@@ -139,6 +171,9 @@ public final class JavaClassGenerator {
                     .addMember("pic", "$S", field.pic());
                 if (kind != ClassKind.ITEM && field.direction() != Direction.INPUT_OUTPUT) {
                     spec.addMember("direction", direction(field.direction()));
+                }
+                if (field.pattern() != null) {
+                    spec.addMember("pattern", "$S", field.pattern());
                 }
                 yield spec.build();
             }

@@ -28,11 +28,11 @@ public final class ModelJson {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Set<String> MODEL_KEYS = Set.of("formatVersion", "sourceName", "classes");
     private static final Set<String> CLASS_KEYS = Set.of("name", "kind", "superclass",
-        "subTypes", "members");
+        "subTypes", "continuable", "validatable", "members");
     private static final Set<String> SUBTYPES_KEYS = Set.of("discriminator", "types");
     private static final Set<String> TYPE_KEYS = Set.of("value", "className");
     private static final Set<String> FIELD_KEYS = Set.of("kind", "name", "javaType", "order",
-        "pic", "direction", "cobolName", "declaration");
+        "pic", "direction", "pattern", "cobolName", "declaration");
     private static final Set<String> COLLECTION_KEYS = Set.of("kind", "name", "order",
         "direction", "maxOccurs", "fixed", "dependsOn", "itemClass", "cobolName", "declaration");
 
@@ -73,6 +73,12 @@ public final class ModelJson {
                     entry.className());
             }
         }
+        if (type.continuable() != null) {
+            node.put("continuable", type.continuable());
+        }
+        if (type.validatable() != null) {
+            node.put("validatable", type.validatable());
+        }
         ArrayNode members = node.putArray("members");
         for (MemberModel member : type.members()) {
             members.add(writeMember(member));
@@ -90,6 +96,9 @@ public final class ModelJson {
                 node.put("order", field.order());
                 node.put("pic", field.pic());
                 node.put("direction", field.direction().name());
+                if (field.pattern() != null) {
+                    node.put("pattern", field.pattern());
+                }
             }
             case CollectionMember collection -> {
                 node.put("kind", "COLLECTION");
@@ -159,7 +168,8 @@ public final class ModelJson {
             members.add(readMember(nodes.get(i), type.path("members") + "[" + i + "]"));
         }
         return new ClassModel(type.text("name"), type.enumValue("kind", ClassKind.class),
-            type.optionalText("superclass"), subTypes, members);
+            type.optionalText("superclass"), subTypes, members, type.optionalText("continuable"),
+            type.optionalText("validatable"));
     }
 
     private static MemberModel readMember(JsonNode node, String path) {
@@ -179,6 +189,6 @@ public final class ModelJson {
         return new FieldMember(member.text("name"), member.enumValue("javaType", JavaType.class),
             member.integer("order"), member.text("pic"),
             member.enumValue("direction", Direction.class), member.text("cobolName"),
-            member.text("declaration"));
+            member.text("declaration"), member.optionalText("pattern"));
     }
 }

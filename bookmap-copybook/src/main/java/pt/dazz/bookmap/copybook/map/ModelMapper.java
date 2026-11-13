@@ -60,6 +60,8 @@ public final class ModelMapper {
         final ClassKind kind;
         String superclass;
         SubTypes subTypes;
+        String continuable;
+        String validatable;
         final List<MemberModel> members = new ArrayList<>();
         final Set<String> used = new HashSet<>();
         int fillers;
@@ -90,7 +92,8 @@ public final class ModelMapper {
         }
 
         ClassModel build() {
-            return new ClassModel(name, kind, superclass, subTypes, members);
+            return new ClassModel(name, kind, superclass, subTypes, members, continuable,
+                validatable);
         }
     }
 
@@ -107,6 +110,9 @@ public final class ModelMapper {
     final Set<String> classNames = new HashSet<>();
     final Map<DataItem, Placed> placed = new IdentityHashMap<>();
     private final RedefinesResolver redefines;
+    private DateHints dates;
+    /** The handler of the record that the mapper maps now, if the record is Continuable. */
+    private String continuable;
     private final CountFieldResolver countFields;
 
     private ModelMapper(Copybook copybook, MappingOptions options) {
@@ -128,17 +134,23 @@ public final class ModelMapper {
     public static MapResult map(Copybook copybook, MappingOptions options) {
         ModelMapper mapper = new ModelMapper(copybook, options);
         mapper.redefines.checkDecisions();
+        mapper.dates = new DateHints(mapper);
+        OperationHandlers handlers = new OperationHandlers(mapper, copybook.records());
         mapper.countFields.checkOptions();
         for (DataItem record : copybook.records()) {
             info(mapper, record);
             RecordLength.check(record, options.maxRecordLength(), mapper.diagnostics);
             ClassBuilder operation = mapper.newClass(mapper.names.className(record.name()),
                 null, ClassKind.OPERATION);
+            operation.continuable = handlers.continuable(record);
+            operation.validatable = handlers.validatable(record);
+            mapper.continuable = operation.continuable;
             Usage usage = record.usage() != null ? record.usage() : Usage.DISPLAY;
             mapper.walk(record.children(), operation,
                 new Context(usage, Direction.INPUT_OUTPUT, null, List.of()));
         }
         mapper.redefines.checkSubTypeAreas();
+        mapper.dates.checkUnused();
         mapper.countFields.checkUnmapped();
         BookModel model = new BookModel(BookModel.FORMAT_VERSION, copybook.sourceName(),
             mapper.classes.stream().map(ClassBuilder::build).toList());
@@ -230,8 +242,11 @@ public final class ModelMapper {
         } else {
             name = owner.fieldName(names.fieldName(item.name()), context.groups());
         }
-        FieldMember field = new FieldMember(name, javaType(picture, usage), owner.nextOrder(),
-            PicText.of(picture, usage), context.direction(), item.name(), item.declaration());
+        DateHints.Applied date = dates.apply(item, usage);
+        FieldMember field = new FieldMember(name,
+            date != null ? date.type() : javaType(picture, usage), owner.nextOrder(),
+            PicText.of(picture, usage), context.direction(), item.name(), item.declaration(),
+            date != null ? date.pattern() : null);
         owner.members.add(field);
         placed.put(item, new Placed(owner, field, item, usage));
     }
@@ -290,6 +305,11 @@ public final class ModelMapper {
             walk(item.children(), type, inner);
         } else {
             field(item, type, inner, usage, "value");
+        }
+        if (continuable != null && context.direction() == Direction.INPUT_OUTPUT) {
+            error(item, item.name() + " is an INPUT_OUTPUT collection. BookMap does not permit"
+                + " it in a Continuable class. Put the table in the output alternative of a"
+                + " REDEFINES area.");
         }
         boolean fixed = item.occurs().dependingOn() == null;
         // An item class has only fields: a nested OCCURS is an error above.

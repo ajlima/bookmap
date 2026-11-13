@@ -174,6 +174,35 @@ class MainTest {
     }
 
     @Test
+    void dateOptionsGiveDateFields() throws IOException {
+        Path config = dir.resolve("dates.json");
+        Files.writeString(config, "{\"dates\": {\"ORDER-DATE\": \"ddMMyyyy\"}}");
+        assertThat(run("generate", resource("ORDERS.cpy"), "--config", config.toString(),
+            "--date", "*-DATE=yyyyMMdd", "--date", "ORDER-DATE=yyyyMMdd", "--package",
+            "com.example.orders", "--output-dir", dir.resolve("src").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(Files.readString(generated("OrderEntry")))
+            .contains("pattern = \"yyyyMMdd\"", "private LocalDate orderDate;");
+    }
+
+    @Test
+    void handlerOptionsImplementTheInterfaces() throws IOException {
+        Path config = dir.resolve("handlers.json");
+        Files.writeString(config, "{\"validatable\": {\"LIST-ORDERS\": \"Old\"}}");
+        assertThat(run("generate", resource("ORDERS.cpy"), "--config", config.toString(),
+            "--validatable", "LIST-ORDERS=com.example.checks.ReturnCodes", "--package",
+            "com.example.orders", "--output-dir", dir.resolve("src").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(Files.readString(generated("ListOrders"))).contains(
+            "import com.example.checks.ReturnCodes;",
+            "public class ListOrders implements Validatable {", "ReturnCodes.validate(this);");
+        assertThat(run("generate", resource("ORDERS.cpy"), "--continuable",
+            "LIST-ORDERS=OrderPaging", "--package", "com.example.orders", "--output-dir",
+            dir.resolve("src2").toString())).isEqualTo(Main.FAILED);
+        assertThat(err()).contains("error: ORDER-ENTRY is an INPUT_OUTPUT collection.");
+    }
+
+    @Test
     void errorsGiveExitCode1AndDiagnostics() throws IOException {
         Path copybook = dir.resolve("BAD.cpy");
         Files.writeString(copybook, "       01  BAD.\n           05  A PIC ZZ9.");
@@ -285,6 +314,15 @@ class MainTest {
             + " number of bytes of 1 or more, not '32K'",
         "generate A.json --package a --output-dir x --max-record-length 100|parse and mapping"
             + " options are not permitted with a model input",
+        "generate A.cpy --package a --output-dir x --date A|--date needs NAME=PATTERN, not 'A'",
+        "generate A.cpy --package a --output-dir x --date A=|--date needs NAME=PATTERN, not"
+            + " 'A='",
+        "generate A.cpy --package a --output-dir x --date =yyyyMMdd|--date needs NAME=PATTERN,"
+            + " not '=yyyyMMdd'",
+        "generate A.cpy --package a --output-dir x --continuable A|--continuable needs"
+            + " RECORD=CLASS, not 'A'",
+        "generate A.cpy --package a --output-dir x --validatable A=|--validatable needs"
+            + " RECORD=CLASS, not 'A='",
     })
     void usageErrorsGiveExitCode2(String commandLine, String message) {
         String[] args = commandLine == null ? new String[0] : commandLine.split(" ");

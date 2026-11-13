@@ -14,6 +14,8 @@
         "className" : "SavingsAccount"
       } ]
     },
+    "continuable" : "com.example.accounts.AccountPaging",
+    "validatable" : "ReturnCodes",
     "members" : [ {
       "kind" : "FIELD",
       "name" : "accountId",
@@ -36,7 +38,7 @@
       "kind" : "COLLECTION",
       "name" : "holder",
       "order" : 30,
-      "direction" : "INPUT_OUTPUT",
+      "direction" : "OUTPUT",
       "maxOccurs" : 2,
       "fixed" : true,
       "itemClass" : "Holder",
@@ -55,6 +57,36 @@
       "direction" : "INPUT_OUTPUT",
       "cobolName" : "HOLDER-NAME",
       "declaration" : "10 HOLDER-NAME PIC X(30)."
+    }, {
+      "kind" : "FIELD",
+      "name" : "since",
+      "javaType" : "LOCAL_DATE",
+      "order" : 20,
+      "pic" : "9(8)",
+      "direction" : "INPUT_OUTPUT",
+      "pattern" : "yyyyMMdd",
+      "cobolName" : "SINCE",
+      "declaration" : "10 SINCE PIC 9(8)."
+    }, {
+      "kind" : "FIELD",
+      "name" : "openedAt",
+      "javaType" : "LOCAL_TIME",
+      "order" : 30,
+      "pic" : "X(8)",
+      "direction" : "INPUT_OUTPUT",
+      "pattern" : "HH:mm:ss",
+      "cobolName" : "OPENED-AT",
+      "declaration" : "10 OPENED-AT PIC X(8)."
+    }, {
+      "kind" : "FIELD",
+      "name" : "lastUpdate",
+      "javaType" : "LOCAL_DATE_TIME",
+      "order" : 40,
+      "pic" : "9(14)",
+      "direction" : "INPUT_OUTPUT",
+      "pattern" : "yyyyMMddHHmmss",
+      "cobolName" : "LAST-UPDATE",
+      "declaration" : "10 LAST-UPDATE PIC 9(14)."
     } ]
   }, {
     "name" : "CheckingData",

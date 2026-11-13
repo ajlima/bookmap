@@ -176,6 +176,20 @@ class CopybookTreeTest {
     }
 
     @Test
+    void optionsFileKeepsTheDateHints() throws IOException {
+        Path source = Files.createDirectories(work.resolve("dates"));
+        Files.writeString(source.resolve("ORDER.cpy"),
+            "       01  ORDER.\n           05  ORDER-DATE               PIC 9(8).\n");
+        Files.writeString(source.resolve("ORDER.json"),
+            "{\"dates\": {\"ORDER-DATE\": \"yyyyMMdd\"}}");
+        CopybookTree.run(settings(source, List.of(), BASE, false, false),
+            TestCopybooks.copybooks(source), output, log);
+        assertThat(log.errors).isEmpty();
+        assertThat(output.resolve("com/example/mainframe/Order.java")).content()
+            .contains("LocalDate orderDate");
+    }
+
+    @Test
     void maxRecordLengthMustBePositive() {
         Path source = TestCopybooks.copy("warning", work);
         assertThatThrownBy(() -> CopybookTree.run(settings(source, List.of(), BASE, false,

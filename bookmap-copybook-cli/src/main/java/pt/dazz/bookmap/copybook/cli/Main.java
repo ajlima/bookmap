@@ -60,6 +60,10 @@ public final class Main {
                                      The count field of a fixed table (OCCURS n).
           --max-record-length <bytes>
                                      Warn if a record is longer. Default: no check.
+          --date <name>=<pattern>    A date or time pattern for an item. A name with *
+                                     is a name pattern, for example *-DATE=yyyyMMdd.
+          --continuable <rec>=<cls>  The class with hasContinuation(record) of a record.
+          --validatable <rec>=<cls>  The class with validate(record) of a record.
           --config <file.json>       A file with all options. The command line has priority.
         """;
 
@@ -247,7 +251,24 @@ public final class Main {
             concat(base.stripPrefixes(), arguments.all("--strip-prefix")),
             concat(base.inputMarkers(), arguments.all("--input-marker")),
             concat(base.outputMarkers(), arguments.all("--output-marker")),
-            directions, base.subTypes(), countFields, maxRecordLength(arguments, base));
+            directions, base.subTypes(), countFields, maxRecordLength(arguments, base),
+            pairs(arguments, "--date", "NAME=PATTERN", base.dates()),
+            pairs(arguments, "--continuable", "RECORD=CLASS", base.continuable()),
+            pairs(arguments, "--validatable", "RECORD=CLASS", base.validatable()));
+    }
+
+    /** Adds the KEY=VALUE values of an option to the values of the options file. */
+    private static Map<String, String> pairs(Arguments arguments, String option, String form,
+                                             Map<String, String> base) {
+        Map<String, String> pairs = new LinkedHashMap<>(base);
+        for (String value : arguments.all(option)) {
+            int equals = value.indexOf('=');
+            if (equals < 1 || equals == value.length() - 1) {
+                throw new UsageException(option + " needs " + form + ", not '" + value + "'");
+            }
+            pairs.put(value.substring(0, equals), value.substring(equals + 1));
+        }
+        return pairs;
     }
 
     private static Integer maxRecordLength(Arguments arguments, MappingOptions base) {
