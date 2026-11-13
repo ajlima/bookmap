@@ -123,6 +123,11 @@ The message gives the operation, the program, the return code, and its name. For
 
 **WARNING:** Do not retry a call after a `TransportException` from a failure during the call, or after a timeout, without a check. CICS can have run the program and changed data.
 
+## Spring Boot
+
+`bookmap-spring-boot` creates the transport from properties. Set `bookmap.transport.type=ctg` and the `bookmap.transport.ctg.*` properties.
+See [Spring Boot](Spring-Boot#cics-transaction-gateway).
+
 ## Test without CICS
 
 Use the [simulator](Transports-and-simulator#the-simulator) in tests. It uses the same book classes.

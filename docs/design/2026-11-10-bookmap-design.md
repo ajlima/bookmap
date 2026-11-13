@@ -403,7 +403,7 @@ Target test case: a simulated operation returns 120 orders in pages of 50, with 
 
 ### 5.12 Spring Boot integration
 
-`bookmap-spring-boot` contains an auto-configuration. It creates a `BookmapClient` from a `Transport` bean in the context and from properties (`bookmap.charset`, `bookmap.max-calls`). It uses standard Spring Boot mechanisms (`@AutoConfiguration`, `@Bean`, `@ConfigurationProperties`, conditions). Thus, it is compatible with Spring AOT and native images. No Spring class goes into the core. A future transport auto-configuration must declare `@AutoConfiguration(before = BookmapAutoConfiguration.class)`, so that its `Transport` bean exists before the client condition runs.
+`bookmap-spring-boot` contains an auto-configuration. It creates a `BookmapClient` from a `Transport` bean in the context and from properties (`bookmap.charset`, `bookmap.max-calls`). It uses standard Spring Boot mechanisms (`@AutoConfiguration`, `@Bean`, `@ConfigurationProperties`, conditions). Thus, it is compatible with Spring AOT and native images. No Spring class goes into the core. A future transport auto-configuration must declare `@AutoConfiguration(before = BookmapAutoConfiguration.class)`, so that its `Transport` bean exists before the client condition runs. The property `bookmap.transport.type` selects the transport auto-configuration (see `2026-11-13-transport-autoconfig-design.md`).
 
 ## 6. Full example
 
