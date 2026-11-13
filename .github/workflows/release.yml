@@ -60,9 +60,15 @@ jobs:
           persist-credentials: false
 
       # The history shows only the human authors and the release bots. An AI assistant is never
-      # an author, a committer, or a co-author.
+      # an author, a committer, or a co-author. The check runs the script of main, so a pull
+      # request cannot weaken it. Only the first pull request, which adds the script, uses its own.
       - name: Check the commit authors
-        run: scripts/check-commit-authors.sh
+        run: |
+          if git cat-file -e origin/main:scripts/check-commit-authors.sh 2>/dev/null; then
+            git show origin/main:scripts/check-commit-authors.sh | bash -s -- HEAD
+          else
+            scripts/check-commit-authors.sh HEAD
+          fi
 
       - name: Set up Java 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
