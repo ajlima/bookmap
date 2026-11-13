@@ -127,7 +127,7 @@ public record HttpRoute(URI uri, String method, Map<String, String> headers) {
 ```
 
 - `uri` is mandatory. It is an absolute `http` or `https` URI, or a relative reference. `build()` resolves a relative reference against the base URI of the builder.
-- `method` is optional. `null` means `POST`. A value must be an HTTP token, for example `POST` or `PUT`. The transport does not change the case.
+- `method` is optional. `null` means `POST`. A value must be an HTTP token, for example `POST` or `PUT`. `CONNECT` is rejected, because the JDK client does not support it. The transport does not change the case.
 - `headers` is optional. `null` means no headers. The record keeps an unmodifiable copy.
 - The constructor throws `NullPointerException` for a `null` URI, and `IllegalArgumentException` for an incorrect method or a header that 5.4 rejects.
 - `of(String)` and `of(String, String)` call `URI.create`. An incorrect URI gives `IllegalArgumentException`.
@@ -166,7 +166,7 @@ Rules:
 - A header replaces an earlier header with the same name. Header names are not case-sensitive.
 - `basicAuth` replaces an earlier `Authorization` header of the transport.
 - `build()` throws `IllegalStateException` if no route is set, if a route URI is relative and no base URI is set, if a resolved URI is not an absolute `http` or `https` URI, or if `connectTimeout` and `httpClient` are both set.
-- `timeout` and `connectTimeout` throw `IllegalArgumentException` if the value is zero or negative.
+- `timeout` and `connectTimeout` throw `IllegalArgumentException` if the value is zero or negative. `timeout` also throws it if the value is too large for nanoseconds (about 292 years).
 - `header` throws `IllegalArgumentException` for a header that 5.4 rejects.
 - Each method throws `NullPointerException` for a `null` value.
 
@@ -209,7 +209,7 @@ The transport checks the response in this order. The first match gives the excep
 |---|---|
 | No route for the operation. | `OperationNotFoundException` |
 | The transport is closed. | `TransportException` |
-| The header supplier throws a `RuntimeException`, returns `null`, or returns a header that 5.4 rejects. | `TransportException`, with the exception as the cause. |
+| The header supplier throws a `RuntimeException`, returns `null`, or returns a header that 5.4 rejects. | `TransportException`. For a thrown exception, the exception is the cause. For a rejected header, the message gives only the name of the header, and there is no cause. The transport reads the map of the supplier one time. |
 | `HttpConnectTimeoutException`: the connection did not open in time. | `ConnectionException` |
 | `ConnectException`: the connection is refused, or the host is unknown. | `ConnectionException` |
 | `SSLHandshakeException`: the TLS handshake failed. The request was not sent. | `ConnectionException` |

@@ -141,4 +141,42 @@ class HttpTransportFailureTest {
                 .hasNoCause();
         }
     }
+
+    @Test
+    void suppliedHeaderNameIsCleanedAndLimitedInTheMessage() {
+        String name = "X\r\nInjected" + "A".repeat(100);
+        try (HttpTransport transport = builder(new CompletableFuture<>())
+                .headerSupplier(() -> Map.of(name, "v")).build()) {
+            assertThatThrownBy(() -> transport.exchange(REQUEST))
+                .isExactlyInstanceOf(TransportException.class)
+                .hasMessageNotContaining("\r")
+                .hasMessageNotContaining("\n")
+                .hasMessageEndingWith(": X  Injected" + "A".repeat(53));
+        }
+    }
+
+    @Test
+    void suppliedMapIsReadOnlyOnce() {
+        AtomicInteger reads = new AtomicInteger();
+        Map<String, String> changing = new java.util.AbstractMap<>() {
+            @Override
+            public int size() {
+                return 1;
+            }
+
+            @Override
+            public java.util.Set<Map.Entry<String, String>> entrySet() {
+                return reads.getAndIncrement() == 0
+                    ? Map.of("X-Token", "t").entrySet()
+                    : Map.of("Host", "h").entrySet();
+            }
+        };
+        CompletableFuture<HttpResponse<byte[]>> future = new CompletableFuture<>();
+        try (HttpTransport transport = builder(future).timeout(Duration.ofMillis(20))
+                .headerSupplier(() -> changing).build()) {
+            assertThatThrownBy(() -> transport.exchange(REQUEST))
+                .isExactlyInstanceOf(TransportTimeoutException.class);
+            assertThat(reads).hasValue(1);
+        }
+    }
 }

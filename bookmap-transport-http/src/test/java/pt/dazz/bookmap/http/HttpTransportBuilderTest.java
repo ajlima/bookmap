@@ -175,4 +175,11 @@ class HttpTransportBuilderTest {
             .hasMessageNotContaining("ORD:USER")
             .hasMessageNotContaining("secret");
     }
+
+    @Test
+    void timeoutThatIsTooLargeIsRejected() {
+        assertThatThrownBy(() -> HttpTransport.builder()
+                .timeout(java.time.temporal.ChronoUnit.FOREVER.getDuration()))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
 }

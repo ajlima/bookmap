@@ -51,4 +51,19 @@ class HeaderRulesTest {
         assertThatThrownBy(() -> HeaderRules.checkMethod(null))
             .isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    void connectMethodIsRejected() {
+        assertThatThrownBy(() -> HeaderRules.checkMethod("CONNECT"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void incorrectValueIsRejectedWithoutTheValueInTheMessage() {
+        assertThatThrownBy(() -> HeaderRules.check("Authorization", "Bearer tok\u0001"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Authorization")
+            .hasMessageNotContaining("tok")
+            .hasNoCause();
+    }
 }

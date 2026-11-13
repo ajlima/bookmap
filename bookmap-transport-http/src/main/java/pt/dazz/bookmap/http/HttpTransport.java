@@ -43,6 +43,8 @@ import pt.dazz.bookmap.spi.Transport;
  */
 public final class HttpTransport implements Transport, AutoCloseable {
 
+    private static final int MAX_NAME = 64;
+
     private final Map<String, HttpRoute> routes;
     private final Map<String, String> headers;
     private final Supplier<Map<String, String>> headerSupplier;
@@ -137,16 +139,23 @@ public final class HttpTransport implements Transport, AutoCloseable {
         if (supplied == null) {
             throw new TransportException(target + ": header supplier returned null");
         }
-        for (Map.Entry<String, String> header : supplied.entrySet()) {
+        // One copy: the transport checks and sends the same headers.
+        Map<String, String> copy = new LinkedHashMap<>(supplied);
+        for (Map.Entry<String, String> header : copy.entrySet()) {
             try {
                 HeaderRules.check(header.getKey(), header.getValue());
             } catch (IllegalArgumentException | NullPointerException e) {
                 // The cause can contain the value, for example a token. Only the name goes out.
                 throw new TransportException(target
-                    + ": header supplier gave an incorrect header: " + header.getKey());
+                    + ": header supplier gave an incorrect header: " + safeName(header.getKey()));
             }
         }
-        return supplied;
+        return copy;
+    }
+
+    private static String safeName(String name) {
+        String clean = FailureTranslator.clean(String.valueOf(name));
+        return clean.length() > MAX_NAME ? clean.substring(0, MAX_NAME) : clean;
     }
 
     /**
@@ -332,11 +341,16 @@ public final class HttpTransport implements Transport, AutoCloseable {
          * Sets the time limit of one exchange, from the send until the last byte of the
          * response body. The default is 30 seconds.
          *
-         * @param timeout a positive duration
+         * @param timeout a positive duration, less than about 292 years
          * @return this builder
          */
         public Builder timeout(Duration timeout) {
             this.timeout = positive(timeout, "timeout");
+            try {
+                timeout.toNanos();
+            } catch (ArithmeticException e) {
+                throw new IllegalArgumentException("timeout is too large: " + timeout, e);
+            }
             return this;
         }
 

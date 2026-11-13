@@ -35,7 +35,13 @@ final class HeaderRules {
                 + " contains a line break");
         }
         // The JDK client knows its restricted headers, for example Host and Content-Length.
-        HttpRequest.newBuilder().header(name, value);
+        // Its message can contain the value, for example a token. Only the name goes out.
+        try {
+            HttpRequest.newBuilder().header(name, value);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("The JDK HTTP client does not accept the header "
+                + name + ": it is restricted, or its value is not correct");
+        }
     }
 
     /**
@@ -43,12 +49,15 @@ final class HeaderRules {
      *
      * @param method the method
      * @throws NullPointerException if the method is null
-     * @throws IllegalArgumentException if the method is not a token
+     * @throws IllegalArgumentException if the method is not a token, or is {@code CONNECT}
      */
     static void checkMethod(String method) {
         Objects.requireNonNull(method, "method");
         if (!TOKEN.matcher(method).matches()) {
             throw new IllegalArgumentException("Incorrect HTTP method: " + method);
+        }
+        if ("CONNECT".equals(method)) {
+            throw new IllegalArgumentException("The JDK HTTP client does not support CONNECT");
         }
     }
 }
