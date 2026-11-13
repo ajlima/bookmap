@@ -136,6 +136,77 @@ public class FlagConverter implements FieldConverter<Boolean> {
 private boolean express;   // accessors: isExpress() and setExpress(boolean)
 ```
 
+### Enum fields
+
+An enum field needs no converter. Put `@CobolValue` on each enum constant. The processor generates the conversion code at compile time. The codec uses no reflection.
+
+```java
+public enum PartyRole {
+    @CobolValue("SELLER") SELLER,
+    @CobolValue("BILL-TO") BILL_TO,
+    @CobolValue("SHIP-TO") SHIP_TO
+}
+```
+
+```java
+@BookField(order = 30, pic = "X(8)")
+private PartyRole partyRole;
+```
+
+#### @CobolValue (enum constant)
+
+| Attribute | Meaning | Default |
+|---|---|---|
+| `value` | The discrete values of the constant. | None. |
+| `ranges` | The `THRU` ranges of the constant, as `@CobolValue.Range(from = "B", thru = "D")`. Both bounds are in the range. | None. |
+
+A constant needs at least one value or one range. The **canonical value** is the first discrete value, else the `from` value of the first range.
+
+#### @CobolUnknown (enum constant)
+
+`@CobolUnknown` marks the fallback constant. Only one constant of an enum can have it. The constant can also have `@CobolValue`.
+
+```java
+public enum Grade {
+    @CobolValue({"A", "A+"}) EXCELLENT,
+    @CobolValue(ranges = @CobolValue.Range(from = "B", thru = "D")) PASS,
+    @CobolUnknown OTHER
+}
+```
+
+#### Rules for enum values
+
+- A text `pic` (`X`) or no `pic` makes a text enum field. A numeric `pic` makes a numeric enum field.
+- A text value has no spaces on the right. The processor removes them, because a `PIC X(8)` value has spaces on the right. A value with only spaces is the blank value `""`.
+- The comparison of text values is case-sensitive.
+- A numeric value is a decimal number, for example `"1"`, `"-5"`, or `"12.50"`. The comparison is numeric, thus `"1"` and `"01"` are equal.
+- A text range uses the order of Java `String.compareTo`. This order is not the EBCDIC order when a range mixes letters and digits.
+- A text enum field has the rules of a `String` field. A numeric enum field has the rules of a `BigDecimal` field.
+- The enum must be public, or in the package of the operation class.
+- An enum field cannot be a discriminator or a count field.
+- A field with a `converter` uses the converter, also for an enum type.
+
+Compile errors on the field, for example `Invoice.partyRole (order 30): enum PartyRole: ...`:
+
+| Problem | Message |
+|---|---|
+| No constant has values. | `no constant has @CobolValue` |
+| A constant has no annotation and is not the fallback. | `the constant B has no @CobolValue` |
+| `@CobolValue` without a value or a range. | `the constant B has no value` |
+| Two fallback constants. | `only one constant can have @CobolUnknown: B, C` |
+| A text value is too long. | `the value 'ABCD' of A is longer than 3 characters` |
+| A numeric value is not correct. | `the value '1e3' of A is not a decimal number` |
+| A numeric value does not fit the `pic`. | `the value '1000' of A has more than 4 digits` |
+| A range is empty. | `the range 'C' THRU 'A' of A is empty: the first value is more than the last value` |
+| Two constants share a value. | `the value '7' of C overlaps the range '5' THRU '9' of B` |
+
+#### Read and write
+
+- **Read.** The codec finds the constant that contains the field value. A blank field (spaces, or a blank number) gives `null`, unless a constant has the blank value `""`.
+- **Write.** The codec writes the canonical value of the constant. A `null` value writes spaces in a text field and zero in a numeric field.
+- **Unknown value.** Without a fallback constant, a value that no constant contains throws `MappingException`: `Invoice.partyRole (order 30): unknown value 'AGENT' for enum PartyRole`. With a fallback constant, the codec gives the fallback constant.
+- **Fallback write.** The fallback constant writes its canonical value. If it has no `@CobolValue`, the write throws `MappingException`: `the constant OTHER of enum Grade has no COBOL value`. Thus, the codec does not write a value that it did not read.
+
 ## @BookCollection (field of type `List<Item>`)
 
 | Attribute | Meaning | Default |
