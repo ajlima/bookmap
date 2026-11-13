@@ -29,7 +29,7 @@ Requirements:
   <dependency>
     <groupId>pt.dazz.bookmap</groupId>
     <artifactId>bookmap-core</artifactId>
-    <version>0.7.0</version>
+    <version>0.8.0</version>
   </dependency>
 </dependencies>
 
@@ -45,7 +45,7 @@ Requirements:
           <path>
             <groupId>pt.dazz.bookmap</groupId>
             <artifactId>bookmap-processor</artifactId>
-            <version>0.7.0</version>
+            <version>0.8.0</version>
           </path>
         </annotationProcessorPaths>
       </configuration>
@@ -53,7 +53,7 @@ Requirements:
     <plugin>
       <groupId>pt.dazz.bookmap</groupId>
       <artifactId>bookmap-copybook-maven-plugin</artifactId>
-      <version>0.7.0</version>
+      <version>0.8.0</version>
       <executions>
         <execution>
           <goals>
@@ -75,7 +75,7 @@ Requirements:
 You can also run the goal from the command line with the full coordinates:
 
 ```bash
-mvn pt.dazz.bookmap:bookmap-copybook-maven-plugin:0.7.0:generate
+mvn pt.dazz.bookmap:bookmap-copybook-maven-plugin:0.8.0:generate
 ```
 
 The short form `mvn bookmap-copybook:generate` works only if `pt.dazz.bookmap` is in the `<pluginGroups>` of your `settings.xml`.
@@ -243,7 +243,7 @@ In a corporate parent POM, declare the plugin one time in `<pluginManagement>`:
     <plugin>
       <groupId>pt.dazz.bookmap</groupId>
       <artifactId>bookmap-copybook-maven-plugin</artifactId>
-      <version>0.7.0</version>
+      <version>0.8.0</version>
       <executions>
         <execution>
           <goals>

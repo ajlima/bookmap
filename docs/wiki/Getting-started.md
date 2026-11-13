@@ -352,8 +352,9 @@ public class MyTransport implements Transport {
 - Return the response bytes of the program. A response shorter than the layout causes a `MappingException`.
 - Translate each technical failure to a subclass of `TransportException`. See [Error handling](Error-handling).
 
-For IBM MQ, use the [IBM MQ](IBM-MQ) transport. BookMap has no transport for CICS or HTTP yet. They are on the [Roadmap](Roadmap).
-Until then, write a transport with the client library of your middleware.
+For CICS through the CICS Transaction Gateway, use `CtgTransport`. See [CICS Transaction Gateway](CICS-Transaction-Gateway).
+For IBM MQ, use `MqTransport`. See [IBM MQ](IBM-MQ).
+BookMap has no transport for HTTP yet. It is on the [Roadmap](Roadmap). Until then, write a transport with the client library of your middleware.
 
 Then create the client with the transport:
 

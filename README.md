@@ -13,7 +13,7 @@
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-0f62fe">
   <img alt="Gradle 9" src="https://img.shields.io/badge/Gradle-9.9-02303A">
   <img alt="Coverage 100%" src="https://img.shields.io/badge/coverage-100%25-brightgreen">
-  <img alt="Version 0.7.0" src="https://img.shields.io/badge/version-0.7.0-f89820">
+  <img alt="Version 0.8.0" src="https://img.shields.io/badge/version-0.8.0-f89820">
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
@@ -46,15 +46,15 @@ The full documentation is in the **[wiki](https://github.com/ajlima/bookmap/wiki
 
 ## Installation
 
-The group is `pt.dazz.bookmap` and the version is `0.7.0`. The modules are on Maven Central.
+The group is `pt.dazz.bookmap` and the version is `0.8.0`. The modules are on Maven Central.
 
 Gradle:
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-core:0.7.0")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.7.0")
-    testImplementation("pt.dazz.bookmap:bookmap-transport-simulator:0.7.0")
+    implementation("pt.dazz.bookmap:bookmap-core:0.8.0")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.8.0")
+    testImplementation("pt.dazz.bookmap:bookmap-transport-simulator:0.8.0")
 }
 ```
 
@@ -64,7 +64,7 @@ Maven:
 <dependency>
   <groupId>pt.dazz.bookmap</groupId>
   <artifactId>bookmap-core</artifactId>
-  <version>0.7.0</version>
+  <version>0.8.0</version>
 </dependency>
 ```
 
@@ -162,7 +162,7 @@ GetCustomerOrders result = client.execute(request);   // the response object
 The copybook generator reads a COBOL copybook and writes the annotated Java classes. Use one of these tools:
 
 - **[Command line](https://github.com/ajlima/bookmap/wiki/Copybook-generator-CLI)**: `java -jar bookmap-copybook-cli-<version>-all.jar generate ORDERS.cpy --package com.example.orders --output-dir src/main/java`
-- **[Gradle plugin](https://github.com/ajlima/bookmap/wiki/Copybook-generator-Gradle-plugin)**: `id("pt.dazz.bookmap.copybook") version "0.7.0"`. It generates the classes in each build.
+- **[Gradle plugin](https://github.com/ajlima/bookmap/wiki/Copybook-generator-Gradle-plugin)**: `id("pt.dazz.bookmap.copybook") version "0.8.0"`. It generates the classes in each build.
 - **[Maven plugin](https://github.com/ajlima/bookmap/wiki/Copybook-generator-Maven-plugin)**: the goal `generate` of `pt.dazz.bookmap:bookmap-copybook-maven-plugin`. It generates the classes in each build.
 
 See [Copybook generator](https://github.com/ajlima/bookmap/wiki/Copybook-generator) for the options file and the mapping rules.
@@ -179,6 +179,7 @@ See [Copybook generator](https://github.com/ajlima/bookmap/wiki/Copybook-generat
 | `REDEFINES` with a discriminator | [Subtypes (REDEFINES)](https://github.com/ajlima/bookmap/wiki/Subtypes-REDEFINES) |
 | The exception hierarchy | [Error handling](https://github.com/ajlima/bookmap/wiki/Error-handling) |
 | The transport SPI and the simulator | [Transports and simulator](https://github.com/ajlima/bookmap/wiki/Transports-and-simulator) |
+| The CICS Transaction Gateway transport | [CICS Transaction Gateway](https://github.com/ajlima/bookmap/wiki/CICS-Transaction-Gateway) |
 | The Spring Boot auto-configuration | [Spring Boot](https://github.com/ajlima/bookmap/wiki/Spring-Boot) |
 | The copybook generator, the CLI, and the build plugins | [Copybook generator](https://github.com/ajlima/bookmap/wiki/Copybook-generator) |
 | Frequent problems | [FAQ and troubleshooting](https://github.com/ajlima/bookmap/wiki/FAQ-and-troubleshooting) |
@@ -193,6 +194,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 | `bookmap-core` | Annotations, `BookmapClient`, the transport SPI, exceptions, and the codec runtime. |
 | `bookmap-processor` | The annotation processor. It generates one codec for each `@BookOperation` class. |
 | `bookmap-transport-simulator` | A transport for tests. It runs handlers in the same JVM. |
+| `bookmap-transport-ctg` | A transport for CICS programs through the CICS Transaction Gateway (ECI). Add the IBM `ctgclient.jar` yourself. |
 | `bookmap-transport-mq` | A transport for IBM MQ request and reply queues (Jakarta Messaging). See [IBM MQ](https://github.com/ajlima/bookmap/wiki/IBM-MQ). |
 | `bookmap-spring-boot` | Spring Boot 4 auto-configuration for `BookmapClient` (built and tested with 4.1.2). |
 | `bookmap-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
@@ -206,9 +208,9 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 
 ## Project status
 
-BookMap is at version `0.7.0`. GitHub Actions builds each release and publishes it to Maven Central.
+BookMap is at version `0.8.0`. GitHub Actions builds each release and publishes it to Maven Central.
 The build enforces 100% line and branch coverage for all modules except the examples.
-The IBM MQ transport is available. The CICS Transaction Gateway and HTTP transports are planned.
+BookMap has transports for the CICS Transaction Gateway (ECI) and IBM MQ. A transport for HTTP is on the roadmap.
 See [RELEASING.md](RELEASING.md) for the release cycle, and [ROADMAP.md](ROADMAP.md) for the planned features.
 
 ## License

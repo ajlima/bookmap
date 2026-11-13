@@ -3,6 +3,7 @@ rootProject.name = "bookmap"
 include("bookmap-core")
 include("bookmap-processor")
 include("bookmap-transport-simulator")
+include("bookmap-transport-ctg")
 include("bookmap-transport-mq")
 include("bookmap-spring-boot")
 include("bookmap-examples")
