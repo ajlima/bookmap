@@ -138,14 +138,20 @@ final class DateHints {
 
     private Applied check(DataItem item, Usage usage, String pattern) {
         Picture picture = item.picture();
-        if (usage != Usage.DISPLAY) {
+        boolean packed = usage == Usage.COMP3;
+        if (usage != Usage.DISPLAY && !packed) {
             mapper.error(item, item.name() + ": a date or time field must have the usage"
-                + " DISPLAY");
+                + " DISPLAY or COMP-3");
             return null;
         }
-        if (picture.signed() || picture.scale() > 0) {
-            mapper.error(item, item.name() + ": a date or time field must not have S or V in"
-                + " the picture");
+        if (packed && picture.scale() > 0) {
+            mapper.error(item, item.name() + ": a COMP-3 date or time field must not have V"
+                + " in the picture");
+            return null;
+        }
+        if (!packed && (picture.signed() || picture.scale() > 0)) {
+            mapper.error(item, item.name() + ": a DISPLAY date or time field must not have S"
+                + " or V in the picture");
             return null;
         }
         DateTimeFormatter formatter;
@@ -164,10 +170,16 @@ final class DateHints {
             } catch (DateTimeException e) {
                 continue;
             }
-            if (formatter.format(candidate.sample().apply(SAMPLES.get(1))).length()
-                != text.length()) {
+            String other = formatter.format(candidate.sample().apply(SAMPLES.get(1)));
+            if (other.length() != text.length()) {
                 mapper.error(item, item.name() + ": the date pattern '" + pattern
                     + "' gives text of variable length");
+                return null;
+            }
+            if (packed && !isDigits(text + other)) {
+                mapper.error(item, item.name() + ": the date pattern '" + pattern
+                    + "' gives characters that are not digits, but a COMP-3 item holds only"
+                    + " digits");
                 return null;
             }
             if (text.length() != picture.length()) {
@@ -181,6 +193,10 @@ final class DateHints {
         mapper.error(item, item.name() + ": the date pattern '" + pattern
             + "' does not fit LocalDateTime, LocalDate, or LocalTime");
         return null;
+    }
+
+    private static boolean isDigits(String text) {
+        return text.chars().allMatch(c -> c >= '0' && c <= '9');
     }
 
     /** Reports each correct hint that gave no field. */

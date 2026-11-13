@@ -16,8 +16,10 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -176,6 +178,37 @@ class EndToEndTest {
         Object decoded = codec.newInstance();
         codec.decodeResponse(bytes, decoded, LATIN);
         assertThat(get(decoded, "dueDate")).isEqualTo(LocalDate.of(2026, 12, 31));
+    }
+
+    @Test
+    void packedDateHintsRoundTripThroughTheCodec() {
+        Map<String, String> dates = new LinkedHashMap<>();
+        dates.put("ORDER-DATE", "yyyyMMdd");
+        dates.put("SHIP-DATE", "yyyyDDD");
+        dates.put("SHIP-TIME", "'0'HHmmss");
+        dates.put("LAST-UPDATE", "yyyyMMddHHmmss");
+        Copybooks.Result result = Copybooks.generate(copybook("PACKED-DATES.cpy"),
+            parseOptions(), MappingOptions.defaults().withHints(dates, Map.of(), Map.of()),
+            PLAIN);
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+            .containsOnly(pt.dazz.bookmap.copybook.diag.Severity.INFO);
+        BookCodec<Object> codec = Compiled.compile(result.files())
+            .codec(PACKAGE + ".GetOrderDates");
+        Object request = codec.newInstance();
+        set(request, "orderId", "ORD-1");
+        set(request, "orderDate", LocalDate.of(2026, 11, 13));
+        set(request, "shipDate", LocalDate.of(2026, 11, 13));
+        set(request, "shipTime", LocalTime.of(13, 5, 9));
+        set(request, "lastUpdate", LocalDateTime.of(2026, 11, 13, 23, 59, 58));
+        byte[] bytes = codec.encodeRequest(request, LATIN);
+        assertThat(HexFormat.of().withUpperCase().formatHex(bytes, 10, bytes.length))
+            .isEqualTo("020261113C" + "2026317F" + "0130509C" + "020261113235958C");
+        Object decoded = codec.decodeRequest(bytes, LATIN);
+        assertThat(get(decoded, "orderDate")).isEqualTo(LocalDate.of(2026, 11, 13));
+        assertThat(get(decoded, "shipDate")).isEqualTo(LocalDate.of(2026, 11, 13));
+        assertThat(get(decoded, "shipTime")).isEqualTo(LocalTime.of(13, 5, 9));
+        assertThat(get(decoded, "lastUpdate"))
+            .isEqualTo(LocalDateTime.of(2026, 11, 13, 23, 59, 58));
     }
 
     /** Writes a handler class with one static method that calls a getter of the page. */
