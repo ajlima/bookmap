@@ -22,8 +22,15 @@ class CountFieldMappingTest {
             MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), countFields);
     }
 
+    /** Gives the diagnostics without the record length info of the map step. */
+    private static List<Diagnostic> diagnostics(MapResult result) {
+        return result.diagnostics().stream()
+            .filter(d -> !d.message().matches("record \\S+ has (at most )?\\d+ bytes"))
+            .toList();
+    }
+
     private static List<String> messages(MapResult result, Severity severity) {
-        return result.diagnostics().stream().filter(d -> d.severity() == severity)
+        return diagnostics(result).stream().filter(d -> d.severity() == severity)
             .map(Diagnostic::message).toList();
     }
 
@@ -34,7 +41,7 @@ class CountFieldMappingTest {
             "05 INVOICE-LINE OCCURS 100 TIMES.", "10 PRODUCT-CODE PIC X(12).",
             "05 RETURN-CODE PIC X(4).");
         assertThat(result.hasErrors()).isFalse();
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(diagnostics(result)).isEmpty();
         assertThat(member(type(result, "GetInvoice"), "invoiceLine")).isEqualTo(
             new CollectionMember("invoiceLine", 30, Direction.INPUT_OUTPUT, "INVOICE-LINE",
                 "05 INVOICE-LINE OCCURS 100 TIMES.", 100, true, "invoiceLineCount",
@@ -97,7 +104,7 @@ class CountFieldMappingTest {
     void nameErrorsHaveTheCopybookPosition() {
         MapResult result = map(countFields(Map.of("LINE", "NONE")),
             "01 ORDER.", "05 LINE OCCURS 2 PIC X.");
-        assertThat(result.diagnostics()).extracting(Diagnostic::line, Diagnostic::column)
+        assertThat(diagnostics(result)).extracting(Diagnostic::line, Diagnostic::column)
             .containsExactly(org.assertj.core.api.Assertions.tuple(1, 1));
     }
 
@@ -126,7 +133,7 @@ class CountFieldMappingTest {
         assertThat(result.hasErrors()).isFalse();
         assertThat(((CollectionMember) member(type(result, "GetInvoice"), "invoiceLine"))
             .dependsOn()).isNull();
-        assertThat(result.diagnostics()).singleElement().satisfies(d -> {
+        assertThat(diagnostics(result)).singleElement().satisfies(d -> {
             assertThat(d.severity()).isEqualTo(Severity.INFO);
             assertThat(d.line()).isEqualTo(3);
             assertThat(d.message()).isEqualTo("INVOICE-LINE: INVOICE-LINE-COUNT can be the"
@@ -156,7 +163,7 @@ class CountFieldMappingTest {
     void linkedCompTableGetsNoLowValuesInfo() {
         MapResult result = map(countFields(Map.of("QTY", "QTY-COUNT")),
             "01 ORDER.", "05 QTY-COUNT PIC 9(2).", "05 QTY OCCURS 5 PIC 9(4) COMP.");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(diagnostics(result)).isEmpty();
         assertThat(((CollectionMember) member(type(result, "Order"), "qty")).fixed()).isTrue();
     }
 
@@ -165,7 +172,7 @@ class CountFieldMappingTest {
         MapResult result = map(countFields(Map.of("LINE", "OTHER-COUNT")),
             "01 ORDER.", "05 OTHER-COUNT PIC 9(2).", "05 LINE-COUNT PIC 9(2).",
             "05 LINE OCCURS 5 PIC X.");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(diagnostics(result)).isEmpty();
         assertThat(((CollectionMember) member(type(result, "Order"), "line")).dependsOn())
             .isEqualTo("otherCount");
     }

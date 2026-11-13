@@ -796,7 +796,7 @@ public final class ModelBuilder {
             return new FieldModel(field.ownerSimpleName(), field.name(), field.order(),
                 field.length(), direction, field.usage(), field.scale(), field.signed(),
                 field.pattern(), field.kind(), field.type(), field.getter(), field.setter(),
-                field.converter(), field.byteLength());
+                field.converter(), field.byteLength(), field.enumModel());
         }
 
         private boolean implementsInterface(TypeElement element, String interfaceName) {
