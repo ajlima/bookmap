@@ -73,6 +73,7 @@ class BookmapCopybookPluginTest {
         assertThat(task.getIncludes().get()).isEmpty();
         assertThat(task.getExcludes().get()).isEmpty();
         assertThat(task.getPackageName().isPresent()).isFalse();
+        assertThat(task.getMaxRecordLength().isPresent()).isFalse();
     }
 
     @Test
@@ -82,6 +83,7 @@ class BookmapCopybookPluginTest {
             spec.getPackageName().set("com.example.mainframe");
             spec.getLombok().set(true);
             spec.getPackagePerCopybook().set(true);
+            spec.getMaxRecordLength().set(32500);
             spec.getCopyDirs().from("src/main/copylib");
             spec.getSourceDir().set(dir.resolve("copybooks").toFile());
             spec.getOutputDir().set(dir.resolve("generated").toFile());
@@ -89,6 +91,7 @@ class BookmapCopybookPluginTest {
         assertThat(task.getPackageName().get()).isEqualTo("com.example.mainframe");
         assertThat(task.getLombok().get()).isTrue();
         assertThat(task.getPackagePerCopybook().get()).isTrue();
+        assertThat(task.getMaxRecordLength().get()).isEqualTo(32500);
         assertThat(task.getCopyDirs().getFiles())
             .containsExactly(dir.resolve("src/main/copylib").toFile());
         assertThat(task.getSourceDir().get().getAsFile()).isEqualTo(dir.resolve("copybooks")

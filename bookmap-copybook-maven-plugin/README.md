@@ -29,7 +29,7 @@ Requirements:
   <dependency>
     <groupId>pt.dazz.bookmap</groupId>
     <artifactId>bookmap-core</artifactId>
-    <version>0.13.0</version>
+    <version>0.16.0</version>
   </dependency>
 </dependencies>
 
@@ -45,7 +45,7 @@ Requirements:
           <path>
             <groupId>pt.dazz.bookmap</groupId>
             <artifactId>bookmap-processor</artifactId>
-            <version>0.13.0</version>
+            <version>0.16.0</version>
           </path>
         </annotationProcessorPaths>
       </configuration>
@@ -53,7 +53,7 @@ Requirements:
     <plugin>
       <groupId>pt.dazz.bookmap</groupId>
       <artifactId>bookmap-copybook-maven-plugin</artifactId>
-      <version>0.13.0</version>
+      <version>0.16.0</version>
       <executions>
         <execution>
           <goals>
@@ -75,7 +75,7 @@ Requirements:
 You can also run the goal from the command line with the full coordinates:
 
 ```bash
-mvn pt.dazz.bookmap:bookmap-copybook-maven-plugin:0.13.0:generate
+mvn pt.dazz.bookmap:bookmap-copybook-maven-plugin:0.16.0:generate
 ```
 
 The short form `mvn bookmap-copybook:generate` works only if `pt.dazz.bookmap` is in the `<pluginGroups>` of your `settings.xml`.
@@ -141,6 +141,9 @@ The file has the format of the `--config` file of the command line. See "Options
 - `copyDirs` in the file come first in the search order. The `copyDirs` parameter comes after them.
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file.
+
+Mapping options such as `stripPrefixes`, `directions`, `subTypes`, and `countFields` name items of one copybook. Thus, the goal has no parameter for them. Put them in the options file.
+For example, `countFields` links a count field to a fixed table. See "Count field of a fixed table" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#count-field-of-a-fixed-table).
 
 If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The goal logs an error line that starts with the path of the file.
 
@@ -243,7 +246,7 @@ In a corporate parent POM, declare the plugin one time in `<pluginManagement>`:
     <plugin>
       <groupId>pt.dazz.bookmap</groupId>
       <artifactId>bookmap-copybook-maven-plugin</artifactId>
-      <version>0.13.0</version>
+      <version>0.16.0</version>
       <executions>
         <execution>
           <goals>

@@ -27,7 +27,8 @@ public final class GeneratorConfigJson {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Set<String> KEYS = Set.of("format", "charset", "copyDirs",
         "recordName", "stripPrefixes", "inputMarkers", "outputMarkers", "directions",
-        "subTypes", "dates", "continuable", "validatable", "package", "lombok");
+        "subTypes", "countFields", "maxRecordLength", "dates", "continuable", "validatable",
+        "package", "lombok");
     private static final Set<String> SUBTYPE_KEYS = Set.of("discriminator", "values",
         "classNames");
 
@@ -68,6 +69,8 @@ public final class GeneratorConfigJson {
                 : MappingOptions.OUTPUT_MARKERS,
             root.has("directions") ? directions(root) : Map.of(),
             root.has("subTypes") ? subTypes(root) : Map.of(),
+            root.has("countFields") ? root.textMap("countFields") : Map.of(),
+            root.has("maxRecordLength") ? maxRecordLength(root) : null,
             root.has("dates") ? root.textMap("dates") : Map.of(),
             root.has("continuable") ? root.textMap("continuable") : Map.of(),
             root.has("validatable") ? root.textMap("validatable") : Map.of());
@@ -83,6 +86,15 @@ public final class GeneratorConfigJson {
             throw new ModelJsonException("key 'charset' in $ has the unknown charset '" + name
                 + "'");
         }
+    }
+
+    private static int maxRecordLength(JsonObject root) {
+        int value = root.integer("maxRecordLength");
+        if (value < 1) {
+            throw new ModelJsonException("key 'maxRecordLength' in $ must be 1 or more, not "
+                + value);
+        }
+        return value;
     }
 
     private static Map<String, Direction> directions(JsonObject root) {
