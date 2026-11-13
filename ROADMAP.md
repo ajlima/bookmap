@@ -8,15 +8,7 @@ The roadmap gives no dates and no version numbers. The release version comes fro
 
 To propose a new item, open an issue.
 
-## 1. Release hardening
-
-Harden the release pipeline and the published artifacts. Milestone: [Release hardening](https://github.com/ajlima/bookmap/milestone/1).
-
-- [#22](https://github.com/ajlima/bookmap/issues/22) Add Gradle dependency verification metadata
-- [#23](https://github.com/ajlima/bookmap/issues/23) Add build provenance attestation to the release
-- [#24](https://github.com/ajlima/bookmap/issues/24) Test the GraalVM native image
-
-## 2. Transports
+## 1. Transports
 
 Real transports for the transport SPI. The SPI accepts them without a change to the core. Milestone: [Transports](https://github.com/ajlima/bookmap/milestone/2).
 
@@ -25,7 +17,7 @@ Real transports for the transport SPI. The SPI accepts them without a change to 
 - [#28](https://github.com/ajlima/bookmap/issues/28) Add an HTTP transport (z/OS Connect)
 - [#29](https://github.com/ajlima/bookmap/issues/29) Add Spring Boot auto-configuration for each transport
 
-## 3. Copybook generator
+## 2. Copybook generator
 
 New features of the copybook generator and its build plugins. Milestone: [Copybook generator](https://github.com/ajlima/bookmap/milestone/3).
 
@@ -38,7 +30,7 @@ New features of the copybook generator and its build plugins. Milestone: [Copybo
 - [#36](https://github.com/ajlima/bookmap/issues/36) Generator: level 88 constants and VALUE initial values
 - [#37](https://github.com/ajlima/bookmap/issues/37) Generator: accept the COBOL items that are errors today
 
-## 4. Mapping
+## 3. Mapping
 
 New layout features in the core and the processor. Milestone: [Mapping](https://github.com/ajlima/bookmap/milestone/4).
 
@@ -56,7 +48,7 @@ New layout features in the core and the processor. Milestone: [Mapping](https://
 - [#49](https://github.com/ajlima/bookmap/issues/49) Support multi-byte charsets (DBCS and NATIONAL)
 - [#50](https://github.com/ajlima/bookmap/issues/50) Support packed dates without a converter
 
-## 5. Integrations
+## 4. Integrations
 
 Other DI containers and API styles. Milestone: [Integrations](https://github.com/ajlima/bookmap/milestone/5).
 
@@ -64,7 +56,7 @@ Other DI containers and API styles. Milestone: [Integrations](https://github.com
 - [#52](https://github.com/ajlima/bookmap/issues/52) Add a Guice module
 - [#53](https://github.com/ajlima/bookmap/issues/53) Add an asynchronous or reactive API
 
-## 6. Maintenance
+## 5. Maintenance
 
 Deferred review findings. Milestone: [Maintenance](https://github.com/ajlima/bookmap/milestone/6).
 

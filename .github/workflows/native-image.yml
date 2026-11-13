@@ -1,0 +1,54 @@
+# Test the GraalVM native image.
+#
+# On each pull request to main and each push to main, this workflow builds the standalone build
+# bookmap-native-test as a GraalVM native image and runs it (task nativeRun). The program runs
+# one operation through the simulator transport with the EBCDIC charset IBM1047. It fails if the
+# native image does not contain the charset (option -H:+AddAllCharsets of bookmap-core).
+#
+# The build job of release.yml needs no GraalVM. This workflow is separate, so a plain JDK 21
+# stays sufficient for ./gradlew build. The job has read-only access and keeps no credential in
+# the checkout.
+
+name: Native image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-image-${{ github.ref }}
+  # A new push to a pull request cancels its old run. Runs on main never cancel each other.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  native-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up GraalVM for JDK 21
+        uses: graalvm/setup-graalvm@d6eca2595046623d69d636041513c80abf745406 # v1.6.9
+        with:
+          distribution: graalvm-community
+          java-version: "21"
+          # The open-source cache of setup-graalvm (actions/cache) keeps the Gradle dependencies.
+          cache: gradle
+          check-for-updates: false
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          # The cache of setup-gradle v6 is a proprietary component. Do not enable it.
+          cache-disabled: true
+
+      - name: Build and run the native image
+        run: ./gradlew -p bookmap-native-test nativeRun --no-daemon

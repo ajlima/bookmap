@@ -13,7 +13,7 @@ The project owner had a framework (`cicsannotations`). It mapped COBOL books of 
 **bookmap** replaces that framework. It has three basic changes:
 
 1. **No middleware dependency.** The book ↔ POJO mapping does not know about CICS. CICS is only one possible transport. Other transports are CTG/ECI, HTTP (z/OS Connect), MQ, and a simulator.
-2. **No reflection at runtime.** An annotation processor generates all serialization code at compile time. Thus, native images (GraalVM, Spring AOT, Quarkus) need no reflection configuration. The EBCDIC charsets are in the JDK module `jdk.charsets`. `bookmap-core` ships a `native-image.properties` file that adds them (`-H:+AddAllCharsets`).
+2. **No reflection at runtime.** An annotation processor generates all serialization code at compile time. Thus, native images (GraalVM, Spring AOT, Quarkus) need no reflection configuration. The EBCDIC charsets are in the JDK module `jdk.charsets`. `bookmap-core` ships a `native-image.properties` file that adds them (`-H:+AddAllCharsets`). The standalone build `bookmap-native-test` tests this configuration in a native image.
 3. **No DI container dependency.** The core is plain Java. Optional modules connect it to Spring, Quarkus, or Guice.
 
 The owner has no access to a CICS system now. Thus, the first transport is a **simulator**. The simulator must let you test the full cycle, including pagination and errors.

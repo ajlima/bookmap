@@ -34,7 +34,18 @@ Build the standalone example of the Maven plugin. It uses the snapshot version i
 bookmap-examples-maven-plugin/mvnw -B -f bookmap-examples-maven-plugin/pom.xml verify
 ```
 
-The `build` check of a pull request runs all these builds.
+Build and run the native image smoke test. It needs GraalVM for JDK 21. Set `GRAALVM_HOME` to its directory:
+
+```bash
+GRAALVM_HOME=/path/to/graalvm ./gradlew -p bookmap-native-test nativeRun
+```
+
+The program runs one operation through the simulator transport, with the EBCDIC charset `IBM1047`.
+It fails if the native image does not contain the charset.
+
+The `build` check of a pull request runs all these builds, except the native image.
+The `native-image` check of the workflow `.github/workflows/native-image.yml` runs the native image.
+`./gradlew build` needs no GraalVM.
 
 ### Dependency checksums
 
@@ -116,12 +127,13 @@ See [RELEASING.md](https://github.com/ajlima/bookmap/blob/main/RELEASING.md) for
 
 ### The release jobs
 
-The workflow `.github/workflows/release.yml` has three jobs:
+The workflow `.github/workflows/release.yml` has four jobs:
 
 | Job | Runs on | Access | Result |
 |---|---|---|---|
 | `build` | Each pull request and each push to `main`. | Read-only. | The next version, the build, the tests, and the coverage check. |
 | `publish` | A push to `main` with a new version. | Read-only. The `maven-central` environment gives the Sonatype token and the signing key. | The signed modules on Maven Central. |
+| `attest` | After a successful `publish`. | `id-token: write` and `attestations: write`. No environment and no secret. | A build provenance attestation for each file on Maven Central. |
 | `release` | After a successful `publish`. | `contents: write`. The `readme-update` environment gives the key of the release app. | The tag, the GitHub release, and the README version commit. |
 
 These modules go to Maven Central: `bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-spring-boot`, `bookmap-copybook`, `bookmap-copybook-cli`, `bookmap-copybook-gradle-plugin`, and `bookmap-copybook-maven-plugin`.
