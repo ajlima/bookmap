@@ -153,7 +153,7 @@ HttpTransport transport = HttpTransport.builder()
 | `route(String operation, HttpRoute route)` | Adds a route. | none |
 | `routes(Map<String, HttpRoute>)` | Adds all routes of the map. | none |
 | `header(String name, String value)` | Adds a header to each request. | none |
-| `basicAuth(String user, String password)` | Sets the header `Authorization: Basic <base64 of user:password>`, in UTF-8 (RFC 7617). | none |
+| `basicAuth(String user, String password)` | Sets the header `Authorization: Basic <base64 of user:password>`, in UTF-8 (RFC 7617). The user must not contain `:`. | none |
 | `headerSupplier(Supplier<Map<String, String>>)` | Gives headers for each request, for example a bearer token that can change. | none |
 | `abendHeader(String name)` | The name of a response header that contains an abend code (5.6). | none: no abend check. |
 | `timeout(Duration)` | The time limit of one exchange, from the send until the last byte of the response body arrives. | 30 seconds |
@@ -224,7 +224,7 @@ The transport checks the response in this order. The first match gives the excep
 | Status `502` or `503`. | `ConnectionException` |
 | Any other status, also `1xx` and `3xx`. | `TransportException` |
 
-The abend check comes before the status check. Thus, a `500` response with the header `X-Abend-Code: ASRA` gives `RemoteAbendException("ASRA")`. The transport trims the value of the abend header.
+The abend check comes before the status check. Thus, a `500` response with the header `X-Abend-Code: ASRA` gives `RemoteAbendException("ASRA")`. The transport trims the value of the abend header, changes control characters to spaces, and keeps a maximum of 32 characters.
 
 A `3xx` status is a failure, because the client that the transport creates does not follow redirects.
 
@@ -241,7 +241,7 @@ The excerpt of the body follows these rules:
 - Otherwise, the excerpt is the first 32 bytes in hexadecimal, for example `hex C1C2C3...`.
 - An empty body gives no excerpt.
 
-A message never contains a header value of the request.
+A message never contains a header value of the request. The messages of the builder also show a URI without the user information and without the query.
 
 The exception keeps the JDK exception as its cause. The cause can contain the full URI. **CAUTION:** Do not put a password or a token in the query of a route URI. The cause of an exception and a log of the JDK client can show it.
 
