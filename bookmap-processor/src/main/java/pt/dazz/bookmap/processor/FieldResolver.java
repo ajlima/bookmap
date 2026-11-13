@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
@@ -24,6 +25,7 @@ import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.codec.BookWriter;
 import pt.dazz.bookmap.codec.Formats;
+import pt.dazz.bookmap.processor.model.EnumModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
 import pt.dazz.bookmap.processor.pic.PicParser;
@@ -130,6 +132,9 @@ final class FieldResolver {
         JavaKind kind;
         if (converter == null) {
             kind = KINDS.get(Mirrors.typeName(fieldType));
+            if (kind == null && isEnum(fieldType)) {
+                kind = JavaKind.ENUM;
+            }
             if (kind == null) {
                 problems.error(member, "type " + Mirrors.typeName(fieldType)
                     + " is not supported without a converter");
@@ -138,11 +143,15 @@ final class FieldResolver {
             kind = JavaKind.CONVERTED;
             checkConverter(member, converter, fieldType, problems);
         }
-        boolean numeric = NUMERIC.contains(kind);
+        Optional<PicSpec> pic = pic(member, kind, fieldType, problems);
+        // An enum field is numeric with a numeric pic, else it is text.
+        boolean enumNumber = kind == JavaKind.ENUM
+            && pic.filter(spec -> spec.category() == Category.NUMBER).isPresent();
+        boolean numeric = NUMERIC.contains(kind) || enumNumber;
         boolean temporal = TEMPORAL.contains(kind);
+        boolean textOnly = DISPLAY_ONLY.contains(kind) || kind == JavaKind.ENUM && !enumNumber;
         ResolvedDefaults defaults = defaultsResolver.forDeclaringClass(
             (TypeElement) member.field().getEnclosingElement());
-        Optional<PicSpec> pic = pic(member, kind, fieldType, problems);
         Usage usage = Optional.ofNullable((String) values.get("usage")).map(Usage::valueOf)
             .or(() -> pic.flatMap(PicSpec::usage))
             .or(() -> numeric ? defaults.usage() : Optional.empty())
@@ -179,13 +188,21 @@ final class FieldResolver {
         if (scale < 0) {
             problems.error(member, "scale must not be negative");
         }
-        if (DISPLAY_ONLY.contains(kind)) {
+        if (textOnly) {
             NUMERIC_ATTRIBUTES.stream().filter(values::containsKey).forEach(attribute ->
                 problems.error(member, attribute + " is not permitted for "
                     + simpleName(fieldType)));
         }
+        EnumModel enumModel = null;
         if (problems.count() == before) {
-            checkTypeAndUsage(member, kind, fieldType, usage, length, scale, problems);
+            checkTypeAndUsage(member, kind, textOnly, fieldType, usage, length, scale,
+                problems);
+        }
+        if (problems.count() == before && kind == JavaKind.ENUM) {
+            enumModel = EnumResolver.resolve(elements, member,
+                (TypeElement) types.asElement(fieldType), length,
+                enumNumber ? new EnumResolver.Numeric(length, scale, signed) : null,
+                codecPackage, problems);
         }
         Optional<String> getter = getter(owner, member, codecPackage, problems);
         Optional<String> setter = setter(owner, member, codecPackage, problems);
@@ -194,7 +211,7 @@ final class FieldResolver {
         }
         return new FieldModel(member.owner(), member.name(), member.order(), length,
             direction, usage, scale, signed, pattern, kind, fieldType, getter.get(),
-            setter.get(), converter, BookWriter.byteLength(usage, length));
+            setter.get(), converter, BookWriter.byteLength(usage, length), enumModel);
     }
 
     private static Direction direction(AnnotatedMember member, Direction itemDirection,
@@ -287,10 +304,11 @@ final class FieldResolver {
         }
     }
 
-    private void checkTypeAndUsage(AnnotatedMember member, JavaKind kind, TypeMirror fieldType,
-                                   Usage usage, int length, int scale, Problems problems) {
+    private void checkTypeAndUsage(AnnotatedMember member, JavaKind kind, boolean textOnly,
+                                   TypeMirror fieldType, Usage usage, int length, int scale,
+                                   Problems problems) {
         String simpleName = simpleName(fieldType);
-        if (DISPLAY_ONLY.contains(kind) && usage != Usage.DISPLAY) {
+        if (textOnly && usage != Usage.DISPLAY) {
             problems.error(member, usage + " is not permitted for " + simpleName);
         }
         Integer maxDigits = MAX_DIGITS.get(kind);
@@ -309,6 +327,12 @@ final class FieldResolver {
         if (usage == Usage.COMP && length > MAX_COMP_DIGITS) {
             problems.error(member, "COMP length must not be more than " + MAX_COMP_DIGITS);
         }
+    }
+
+    /** Tells if a type is an enum type. */
+    private static boolean isEnum(TypeMirror type) {
+        return type instanceof DeclaredType declared
+            && declared.asElement().getKind() == ElementKind.ENUM;
     }
 
     private static String simpleName(TypeMirror type) {
