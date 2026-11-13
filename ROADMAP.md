@@ -12,7 +12,7 @@ To propose a new item, open an issue.
 
 Real transports for the transport SPI. The SPI accepts them without a change to the core. Milestone: [Transports](https://github.com/ajlima/bookmap/milestone/2).
 
-- [#29](https://github.com/ajlima/bookmap/issues/29) Add Spring Boot auto-configuration for each transport
+No open issue.
 
 ## 2. Copybook generator
 

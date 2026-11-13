@@ -202,12 +202,12 @@ Beans:
 
 | Bean | Condition | Value |
 |---|---|---|
-| `MqConnector` | No `MqConnector` bean, and one `ConnectionFactory` candidate (`@ConditionalOnSingleCandidate`). | `JmsConnector` with the factory, `user`, `password`, and `mq-native-messages`. |
+| `MqConnector` | No `MqConnector` bean, and no `Transport` bean. | `JmsConnector` with the factory, `user`, `password`, and `mq-native-messages`. |
 | `MqTransport` | No `Transport` bean. | `MqTransport.builder()` with the `MqConnector` bean, the properties, then each customizer. |
 
-Order: `@AutoConfiguration(before = BookmapAutoConfiguration.class, afterName = {...})`. The `afterName` list contains the IBM starter auto-configuration and the Spring Boot JMS, Artemis, and JNDI auto-configurations. Thus, the `ConnectionFactory` bean exists when the condition runs. The builder verifies the class names of Spring Boot 4.1 and of the IBM starter.
+Order: `@AutoConfiguration(before = BookmapAutoConfiguration.class)`, with no `afterName`. The connector bean gets the factory from `ObjectProvider<ConnectionFactory>.getIfUnique()` when Spring creates the bean. At that time, all bean definitions exist. Thus, the order of the auto-configuration that creates the factory does not matter, and the code names no class of the IBM starter. `getIfUnique()` also accepts one `@Primary` factory among several factories.
 
-If no `MqConnector` bean can be created, the `MqTransport` bean method throws `IllegalStateException`: `No MqConnector bean. Declare one jakarta.jms.ConnectionFactory bean, for example with mq-jms-spring-boot-starter, or declare an MqConnector bean.`
+If no single `ConnectionFactory` bean exists, the `MqConnector` bean method throws `IllegalStateException`: `No MqConnector bean. Declare one jakarta.jms.ConnectionFactory bean, for example with mq-jms-spring-boot-starter, or declare an MqConnector bean.`
 
 Properties, prefix `bookmap.transport.mq`:
 
@@ -227,7 +227,7 @@ Properties, prefix `bookmap.transport.mq`:
 
 Rules:
 
-- `user` and `password` follow the rule of CTG: a `password` without a `user` stops the application. Usually, the credentials are in the connection factory (`ibm.mq.user`, `ibm.mq.password`). Set `bookmap.transport.mq.user` only to use other credentials.
+- `user` and `password` follow the rule of CTG: a `password` without a `user` stops the application. Usually, the credentials are in the connection factory (`ibm.mq.user`, `ibm.mq.password`). Set `bookmap.transport.mq.user` only to use other credentials. A `CachingConnectionFactory` does not accept a user for each connection. Thus, the documentation tells not to set `user` with it.
 - The table follows the approved MQ design. If the MQ code changes a builder method, this table changes with it.
 
 **A shared connection.** Spring Boot and the IBM starter can wrap the factory in a `CachingConnectionFactory`. Then all the sessions of the transport use one connection. The transport still works. But a broken connection affects all the sessions, not only one. The documentation tells this, and tells how to stop it: `spring.jms.cache.enabled=false`, or the pool of the IBM starter.
@@ -390,5 +390,4 @@ These points were not decided by the author. They are proposals of this design:
 ## 10. Left to the implementation
 
 - The exact text of the messages, in the format of this design.
-- The class names in `afterName` for MQ, verified against Spring Boot 4.1 and the IBM starter.
 - The Javadoc of the public types.

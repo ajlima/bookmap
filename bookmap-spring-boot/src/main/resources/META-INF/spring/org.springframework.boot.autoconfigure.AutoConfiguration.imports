@@ -1,3 +1,4 @@
 pt.dazz.bookmap.spring.BookmapAutoConfiguration
 pt.dazz.bookmap.spring.ctg.CtgTransportAutoConfiguration
 pt.dazz.bookmap.spring.http.HttpTransportAutoConfiguration
+pt.dazz.bookmap.spring.mq.MqTransportAutoConfiguration

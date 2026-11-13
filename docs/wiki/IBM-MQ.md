@@ -157,6 +157,11 @@ The BookMap tests do not use a real queue manager. The mapping of the IBM MQ exc
 - Transactions (a JMS transacted session or XA).
 - A different queue manager for each route. Create one transport for each queue manager.
 
+## Spring Boot
+
+`bookmap-spring-boot` creates the transport from properties. Set `bookmap.transport.type=mq` and the `bookmap.transport.mq.*` properties.
+The connection factory comes from a `ConnectionFactory` bean, for example from `mq-jms-spring-boot-starter`. See [Spring Boot](Spring-Boot#ibm-mq).
+
 ## Use another client library
 
 `MqTransport` calls the interface `MqConnector`, not Jakarta Messaging. `JmsConnector` is one implementation. To use another library, for example the IBM MQ classes for Java, implement `MqConnector` and `MqSession`. Your session must give an `MqException` with the correct `MqFailure` for each failure.

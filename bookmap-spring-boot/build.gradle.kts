@@ -13,10 +13,15 @@ dependencies {
     // The transports are optional. The user adds the transport module. They are not in the POM.
     compileOnly(project(":bookmap-transport-ctg"))
     compileOnly(project(":bookmap-transport-http"))
+    compileOnly(project(":bookmap-transport-mq"))
 
     testImplementation("org.springframework.boot:spring-boot-test")
     testImplementation(project(":bookmap-transport-ctg"))
     testImplementation(project(":bookmap-transport-http"))
+    testImplementation(project(":bookmap-transport-mq"))
+    // An embedded broker for the tests of the MQ connector. It is not in the POM.
+    testImplementation(libs.artemis.server)
+    testImplementation(libs.artemis.jakarta.client)
     // The stub of the IBM CTG client library, for the tests of the JavaGatewayConnector bean.
     testImplementation(project(path = ":bookmap-transport-ctg", configuration = "ctgStubElements"))
     // Reads the generated metadata in the tests, as an IDE does.
