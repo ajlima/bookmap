@@ -3,6 +3,8 @@ package com.example.accounts;
 import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import pt.dazz.bookmap.Continuable;
+import pt.dazz.bookmap.Validatable;
 import pt.dazz.bookmap.annotation.BookCollection;
 import pt.dazz.bookmap.annotation.BookField;
 import pt.dazz.bookmap.annotation.BookOperation;
@@ -22,7 +24,7 @@ import pt.dazz.bookmap.annotation.Direction;
 )
 @Data
 @NoArgsConstructor
-public class GetAccount {
+public class GetAccount implements Continuable, Validatable {
     /**
      * {@code 05 ACCOUNT-ID PIC X(12).}
      */
@@ -47,8 +49,24 @@ public class GetAccount {
     @BookCollection(
             order = 30,
             maxOccurs = 2,
-            direction = Direction.INPUT_OUTPUT,
+            direction = Direction.OUTPUT,
             fixed = true
     )
     private List<Holder> holder;
+
+    /**
+     * Calls {@code AccountPaging.hasContinuation(this)}.
+     */
+    @Override
+    public boolean hasContinuation() {
+        return AccountPaging.hasContinuation(this);
+    }
+
+    /**
+     * Calls {@code ReturnCodes.validate(this)}.
+     */
+    @Override
+    public void validate() {
+        ReturnCodes.validate(this);
+    }
 }
