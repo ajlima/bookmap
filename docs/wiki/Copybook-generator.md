@@ -64,6 +64,7 @@ The build plugins read the file `<NAME>.json` next to `<NAME>.cpy`.
       "classNames": { "SAVINGS-DATA": "SavingsAccount" }
     }
   },
+  "maxRecordLength": 32500,
   "package": "com.example.accounts",
   "lombok": false
 }
@@ -82,6 +83,7 @@ All keys are optional. An unknown key is an error.
 | `outputMarkers` | list of texts | The name parts that mark an output alternative. Write them in upper case. The list replaces the default list. | `OUTPUT`, `OUT`, `RESPONSE`, `RESP` |
 | `directions` | map | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`, in upper case) of each `REDEFINES` alternative. See [Directions](#directions). | empty |
 | `subTypes` | map | The subtype decisions. See [Subtypes](#subtypes). | empty |
+| `maxRecordLength` | integer | The maximum record length in bytes. A longer record gives a warning. See [Record length](#record-length). | no check |
 | `package` | text | The Java package of the classes. | The tool gives it. |
 | `lombok` | boolean | Write Lombok annotations instead of getters and setters. | `false` |
 
@@ -515,6 +517,27 @@ The severity is `error`, `warning`, or `info`. Only an `error` stops the generat
 - The generator reports all problems of one step before it stops.
 - If the parse step has errors, the mapping step does not run. Correct the parse errors first, then run the generator again. The mapping errors can then show.
 - An error in a direction decision or a subtype decision has the position `<file>:1:1`.
+
+### Record length
+
+The map step gives an `info` diagnostic with the length of each record, in bytes:
+
+```
+GET-INVOICE.cpy:1:8: info: record GET-INVOICE has 35556 bytes
+```
+
+The length is the length of the encoded record. A `REDEFINES` area counts with its longest alternative.
+With `OCCURS DEPENDING ON`, the length is the maximum length, and the message says `at most`.
+
+A transport can have a size limit. For example, the COMMAREA of `CtgTransport` holds 32,500 bytes at most. The generator does not know the transport, so it does not check a limit by default.
+Set `maxRecordLength` to get a warning when a record is longer:
+
+```
+GET-INVOICE.cpy:1:8: warning: record GET-INVOICE has 35556 bytes, more than the maximum record length of 32500 bytes. The largest tables: INVOICE-LINE (100 x 298 = 29800 bytes).
+```
+
+The warning names the three largest tables (`OCCURS` items) of the record, because a table is usually the cause.
+The warning does not stop the generation. To make the record shorter, decrease the number of occurrences, or split the operation into more calls.
 
 ## Limitations of the generator
 
