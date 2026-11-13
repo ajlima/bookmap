@@ -63,9 +63,10 @@ A `generate` input that ends with `.json` is a model. Each other input is a copy
 | `--input-marker <word>` | both | A name part that marks an input alternative. Write it in upper case. Repeat the option for more words. |
 | `--output-marker <word>` | both | A name part that marks an output alternative. Write it in upper case. Repeat the option for more words. |
 | `--direction <name>=<direction>` | both | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`) of a `REDEFINES` alternative. The direction is not case-sensitive. Repeat the option for more alternatives. |
+| `--count-field <table>=<field>` | both | The count field of a fixed table (`OCCURS n`). The generator writes `dependsOn` on the table. Repeat the option for more tables. See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table). |
 | `--config <file.json>` | both | An [options file](Copybook-generator#options-file) with all options. |
 
-With a model input, the parse and mapping options (`--format` to `--direction`) are not permitted. The model already contains their result.
+With a model input, the parse and mapping options (`--format` to `--count-field`) are not permitted. The model already contains their result.
 With a model input, the generator uses only `package` and `lombok` from the options file. It ignores the other keys.
 If you give a single-value option two times, the last value applies.
 
@@ -76,6 +77,7 @@ The command line and the options file work together in this way:
 - A single value on the command line (`--format`, `--charset`, `--record-name`, `--package`) has priority over the value in the file.
 - A repeated option (`--copy-dir`, `--strip-prefix`, `--input-marker`, `--output-marker`) adds its values after the values of the file. `--input-marker` and `--output-marker` add words to the default list. To replace the default list, use `inputMarkers` or `outputMarkers` in the options file.
 - `--direction` adds a decision. For the same alternative, the command line has priority.
+- `--count-field` adds a count field. For the same table, the command line has priority over `countFields` in the file.
 - `--lombok` sets `lombok`. Without `--lombok`, the value of the file applies. The command line cannot set `lombok` to `false`.
 - Subtype decisions come only from the file.
 
@@ -130,6 +132,7 @@ For exit code 2, the command writes `error: <message>` and then `Run bookmap-cop
 | `unknown charset 'x'` | An incorrect `--charset`. |
 | `--direction needs NAME=DIRECTION, not 'X'` | `--direction` without `=`. |
 | `unknown direction in 'X=both'. Use INPUT, OUTPUT, or INPUT_OUTPUT.` | An incorrect direction. |
+| `--count-field needs TABLE=FIELD, not 'X'` | `--count-field` without `=`. |
 | `parse and mapping options are not permitted with a model input` | A parse or mapping option with a model input. |
 | `bad.json: unknown key 'foo' in $` | An unknown key in the options file. |
 
@@ -160,11 +163,15 @@ $ echo $?
 ### Use COPY members and an options file
 
 `GET-INVOICE.cpy` contains `COPY ADDRESS.`. `ADDRESS.cpy` is in the directory `copylib`.
-`GET-INVOICE.json` removes the prefix `INV-` from the names:
+`GET-INVOICE.json` removes the prefix `INV-` from the names. It also links the two fixed tables to their count fields:
 
 ```json
 {
-  "stripPrefixes": ["INV-"]
+  "stripPrefixes": ["INV-"],
+  "countFields": {
+    "INVOICE-LINE": "INVOICE-LINE-COUNT",
+    "TAX-SUMMARY-ENTRY": "TAX-SUMMARY-COUNT"
+  }
 }
 ```
 
@@ -176,7 +183,26 @@ bookmap-copybook generate GET-INVOICE.cpy \
   --config GET-INVOICE.json
 ```
 
-The class `GetInvoice` gets the fields `invoiceId`, `amountDue`, `street`, `city`, and `countryCode`.
+The class `GetInvoice` gets the fields `invoiceId`, `amountDue`, `street`, `city`, `countryCode`, `invoiceLineCount`, `invoiceLine`, `taxSummaryCount`, and `taxSummaryEntry`.
+The collections `invoiceLine` and `taxSummaryEntry` get `dependsOn`.
+
+### Link a count field to a fixed table
+
+Without `countFields`, the generator gives a suggestion for each `-COUNT` item just before a fixed table:
+
+```
+GET-INVOICE.cpy:9:12: info: INVOICE-LINE: INVOICE-LINE-COUNT can be the count field of this fixed table. To link them, set "countFields": {"INVOICE-LINE": "INVOICE-LINE-COUNT"} in the options file, or --count-field INVOICE-LINE=INVOICE-LINE-COUNT.
+```
+
+Give the count fields on the command line:
+
+```bash
+bookmap-copybook generate GET-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
+  --copy-dir copylib --strip-prefix INV- \
+  --count-field INVOICE-LINE=INVOICE-LINE-COUNT --count-field TAX-SUMMARY-ENTRY=TAX-SUMMARY-COUNT
+```
+
+See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-table).
 
 ### Write Lombok classes
 
