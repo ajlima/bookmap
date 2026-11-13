@@ -14,7 +14,6 @@ Harden the release pipeline and the published artifacts. Milestone: [Release har
 
 - [#22](https://github.com/ajlima/bookmap/issues/22) Add Gradle dependency verification metadata
 - [#23](https://github.com/ajlima/bookmap/issues/23) Add build provenance attestation to the release
-- [#24](https://github.com/ajlima/bookmap/issues/24) Test the GraalVM native image
 - [#25](https://github.com/ajlima/bookmap/issues/25) Add Spring Boot configuration metadata
 
 ## 2. Transports

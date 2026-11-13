@@ -34,7 +34,18 @@ Build the standalone example of the Maven plugin. It uses the snapshot version i
 bookmap-examples-maven-plugin/mvnw -B -f bookmap-examples-maven-plugin/pom.xml verify
 ```
 
-The `build` check of a pull request runs all these builds.
+Build and run the native image smoke test. It needs GraalVM for JDK 21. Set `GRAALVM_HOME` to its directory:
+
+```bash
+GRAALVM_HOME=/path/to/graalvm ./gradlew -p bookmap-native-test nativeRun
+```
+
+The program runs one operation through the simulator transport, with the EBCDIC charset `IBM1047`.
+It fails if the native image does not contain the charset.
+
+The `build` check of a pull request runs all these builds, except the native image.
+The `native-image` check of the workflow `.github/workflows/native-image.yml` runs the native image.
+`./gradlew build` needs no GraalVM.
 
 ## Rules for the code
 
