@@ -22,6 +22,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import pt.dazz.bookmap.annotation.Direction;
+import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.codec.BookWriter;
 import pt.dazz.bookmap.codec.Formats;
@@ -67,10 +68,10 @@ final class FieldResolver {
         JavaKind.LOCAL_TIME, JavaKind.LOCAL_DATE_TIME);
 
     private static final List<String> PIC_ATTRIBUTES = List.of("length", "scale", "signed",
-        "usage");
+        "usage", "sign");
 
     /** The attributes that only numeric fields and converted fields can use. */
-    private static final List<String> NUMERIC_ATTRIBUTES = List.of("signed", "scale");
+    private static final List<String> NUMERIC_ATTRIBUTES = List.of("signed", "scale", "sign");
 
     // The first sample has two-digit values and nine-digit nanoseconds. The second sample has
     // one-digit values. A pattern that gives different text lengths for them (such as "d", "M",
@@ -161,6 +162,9 @@ final class FieldResolver {
             .or(() -> pic.map(PicSpec::signed))
             .or(() -> numeric ? defaults.signed() : Optional.empty())
             .orElse(false);
+        Sign sign = Optional.ofNullable((String) values.get("sign")).map(Sign::valueOf)
+            .or(() -> pic.flatMap(PicSpec::sign))
+            .orElse(Sign.TRAILING);
         int scale = Optional.ofNullable((Integer) values.get("scale"))
             .or(() -> pic.map(PicSpec::scale))
             .orElse(0);
@@ -194,6 +198,7 @@ final class FieldResolver {
                 problems.error(member, attribute + " is not permitted for "
                     + simpleName(fieldType)));
         }
+        checkSign(member, kind, textOnly, signed, usage, sign, problems);
         EnumModel enumModel = null;
         if (problems.count() == before) {
             checkTypeAndUsage(member, kind, textOnly, fieldType, usage, length, scale,
@@ -211,8 +216,8 @@ final class FieldResolver {
             return null;
         }
         return new FieldModel(member.owner(), member.name(), member.order(), length,
-            direction, usage, scale, signed, pattern, kind, fieldType, getter.get(),
-            setter.get(), converter, BookWriter.byteLength(usage, length), enumModel);
+            direction, usage, scale, signed, sign, pattern, kind, fieldType, getter.get(),
+            setter.get(), converter, BookWriter.byteLength(usage, length, sign), enumModel);
     }
 
     private static Direction direction(AnnotatedMember member, Direction itemDirection,
@@ -302,6 +307,24 @@ final class FieldResolver {
             problems.error(member, "pattern '" + pattern + "' does not fit "
                 + simpleName(fieldType) + ": " + e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Checks an explicit {@code sign}. The {@code pic} parser checks a {@code SIGN} clause. A
+     * text-only field gets the error of the numeric attributes.
+     */
+    private static void checkSign(AnnotatedMember member, JavaKind kind, boolean textOnly,
+                                  boolean signed, Usage usage, Sign sign, Problems problems) {
+        if (member.values().containsKey("sign") && !textOnly) {
+            if (!signed) {
+                problems.error(member, "sign needs a signed field");
+            } else if (usage != Usage.DISPLAY) {
+                problems.error(member, "sign is permitted only with usage DISPLAY");
+            }
+        }
+        if (kind == JavaKind.CONVERTED && sign != Sign.TRAILING) {
+            problems.error(member, "sign " + sign + " is not permitted with a converter");
         }
     }
 

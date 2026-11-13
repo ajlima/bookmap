@@ -24,7 +24,9 @@ public @interface BookField {
 
     /**
      * Gives the COBOL PIC clause, for example {@code X(10)}, {@code S9(7)V99}, or
-     * {@code PIC S9(7)V99 COMP-3}.
+     * {@code PIC S9(7)V99 COMP-3}. A signed {@code DISPLAY} number can have a {@code SIGN}
+     * clause: {@code [SIGN [IS]] LEADING|TRAILING [SEPARATE [CHARACTER]]}, for example
+     * {@code S9(5)V99 SIGN LEADING SEPARATE}.
      *
      * <p>Write the picture as one word, without spaces: {@code S9(7) V99} is a compile error.
      * The prefix {@code PIC IS} is not supported.
@@ -67,6 +69,18 @@ public @interface BookField {
      * @return true for a signed field
      */
     boolean signed() default false;
+
+    /**
+     * Gives the position and the format of the sign of a signed {@code DISPLAY} number when no
+     * PIC clause is present. In a PIC clause, use the {@code SIGN} clause, for example
+     * {@code S9(5)V99 SIGN LEADING SEPARATE}.
+     *
+     * <p>Set it only on a signed {@code DISPLAY} number. A separate sign adds one byte to the
+     * field. A field with a converter must use the default.
+     *
+     * @return the sign format
+     */
+    Sign sign() default Sign.TRAILING;
 
     /**
      * Gives the date or time pattern for date and time fields.
