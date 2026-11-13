@@ -42,8 +42,9 @@ public final class JavaGatewayConnector implements EciConnector {
     }
 
     private static Properties copy(Properties source) {
+        // Copy the keys of the defaults too. putAll copies only the keys of the object itself.
         Properties copy = new Properties();
-        copy.putAll(source);
+        source.stringPropertyNames().forEach(name -> copy.setProperty(name, source.getProperty(name)));
         return copy;
     }
 

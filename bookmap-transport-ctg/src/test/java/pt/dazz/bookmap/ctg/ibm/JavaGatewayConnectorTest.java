@@ -140,4 +140,17 @@ class JavaGatewayConnectorTest {
         JavaGateway.closeFailure = failure;
         assertThatThrownBy(connection::close).isSameAs(failure);
     }
+
+    @Test
+    void keepsPropertiesFromDefaults() throws IOException {
+        Properties defaults = new Properties();
+        defaults.setProperty("keyring", "/etc/ctg/client.p12");
+        Properties properties = new Properties(defaults);
+        properties.setProperty("a", "b");
+        JavaGatewayConnector.builder().url("ssl://ctg.example.com").protocolProperties(properties)
+            .build().open();
+        assertThat(JavaGateway.last.protocolProperties().getProperty("keyring"))
+            .isEqualTo("/etc/ctg/client.p12");
+        assertThat(JavaGateway.last.protocolProperties().getProperty("a")).isEqualTo("b");
+    }
 }
