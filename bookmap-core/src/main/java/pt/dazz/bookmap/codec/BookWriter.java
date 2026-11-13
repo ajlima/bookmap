@@ -129,6 +129,24 @@ public final class BookWriter {
     }
 
     /**
+     * Writes a date or time field as a packed decimal ({@code COMP-3}). The digits are the
+     * text of the pattern. A null value writes zero. The sign nibble is {@code C} for a
+     * signed field, else {@code F}.
+     *
+     * @param field the field descriptor, for error messages
+     * @param value the date or time, or null
+     * @param length the number of digits, equal to the length of the formatted text
+     * @param signed true if the field has a sign
+     * @param formatter the formatter, from {@link Formats#of(String)}. It must give digits only
+     * @throws MappingException if the pattern cannot keep the value, or the text does not fit
+     *     the length
+     */
+    public void writePackedTemporal(String field, TemporalAccessor value, int length,
+                                    boolean signed, DateTimeFormatter formatter) {
+        out.writeBytes(TemporalCodec.encodePacked(field, value, length, signed, formatter));
+    }
+
+    /**
      * Writes a field with a custom converter. The converter must return exactly
      * {@code context.byteLength()} bytes.
      *

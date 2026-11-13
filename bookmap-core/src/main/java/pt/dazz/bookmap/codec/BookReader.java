@@ -5,7 +5,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
+import java.util.function.Function;
 import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.codec.internal.BinaryInteger;
@@ -222,6 +224,65 @@ public final class BookReader {
         int from = take(field, length);
         return TemporalCodec.decode(field, data, from, length, formatter, ctx.charset(),
             LocalDateTime::from, null);
+    }
+
+    /**
+     * Reads a packed ({@code COMP-3}) date field. The digits are the text of the pattern.
+     *
+     * @param field the field descriptor, for error messages
+     * @param length the number of digits
+     * @param signed true if the field has a sign
+     * @param formatter the formatter, from {@link Formats#of(String)}
+     * @return the date, or null if the field has only spaces, low-values, or zeros
+     * @throws MappingException if a nibble is not valid, the sign is negative, or the digits
+     *     are not a valid date
+     */
+    public LocalDate readPackedDate(String field, int length, boolean signed,
+                                    DateTimeFormatter formatter) {
+        return readPacked(field, length, signed, formatter, LocalDate::from, null);
+    }
+
+    /**
+     * Reads a packed ({@code COMP-3}) time field. The digits are the text of the pattern.
+     *
+     * @param field the field descriptor, for error messages
+     * @param length the number of digits
+     * @param signed true if the field has a sign
+     * @param formatter the formatter, from {@link Formats#of(String)}
+     * @return the time, midnight if the field has only zeros,
+     *     or null if the field has only spaces or low-values
+     * @throws MappingException if a nibble is not valid, the sign is negative, or the digits
+     *     are not a valid time
+     */
+    public LocalTime readPackedTime(String field, int length, boolean signed,
+                                    DateTimeFormatter formatter) {
+        return readPacked(field, length, signed, formatter, LocalTime::from,
+            LocalTime.MIDNIGHT);
+    }
+
+    /**
+     * Reads a packed ({@code COMP-3}) date and time field. The digits are the text of the
+     * pattern.
+     *
+     * @param field the field descriptor, for error messages
+     * @param length the number of digits
+     * @param signed true if the field has a sign
+     * @param formatter the formatter, from {@link Formats#of(String)}
+     * @return the date and time, or null if the field has only spaces, low-values, or zeros
+     * @throws MappingException if a nibble is not valid, the sign is negative, or the digits
+     *     are not a valid date and time
+     */
+    public LocalDateTime readPackedDateTime(String field, int length, boolean signed,
+                                            DateTimeFormatter formatter) {
+        return readPacked(field, length, signed, formatter, LocalDateTime::from, null);
+    }
+
+    private <T> T readPacked(String field, int length, boolean signed,
+                             DateTimeFormatter formatter, Function<TemporalAccessor, T> query,
+                             T zeros) {
+        int from = take(field, BookWriter.byteLength(Usage.COMP3, length));
+        return TemporalCodec.decodePacked(field, data, from, length, signed, formatter,
+            ctx.charset(), query, zeros);
     }
 
     /**
