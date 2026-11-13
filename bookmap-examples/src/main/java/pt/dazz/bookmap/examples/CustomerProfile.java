@@ -9,7 +9,8 @@ import pt.dazz.bookmap.annotation.BookField;
 import pt.dazz.bookmap.annotation.BookOperation;
 
 /**
- * Reads a customer profile. Lombok {@code @Data}, fields of all supported types.
+ * Reads a customer profile. The class uses Lombok {@code @Data} and has a field of each
+ * supported type.
  */
 @Data
 @BookOperation("GetCustomerProfile")
@@ -42,9 +43,9 @@ public class CustomerProfile {
     @BookField(order = 90)
     private LocalDate birthDate;
 
-    @BookField(order = 100, pattern = "HHmmss", length = 6)
+    @BookField(order = 100, pattern = "HHmmss")
     private LocalTime preferredContact;
 
-    @BookField(order = 110, pattern = "yyyyMMddHHmmss", length = 14)
+    @BookField(order = 110, pattern = "yyyyMMddHHmmss")
     private LocalDateTime lastLogin;
 }

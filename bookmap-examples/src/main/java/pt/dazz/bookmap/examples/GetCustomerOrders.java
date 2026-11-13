@@ -11,7 +11,8 @@ import pt.dazz.bookmap.annotation.BookField;
 import pt.dazz.bookmap.annotation.BookOperation;
 
 /**
- * Lists the orders of a customer. Convention style, handwritten accessors.
+ * Lists the orders of a customer. The class uses the convention style and handwritten
+ * accessors.
  */
 @BookOperation
 public class GetCustomerOrders implements Continuable, Validatable {
@@ -19,6 +20,7 @@ public class GetCustomerOrders implements Continuable, Validatable {
     @BookField(order = 10, pic = "X(10)", direction = INPUT)
     private String customerId;
 
+    // INPUT_OUTPUT: the next request sends back the key of the last response.
     @BookField(order = 20, pic = "X(12)")
     private String restartKey;
 
@@ -28,12 +30,15 @@ public class GetCustomerOrders implements Continuable, Validatable {
     @BookField(order = 40, pic = "X(60)", direction = OUTPUT)
     private String returnMessage;
 
+    // 'Y' or 'N'.
     @BookField(order = 50, pic = "X", direction = OUTPUT)
     private String moreData;
 
+    // OUTPUT, as the collection: the number of orders in the response.
     @BookField(order = 60, pic = "9(3)")
     private int orderCount;
 
+    // OUTPUT. The count field is the previous member, orderCount.
     @BookCollection(order = 70, maxOccurs = 50)
     private List<Order> orders;
 

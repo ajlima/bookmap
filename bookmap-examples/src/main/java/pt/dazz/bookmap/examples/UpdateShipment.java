@@ -13,7 +13,8 @@ import pt.dazz.bookmap.annotation.BookOperation;
 import pt.dazz.bookmap.annotation.Usage;
 
 /**
- * Updates a shipment. Explicit style. Lombok on some fields, handwritten accessors on the others.
+ * Updates a shipment. The class uses the explicit style. Some fields have Lombok accessors, and
+ * the other fields have handwritten accessors.
  */
 @BookOperation("UpdateShipment")
 public class UpdateShipment {
