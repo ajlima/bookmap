@@ -23,9 +23,6 @@ New features of the copybook generator and its build plugins. Milestone: [Copybo
 - [#32](https://github.com/ajlima/bookmap/issues/32) Generate classes from a model JSON file in the Gradle plugin
 - [#33](https://github.com/ajlima/bookmap/issues/33) Read copybooks from a dependency artifact
 - [#34](https://github.com/ajlima/bookmap/issues/34) Support Maven 4 in the Maven plugin
-- [#35](https://github.com/ajlima/bookmap/issues/35) Generator: date hints and optional Continuable/Validatable
-- [#36](https://github.com/ajlima/bookmap/issues/36) Generator: enums from level 88 items and VALUE initial values
-- [#81](https://github.com/ajlima/bookmap/issues/81) Generator: link a count field to a fixed table
 
 ## 3. Mapping
 
