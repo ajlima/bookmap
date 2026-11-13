@@ -62,19 +62,19 @@ final class DateHints {
     private final Set<String> used = new HashSet<>();
 
     /** Resolves the names of the hints. Reports an error for each name that is not correct. */
-    DateHints(ModelMapper mapper, RedefinesResolver resolver) {
+    DateHints(ModelMapper mapper) {
         this.mapper = mapper;
         mapper.options.dates().forEach((key, pattern) -> {
             if (key.contains("*")) {
                 glob(key);
                 return;
             }
-            DataItem item = resolver.find(KIND, key);
+            DataItem item = mapper.findNamed(KIND, key);
             if (item == null) {
                 return;
             }
             if (item.isGroup()) {
-                resolver.decisionError(KIND + ": " + key + " is a group. A date hint applies to"
+                mapper.optionError(KIND + ": " + key + " is a group. A date hint applies to"
                     + " an elementary item.");
                 return;
             }
@@ -86,7 +86,7 @@ final class DateHints {
     private void glob(String key) {
         String word = key.trim().toUpperCase(Locale.ROOT);
         if (word.chars().anyMatch(Character::isWhitespace)) {
-            mapper.diagnostics.error(mapper.sourceName, 1, 1, KIND + ": the name pattern '"
+            mapper.optionError(KIND + ": the name pattern '"
                 + key + "' must be one word, without OF or IN");
             return;
         }
@@ -193,7 +193,7 @@ final class DateHints {
                 mapper.diagnostics.warning(mapper.sourceName, 1, 1, KIND + ": the name pattern "
                     + key + " matches no field");
             } else {
-                mapper.diagnostics.error(mapper.sourceName, 1, 1, KIND + ": " + key
+                mapper.optionError(KIND + ": " + key
                     + " gives no field. The generator skips this item.");
             }
         }

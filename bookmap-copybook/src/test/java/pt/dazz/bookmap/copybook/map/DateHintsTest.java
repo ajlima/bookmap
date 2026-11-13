@@ -25,8 +25,13 @@ class DateHintsTest {
         for (int i = 0; i < keysAndPatterns.length; i += 2) {
             dates.put(keysAndPatterns[i], keysAndPatterns[i + 1]);
         }
-        return new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
-            MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), dates);
+        return MappingOptions.defaults().withHints(dates, Map.of(), Map.of());
+    }
+
+    /** Gives the errors and warnings. The record length is an INFO diagnostic of each record. */
+    private static List<Diagnostic> problems(MapResult result) {
+        return result.diagnostics().stream().filter(d -> d.severity() != Severity.INFO)
+            .toList();
     }
 
     private static List<String> errors(MapResult result) {
@@ -42,7 +47,7 @@ class DateHintsTest {
     void nameHintGivesDateField() {
         MapResult result = map(dates("ORDER-DATE", "yyyyMMdd"),
             "01 GET-ORDER.", "05 ORDER-ID PIC X(10).", "05 ORDER-DATE PIC 9(8).");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(problems(result)).isEmpty();
         assertThat(field(result, "GetOrder", "orderDate")).isEqualTo(new FieldMember(
             "orderDate", JavaType.LOCAL_DATE, 20, "9(8)", Direction.INPUT_OUTPUT, "ORDER-DATE",
             "05 ORDER-DATE PIC 9(8).", "yyyyMMdd"));
@@ -80,7 +85,7 @@ class DateHintsTest {
             "   10 DELIVERY-DATE PIC 9(8).",
             "05 PAYMENT-DATE PIC 9(8) OCCURS 2.",
             "05 UPDATE-TIME PIC 9(6).");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(problems(result)).isEmpty();
         assertThat(type(result, "GetOrder").members())
             .filteredOn(m -> m instanceof FieldMember)
             .extracting(m -> m.name(), m -> ((FieldMember) m).javaType())
@@ -97,7 +102,7 @@ class DateHintsTest {
     void nameHintHasPriorityOverNamePattern() {
         MapResult result = map(dates("*-DATE", "yyyyMMdd", "SHORT-DATE", "yyMMdd"),
             "01 GET-ORDER.", "05 ORDER-DATE PIC 9(8).", "05 SHORT-DATE PIC 9(6).");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(problems(result)).isEmpty();
         assertThat(field(result, "GetOrder", "shortDate").pattern()).isEqualTo("yyMMdd");
         assertThat(field(result, "GetOrder", "orderDate").pattern()).isEqualTo("yyyyMMdd");
     }
@@ -106,7 +111,7 @@ class DateHintsTest {
     void namePatternsWithTheSamePatternDoNotConflict() {
         MapResult result = map(dates("*-DATE", "yyyyMMdd", "ORDER-*", "yyyyMMdd"),
             "01 GET-ORDER.", "05 ORDER-DATE PIC 9(8).");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(problems(result)).isEmpty();
     }
 
     @Test
@@ -122,7 +127,7 @@ class DateHintsTest {
         MapResult result = map(dates("*-DTE", "yyyyMMdd", "*", "yyyyMMdd"),
             "01 GET-ORDER.", "05 FILLER PIC 9(8).", "05 HEADER.", "10 ORDER-DATE PIC 9(8).");
         assertThat(result.hasErrors()).isFalse();
-        assertThat(result.diagnostics()).extracting(Diagnostic::severity, Diagnostic::line,
+        assertThat(problems(result)).extracting(Diagnostic::severity, Diagnostic::line,
                 Diagnostic::message)
             .containsExactly(tuple(Severity.WARNING, 1,
                 "date hint: the name pattern *-DTE matches no field"));
@@ -153,7 +158,7 @@ class DateHintsTest {
                 "yyyyMMdd", "A OF", "yyyyMMdd"),
             "01 GET-ORDER.", "05 BILLING.", "10 CREATED PIC 9(8).", "05 SHIPPING.",
             "10 CREATED PIC 9(8).");
-        assertThat(result.diagnostics()).extracting(Diagnostic::line).containsOnly(1);
+        assertThat(problems(result)).extracting(Diagnostic::line).containsOnly(1);
         assertThat(errors(result)).containsExactly(
             "date hint: item NOPE does not exist",
             "date hint: item CREATED is ambiguous. Qualify it: CREATED OF BILLING OF"
@@ -199,7 +204,8 @@ class DateHintsTest {
         MapResult result = map(new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
                 MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of("CARD-DATA",
                     new SubTypeDecision("KIND", Map.of("CARD-DATA", "20260101",
-                        "LOAN-DATA", "20270101"), Map.of())), Map.of("KIND", "yyyyMMdd")),
+                        "LOAN-DATA", "20270101"), Map.of()))).withHints(
+                Map.of("KIND", "yyyyMMdd"), Map.of(), Map.of()),
             "01 GET-ACCOUNT.", "05 KIND PIC 9(8).", "05 CARD-DATA.", "10 LIMIT PIC 9(5).",
             "05 LOAN-DATA REDEFINES CARD-DATA.", "10 RATE PIC 9(5).");
         assertThat(errors(result)).containsExactly(

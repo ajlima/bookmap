@@ -35,7 +35,7 @@ Apply the plugin and add the BookMap libraries in `build.gradle.kts`. Use the sa
 ```kotlin
 plugins {
     java
-    id("pt.dazz.bookmap.copybook") version "0.13.0"
+    id("pt.dazz.bookmap.copybook") version "0.16.0"
 }
 
 repositories {
@@ -43,8 +43,8 @@ repositories {
 }
 
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-core:0.13.0")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.13.0")
+    implementation("pt.dazz.bookmap:bookmap-core:0.16.0")
+    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.16.0")
 }
 
 bookmap {
@@ -130,7 +130,7 @@ The file has the format of the `--config` file of the command line. See "Options
 
 ```
 src/main/copybook/billing/GET-INVOICE.cpy
-src/main/copybook/billing/GET-INVOICE.json   { "stripPrefixes": ["INV-"] }
+src/main/copybook/billing/GET-INVOICE.json   { "stripPrefixes": ["INV-"], "countFields": {...} }
 ```
 
 These rules apply:
@@ -140,6 +140,9 @@ These rules apply:
 - `copyDirs` in the file come first in the search order. The `copyDirs` of the extension come after them.
 - A relative directory in `copyDirs` of the file starts at the directory of the file.
 - All other options come only from the file. Without a file, the plugin uses the defaults of the generator.
+
+Mapping options such as `stripPrefixes`, `directions`, `subTypes`, and `countFields` name items of one copybook. Thus, the plugin has no property for them. Put them in the options file.
+For example, `countFields` links a count field to a fixed table. See "Count field of a fixed table" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#count-field-of-a-fixed-table).
 
 If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The task logs an error line that starts with the path of the file.
 

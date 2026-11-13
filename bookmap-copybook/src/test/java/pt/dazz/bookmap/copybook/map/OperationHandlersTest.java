@@ -30,9 +30,13 @@ class OperationHandlersTest {
 
     private static MappingOptions handlers(Map<String, String> continuable,
                                            Map<String, String> validatable) {
-        return new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
-            MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of(), continuable,
-            validatable);
+        return MappingOptions.defaults().withHints(Map.of(), continuable, validatable);
+    }
+
+    /** Gives the errors and warnings. The record length is an INFO diagnostic of each record. */
+    private static List<Diagnostic> problems(MapResult result) {
+        return result.diagnostics().stream().filter(d -> d.severity() != Severity.INFO)
+            .toList();
     }
 
     private static List<String> errors(MapResult result) {
@@ -44,7 +48,7 @@ class OperationHandlersTest {
     void handlersGoToTheOperationClassOfTheRecord() {
         MapResult result = map(handlers(Map.of("list-orders", "com.example.OrderPaging"),
             Map.of(" LIST-ORDERS ", "ReturnCodes")), PAGED);
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(problems(result)).isEmpty();
         ClassModel list = type(result, "ListOrders");
         assertThat(list.continuable()).isEqualTo("com.example.OrderPaging");
         assertThat(list.validatable()).isEqualTo("ReturnCodes");
@@ -60,7 +64,7 @@ class OperationHandlersTest {
     void validatableClassPermitsAnInputOutputCollection() {
         MapResult result = map(handlers(Map.of(), Map.of("GET-ORDER", "ReturnCodes")),
             "01 GET-ORDER.", "05 ORDER-LINE OCCURS 3.", "10 ORDER-ID PIC X(10).");
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(problems(result)).isEmpty();
         assertThat(type(result, "GetOrder").validatable()).isEqualTo("ReturnCodes");
     }
 
@@ -68,7 +72,7 @@ class OperationHandlersTest {
     void continuableClassRejectsAnInputOutputCollection() {
         MapResult result = map(handlers(Map.of("GET-ORDER", "OrderPaging"), Map.of()),
             "01 GET-ORDER.", "05 ORDER-LINE OCCURS 3.", "10 ORDER-ID PIC X(10).");
-        assertThat(result.diagnostics()).extracting(Diagnostic::line).containsExactly(2);
+        assertThat(problems(result)).extracting(Diagnostic::line).containsExactly(2);
         assertThat(errors(result)).containsExactly("ORDER-LINE is an INPUT_OUTPUT collection."
             + " BookMap does not permit it in a Continuable class. Put the table in the output"
             + " alternative of a REDEFINES area.");
@@ -81,7 +85,7 @@ class OperationHandlersTest {
         continuable.put("LIST-ORDERS", "com.example.1Paging");
         MapResult result = map(handlers(continuable, Map.of("GET-ORDER", "Return Codes")),
             PAGED);
-        assertThat(result.diagnostics()).extracting(Diagnostic::line).containsOnly(1);
+        assertThat(problems(result)).extracting(Diagnostic::line).containsOnly(1);
         assertThat(errors(result)).containsExactly(
             "continuable: LIST-ORDRS is not a record. Use the name of a level 01 item.",
             "continuable: 'com.example.1Paging' is not a Java class name",

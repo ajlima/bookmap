@@ -32,9 +32,15 @@ class CopybookTreeTest {
     private CopybookTree.Settings settings(Path sourceDir, List<Path> copyDirs,
                                                  String base, boolean lombok,
                                                  boolean perCopybook) {
+        return settings(sourceDir, copyDirs, base, lombok, perCopybook, null);
+    }
+
+    private CopybookTree.Settings settings(Path sourceDir, List<Path> copyDirs,
+                                                 String base, boolean lombok,
+                                                 boolean perCopybook, Integer maxRecordLength) {
         return new CopybookTree.Settings(sourceDir, copyDirs, base, lombok, perCopybook,
             "Set bookmap.copybooks.packageName.",
-            "bookmap.copybooks.packagePerCopybook = true");
+            "bookmap.copybooks.packagePerCopybook = true", maxRecordLength);
     }
 
     private void run(String name, List<Path> copyDirs, String base, boolean lombok,
@@ -141,6 +147,41 @@ class CopybookTreeTest {
             .contains("PAYMENT-NUMBER redefines PAYMENT-ID and is skipped");
         assertThat(log.errors).isEmpty();
         assertThat(output.resolve("com/example/mainframe/Payment.java")).exists();
+    }
+
+    @Test
+    void infosGoToInfo() throws IOException {
+        run("warning", List.of(), BASE, false, false);
+        assertThat(log.infos).singleElement().asString()
+            .endsWith("info: record PAYMENT has 8 bytes");
+    }
+
+    @Test
+    void maxRecordLengthOfTheSettingsGivesAWarning() throws IOException {
+        Path source = TestCopybooks.copy("warning", work);
+        CopybookTree.run(settings(source, List.of(), BASE, false, false, 4),
+            TestCopybooks.copybooks(source), output, log);
+        assertThat(log.warnings).anySatisfy(w -> assertThat(w).contains("record PAYMENT has 8"
+            + " bytes, more than the maximum record length of 4 bytes."));
+        assertThat(output.resolve("com/example/mainframe/Payment.java")).exists();
+    }
+
+    @Test
+    void maxRecordLengthOfTheOptionsFileWins() throws IOException {
+        Path source = TestCopybooks.copy("warning", work);
+        Files.writeString(source.resolve("PAYMENT.json"), "{\"maxRecordLength\": 8}");
+        CopybookTree.run(settings(source, List.of(), BASE, false, false, 4),
+            TestCopybooks.copybooks(source), output, log);
+        assertThat(log.warnings).noneSatisfy(w -> assertThat(w).contains("maximum"));
+    }
+
+    @Test
+    void maxRecordLengthMustBePositive() {
+        Path source = TestCopybooks.copy("warning", work);
+        assertThatThrownBy(() -> CopybookTree.run(settings(source, List.of(), BASE, false,
+            false, 0), TestCopybooks.copybooks(source), output, log))
+            .isInstanceOf(CopybookTreeException.class)
+            .hasMessage("The maximum record length must be 1 or more, not 0.");
     }
 
     @Test
@@ -260,10 +301,10 @@ class CopybookTreeTest {
         String missing = "Set the packageName parameter of bookmap-copybook-maven-plugin.";
         String hint = "<packagePerCopybook>true</packagePerCopybook>";
         assertThatThrownBy(() -> CopybookTree.run(new CopybookTree.Settings(tree, List.of(),
-            null, false, false, missing, hint), List.of(tree.resolve("orders/ORDER.cpy")),
+            null, false, false, missing, hint, null), List.of(tree.resolve("orders/ORDER.cpy")),
             output, log)).hasMessage(missing);
         assertThatThrownBy(() -> CopybookTree.run(new CopybookTree.Settings(collision,
-            List.of(copylib), BASE, false, false, missing, hint),
+            List.of(copylib), BASE, false, false, missing, hint, null),
             TestCopybooks.copybooks(collision), output, log))
             .hasMessageContaining("Set " + hint + ", set \"package\" in an options file");
     }
@@ -298,8 +339,14 @@ class CopybookTreeTest {
     }
 
     private static final class RecordingLog implements CopybookTree.Log {
+        final List<String> infos = new ArrayList<>();
         final List<String> warnings = new ArrayList<>();
         final List<String> errors = new ArrayList<>();
+
+        @Override
+        public void info(String message) {
+            infos.add(message);
+        }
 
         @Override
         public void warn(String message) {

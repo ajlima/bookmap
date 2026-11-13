@@ -156,11 +156,12 @@ class EndToEndTest {
 
     @Test
     void dateHintsRoundTripThroughTheCodec() {
-        MappingOptions dates = new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
-            MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), Map.of("*-DATE", "yyyyMMdd"));
+        MappingOptions dates = MappingOptions.defaults().withHints(
+            Map.of("*-DATE", "yyyyMMdd"), Map.of(), Map.of());
         Copybooks.Result result = Copybooks.generate(copybook("INVOICE.cpy"), parseOptions(),
             dates, PLAIN);
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+            .containsOnly(pt.dazz.bookmap.copybook.diag.Severity.INFO);
         Compiled classes = Compiled.compile(result.files());
         BookCodec<Object> codec = classes.codec(PACKAGE + ".GetInvoice");
         Object response = codec.newInstance();
@@ -185,13 +186,13 @@ class EndToEndTest {
         dates.put("*-DATE", "yyyyMMdd");
         dates.put("SHIP-TIME", "HH:mm:ss");
         dates.put("LAST-UPDATE", "yyyyMMddHHmmss");
-        MappingOptions options = new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
-            MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(), dates,
+        MappingOptions options = MappingOptions.defaults().withHints(dates,
             Map.of("LIST-SHIPMENTS", "com.example.handlers.ShipmentPaging"),
             Map.of("LIST-SHIPMENTS", "ShipmentChecks"));
         Copybooks.Result result = Copybooks.generate(copybook("LIST-SHIPMENTS.cpy"),
             parseOptions(), options, PLAIN);
-        assertThat(result.diagnostics()).isEmpty();
+        assertThat(result.diagnostics()).extracting(Diagnostic::severity)
+            .containsOnly(pt.dazz.bookmap.copybook.diag.Severity.INFO);
         ClassName page = ClassName.get(PACKAGE, "ListShipments");
         List<JavaFile> files = new ArrayList<>(result.files());
         files.add(handler("com.example.handlers", "ShipmentPaging", MethodSpec

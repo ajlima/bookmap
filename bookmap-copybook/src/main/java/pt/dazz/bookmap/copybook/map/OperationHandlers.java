@@ -36,7 +36,7 @@ final class OperationHandlers {
     }
 
     private void error(String message) {
-        mapper.diagnostics.error(mapper.sourceName, 1, 1, message);
+        mapper.optionError(message);
     }
 
     /** Gives the {@code Continuable} handler of a record, or {@code null}. */
