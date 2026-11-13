@@ -138,6 +138,11 @@ final class DateHints {
 
     private Applied check(DataItem item, Usage usage, String pattern) {
         Picture picture = item.picture();
+        if (picture.edited() != null) {
+            mapper.error(item, item.name() + " has an edited picture. A date hint needs"
+                + " PIC 9(n) or PIC X(n).");
+            return null;
+        }
         boolean packed = usage == Usage.COMP3;
         if (usage != Usage.DISPLAY && !packed) {
             mapper.error(item, item.name() + ": a date or time field must have the usage"

@@ -86,7 +86,7 @@ class CopybookParserTest {
 
     @Test
     void parseResultHasNoCopybookOnError() {
-        ParseResult result = parse("01 ORDER. 05 A PIC ZZ9.");
+        ParseResult result = parse("01 ORDER. 05 A PIC Z*9.");
         assertThat(result.hasErrors()).isTrue();
         assertThat(result.copybook()).isNull();
     }
@@ -261,7 +261,7 @@ class CopybookParserTest {
 
     @Test
     void memberDiagnosticsUseMemberName() throws IOException {
-        write("BAD.cpy", "05 A PIC ZZ9.");
+        write("BAD.cpy", "05 A PIC Z*9.");
         ParseResult result = parse("01 ORDER.", "COPY BAD.");
         assertThat(result.diagnostics()).extracting(Diagnostic::source, Diagnostic::line)
             .containsExactly(tuple("BAD.cpy", 1));

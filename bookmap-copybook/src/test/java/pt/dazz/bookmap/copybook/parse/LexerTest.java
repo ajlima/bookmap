@@ -59,6 +59,25 @@ class LexerTest {
     }
 
     @Test
+    void aCommaInAPictureIsNotASeparator() {
+        assertThat(free("05 A PIC $Z,ZZ9.99CR, VALUE 0; 05 B PIC 9;9, VALUE 1,5.")).extracting(
+                Token::type, Token::text)
+            .containsExactly(tuple(TokenType.NUMBER, "05"), tuple(TokenType.WORD, "A"),
+                tuple(TokenType.WORD, "PIC"), tuple(TokenType.PICTURE, "$Z,ZZ9.99CR"),
+                tuple(TokenType.WORD, "VALUE"), tuple(TokenType.NUMBER, "0"),
+                tuple(TokenType.NUMBER, "05"), tuple(TokenType.WORD, "B"),
+                tuple(TokenType.WORD, "PIC"), tuple(TokenType.PICTURE, "9;9"),
+                tuple(TokenType.WORD, "VALUE"), tuple(TokenType.NUMBER, "1"),
+                tuple(TokenType.NUMBER, "5"), tuple(TokenType.PERIOD, "."));
+    }
+
+    @Test
+    void aCommaAtTheEndOfAPictureLineIsASeparator() {
+        assertThat(free("05 A PIC ZZ9,")).extracting(Token::type, Token::text)
+            .endsWith(tuple(TokenType.PICTURE, "ZZ9"));
+    }
+
+    @Test
     void pictureAtTheEndOfTheLine() {
         assertThat(free("05 A PIC", "X(3)", ".")).extracting(Token::type)
             .endsWith(TokenType.PICTURE, TokenType.PERIOD);

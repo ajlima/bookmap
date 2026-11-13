@@ -257,6 +257,10 @@ public final class ModelMapper {
             error(item, item.name() + " has a text picture and must not have COMP or COMP-3");
             return;
         }
+        if (picture.edited() != null && usage != Usage.DISPLAY) {
+            error(item, item.name() + " has an edited picture and must have usage DISPLAY");
+            return;
+        }
         if (usage != Usage.DISPLAY && usage != Usage.COMP3
             && picture.length() > MAX_LONG_DIGITS) {
             error(item, item.name() + ": COMP supports at most 18 digits");
@@ -279,16 +283,16 @@ public final class ModelMapper {
         FieldMember field;
         if (date != null) {
             // A date or time field has no constants and no enum. Tell what is ignored.
-            item.conditions().forEach(condition -> diagnostics.info(item.source(),
-                condition.line(), condition.column(), "condition " + condition.name()
-                    + " is ignored, because " + item.name() + " has a date hint"));
-            if (item.value() != null) {
-                diagnostics.info(item.source(), item.line(), item.column(), "the VALUE of "
-                    + item.name() + " is ignored, because " + item.name() + " has a date hint");
-            }
+            ignored(item, "has a date hint");
             field = new FieldMember(name, date.type(), owner.nextOrder(),
                 PicText.of(picture, usage, item.sign()), context.direction(), item.name(), item.declaration(),
                 date.pattern());
+        } else if (picture.edited() != null) {
+            // The VALUE of an edited item is text, and its conditions compare text.
+            ignored(item, "has an edited picture");
+            field = new FieldMember(name, javaType(picture, usage), owner.nextOrder(),
+                PicText.of(picture, usage, item.sign()), context.direction(), item.name(),
+                item.declaration(), null, null, List.of());
         } else {
             ConditionMapper.Decision decision = conditions.decide(item, owner,
                 javaType(picture, usage));
@@ -298,6 +302,17 @@ public final class ModelMapper {
         }
         owner.members.add(field);
         placed.put(item, new Placed(owner, field, item, usage));
+    }
+
+    /** Tells that the conditions and the {@code VALUE} of an item are ignored, and why. */
+    private void ignored(DataItem item, String reason) {
+        item.conditions().forEach(condition -> diagnostics.info(item.source(),
+            condition.line(), condition.column(), "condition " + condition.name()
+                + " is ignored, because " + item.name() + " " + reason));
+        if (item.value() != null) {
+            diagnostics.info(item.source(), item.line(), item.column(), "the VALUE of "
+                + item.name() + " is ignored, because " + item.name() + " " + reason);
+        }
     }
 
     private static JavaType javaType(Picture picture, Usage usage) {
@@ -410,6 +425,10 @@ public final class ModelMapper {
         if (count.field().javaType() != JavaType.INT
             && count.field().javaType() != JavaType.LONG) {
             error(table, label + " must be an integer");
+            return null;
+        }
+        if (countItem.picture().edited() != null) {
+            error(table, label + " must not have an edited picture");
             return null;
         }
         int digits = countItem.picture().length();

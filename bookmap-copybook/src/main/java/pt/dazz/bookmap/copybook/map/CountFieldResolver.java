@@ -88,7 +88,7 @@ final class CountFieldResolver {
     void suggest(DataItem table, DataItem previous) {
         if (previous == null || table.isFiller() || previous.isGroup()
             || !previous.name().endsWith(COUNT_SUFFIX) || !previous.picture().numeric()
-            || previous.picture().scale() > 0) {
+            || previous.picture().scale() > 0 || previous.picture().edited() != null) {
             return;
         }
         mapper.diagnostics.info(table.source(), table.line(), table.column(), table.name()

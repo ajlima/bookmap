@@ -289,7 +289,7 @@ class DataParserTest {
         "05 A PIC N(3) NATIONAL.|10|picture symbol N is not supported by BookMap."
             + " See issue #49.",
         "05 A PIC X GLOBAL.|12|unknown clause GLOBAL",
-        "05 A PIC ZZ9.|10|edited picture ZZ9 is not supported by BookMap. See issue #48.",
+        "05 A PIC Z*9.|10|edited picture Z*9: Z, *, and a floating string are mutually exclusive",
         "05 A PIC 9 BLANK WHEN 7.|23|BLANK needs WHEN ZERO",
         "05 A.|1|A has no PIC",
         "05 A OCCURS X.|13|OCCURS needs a number",
@@ -391,13 +391,7 @@ class DataParserTest {
                 tuple(Severity.WARNING, 5, 15, "JUSTIFIED on D is ignored. BookMap writes the"
                     + " text on the left and keeps the spaces on the left when it reads."),
                 tuple(Severity.WARNING, 6, 15, "JUSTIFIED on E is ignored. BookMap writes the"
-                    + " text on the left and keeps the spaces on the left when it reads."),
-                tuple(Severity.INFO, 7, 15, "BLANK WHEN ZERO on F is ignored. BookMap reads"
-                    + " spaces as no value and writes zero as digits."),
-                tuple(Severity.INFO, 8, 15, "BLANK WHEN ZERO on G is ignored. BookMap reads"
-                    + " spaces as no value and writes zero as digits."),
-                tuple(Severity.INFO, 9, 15, "BLANK WHEN ZERO on H is ignored. BookMap reads"
-                    + " spaces as no value and writes zero as digits."));
+                    + " text on the left and keeps the spaces on the left when it reads."));
         DataItem record = copybook.records().get(0);
         assertThat(record.children()).extracting(DataItem::name)
             .containsExactly("A", "B", "C", "D", "E", "F", "G", "H", "I", "J");
@@ -406,6 +400,9 @@ class DataParserTest {
             .isEqualTo("05 B PIC X(3) SYNCHRONIZED RIGHT.");
         assertThat(child(record, 3).declaration()).isEqualTo("05 D PIC X(5) JUSTIFIED RIGHT.");
         assertThat(child(record, 5).declaration()).isEqualTo("05 F PIC 9(3) BLANK WHEN ZERO.");
+        assertThat(child(record, 5).picture().edited()).hasToString("9(3) BLANK WHEN ZERO");
+        assertThat(child(record, 6).picture().edited().blankWhenZero()).isTrue();
+        assertThat(child(record, 4).picture().edited()).isNull();
         assertThat(child(record, 8).usage()).isEqualTo(Usage.COMP5);
         assertThat(child(record, 9).usage()).isEqualTo(Usage.COMP5);
     }
@@ -635,11 +632,24 @@ class DataParserTest {
     }
 
     @Test
+    void blankWhenZeroOnASignedOrTextItemIsAnError() {
+        parse("01 INVOICE.", "05 TOTAL PIC S9(3) BLANK WHEN ZERO.",
+            "05 CODE BLANK ZERO PIC X(3).", "05 GROUP-A BLANK WHEN ZERO.", "10 B PIC X.");
+        assertThat(diagnostics.all()).extracting(Diagnostic::line, Diagnostic::column,
+                Diagnostic::message)
+            .containsExactly(
+                tuple(2, 20, "BLANK WHEN ZERO on TOTAL: edited picture S9(3): BLANK WHEN ZERO"
+                    + " is not permitted with S or '*'"),
+                tuple(3, 9, "BLANK WHEN ZERO on CODE: BLANK WHEN ZERO needs a numeric"
+                    + " picture"));
+    }
+
+    @Test
     void layoutIsSkippedAfterAnError() {
         Copybook copybook = parse("01 ORDER.", "05 A PIC X.", "05 B PIC 9(4) COMP SYNC.",
-            "05 C PIC ZZ9.");
+            "05 C PIC Z*9.");
         assertThat(messages()).containsExactly(
-            "edited picture ZZ9 is not supported by BookMap. See issue #48.");
+            "edited picture Z*9: Z, *, and a floating string are mutually exclusive");
         assertThat(copybook.records().get(0).children()).hasSize(3);
     }
 

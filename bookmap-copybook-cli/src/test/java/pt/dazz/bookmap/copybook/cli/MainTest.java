@@ -239,10 +239,10 @@ class MainTest {
     @Test
     void errorsGiveExitCode1AndDiagnostics() throws IOException {
         Path copybook = dir.resolve("BAD.cpy");
-        Files.writeString(copybook, "       01  BAD.\n           05  A PIC ZZ9.");
+        Files.writeString(copybook, "       01  BAD.\n           05  A PIC Z*9.");
         assertThat(run("generate", copybook.toString(), "--package", "a", "--output-dir",
             dir.toString())).isEqualTo(Main.FAILED);
-        assertThat(err()).contains("BAD.cpy:2:22: error: edited picture ZZ9 is not supported");
+        assertThat(err()).contains("BAD.cpy:2:22: error: edited picture Z*9: Z, *, and a floating string are mutually exclusive");
         assertThat(run("parse", copybook.toString(), "--output", "x.json"))
             .isEqualTo(Main.FAILED);
     }

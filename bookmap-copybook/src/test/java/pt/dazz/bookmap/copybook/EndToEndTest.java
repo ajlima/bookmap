@@ -408,8 +408,6 @@ class EndToEndTest {
             "level 77 item WS-RETRY-COUNT is not part of a record and is skipped",
             "JUSTIFIED on TRK-CARRIER is ignored. BookMap writes the text on the left and keeps"
                 + " the spaces on the left when it reads.",
-            "BLANK WHEN ZERO on TRK-CHARGE is ignored. BookMap reads spaces as no value and"
-                + " writes zero as digits.",
             "level 66 item TRK-KEY is ignored. RENAMES adds no bytes.",
             "INDEX item TRK-EVENT-IDX is mapped as PIC S9(9) COMP. Its value is a byte offset"
                 + " in a table.",
@@ -441,6 +439,9 @@ class EndToEndTest {
         // BLANK WHEN ZERO: a zero amount is all spaces.
         Arrays.fill(bytes, 28, 35, (byte) ' ');
         Object decoded = codec.decodeRequest(bytes, LATIN);
+        set(tracking, "trkCharge", BigDecimal.ZERO);
+        assertThat(new String(codec.encodeRequest(tracking, LATIN), 28, 7,
+            StandardCharsets.ISO_8859_1)).isBlank();
         assertThat(get(decoded, "trkEventCount")).isEqualTo(7);
         assertThat(get(decoded, "trkWeightGrams")).isEqualTo(4_294_967_295L);
         assertThat(get(decoded, "trkCarrier")).isEqualTo("OCEAN");

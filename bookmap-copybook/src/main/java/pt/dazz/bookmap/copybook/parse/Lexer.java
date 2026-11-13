@@ -87,7 +87,7 @@ public final class Lexer {
         int end = from;
         while (end < text.length() && text.charAt(end) != ' '
             && !(text.charAt(end) == '.' && endsWord(text, end + 1))
-            && text.charAt(end) != ',' && text.charAt(end) != ';') {
+            && !(isSeparator(text.charAt(end)) && (!expectPicture || endsWord(text, end + 1)))) {
             end++;
         }
         String value = text.substring(from, end);
@@ -152,6 +152,14 @@ public final class Lexer {
                 : "the literal has no closing quote");
             open = null;
         }
+    }
+
+    /**
+     * Tells if a character is a comma or a semicolon. In a picture string, it is a separator
+     * only before a space, as in COBOL. Thus, {@code Z,ZZ9} is one picture.
+     */
+    private static boolean isSeparator(char c) {
+        return c == ',' || c == ';';
     }
 
     private static boolean endsWord(String text, int index) {
