@@ -2,6 +2,9 @@ package pt.dazz.bookmap.http;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -11,8 +14,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
+import pt.dazz.bookmap.exception.OperationNotFoundException;
+import pt.dazz.bookmap.exception.TransportException;
 import pt.dazz.bookmap.spi.BookRequest;
 import pt.dazz.bookmap.spi.Transport;
 
@@ -74,9 +83,38 @@ public final class HttpTransport implements Transport, AutoCloseable {
         return new Builder();
     }
 
+    /**
+     * Sends the request bytes to the URI of the route, and returns the response body. See the
+     * documentation of the module for the failure translation.
+     *
+     * @param request the request
+     * @return the response body
+     */
     @Override
     public byte[] exchange(BookRequest request) {
-        throw new UnsupportedOperationException("not implemented");
+        String operation = request.operation();
+        HttpRoute route = routes.get(operation);
+        if (route == null) {
+            throw new OperationNotFoundException(operation + ": no HTTP route");
+        }
+        String target = FailureTranslator.target(operation, route.method(), route.uri());
+        Map<String, String> merged = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        merged.putAll(headers);
+        merged.putAll(route.headers());
+        if (headerSupplier != null) {
+            merged.putAll(headerSupplier.get());
+        }
+        HttpRequest.Builder builder = HttpRequest.newBuilder(route.uri())
+            .method(route.method(), BodyPublishers.ofByteArray(request.payload()));
+        merged.forEach(builder::header);
+        CompletableFuture<HttpResponse<byte[]>> future = sender.send(builder.build());
+        HttpResponse<byte[]> response;
+        try {
+            response = future.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new TransportException(target + ": request failed", e);
+        }
+        return FailureTranslator.checkResponse(target, response, abendHeader);
     }
 
     /**
