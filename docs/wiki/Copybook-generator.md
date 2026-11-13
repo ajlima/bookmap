@@ -64,6 +64,9 @@ The build plugins read the file `<NAME>.json` next to `<NAME>.cpy`.
       "classNames": { "SAVINGS-DATA": "SavingsAccount" }
     }
   },
+  "dates": { "OPENED-ON": "yyyyMMdd", "*-TIME": "HHmmss" },
+  "continuable": { "GET-ACCOUNT": "com.example.accounts.AccountPaging" },
+  "validatable": { "GET-ACCOUNT": "ReturnCodes" },
   "package": "com.example.accounts",
   "lombok": false
 }
@@ -82,6 +85,9 @@ All keys are optional. An unknown key is an error.
 | `outputMarkers` | list of texts | The name parts that mark an output alternative. Write them in upper case. The list replaces the default list. | `OUTPUT`, `OUT`, `RESPONSE`, `RESP` |
 | `directions` | map | The direction (`INPUT`, `OUTPUT`, or `INPUT_OUTPUT`, in upper case) of each `REDEFINES` alternative. See [Directions](#directions). | empty |
 | `subTypes` | map | The subtype decisions. See [Subtypes](#subtypes). | empty |
+| `dates` | map | The date hints: a date or time pattern for each item name or name pattern. See [Date hints](#date-hints). | empty |
+| `continuable` | map | The handler class of each `Continuable` record. See [Continuable and Validatable](#continuable-and-validatable). | empty |
+| `validatable` | map | The handler class of each `Validatable` record. | empty |
 | `package` | text | The Java package of the classes. | The tool gives it. |
 | `lombok` | boolean | Write Lombok annotations instead of getters and setters. | `false` |
 
@@ -233,6 +239,7 @@ Other messages of the `COPY` statement: `COPY needs a member name`, `REPLACING n
 | `9(n)` with 1 to 9 digits | `int` |
 | `9(n)` with 10 to 18 digits | `long` |
 | Decimals, or more than 18 digits | `BigDecimal` |
+| An item with a [date hint](#date-hints) | `LocalDate`, `LocalTime`, or `LocalDateTime` |
 
 The `order` values are 10, 20, 30, ... in each class.
 
@@ -458,13 +465,181 @@ With the example options above, `GET-ACCOUNT-SUMMARY.cpy` (in `bookmap-examples`
 public class GetAccountSummary {
 ```
 
+## Date hints
+
+The copybook does not tell if a `PIC 9(8)` item is a date. Thus, the generator does not guess. Without a hint, the item is an `int`.
+A date hint maps an item to a `DateTimeFormatter` pattern. The field becomes a date or time field, with `pattern` in `@BookField`.
+
+```json
+{
+  "dates": {
+    "ORDER-DATE": "yyyyMMdd",
+    "SHIP-TIME OF SHIPMENT-ENTRY": "HH:mm:ss",
+    "*-DATE": "yyyyMMdd",
+    "LAST-UPDATE": "yyyyMMddHHmmss"
+  }
+}
+```
+
+The key is an item name or a name pattern:
+
+- An item name is a bare or qualified name, as in the other options. It must match one elementary item.
+- A key with `*` is a name pattern. `*` matches zero or more characters. A name pattern is one word, without `OF` or `IN`. It applies to all elementary items with a matching name, also in item classes. It does not apply to `FILLER`.
+- The match is not case-sensitive.
+- An item name has priority over a name pattern.
+
+The pattern gives the Java type. The pattern rules are the same as for `@BookField` (see [Dates and times](PIC-syntax-and-type-mapping#dates-and-times)).
+
+| Pattern | Java type |
+|---|---|
+| `yyyyMMdd`, `yyMMdd`, `yyyyDDD`, `yyyy-MM-dd` | `LocalDate` |
+| `HHmmss`, `HH:mm:ss` | `LocalTime` |
+| `yyyyMMddHHmmss` | `LocalDateTime` |
+
+For `"*-DATE": "yyyyMMdd"`, the item `10 SHIP-DATE PIC 9(8).` gives this field:
+
+```java
+/**
+ * {@code 10 SHIP-DATE PIC 9(8).}
+ */
+@BookField(
+        order = 20,
+        pic = "9(8)",
+        pattern = "yyyyMMdd"
+)
+private LocalDate shipDate;
+```
+
+The generator checks each hint against the item. These errors have the line of the item:
+
+| Message | Cause |
+|---|---|
+| `D: a date or time field must have the usage DISPLAY` | The item is `COMP` or `COMP-3`. |
+| `D: a date or time field must not have S or V in the picture` | The picture is signed or has decimals. |
+| `D: the date pattern 'yyyyMMdd' gives 8 characters, but the picture 9(6) has 6` | The length of the pattern does not agree with the picture. |
+| `D: the date pattern 'd.M.yyyy' gives text of variable length` | The pattern does not give a fixed length. |
+| `D: the date pattern 'MMdd' does not fit LocalDateTime, LocalDate, or LocalTime` | The pattern gives no complete date or time. |
+| `D: the date pattern 'x{' is not valid: ...` | The pattern has an incorrect symbol. |
+| `D matches the date hints *-DATE, ORDER-* with different patterns. Add a date hint for D.` | Two name patterns match the item and give different patterns. |
+
+The generator also reports each hint that matches nothing, with the position `<file>:1:1`:
+
+| Message | Severity |
+|---|---|
+| `date hint: item NOPE does not exist` | error |
+| `date hint: item CITY is ambiguous. Qualify it: ...` | error |
+| `date hint: BILLING is a group. A date hint applies to an elementary item.` | error |
+| `date hint: ORDER-TEXT gives no field. The generator skips this item.` | error |
+| `date hint: the name pattern '*-DATE OF HEADER' must be one word, without OF or IN` | error |
+| `date hint: the name pattern *-DTE matches no field` | warning |
+
+A name pattern that matches nothing is only a warning. Thus, you can use the same name patterns in the options files of all copybooks.
+
+A date field cannot be a discriminator or a `DEPENDING ON` count field.
+
+## Continuable and Validatable
+
+The options `continuable` and `validatable` make an operation class implement [`Continuable` or `Validatable`](Collections-and-fixed-OCCURS#pagination).
+The key is the name of a record. The value is the name of a class that you write: the handler.
+A handler name without a package is a class in the package of the generated classes.
+
+```json
+{
+  "continuable": { "LIST-SHIPMENTS": "com.example.shipments.ShipmentPaging" },
+  "validatable": { "LIST-SHIPMENTS": "com.example.shipments.ReturnCodes" }
+}
+```
+
+The generated class implements the interfaces. Each method calls a static method of the handler with the same name:
+
+```java
+@BookOperation
+public class ListShipments implements Continuable, Validatable {
+    // fields, getters, and setters
+
+    /**
+     * Calls {@code ShipmentPaging.hasContinuation(this)}.
+     */
+    @Override
+    public boolean hasContinuation() {
+        return ShipmentPaging.hasContinuation(this);
+    }
+
+    /**
+     * Calls {@code ReturnCodes.validate(this)}.
+     */
+    @Override
+    public void validate() {
+        ReturnCodes.validate(this);
+    }
+}
+```
+
+Write the handler in your project:
+
+```java
+public final class ShipmentPaging {
+
+    private ShipmentPaging() {
+    }
+
+    public static boolean hasContinuation(ListShipments page) {
+        return "Y".equals(page.getMoreData());
+    }
+}
+
+public final class ReturnCodes {
+
+    private ReturnCodes() {
+    }
+
+    public static void validate(ListShipments page) {
+        if (!"00".equals(page.getReturnCode())) {
+            throw new BusinessException("the program returned " + page.getReturnCode());
+        }
+    }
+}
+```
+
+- Use these options in build mode. You cannot edit the generated classes, but you can write the handler.
+- One handler class can serve more operations. Write one method for each operation class.
+- The compiler checks the handler. A missing class or method is a compile error.
+
+BookMap does not permit an `INPUT_OUTPUT` collection in a `Continuable` class.
+For a `Continuable` record, each `INPUT_OUTPUT` collection is an error, with the line of the collection:
+
+```
+ORDERS.cpy:9:12: error: ORDER-ENTRY is an INPUT_OUTPUT collection. BookMap does not permit it in a Continuable class. Put the table in the output alternative of a REDEFINES area.
+```
+
+Put the table in the output alternative of a [direction split](#directions). The table then gets the direction `OUTPUT`:
+
+```cobol
+01  LIST-SHIPMENTS.
+    05  RETURN-CODE              PIC X(2).
+    05  RESTART-KEY              PIC X(12).
+    05  SHIPMENT-REQUEST.
+        10  CUSTOMER-ID          PIC X(10).
+    05  SHIPMENT-RESPONSE REDEFINES SHIPMENT-REQUEST.
+        10  MORE-DATA            PIC X.
+        10  SHIPMENT-ENTRY OCCURS 2 TIMES.
+            15  SHIPMENT-ID      PIC X(12).
+            15  SHIP-DATE        PIC 9(8).
+```
+
+Other errors, with the position `<file>:1:1`:
+
+- `continuable: LIST-ORDRS is not a record. Use the name of a level 01 item.`
+- `validatable: 'Return Codes' is not a Java class name`
+
 ## Model JSON
 
 The `parse` command writes the model as JSON. The `generate` command reads it again.
 
 - The root keys are `formatVersion` (now `1`), `sourceName`, and `classes`.
 - A class has `name`, `kind` (`OPERATION`, `ITEM`, or `SUBTYPE`), an optional `superclass`, optional `subTypes` (`discriminator`, and `types` with `value` and `className`), and `members`.
-- A field member has `kind: FIELD`, `name`, `javaType` (`STRING`, `INT`, `LONG`, or `BIG_DECIMAL`), `order`, `pic`, `direction`, `cobolName`, and `declaration`.
+- A class can also have `continuable` and `validatable`: the handler class names.
+- A field member has `kind: FIELD`, `name`, `javaType` (`STRING`, `INT`, `LONG`, `BIG_DECIMAL`, `LOCAL_DATE`, `LOCAL_TIME`, or `LOCAL_DATE_TIME`), `order`, `pic`, `direction`, an optional `pattern`, `cobolName`, and `declaration`.
 - A collection member has `kind: COLLECTION`, `name`, `order`, `direction`, `maxOccurs`, `fixed`, an optional `dependsOn`, `itemClass`, `cobolName`, and `declaration`.
 - The reader rejects an unknown key, and another `formatVersion`: `unsupported formatVersion 2. This reader supports 1.`
 - The generator does not check a model that you edit by hand. It writes the classes as the model gives them.
@@ -518,8 +693,8 @@ The severity is `error`, `warning`, or `info`. Only an `error` stops the generat
 
 ## Limitations of the generator
 
-- The generator does not detect dates. A `PIC 9(8)` date stays an `int`.
-- The generated operation classes do not implement `Continuable` or `Validatable`. In scaffold mode, add them by hand.
+- The generator does not detect dates. A `PIC 9(8)` date stays an `int`, unless a [date hint](#date-hints) names it.
+- Packed dates, for example `S9(7) COMP-3`, cannot get a date hint. Write a `FieldConverter` for them.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Add dependsOn if the program has a count field.`
 - These items are errors: level `66` and `77`, `SIGN LEADING`, `SEPARATE`, `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO`, `COMP-1`, `COMP-2`, `COMP-5`, `INDEX`, `POINTER`, `NATIONAL`, edited pictures, `P`, `A`, `N`, `REPLACE`, an `OCCURS` in an `OCCURS`, and a `REDEFINES` area in another one.
 
