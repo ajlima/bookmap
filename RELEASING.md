@@ -13,10 +13,13 @@ The workflow `.github/workflows/release.yml` runs on each push to `main`.
    - Other types (`docs:`, `test:`, `build:`, `refactor:`, `ci:`) make no release.
 2. The `build` job builds and tests with that version. The build fails if coverage is less than 100%.
 3. The `publish` job checks out the same commit, signs the modules, and publishes them to Maven Central.
-4. The `release` job creates the tag `vX.Y.Z` and a GitHub release. It attaches the same JAR files that went to Maven Central.
-5. The `release` job sets the new version in `README.md`, `bookmap-copybook-gradle-plugin/README.md`, and `bookmap-copybook-maven-plugin/README.md` with `scripts/set-readme-version.sh`. Then it pushes the commit `docs: set the README version to X.Y.Z` to `main`. A `docs:` commit makes no release.
+4. The `attest` job makes a build provenance attestation for each JAR, POM, and Gradle module file that went to Maven Central. See [Verify an artifact](#verify-an-artifact).
+5. The `release` job creates the tag `vX.Y.Z` and a GitHub release. It attaches the same JAR files that went to Maven Central.
+6. The `release` job sets the new version in `README.md`, `bookmap-copybook-gradle-plugin/README.md`, and `bookmap-copybook-maven-plugin/README.md` with `scripts/set-readme-version.sh`. Then it pushes the commit `docs: set the README version to X.Y.Z` to `main`. A `docs:` commit makes no release.
 
 The `release` job runs only after a successful `publish` job. Thus, each GitHub release is also on Maven Central.
+The `release` job does not wait for the `attest` job. If the `attest` job fails, run the failed job again from the workflow run page.
+Do this before the end of the 7-day retention of the `maven-central-files` artifact.
 
 These modules go to Maven Central with the group `pt.dazz.bookmap`:
 `bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-spring-boot`,
@@ -171,12 +174,20 @@ Run this command to make the release artifacts in the local Maven repository, wi
 ./gradlew publishToMavenLocal -PreleaseVersion=0.0.0-local
 ```
 
+## Verify an artifact
+
+Each release after `0.6.0` has a build provenance attestation (SLSA) for each JAR, POM, and Gradle module file on Maven Central.
+The JAR files of the GitHub release are the same files, so the same attestation applies to them.
+For the user instructions, see "Verify an artifact" in the [README](README.md#verify-an-artifact).
+
 ## Supply-chain protection
 
 - All GitHub Actions are pinned to a full commit SHA. Dependabot updates the pins every week.
 - The Gradle wrapper checks the SHA-256 of the Gradle distribution (`distributionSha256Sum`).
   The `setup-gradle` action also validates the wrapper JAR.
 - Only the `publish` job sees the Maven Central token and the signing key, through the `maven-central` environment.
+- Only the `attest` job can get an OIDC token (`id-token: write`). It has no environment and no secret, and it runs no build.
+  It attests the files in the staging directory of the publish plugin, so the attested bytes are the bytes on Maven Central.
 - Only the `release` job sees the private key of the release app, through the `readme-update` environment. The app token has only the `contents: write` permission, and it is valid for one hour at most.
 - The `setup-gradle` cache is disabled. Since v6, that cache is a proprietary component with separate terms of use.
   The `build` job uses the open-source `setup-java` cache instead.
