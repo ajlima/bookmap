@@ -186,4 +186,64 @@ class ErrorReportingTest {
             .hadErrorContaining("Order.code (order 2): pic or length is missing");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
+
+    // ---- unresolved values ----
+
+    @Test
+    void unresolvedCountFieldDoesNotGiveAnotherCountField() {
+        assertOnlyJavacError(compiler.compile(
+            source("Order", "@BookOperation public class Order {",
+                field("@BookField(order = 1, length = 5)", "String", "id"),
+                field("@BookField(order = 2, length = MISSING)", "int", "count"),
+                field("@BookCollection(order = 3, maxOccurs = 2)", "List<Line>", "lines"),
+                "}"),
+            line()));
+    }
+
+    @Test
+    void unresolvedDependsOnFieldIsNotReportedAsMissing() {
+        assertOnlyJavacError(compiler.compile(
+            source("Order", "@BookOperation public class Order {",
+                field("@BookField(order = 1, length = MISSING)", "int", "count"),
+                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+                    "List<Line>", "lines"),
+                "}"),
+            line()));
+    }
+
+    @Test
+    void unresolvedDiscriminatorIsNotReportedAsMissing() {
+        assertOnlyJavacError(compiler.compile(
+            source("GetAccount", "@BookOperation @BookSubTypes(discriminator = \"kind\","
+                    + " value = @BookSubTypes.Type(value = \"01\", type = Checking.class))",
+                "public class GetAccount {",
+                field("@BookField(order = 1, length = MISSING)", "int", "kind"),
+                "}"),
+            source("Checking", "public class Checking extends GetAccount {",
+                field("@BookField(order = 2, length = 5)", "String", "card"), "}")));
+    }
+
+    @Test
+    void unresolvedEmptyKeyIsNotReportedAsMissing() {
+        assertOnlyJavacError(compiler.compile(
+            source("Order", "@BookOperation public class Order {",
+                field("@BookCollection(order = 1, maxOccurs = 2, fixed = true,"
+                    + " emptyKey = \"sku\")", "List<Line>", "lines"),
+                "}"),
+            source("Line", "public class Line {",
+                field("@BookField(order = 1, length = MISSING)", "String", "sku"),
+                field("@BookField(order = 2, length = 3)", "int", "qty"), "}")));
+    }
+
+    @Test
+    void unresolvedOperationCharsetIsNotComparedWithOtherCharsets() {
+        assertOnlyJavacError(compiler.compile(
+            source("Order", "@BookDefaults(charset = MISSING) @BookOperation",
+                "public class Order {",
+                field("@BookField(order = 1, length = 3)", "int", "count"),
+                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+                "}"),
+            source("Line", "@BookDefaults(charset = \"IBM500\") public class Line {",
+                field("@BookField(order = 1, length = 5)", "String", "sku"), "}")));
+    }
 }

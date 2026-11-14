@@ -156,6 +156,12 @@ public final class ModelBuilder {
         private final Set<TypeElement> declaringClasses = new LinkedHashSet<>();
         /** The item classes of the collections that the builder builds now, outer first. */
         private final Deque<TypeElement> itemPath = new ArrayDeque<>();
+        /**
+         * {@code true} if an annotated field has a value that javac could not resolve. The
+         * builder does not know that field. Thus, it does not report that a field is missing:
+         * javac reports the real problem.
+         */
+        private boolean unresolvedMember;
 
         Run(TypeElement type) {
             this.type = type;
@@ -271,6 +277,10 @@ public final class ModelBuilder {
             if (!name.isEmpty()) {
                 DefaultsResolver.charsetProblem(name).ifPresent(this::classError);
             }
+            if (defaultsResolver.unresolved(type)) {
+                // The operation charset is not known. javac reports the unresolved value.
+                return name;
+            }
             String operationCharset = name.isEmpty() ? "(none)" : "'" + name + "'";
             PackageElement operationPackage = elements.getPackageOf(type);
             for (TypeElement declaring : declaringClasses) {
@@ -318,6 +328,7 @@ public final class ModelBuilder {
                     if (values.containsValue(Mirrors.UNRESOLVED)) {
                         // javac reports the unresolved value. Wait for a generator, or stop.
                         problems.unresolved = true;
+                        unresolvedMember = true;
                         continue;
                     }
                     AnnotatedMember member = new AnnotatedMember(field, bookField.isEmpty(),
@@ -578,9 +589,12 @@ public final class ModelBuilder {
             Optional<AnnotatedMember> member = baseAnnotated.stream()
                 .filter(candidate -> candidate.name().equals(name)).findFirst();
             if (member.isEmpty()) {
-                problems.classError(base, "discriminator field '" + name + "' "
-                    + (ownNames.contains(name)
-                    ? "must be in the base class or its superclasses" : "does not exist"));
+                if (ownNames.contains(name)) {
+                    problems.classError(base, "discriminator field '" + name
+                        + "' must be in the base class or its superclasses");
+                } else if (!unresolvedMember) {
+                    problems.classError(base, "discriminator field '" + name + "' does not exist");
+                }
                 return null;
             }
             return member.get();
@@ -691,8 +705,10 @@ public final class ModelBuilder {
                     emptyKeyOffset += candidate.areaLength();
                 }
                 if (emptyKey == null) {
-                    problems.error(member, "emptyKey field '" + keyName
-                        + "' is not a field of item class " + item.type().getQualifiedName());
+                    if (!unresolvedMember) {
+                        problems.error(member, "emptyKey field '" + keyName
+                            + "' is not a field of item class " + item.type().getQualifiedName());
+                    }
                 } else if (!KEY_KINDS.contains(emptyKey.kind())) {
                     problems.error(member, "emptyKey field '" + keyName
                         + "' must be String or a number without a converter");
@@ -864,6 +880,10 @@ public final class ModelBuilder {
                                       List<MemberModel> members,
                                       Map<String, String> countUsers) {
             String name = (String) collection.values().getOrDefault("dependsOn", "");
+            if (name.isEmpty() && unresolvedMember) {
+                // The member before the collection is not known.
+                return null;
+            }
             if (name.isEmpty()) {
                 Optional<AnnotatedMember> previous = annotated.stream()
                     .filter(member -> member.order() < collection.order())
@@ -879,6 +899,9 @@ public final class ModelBuilder {
             String prefix = "dependsOn field '" + name + "' ";
             if (target == null && outside.contains(name)) {
                 problems.error(collection, prefix + "must be in the subtype layout");
+                return null;
+            }
+            if (target == null && unresolvedMember) {
                 return null;
             }
             if (target == null) {
