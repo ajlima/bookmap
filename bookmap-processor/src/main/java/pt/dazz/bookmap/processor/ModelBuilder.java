@@ -90,10 +90,10 @@ public final class ModelBuilder {
     /**
      * Builds the model of an operation class.
      *
-     * <p>If a field type or a superclass is not available yet (another generator makes it later),
-     * or if only getters or setters are missing, and {@code lastRound} is {@code false}, the
-     * method reports nothing and returns empty. Then {@link #deferred()} returns {@code true}. In all other
-     * cases the method reports the problems. It reports missing getters and setters only in the
+     * <p>If a field type, a superclass, or an interface is not available yet (another generator
+     * makes it later), or if only getters or setters are missing, and {@code lastRound} is
+     * {@code false}, the method reports nothing and returns empty. Then {@link #deferred()}
+     * returns {@code true}. In all other cases the method reports the problems. It reports missing getters and setters only in the
      * last round.
      *
      * @param type the class with {@code @BookOperation}
@@ -335,9 +335,25 @@ public final class ModelBuilder {
 
         private TypeElement superclass(TypeElement current) {
             TypeMirror superclass = current.getSuperclass();
-            problems.unresolved |= superclass.getKind() == TypeKind.ERROR;
+            problems.unresolved |= superclass.getKind() == TypeKind.ERROR
+                || unresolvedInterface(current);
             return superclass.getKind() == TypeKind.DECLARED
                 ? (TypeElement) types.asElement(superclass) : null;
+        }
+
+        /**
+         * Tells if an interface of a class or interface, or one of its superinterfaces, is not
+         * available yet. Another generator can make it later. Until then, the builder cannot
+         * tell if the class implements {@code Continuable} or {@code Validatable}.
+         */
+        private boolean unresolvedInterface(TypeElement element) {
+            for (TypeMirror superinterface : element.getInterfaces()) {
+                if (superinterface.getKind() == TypeKind.ERROR
+                    || unresolvedInterface((TypeElement) types.asElement(superinterface))) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static boolean isUnresolved(TypeMirror type) {

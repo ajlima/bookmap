@@ -112,4 +112,59 @@ class ErrorReportingTest {
             .hadErrorContaining("Invoice.code (order 1): pic or length is missing");
         CompilationSubject.assertThat(compilation).hadErrorCount(2);
     }
+
+    // ---- an interface from another generator ----
+
+    @Test
+    void continuableThroughAGeneratedInterfaceIsDetected() {
+        TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
+            Map.of("test.Paged", "public interface Paged extends Continuable { }"));
+        Compilation compilation = compiler.compile(List.of(generator),
+            source("Order", "@BookOperation public class Order implements Paged {",
+                TestCompiler.ID_FIELD,
+                "public boolean hasContinuation() { return false; }",
+                "}"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().continuable()).isTrue();
+    }
+
+    @Test
+    void validatableThroughAGeneratedInterfaceOfASuperinterfaceIsDetected() {
+        TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
+            Map.of("test.Checked", "public interface Checked extends Validatable { }"));
+        Compilation compilation = compiler.compile(List.of(generator),
+            source("Audited", "public interface Audited extends Checked { }"),
+            source("Order", "@BookOperation public class Order implements Audited {",
+                TestCompiler.ID_FIELD,
+                "public void validate() { }",
+                "}"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().validatable()).isTrue();
+    }
+
+    @Test
+    void continuableCheckOfAGeneratedInterfaceAppliesToTheCollections() {
+        TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
+            Map.of("test.Paged", "public interface Paged extends Continuable { }"));
+        Compilation compilation = compiler.compile(List.of(generator),
+            source("Order", "@BookOperation public class Order implements Paged {",
+                field("@BookField(order = 1, length = 3)", "int", "count"),
+                field("@BookCollection(order = 2, maxOccurs = 2,"
+                    + " direction = Direction.INPUT_OUTPUT)", "List<Line>", "lines"),
+                "public boolean hasContinuation() { return false; }",
+                "}"),
+            line());
+        CompilationSubject.assertThat(compilation).failed();
+        CompilationSubject.assertThat(compilation).hadErrorContaining("Order.lines (order 2):"
+            + " an INPUT_OUTPUT collection is not permitted in a Continuable class");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void missingInterfaceIsLeftToJavac() {
+        assertOnlyJavacError(compiler.compile(
+            source("Order", "@BookOperation public class Order implements Missing {",
+                TestCompiler.ID_FIELD, "}")));
+        assertThat(compiler.snapshots).isEmpty();
+    }
 }
