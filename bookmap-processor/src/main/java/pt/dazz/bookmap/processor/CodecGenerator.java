@@ -27,10 +27,8 @@ import java.util.function.Predicate;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
-import pt.dazz.bookmap.processor.CodecMembers.ItemMethods;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
-import pt.dazz.bookmap.processor.model.ItemModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 import pt.dazz.bookmap.processor.model.OperationModel;
 import pt.dazz.bookmap.processor.model.SubTypesModel;
@@ -59,11 +57,11 @@ final class CodecGenerator {
 
     private final OperationModel model;
     private final ClassName type;
-    private final List<MethodSpec> itemMethods = new ArrayList<>();
     private final HelperMethods helpers = new HelperMethods();
     private final CodecMembers members = new CodecMembers();
     private final FieldCode fields;
     private final CollectionCode collections;
+    private final ItemMethodsGenerator items;
     /** The layouts of the codec: one without subtypes, else one for each class. */
     private final List<Layout> layouts;
 
@@ -73,6 +71,7 @@ final class CodecGenerator {
         this.layouts = Layout.of(model.type(), model.members(), model.subTypes());
         this.fields = new FieldCode(members, helpers);
         this.collections = new CollectionCode(members, helpers);
+        this.items = new ItemMethodsGenerator(members, fields, collections);
     }
 
     /**
@@ -113,7 +112,7 @@ final class CodecGenerator {
                     switch (member) {
                         case FieldModel field -> members.addField(builder, field);
                         case CollectionModel collection ->
-                            addCollectionMembers(builder, collection, false);
+                            items.addCollection(builder, collection, false);
                     }
                 }
             }
@@ -162,7 +161,7 @@ final class CodecGenerator {
         } else {
             new SubTypesGenerator().addMethods(builder);
         }
-        builder.addMethods(itemMethods);
+        builder.addMethods(items.methods());
         builder.addMethods(members.enumMethods());
         builder.addMethods(helpers.methods());
         return JavaFile.builder(codec.packageName(), builder.build()).build();
@@ -171,158 +170,6 @@ final class CodecGenerator {
     private static MethodSpec.Builder override(String name) {
         return MethodSpec.methodBuilder(name).addAnnotation(Override.class)
             .addModifiers(Modifier.PUBLIC);
-    }
-
-    /**
-     * Adds the members of a collection and of its item class.
-     *
-     * @param inner {@code true} for a collection in an item class
-     */
-    private void addCollectionMembers(TypeSpec.Builder builder, CollectionModel collection,
-                                      boolean inner) {
-        members.addCollection(builder, collection, inner);
-        ItemModel item = collection.item();
-        if (members.itemMethods(item) == null) {
-            // Not computeIfAbsent: the item members can add the items of inner collections.
-            members.putItemMethods(item, addItemMembers(builder, item));
-        }
-    }
-
-    /** Adds the members of an item class and makes its write and read methods. */
-    private ItemMethods addItemMembers(TypeSpec.Builder builder, ItemModel item) {
-        List<Layout> itemLayouts = Layout.of(item.type(), item.members(), item.subTypes());
-        for (Layout layout : itemLayouts) {
-            for (MemberModel member : layout.members()) {
-                switch (member) {
-                    case FieldModel field when !members.hasNames(field) ->
-                        members.addField(builder, field);
-                    case CollectionModel inner when !members.hasNames(inner) ->
-                        addCollectionMembers(builder, inner, true);
-                    default -> {
-                        // The members of a base class are already in another layout.
-                    }
-                }
-            }
-        }
-        ClassName itemType = ClassName.get(item.type());
-        String suffix = String.join("_", itemType.simpleNames());
-        ItemMethods methods = new ItemMethods(members.newName("writeItem_" + suffix),
-            members.newName("readItem_" + suffix));
-        if (item.subTypes() == null) {
-            addItemLayoutMethods(methods, item.type(), item.members());
-            return methods;
-        }
-        Map<Layout, ItemMethods> layoutMethods = new HashMap<>();
-        for (Layout layout : itemLayouts) {
-            String layoutSuffix = String.join("_", ClassName.get(layout.type()).simpleNames());
-            ItemMethods names = new ItemMethods(members.newName("writeItem_" + layoutSuffix),
-                members.newName("readItem_" + layoutSuffix));
-            addItemLayoutMethods(names, layout.type(), layout.members());
-            layoutMethods.put(layout, names);
-        }
-        FieldModel discriminator = item.subTypes().discriminator();
-        Discriminator key = new Discriminator(members, discriminator, itemLayouts, itemType);
-        itemMethods.add(key.typeOfMethod());
-        itemMethods.add(key.unknownValueMethod());
-        int offset = item.members().stream()
-            .filter(member -> member.order() < discriminator.order())
-            .mapToInt(MemberModel::areaLength).sum();
-        String prefix = itemType.simpleName() + ": ";
-        // Write: select the layout by the exact class, then fill to the longest layout.
-        MethodSpec.Builder write = MethodSpec.methodBuilder(methods.write())
-            .addModifiers(Modifier.PRIVATE).addParameter(BOOK_WRITER, "writer")
-            .addParameter(itemType, "value").addParameter(CODEC_CONTEXT, "ctx")
-            .addStatement("int start = writer.position()");
-        String flow = "if";
-        for (Layout layout : itemLayouts) {
-            TypeName layoutType = ClassName.get(layout.type());
-            write.addCode(flow.equals("if") ? CodeBlock.builder()
-                    .beginControlFlow("if (value.getClass() == $T.class)", layoutType).build()
-                : CodeBlock.builder()
-                    .nextControlFlow("else if (value.getClass() == $T.class)", layoutType)
-                    .build());
-            flow = "else";
-            if (layout.value() != null) {
-                write.addStatement("value.$N($L)", discriminator.setter(),
-                    key.literal(layout.value()));
-            }
-            write.addStatement("$N(writer, $L, ctx)", layoutMethods.get(layout).write(),
-                layout.type().equals(item.type()) ? CodeBlock.of("value")
-                    : CodeBlock.of("($T) value", layoutType));
-        }
-        itemMethods.add(write.nextControlFlow("else")
-            .addStatement("throw new $T($S + value.getClass().getName())", MAPPING_EXCEPTION,
-                prefix + "unknown subclass ")
-            .endControlFlow()
-            .addStatement("writer.writeFiller($L - (writer.position() - start))",
-                item.byteLength())
-            .build());
-        // Read: read the discriminator, select the layout, then skip to the next entry.
-        MethodSpec.Builder read = MethodSpec.methodBuilder(methods.read())
-            .addModifiers(Modifier.PRIVATE).returns(itemType)
-            .addParameter(BOOK_READER, "reader").addParameter(CODEC_CONTEXT, "ctx")
-            .addStatement("int start = reader.position()")
-            .addStatement("$T key = $L", key.keyType(),
-                key.read(CodeBlock.of("reader.peek($L)", offset)))
-            .addStatement("$T selected = $N(key)", key.subtypeClass(), key.typeOf())
-            .beginControlFlow("if (selected == null)")
-            .addStatement("throw $N(key)", key.unknownValue())
-            .endControlFlow()
-            .addStatement("$T item", itemType);
-        flow = "if";
-        for (Layout layout : itemLayouts) {
-            if (layout.value() == null) {
-                // A base class that is not in the list is never read.
-                continue;
-            }
-            TypeName layoutType = ClassName.get(layout.type());
-            read.addCode(flow.equals("if") ? CodeBlock.builder()
-                    .beginControlFlow("if (selected == $T.class)", layoutType).build()
-                : CodeBlock.builder()
-                    .nextControlFlow("else if (selected == $T.class)", layoutType).build());
-            flow = "else";
-            read.addStatement("item = $N(reader, ctx)", layoutMethods.get(layout).read());
-        }
-        itemMethods.add(read.nextControlFlow("else")
-            .addStatement("throw new $T($S + selected.getName())", MAPPING_EXCEPTION,
-                prefix + "unknown subclass ")
-            .endControlFlow()
-            .addStatement("reader.skip($L - (reader.position() - start))", item.byteLength())
-            .addStatement("return item")
-            .build());
-        return methods;
-    }
-
-    /** Adds the methods that write and read one layout of an item class. */
-    private void addItemLayoutMethods(ItemMethods methods, TypeElement layoutClass,
-                                      List<MemberModel> members) {
-        ClassName itemType = ClassName.get(layoutClass);
-        MethodSpec.Builder write = MethodSpec.methodBuilder(methods.write())
-            .addModifiers(Modifier.PRIVATE).addParameter(BOOK_WRITER, "writer")
-            .addParameter(itemType, "value").addParameter(CODEC_CONTEXT, "ctx");
-        MethodSpec.Builder read = MethodSpec.methodBuilder(methods.read())
-            .addModifiers(Modifier.PRIVATE).returns(itemType)
-            .addParameter(BOOK_READER, "reader").addParameter(CODEC_CONTEXT, "ctx")
-            .addStatement("$T target = new $T()", itemType, itemType);
-        for (MemberModel member : members) {
-            if (member instanceof CollectionModel inner) {
-                write.addCode(collections.setCount(inner));
-            }
-        }
-        for (MemberModel member : members) {
-            switch (member) {
-                case FieldModel field -> {
-                    write.addStatement(fields.write(field));
-                    read.addStatement("target.$N($L)", field.setter(), fields.read(field));
-                }
-                case CollectionModel inner -> {
-                    write.addCode(collections.writeItems(inner));
-                    read.addCode(collections.readItems(inner, false));
-                }
-            }
-        }
-        itemMethods.add(write.build());
-        itemMethods.add(read.addStatement("return target").build());
     }
 
     /**
