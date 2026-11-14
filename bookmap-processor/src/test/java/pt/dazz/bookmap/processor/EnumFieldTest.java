@@ -388,7 +388,8 @@ class EnumFieldTest {
             "enum Code: the value '7' of C overlaps the range '5' THRU '9' of B");
         assertError(compilation,
             "enum Code: the range '9' THRU '12' of C overlaps the range '5' THRU '9' of B");
-        CompilationSubject.assertThat(compilation).hadErrorCount(4);
+        // "1" and "01" of A give the same message for B. The processor reports it one time.
+        CompilationSubject.assertThat(compilation).hadErrorCount(3);
     }
 
     @Test

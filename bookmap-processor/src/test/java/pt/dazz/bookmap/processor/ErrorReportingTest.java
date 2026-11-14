@@ -1,0 +1,115 @@
+package pt.dazz.bookmap.processor;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static pt.dazz.bookmap.processor.TestCompiler.accessors;
+import static pt.dazz.bookmap.processor.TestCompiler.lombok;
+import static pt.dazz.bookmap.processor.TestCompiler.source;
+
+import com.google.testing.compile.Compilation;
+import com.google.testing.compile.CompilationSubject;
+import java.util.List;
+import java.util.Map;
+import javax.tools.JavaFileObject;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Checks which compile errors the processor reports, and how many times: no duplicate error, no
+ * lost error, and no misleading error next to a javac error.
+ */
+class ErrorReportingTest {
+
+    private final TestCompiler compiler = TestCompiler.create();
+
+    private static String field(String annotation, String type, String name) {
+        return annotation + " private " + type + " " + name + "; " + accessors(type, name);
+    }
+
+    /** An item class with one text field. */
+    private static JavaFileObject line() {
+        return source("Line", "public class Line {",
+            field("@BookField(order = 1, length = 5)", "String", "sku"), "}");
+    }
+
+    /** A converter class for {@code String} values. */
+    private static String codeConverter() {
+        return String.join("\n",
+            "public class CodeConverter implements FieldConverter<String> {",
+            "public String decode(byte[] b, FieldContext c) { return null; }",
+            "public byte[] encode(String v, FieldContext c) { return null; }",
+            "}");
+    }
+
+    private static void assertOnlyJavacError(Compilation compilation) {
+        CompilationSubject.assertThat(compilation).failed();
+        CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    // ---- an error is reported one time ----
+
+    @Test
+    void errorOfASharedSuperclassIsReportedOneTime() {
+        Compilation compilation = compiler.compile(
+            source("Base", "public class Base {",
+                field("@BookField(order = 1)", "String", "code"), "}"),
+            source("GetOrder", "@BookOperation public class GetOrder extends Base {",
+                field("@BookField(order = 2, length = 5)", "String", "id"), "}"),
+            source("CancelOrder", "@BookOperation public class CancelOrder extends Base {",
+                field("@BookField(order = 2, length = 5)", "String", "id"), "}"));
+        CompilationSubject.assertThat(compilation).failed();
+        CompilationSubject.assertThat(compilation)
+            .hadErrorContaining("Base.code (order 1): pic or length is missing");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void errorOfASharedSuperclassIsReportedOneTimeInLaterRounds() {
+        // CancelOrder waits for a generated converter, so the processor builds it in the
+        // second round. GetOrder reports the error of Base in the first round.
+        TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
+            Map.of("test.CodeConverter", codeConverter()));
+        Compilation compilation = compiler.compile(List.of(generator),
+            source("Base", "public class Base {",
+                field("@BookField(order = 1)", "String", "code"), "}"),
+            source("GetOrder", "@BookOperation public class GetOrder extends Base {",
+                field("@BookField(order = 2, length = 5)", "String", "id"), "}"),
+            source("CancelOrder", "@BookOperation public class CancelOrder extends Base {",
+                field("@BookField(order = 2, length = 5, converter = CodeConverter.class)",
+                    "String", "id"), "}"));
+        CompilationSubject.assertThat(compilation).failed();
+        CompilationSubject.assertThat(compilation)
+            .hadErrorContaining("Base.code (order 1): pic or length is missing");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void errorOfASharedItemClassIsReportedOneTime() {
+        Compilation compilation = compiler.compile(
+            source("Order", "@BookOperation public class Order {",
+                field("@BookField(order = 1, length = 3)", "int", "lineCount"),
+                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+                field("@BookField(order = 3, length = 3)", "int", "backorderCount"),
+                field("@BookCollection(order = 4, maxOccurs = 2)", "List<Line>", "backorders"),
+                "}"),
+            source("Line", "public class Line {",
+                field("@BookField(order = 1)", "String", "sku"), "}"));
+        CompilationSubject.assertThat(compilation).failed();
+        CompilationSubject.assertThat(compilation)
+            .hadErrorContaining("Line.sku (order 1): pic or length is missing");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
+
+    @Test
+    void sameMessageOnTwoFieldsIsReportedForEachField() {
+        Compilation compilation = compiler.compile(
+            source("Order", "@BookOperation public class Order {",
+                field("@BookField(order = 1)", "String", "code"), "}"),
+            source("Invoice", "@BookOperation public class Invoice {",
+                field("@BookField(order = 1)", "String", "code"), "}"));
+        CompilationSubject.assertThat(compilation)
+            .hadErrorContaining("Order.code (order 1): pic or length is missing");
+        CompilationSubject.assertThat(compilation)
+            .hadErrorContaining("Invoice.code (order 1): pic or length is missing");
+        CompilationSubject.assertThat(compilation).hadErrorCount(2);
+    }
+}

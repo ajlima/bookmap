@@ -16,6 +16,7 @@ import java.util.Set;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
@@ -69,6 +70,8 @@ public final class ModelBuilder {
     private final Messager messager;
     private final DefaultsResolver defaultsResolver;
     private final FieldResolver fieldResolver;
+    /** The keys of the problems that the builder reported, in all builds and rounds. */
+    private final Set<String> reported = new HashSet<>();
     private boolean deferred;
 
     /**
@@ -124,8 +127,18 @@ public final class ModelBuilder {
         return deferred;
     }
 
+    /**
+     * Reports a problem, but only one time. Two operation classes can share a superclass, and two
+     * collections can share an item class: then two builds find the same problem. javac can make
+     * new element objects in a new round, so the key uses the names of the element.
+     */
     private void report(Problems.Problem problem) {
-        messager.printMessage(Diagnostic.Kind.ERROR, problem.message(), problem.element());
+        Element element = problem.element();
+        String key = element.getKind() + " " + element.getEnclosingElement() + "."
+            + element.getSimpleName() + ": " + problem.message();
+        if (reported.add(key)) {
+            messager.printMessage(Diagnostic.Kind.ERROR, problem.message(), element);
+        }
     }
 
     /** The state of one call of {@link #build}. */
