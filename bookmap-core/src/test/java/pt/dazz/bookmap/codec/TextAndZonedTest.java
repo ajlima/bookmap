@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.codec.internal.Blank;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.exception.MappingException;

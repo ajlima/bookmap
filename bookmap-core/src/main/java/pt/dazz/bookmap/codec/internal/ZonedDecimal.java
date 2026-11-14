@@ -3,7 +3,7 @@ package pt.dazz.bookmap.codec.internal;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
-import pt.dazz.bookmap.annotation.Sign;
+import pt.dazz.bookmap.cobol.Sign;
 import pt.dazz.bookmap.exception.MappingException;
 
 /**

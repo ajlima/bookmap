@@ -4,6 +4,8 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import pt.dazz.bookmap.cobol.Sign;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.convert.FieldConverter;
 import pt.dazz.bookmap.convert.NoConverter;
 

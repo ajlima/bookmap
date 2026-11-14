@@ -29,8 +29,8 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.EmptyItem;
-import pt.dazz.bookmap.annotation.Sign;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Sign;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.EnumModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
@@ -76,7 +76,7 @@ final class CodecGenerator {
         "CodecContext");
     private static final ClassName FIELD_CONTEXT = ClassName.get("pt.dazz.bookmap.convert",
         "FieldContext");
-    private static final ClassName USAGE = ClassName.get("pt.dazz.bookmap.annotation", "Usage");
+    private static final ClassName USAGE = ClassName.get("pt.dazz.bookmap.cobol", "Usage");
     private static final ClassName MAPPING_EXCEPTION = ClassName.get("pt.dazz.bookmap.exception",
         "MappingException");
     private static final ClassName GENERATED = ClassName.get("javax.annotation.processing",

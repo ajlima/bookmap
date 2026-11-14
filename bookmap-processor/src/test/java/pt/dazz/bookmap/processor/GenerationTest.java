@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.convert.FieldContext;
 import pt.dazz.bookmap.exception.MappingException;

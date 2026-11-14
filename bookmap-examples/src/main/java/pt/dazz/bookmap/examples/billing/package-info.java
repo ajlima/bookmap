@@ -7,4 +7,4 @@
 package pt.dazz.bookmap.examples.billing;
 
 import pt.dazz.bookmap.annotation.BookDefaults;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;

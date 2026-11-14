@@ -1,4 +1,5 @@
 The annotations are in the package `pt.dazz.bookmap.annotation`. The processor reads them at compile time.
+The enums `Usage` and `Sign` give the COBOL storage format. They are in the package `pt.dazz.bookmap.cobol`.
 
 ## @BookOperation (class)
 

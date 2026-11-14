@@ -1,7 +1,7 @@
 package pt.dazz.bookmap.processor;
 
 import java.util.Optional;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 
 /**
  * Gives the {@code @BookDefaults} values that apply to the fields of one declaring class.

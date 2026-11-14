@@ -1,4 +1,4 @@
-package pt.dazz.bookmap.copybook.parse;
+package pt.dazz.bookmap.copybook.ast;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import pt.dazz.bookmap.copybook.ast.Usage;
 
 class PictureTest {
 

@@ -1,9 +1,8 @@
-package pt.dazz.bookmap.copybook.parse;
+package pt.dazz.bookmap.copybook.ast;
 
 import java.util.Locale;
-import pt.dazz.bookmap.annotation.Sign;
+import pt.dazz.bookmap.cobol.Sign;
 import pt.dazz.bookmap.codec.EditedPicture;
-import pt.dazz.bookmap.copybook.ast.Usage;
 
 /**
  * Describes a picture string that BookMap supports: {@code X(n)}, {@code S9(n)V9(m)}, or a
