@@ -284,7 +284,7 @@ The operation class must be public, not abstract, not generic, not a record, and
 - incorrect Java type × `usage` combination;
 - missing getter or setter (see Lombok above);
 - collection item without a public no-argument constructor;
-- nested collection;
+- a collection in an item class that is not fixed or that sets a direction (see `2026-11-14-nested-collections-design.md`);
 - `maxOccurs < 1`, or a `dependsOn` field whose digits cannot hold `maxOccurs`;
 - an operation class or an item class without `@BookField` or `@BookCollection` members;
 - an explicit `signed` or `scale` on a `String` or a date and time field;

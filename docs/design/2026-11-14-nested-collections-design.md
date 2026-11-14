@@ -5,7 +5,7 @@ Status: approved.
 Issue: #43
 Parent specs: `2026-11-10-bookmap-design.md` (section 2.2), `2026-11-11-bookmap-fixed-occurs-design.md`, `2026-11-13-empty-item-markers-design.md`
 
-Decisions marked **[builder call]** come from the spec author, not from the project owner. Section 12 lists them for review.
+Decisions marked **[builder call]** come from the spec author, not from the project owner. Section 14 lists them for review.
 
 ## 1. Intent
 
@@ -169,7 +169,7 @@ The markers of #44 apply to each fixed collection on its own:
 
 ## 8. Messages with an index
 
-Today a message names the field descriptor, but not the item. With nested collections, the same item class can be at several positions. **[builder call]**
+Today a message names the field descriptor, but not the item. With nested collections, the same item class can be at several positions.
 
 A collection in a nested path is an inner collection, or a collection whose item class has an inner collection. For each collection in a nested path, the codec catches a `MappingException` of an item. Then it throws a new `MappingException` with the prefix `<collection descriptor> item <i>: `. The cause is the original exception. Each level adds its prefix:
 
@@ -213,7 +213,7 @@ The options find a table through its COBOL name, bare or qualified (`LINE-TAX` o
 
 ## 11. Round-trip guarantee
 
-For each supported combination, `decode(encode(x))` gives an object equal to `x`, if each list at each level has a size that the mode can express. A test covers each combination and each inner mode through the simulator transport:
+For each supported combination, `decode(encode(x))` gives an object equal to `x`, if each list at each level has a size that the mode can express. A test covers each combination and each inner mode through the generated codec:
 
 - Fixed in fixed: count, LOW-VALUES, SPACES, and key modes of the inner collection.
 - Fixed in variable.
