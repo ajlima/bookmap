@@ -13,7 +13,7 @@ Each rule gives a compile error if the class does not obey it:
 - The item class is public, has a public constructor without arguments, and has no type parameters.
 - The item class has at least one `@BookField`. An abstract item class is permitted only with `@BookSubTypes`.
 - Do not set `direction` on an item field. The item fields use the direction of the collection.
-- Do not put a `@BookCollection` in an item class. Nested collections are not supported.
+- A `@BookCollection` in an item class must be fixed. See [Nested collections](#nested-collections).
 
 ### The count field
 
@@ -214,6 +214,79 @@ The fixed area always has 5 slots of 14 bytes. `returnCode` is always at the sam
 - The response must contain the full area, in all modes. A response that ends in the area causes a `MappingException`.
 - Pagination, the reset of `OUTPUT` collections, and items with subtypes work as for a variable collection.
 - The full examples are `GetOrder`, `ListShipments`, and `ListBackorders` in `bookmap-examples`, package `pt.dazz.bookmap.examples.orders`.
+
+## Nested collections
+
+An item class can have a fixed collection. This is a table in a table entry:
+
+```cobol
+01  GET-ORDER-TAXES.
+    05  ORDER-ID              PIC X(10).
+    05  LINE-COUNT            PIC 9(2).
+    05  ORDER-LINE OCCURS 0 TO 20 DEPENDING ON LINE-COUNT.
+        10  PRODUCT-CODE      PIC X(8).
+        10  QUANTITY          PIC 9(5).
+        10  TAX-COUNT         PIC 9.
+        10  LINE-TAX OCCURS 3.
+            15  TAX-CODE      PIC X(4).
+            15  TAX-AMOUNT    PIC S9(7)V99 COMP-3.
+    05  ORDER-TOTAL           PIC S9(9)V99 COMP-3.
+```
+
+```java
+public class TaxedOrderLine {
+
+    @BookField(order = 10, pic = "X(8)")
+    private String productCode;
+
+    @BookField(order = 20, pic = "9(5)")
+    private int quantity;
+
+    @BookField(order = 30, pic = "9")
+    private int taxCount;
+
+    @BookCollection(order = 40, maxOccurs = 3, fixed = true, dependsOn = "taxCount")
+    private List<LineTax> taxes;
+
+    // getters and setters
+}
+```
+
+The outer collection can be fixed or variable. The full example is `GetOrderTaxes` in `bookmap-examples`.
+
+### Rules for a nested collection
+
+Each rule gives a compile error if the class does not obey it:
+
+- Set `fixed = true` on the inner collection. An `OCCURS DEPENDING ON` in a table entry is not supported.
+- Do not set `direction` on the inner collection. It uses the direction of the outer collection.
+- Put the count field in the item class, before the inner collection. A field of the outer class gives `dependsOn field 'x' does not exist in item class Y`.
+- Do not use an item class in its own path, for example `OrderLine` > `SubLine` > `OrderLine`.
+- Use a maximum of 7 levels of collections.
+
+All modes of a fixed collection are available for the inner collection: count, LOW-VALUES, SPACES, and key mode.
+A subtype of an item class can also have an inner collection. The item class of an inner collection can have subtypes.
+
+### Layout and behavior
+
+- Each entry has a fixed length. For example, an entry of `ORDER-LINE` is `8 + 5 + 1 + 3 × 9 = 41` bytes.
+- Write: before the codec writes an item, it sets the inner count field to the size of the inner list. A `null` inner list is an empty list.
+- Read: the codec reads the inner collection of each used outer slot. It makes a new list for each item.
+- Only a top-level `OUTPUT` collection adds the items of each page, and only a top-level collection is reset at the start of `execute()`.
+- The outer marker checks the full outer slot, with the inner area.
+
+**CAUTION:** Set `emptyItem` on each level. The inner collection does not get the `emptyItem` of the outer collection. If the program clears the table with spaces, an inner collection in LOW-VALUES mode reads a slot of spaces as an item.
+
+### Messages with an index
+
+A message about an item of a nested collection names the collection and the index at each level:
+
+```
+GetOrderTaxes.lines (order 30) item 1: TaxedOrderLine.taxes (order 40): the list has 4 items, more than maxOccurs 3
+GetOrderTaxes.lines (order 30) item 2: TaxedOrderLine.taxes (order 40) item 0: LineTax.taxAmount (order 20): ...
+```
+
+The index starts at 0. A collection without an inner collection, and not in an item class, keeps the messages without an index.
 
 ## Messages
 

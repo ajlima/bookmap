@@ -327,6 +327,7 @@ Messages: `REPLACE needs pseudo-text, for example REPLACE ==A== BY ==B==.`, `REP
 | `OCCURS m TO n DEPENDING ON X` | `@BookCollection(dependsOn = "x")` and an item class. |
 | `OCCURS m TO n` without `DEPENDING ON` | `@BookCollection(maxOccurs = n, fixed = true)`. |
 | An elementary item with `OCCURS` | An item class with one field `value`. |
+| `OCCURS n` in an `OCCURS` entry | A fixed `@BookCollection` in the item class. See [A table in a table entry](#a-table-in-a-table-entry). |
 | An elementary item | A `@BookField` with `pic`, for example `pic = "S9(7)V99 COMP-3"`. |
 | `FILLER` | A field `filler1`, `filler2`, ... See [FILLER](#filler). |
 | `REDEFINES` of an elementary item | The first definition. The other item is skipped, with a warning: `E2 redefines E1 and is skipped`. See [REDEFINES of an elementary item](#redefines-of-an-elementary-item). |
@@ -395,7 +396,33 @@ The class names are compared without case. If an item class name is in use, the 
 | `DEPENDING ON item LATER must be in the same class, before the table` | The count item is after the table, or in another class. |
 | `DEPENDING ON item CNTX must be an integer` | The count item is text, or has decimals. |
 | `DEPENDING ON item CNT has 1 digits and cannot hold 20` | The count item is too small for the maximum. |
-| `OCCURS T4B is inside OCCURS T4. BookMap does not support nested collections. See issue #43.` | A table in a table. |
+| `OCCURS T4B DEPENDING ON N is inside OCCURS T4. BookMap does not support a DEPENDING ON table in a table entry (complex OCCURS DEPENDING ON).` | A `DEPENDING ON` table in a table entry. |
+
+### A table in a table entry
+
+A fixed table (`OCCURS n`) in the entry of another table becomes a collection in the item class:
+
+```cobol
+       01  GET-ORDER-TAXES.
+           05  ORDER-ID                 PIC X(10).
+           05  LINE-COUNT               PIC 9(2).
+           05  ORDER-LINE OCCURS 1 TO 20 TIMES
+                   DEPENDING ON LINE-COUNT.
+               10  PRODUCT-CODE         PIC X(8).
+               10  TAX-COUNT            PIC 9.
+               10  LINE-TAX OCCURS 3 TIMES.
+                   15  TAX-CODE         PIC X(4).
+                   15  TAX-AMOUNT       PIC S9(7)V99 COMP-3.
+```
+
+- The class `OrderLine` gets the collection `lineTax`, with the item class `LineTax`.
+- The inner collection has no `direction`. It uses the direction of the outer collection.
+- The options `countFields`, `emptyItems`, and `emptyKeys` apply to an inner table. Name the table, for example `"LINE-TAX"` or `"LINE-TAX OF ORDER-LINE"`.
+- The count item of an inner table must be in the same entry, before the table. For example, link `TAX-COUNT` with `"countFields": {"LINE-TAX": "TAX-COUNT"}`.
+- An `OCCURS DEPENDING ON` in a table entry is an error. In COBOL, its count item is outside the entry, so all entries have the same number of inner entries (IBM "complex OCCURS DEPENDING ON"). BookMap does not support it.
+- The record length includes the inner tables. The warning about the largest tables names only the top-level tables.
+
+See [Nested collections](Collections-and-fixed-OCCURS#nested-collections) for the behavior of the codec.
 
 ### Count field of a fixed table
 
@@ -1138,7 +1165,7 @@ private BigDecimal invDiscount;
 - The generator does not detect dates. A `PIC 9(8)` date stays an `int`, unless a [date hint](#date-hints) names it.
 - A packed date with a century digit that changes, for example `CYYMMDD`, cannot get a date hint. Write a `FieldConverter` for it.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` and without `emptyKey` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields, or the key item with the option emptyKeys, if the program has one.`
-- These items are errors: `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), alphanumeric edited pictures, `POINTER`, `P`, `A`, and an `OCCURS` in an `OCCURS` (#43).
+- These items are errors: `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), alphanumeric edited pictures, `POINTER`, `P`, `A`, and an `OCCURS DEPENDING ON` in a table entry.
 - The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).
 - `SYNC` in an `OCCURS` is an error if the item needs slack bytes.
 - BookMap writes a `COMP-5` value only if it has the digits of the picture.

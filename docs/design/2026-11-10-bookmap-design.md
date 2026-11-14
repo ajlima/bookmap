@@ -37,7 +37,7 @@ You can use the code of the old framework as an inspiration. It is not a limit.
 - Real transports (CTG/ECI, MQ, HTTP/z/OS Connect). The transport SPI must let you add them without a change to the core.
 - Quarkus and Micronaut integrations.
 - Generation of POJOs from copybook source (a COBOL parser).
-- `REDEFINES` without a discriminator, nested collections (a collection in a collection item), `COMP-1`/`COMP-2` (floating point). `SIGN LEADING` and `SIGN SEPARATE` are supported: see `2026-11-13-sign-leading-separate-design.md`. A `REDEFINES` with a discriminator is supported through subtypes: see `2026-11-11-bookmap-subtypes-design.md`.
+- `REDEFINES` without a discriminator, `COMP-1`/`COMP-2` (floating point). A fixed collection in a collection item is supported: see `2026-11-14-nested-collections-design.md`. `SIGN LEADING` and `SIGN SEPARATE` are supported: see `2026-11-13-sign-leading-separate-design.md`. A `REDEFINES` with a discriminator is supported through subtypes: see `2026-11-11-bookmap-subtypes-design.md`.
 - Separate request and response classes. One class holds both directions (see 4.1).
 - An asynchronous or reactive API.
 
