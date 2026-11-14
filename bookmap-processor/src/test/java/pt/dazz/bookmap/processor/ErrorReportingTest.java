@@ -167,4 +167,23 @@ class ErrorReportingTest {
                 TestCompiler.ID_FIELD, "}")));
         assertThat(compiler.snapshots).isEmpty();
     }
+
+    // ---- missing accessors with other errors ----
+
+    @Test
+    void accessorsOfALaterRoundAreAcceptedWhenTheClassHasAnotherError() {
+        // Bookmap runs before Lombok. The Accessors annotation stops the name rule, so the
+        // accessors are visible only in the next round. Only the other error is reported.
+        Compilation compilation = compiler.compileWithProcessors(
+            List.of(compiler.processor(), lombok()),
+            source("Order", "@lombok.Data @lombok.experimental.Accessors(chain = true)",
+                "@BookOperation public class Order {",
+                "@BookField(order = 1, length = 5) private String id;",
+                "@BookField(order = 2) private String code;",
+                "}"));
+        CompilationSubject.assertThat(compilation).failed();
+        CompilationSubject.assertThat(compilation)
+            .hadErrorContaining("Order.code (order 2): pic or length is missing");
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+    }
 }

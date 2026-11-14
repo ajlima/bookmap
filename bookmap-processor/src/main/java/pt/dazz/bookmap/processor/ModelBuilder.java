@@ -91,10 +91,14 @@ public final class ModelBuilder {
      * Builds the model of an operation class.
      *
      * <p>If a field type, a superclass, or an interface is not available yet (another generator
-     * makes it later), or if only getters or setters are missing, and {@code lastRound} is
-     * {@code false}, the method reports nothing and returns empty. Then {@link #deferred()}
-     * returns {@code true}. In all other cases the method reports the problems. It reports missing getters and setters only in the
-     * last round.
+     * makes it later), and {@code lastRound} is {@code false}, the method reports nothing and
+     * returns empty. Then {@link #deferred()} returns {@code true}.
+     *
+     * <p>In all other cases the method reports the problems. It reports missing getters and
+     * setters only in the last round: before that round, another generator can still add them.
+     * Thus, if getters or setters are missing before the last round, the method reports the
+     * other problems, and {@link #deferred()} returns {@code true}. The next build of the class
+     * does not report these problems again.
      *
      * @param type the class with {@code @BookOperation}
      * @param lastRound {@code true} in the last processing round
@@ -104,9 +108,8 @@ public final class ModelBuilder {
         Run run = new Run(type);
         OperationModel model = run.build();
         Problems problems = run.problems;
-        deferred = !lastRound && (problems.unresolved
-            || problems.errors.isEmpty() && !problems.accessorErrors.isEmpty());
-        if (deferred) {
+        deferred = !lastRound && (problems.unresolved || !problems.accessorErrors.isEmpty());
+        if (!lastRound && problems.unresolved) {
             return Optional.empty();
         }
         problems.errors.forEach(this::report);

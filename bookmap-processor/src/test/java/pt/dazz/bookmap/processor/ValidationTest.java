@@ -455,14 +455,16 @@ class ValidationTest {
     }
 
     @Test
-    void missingAccessorsAreNotReportedBeforeTheLastRound() {
-        // Another error stops the deferral. A generator can still add the accessors later, so
-        // the processor does not report them in this round.
+    void missingAccessorsAreReportedInTheLastRoundWithTheOtherErrors() {
+        // The first round reports the other error. A generator can still add the accessors
+        // later, so the processor reports them only in the last round.
         Compilation compilation = compile(order(
             "@BookField(order = 1, length = 5) private String id;",
             field("@BookField(order = 2)", "String", "code")));
         assertError(compilation, "Order.code (order 2)", "pic or length is missing");
-        CompilationSubject.assertThat(compilation).hadErrorCount(1);
+        assertError(compilation, "Order.id (order 1)", "missing getter getId");
+        assertError(compilation, "Order.id (order 1)", "missing setter setId");
+        CompilationSubject.assertThat(compilation).hadErrorCount(3);
     }
 
     // ---- I4: layout errors that the processor can detect ----
