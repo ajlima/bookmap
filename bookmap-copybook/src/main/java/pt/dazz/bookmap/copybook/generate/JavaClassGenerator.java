@@ -285,8 +285,11 @@ public final class JavaClassGenerator {
             case CollectionMember collection -> {
                 AnnotationSpec.Builder spec = AnnotationSpec.builder(BookCollection.class)
                     .addMember("order", "$L", collection.order())
-                    .addMember("maxOccurs", "$L", collection.maxOccurs())
-                    .addMember("direction", direction(collection.direction()));
+                    .addMember("maxOccurs", "$L", collection.maxOccurs());
+                // A collection in an item class gets the direction of the outer collection.
+                if (kind != ClassKind.ITEM) {
+                    spec.addMember("direction", direction(collection.direction()));
+                }
                 if (collection.fixed()) {
                     spec.addMember("fixed", "true");
                 }

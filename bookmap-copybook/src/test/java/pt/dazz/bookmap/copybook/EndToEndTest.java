@@ -61,6 +61,11 @@ class EndToEndTest {
     }
 
     private static MappingOptions mappingOptions(String name) {
+        if (name.equals("ORDER-TAXES.cpy")) {
+            return new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
+                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(),
+                Map.of("LINE-TAX", "TAX-COUNT"));
+        }
         if (!name.equals("ACCOUNT.cpy")) {
             return MappingOptions.defaults();
         }
@@ -84,7 +89,7 @@ class EndToEndTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy",
-        "INVOICE-PARTY.cpy", "TRACKING.cpy"})
+        "INVOICE-PARTY.cpy", "TRACKING.cpy", "ORDER-TAXES.cpy"})
     void generatesCompilableClasses(String name) {
         compile(name);
         Compiled.compile(generate(name, new GenerateOptions(PACKAGE, true)).files(), true);
@@ -92,7 +97,7 @@ class EndToEndTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ORDERS.cpy", "INVOICE.cpy", "ACCOUNT.cpy", "SHIPMENT.cpy",
-        "INVOICE-PARTY.cpy", "TRACKING.cpy"})
+        "INVOICE-PARTY.cpy", "TRACKING.cpy", "ORDER-TAXES.cpy"})
     void modelJsonRoundTripGivesSameJava(String name) {
         Copybooks.Result direct = generate(name, PLAIN);
         Copybooks.Result viaJson = Copybooks.generate(
@@ -100,6 +105,33 @@ class EndToEndTest {
         assertThat(viaJson.files().stream().map(JavaFile::toString).toList())
             .isEqualTo(direct.files().stream().map(JavaFile::toString).toList());
         assertThat(viaJson.hasErrors()).isFalse();
+    }
+
+    @Test
+    void orderTaxesRoundTripWritesTheInnerTable() {
+        Compiled classes = compile("ORDER-TAXES.cpy");
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".GetOrderTaxes");
+        Object order = codec.newInstance();
+        set(order, "orderId", "ORD0000001");
+        Object tax = classes.create(PACKAGE + ".LineTax");
+        set(tax, "taxCode", "VAT1");
+        set(tax, "taxAmount", new BigDecimal("2.30"));
+        Object line = classes.create(PACKAGE + ".OrderLine");
+        set(line, "productCode", "PRD00001");
+        set(line, "quantity", 2);
+        set(line, "lineTax", List.of(tax));
+        set(order, "orderLine", List.of(line));
+        set(order, "orderTotal", new BigDecimal("12.30"));
+
+        byte[] bytes = codec.encodeResponse(order, LATIN);
+        assertThat(bytes).hasSize(10 + 2 + (8 + 5 + 1 + 3 * 9) + 6);
+        Object decoded = codec.newInstance();
+        codec.decodeResponse(bytes, decoded, LATIN);
+        List<?> lines = (List<?>) get(decoded, "orderLine");
+        assertThat(get(lines.get(0), "taxCount")).isEqualTo(1);
+        List<?> taxes = (List<?>) get(lines.get(0), "lineTax");
+        assertThat(get(taxes.get(0), "taxAmount")).isEqualTo(new BigDecimal("2.30"));
+        assertThat(get(decoded, "orderTotal")).isEqualTo(new BigDecimal("12.30"));
     }
 
     @Test

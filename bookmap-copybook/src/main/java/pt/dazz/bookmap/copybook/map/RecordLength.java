@@ -58,8 +58,8 @@ final class RecordLength {
     }
 
     /**
-     * Collects the tables of a group. A table in a table is an error of the map step, so the
-     * method does not look into a table. Gives {@code true} if a table has
+     * Collects the tables of a group. The method does not look into a table: the entry length
+     * of a table contains its inner tables. Gives {@code true} if a table has
      * {@code DEPENDING ON}.
      */
     private static boolean tables(List<DataItem> items, Usage usage, List<Table> tables) {
