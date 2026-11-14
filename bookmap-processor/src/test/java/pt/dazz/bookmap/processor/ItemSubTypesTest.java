@@ -150,6 +150,18 @@ class ItemSubTypesTest {
     }
 
     @Test
+    void baseFieldsOfItemSubtypesHaveOneDescriptor() {
+        Compilation compilation = compile(getStatement(), abstractEntry(), cardPayment(),
+            transfer());
+        CompilationSubject.assertThat(compilation)
+            .generatedSourceFile("test.GetStatement_BookCodec").contentsAsUtf8String()
+            .contains("String AMOUNT =");
+        CompilationSubject.assertThat(compilation)
+            .generatedSourceFile("test.GetStatement_BookCodec").contentsAsUtf8String()
+            .doesNotContain("AMOUNT_");
+    }
+
+    @Test
     void discriminatorIsSetOnWrite() {
         BookCodec<Object> codec = codec(getStatement(), abstractEntry(), cardPayment(),
             transfer());

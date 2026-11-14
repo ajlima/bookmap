@@ -362,9 +362,9 @@ class NestedCollectionTest {
             .isEqualTo(2300);
     }
 
-    @Test
-    void innerCollectionInTheBaseClassOfItemSubtypes() {
-        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
+    /** An item base class with an inner collection, and two subtypes. */
+    private static JavaFileObject[] taxesInTheBaseClassOfItemSubtypes() {
+        return new JavaFileObject[] {getOrder(FIXED_LINES),
             source("OrderLine",
                 "@BookSubTypes(discriminator = \"kind\", value = {",
                 "  @BookSubTypes.Type(value = \"P\", type = ProductLine.class),",
@@ -378,7 +378,12 @@ class NestedCollectionTest {
                 field("@BookField(order = 30, pic = \"X(2)\")", "String", "code"), "}"),
             source("ServiceLine", "public class ServiceLine extends OrderLine {",
                 field("@BookField(order = 30, pic = \"9\")", "int", "hours"), "}"),
-            lineTax());
+            lineTax()};
+    }
+
+    @Test
+    void innerCollectionInTheBaseClassOfItemSubtypes() {
+        BookCodec<Object> codec = codec("GetOrder", taxesInTheBaseClassOfItemSubtypes());
         Object service = newObject(codec, "ServiceLine");
         CompiledCodec.set(service, "taxes", List.of(tax(codec, "VA", 10)));
         CompiledCodec.set(service, "hours", 8);
@@ -387,6 +392,15 @@ class NestedCollectionTest {
         List<Object> lines = list(decodeResponse(codec, bytes), "lines");
         assertThat(list(lines.get(0), "taxes")).hasSize(1);
         assertThat(CompiledCodec.get(lines.get(0), "hours")).isEqualTo(8);
+    }
+
+    @Test
+    void innerCollectionInTheBaseClassOfItemSubtypesHasOneDescriptor() {
+        Compilation compilation = compile(taxesInTheBaseClassOfItemSubtypes());
+        CompilationSubject.assertThat(compilation).generatedSourceFile("test.GetOrder_BookCodec")
+            .contentsAsUtf8String().contains("String TAXES =");
+        CompilationSubject.assertThat(compilation).generatedSourceFile("test.GetOrder_BookCodec")
+            .contentsAsUtf8String().doesNotContain("TAXES_");
     }
 
     // ---- messages with an index ----
