@@ -87,7 +87,7 @@ final class CodecGenerator {
     /** The helper methods that a generated codec can contain. */
     private enum Helper {
         INT_VALUE, INTEGER_VALUE, LONG_VALUE, LONG_BOXED_VALUE, DECIMAL_OF_INTEGER,
-        DECIMAL_OF_LONG, NOT_NULL, COLLECTION_SIZE
+        DECIMAL_OF_LONG, NOT_NULL, COLLECTION_SIZE, AT_ITEM
     }
 
     /** The names of the generated members of one field. */
@@ -99,13 +99,15 @@ final class CodecGenerator {
     private record EnumMethods(String read, String write) {
     }
 
-    /** The names of the generated members and local variables of one collection. */
     /**
-     * The names of the members of a collection.
+     * The names of the generated members and local variables of one collection.
      *
      * @param marker the name of the {@code EmptySlot} constant, or {@code null} for LOW-VALUES
+     * @param indexed {@code true} if a message of an item names the index of the item: the
+     *     collection is in an item class, or its item class has a collection
      */
-    private record CollectionNames(String descriptor, String list, String count, String marker) {
+    private record CollectionNames(String descriptor, String list, String count, String marker,
+                                   boolean indexed) {
     }
 
     /** The names of the methods that write and read one item class. */
@@ -210,7 +212,8 @@ final class CodecGenerator {
                 if (added.add(member)) {
                     switch (member) {
                         case FieldModel field -> addFieldMembers(builder, field);
-                        case CollectionModel collection -> addCollectionMembers(builder, collection);
+                        case CollectionModel collection ->
+                            addCollectionMembers(builder, collection, false);
                     }
                 }
             }
@@ -383,7 +386,13 @@ final class CodecGenerator {
             : CodeBlock.of("$S", value);
     }
 
-    private void addCollectionMembers(TypeSpec.Builder builder, CollectionModel collection) {
+    /**
+     * Adds the members of a collection and of its item class.
+     *
+     * @param inner {@code true} for a collection in an item class
+     */
+    private void addCollectionMembers(TypeSpec.Builder builder, CollectionModel collection,
+                                      boolean inner) {
         String descriptor = allocator.newName(upperSnake(collection.name()));
         builder.addField(FieldSpec.builder(String.class, descriptor, Modifier.PRIVATE,
             Modifier.STATIC, Modifier.FINAL).initializer("$S", collection.descriptor()).build());
@@ -395,12 +404,39 @@ final class CodecGenerator {
         }
         collections.put(collection, new CollectionNames(descriptor,
             allocator.newName(collection.name()), allocator.newName(collection.name() + "Count"),
-            marker));
+            marker, inner || hasInnerCollection(collection.item())));
         String itemKey = collection.item().type().getQualifiedName().toString();
         if (!items.containsKey(itemKey)) {
             // Not computeIfAbsent: the item members can add the items of inner collections.
             items.put(itemKey, addItemMembers(builder, collection.item()));
         }
+    }
+
+    /** Tells if an item class has a collection, in its own members or in a subtype. */
+    private static boolean hasInnerCollection(ItemModel item) {
+        List<MemberModel> members = new ArrayList<>(item.members());
+        if (item.subTypes() != null) {
+            item.subTypes().variants().forEach(variant -> members.addAll(variant.members()));
+        }
+        return members.stream().anyMatch(CollectionModel.class::isInstance);
+    }
+
+    /**
+     * Gives a statement on one item. In an indexed collection, a {@code MappingException} of
+     * the statement gets the descriptor of the collection and the index {@code i} of the item.
+     */
+    private CodeBlock onItem(CollectionNames n, CodeBlock statement) {
+        if (!n.indexed()) {
+            return CodeBlock.builder().addStatement(statement).build();
+        }
+        return CodeBlock.builder()
+            .beginControlFlow("try")
+            .addStatement(statement)
+            .nextControlFlow("catch ($T e)", MAPPING_EXCEPTION)
+            .addStatement("throw $L", helperCall(Helper.AT_ITEM, CodeBlock.of("$N", n.descriptor()),
+                CodeBlock.of("i"), CodeBlock.of("e")))
+            .endControlFlow()
+            .build();
     }
 
     /** Gives the expression that makes the empty-slot marker of a collection. */
@@ -426,7 +462,7 @@ final class CodecGenerator {
                     case FieldModel field when !names.containsKey(field) ->
                         addFieldMembers(builder, field);
                     case CollectionModel inner when !collections.containsKey(inner) ->
-                        addCollectionMembers(builder, inner);
+                        addCollectionMembers(builder, inner, true);
                     default -> {
                         // The members of a base class are already in another layout.
                     }
@@ -620,6 +656,16 @@ final class CodecGenerator {
             return writeFixedItems(collection);
         }
         CollectionNames n = collections.get(collection);
+        if (n.indexed()) {
+            // The count is 0 for a null list.
+            return CodeBlock.builder()
+                .beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
+                .add(nullItemCheck(collection, n))
+                .add(onItem(n, CodeBlock.of("$N(writer, item, ctx)",
+                    itemMethodsOf(collection).write())))
+                .endControlFlow()
+                .build();
+        }
         return CodeBlock.builder()
             .beginControlFlow("if ($N != null)", n.list())
             .beginControlFlow("for ($T item : $N)", ClassName.get(collection.item().type()),
@@ -640,16 +686,14 @@ final class CodecGenerator {
      */
     private CodeBlock writeFixedItems(CollectionModel collection) {
         CollectionNames n = collections.get(collection);
+        CodeBlock writeItem = CodeBlock.of("$N(writer, item, ctx)",
+            itemMethodsOf(collection).write());
         CodeBlock.Builder code = CodeBlock.builder()
             .beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
-            .addStatement("$T item = $N.get(i)", ClassName.get(collection.item().type()), n.list())
-            .beginControlFlow("if (item == null)")
-            .addStatement("throw new $T($N + $S)", MAPPING_EXCEPTION, n.descriptor(),
-                ": the list contains a null item")
-            .endControlFlow();
+            .add(nullItemCheck(collection, n));
         if (collection.countField() == null) {
             code.addStatement("int start = writer.position()")
-                .addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write())
+                .add(onItem(n, writeItem))
                 .beginControlFlow("if ($L)", n.marker() == null
                     ? CodeBlock.of("writer.isLowValuesFrom(start)")
                     : CodeBlock.of("writer.isEmptySlotFrom($N, $N, start)", n.descriptor(),
@@ -658,7 +702,7 @@ final class CodecGenerator {
                     ": item ", emptyItemError(collection))
                 .endControlFlow();
         } else {
-            code.addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write());
+            code.add(onItem(n, writeItem));
         }
         code.endControlFlow();
         if (n.marker() == null) {
@@ -667,6 +711,17 @@ final class CodecGenerator {
         }
         return code.addStatement("writer.writeEmptySlots($N, $L, $L - $N)", n.marker(),
             collection.item().byteLength(), collection.maxOccurs(), n.count()).build();
+    }
+
+    /** Reads item {@code i} of the list, and checks that it is not null. */
+    private static CodeBlock nullItemCheck(CollectionModel collection, CollectionNames n) {
+        return CodeBlock.builder()
+            .addStatement("$T item = $N.get(i)", ClassName.get(collection.item().type()), n.list())
+            .beginControlFlow("if (item == null)")
+            .addStatement("throw new $T($N + $S)", MAPPING_EXCEPTION, n.descriptor(),
+                ": the list contains a null item")
+            .endControlFlow()
+            .build();
     }
 
     /** Gives the end of the message for an item that a read would find empty. */
@@ -726,7 +781,8 @@ final class CodecGenerator {
                 ArrayList.class, n.count());
         }
         code.beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
-            .addStatement("$N.add($N(reader, ctx))", n.list(), itemMethodsOf(collection).read())
+            .add(onItem(n, CodeBlock.of("$N.add($N(reader, ctx))", n.list(),
+                itemMethodsOf(collection).read())))
             .endControlFlow();
         if (collection.fixed()) {
             code.addStatement("reader.skipArea($N, ($L - $N) * $L)", n.descriptor(),
@@ -856,6 +912,7 @@ final class CodecGenerator {
             case DECIMAL_OF_INTEGER, DECIMAL_OF_LONG -> "decimal";
             case NOT_NULL -> "notNull";
             case COLLECTION_SIZE -> "collectionSize";
+            case AT_ITEM -> "atItem";
         };
     }
 
@@ -891,6 +948,14 @@ final class CodecGenerator {
                     MAPPING_EXCEPTION, ": count ", " is not between 0 and maxOccurs ")
                 .endControlFlow()
                 .addStatement("return (int) value").build();
+            case AT_ITEM -> MethodSpec.methodBuilder(helperName(helper))
+                .addJavadoc("Adds the collection and the index of an item to a message.\n")
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(MAPPING_EXCEPTION)
+                .addParameter(String.class, "field").addParameter(int.class, "index")
+                .addParameter(MAPPING_EXCEPTION, "e")
+                .addStatement("return new $T(field + $S + index + $S + e.getMessage(), e)",
+                    MAPPING_EXCEPTION, " item ", ": ")
+                .build();
         };
     }
 

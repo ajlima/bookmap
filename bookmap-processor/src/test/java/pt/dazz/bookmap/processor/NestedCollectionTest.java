@@ -1,6 +1,7 @@
 package pt.dazz.bookmap.processor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static pt.dazz.bookmap.processor.TestCompiler.accessors;
 import static pt.dazz.bookmap.processor.TestCompiler.source;
 
@@ -13,6 +14,7 @@ import java.util.List;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.convert.CodecContext;
+import pt.dazz.bookmap.exception.MappingException;
 import pt.dazz.bookmap.spi.BookCodec;
 
 /** Tests a collection in an item class (a nested collection). */
@@ -385,6 +387,80 @@ class NestedCollectionTest {
         List<Object> lines = list(decodeResponse(codec, bytes), "lines");
         assertThat(list(lines.get(0), "taxes")).hasSize(1);
         assertThat(CompiledCodec.get(lines.get(0), "hours")).isEqualTo(8);
+    }
+
+    // ---- messages with an index ----
+
+    @Test
+    void writeErrorNamesTheIndexAtEachLevel() {
+        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
+            orderLine(COUNTED_TAXES), lineTax());
+        Object order = order(codec, line(codec, "P01"),
+            line(codec, "P02", tax(codec, "VA", 1), tax(codec, "EX", 1000)));
+        assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith("GetOrder.lines (order 20) item 1: OrderLine.taxes (order 30)"
+                + " item 1: LineTax.amount (order 20): ")
+            .cause().isInstanceOf(MappingException.class)
+            .hasMessageStartingWith("OrderLine.taxes (order 30) item 1: LineTax.amount");
+    }
+
+    @Test
+    void readErrorOfAnInnerCountNamesTheOuterIndex() {
+        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
+            orderLine(COUNTED_TAXES), lineTax());
+        byte[] bytes = concat(bytes("P011VA010"), new byte[5], bytes("P029"), new byte[10],
+            bytes("OK"));
+        assertThatThrownBy(() -> decodeResponse(codec, bytes))
+            .isInstanceOf(MappingException.class)
+            .hasMessage("GetOrder.lines (order 20) item 1: OrderLine.taxes (order 30): count 9"
+                + " is not between 0 and maxOccurs 2");
+    }
+
+    @Test
+    void readErrorOfAnInnerFieldNamesBothIndexes() {
+        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
+            orderLine(COUNTED_TAXES), lineTax());
+        byte[] bytes = concat(bytes("P012VA010EXA1B"), new byte[14], bytes("OK"));
+        assertThatThrownBy(() -> decodeResponse(codec, bytes))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith("GetOrder.lines (order 20) item 0: OrderLine.taxes (order 30)"
+                + " item 1: LineTax.amount (order 20)");
+    }
+
+    @Test
+    void variableOuterCollectionNamesTheIndexOnWrite() {
+        BookCodec<Object> codec = codec("GetOrder",
+            source("GetOrder", "@BookOperation public class GetOrder {",
+                field("@BookField(order = 10, pic = \"9\", direction = Direction.OUTPUT)",
+                    "int", "lineCount"),
+                field("@BookCollection(order = 20, maxOccurs = 3)", "List<OrderLine>", "lines"),
+                field("@BookField(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
+                    "String", "status"),
+                "}"),
+            orderLine(COUNTED_TAXES), lineTax());
+        Object order = order(codec, line(codec, "P01"),
+            line(codec, "P02", tax(codec, "EX", 1000)));
+        assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith("GetOrder.lines (order 20) item 1: OrderLine.taxes (order 30)"
+                + " item 0: LineTax.amount (order 20): ");
+        Object empty = codec.newInstance();
+        CompiledCodec.set(empty, "lines", null);
+        assertThat(codec.encodeResponse(empty, LATIN)).isEqualTo(bytes("0  "));
+    }
+
+    @Test
+    void flatCollectionMessagesHaveNoIndex() {
+        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
+            source("OrderLine", "public class OrderLine {",
+                field("@BookField(order = 10, pic = \"9(3)\")", "int", "amount"), "}"));
+        Object line = newObject(codec, "OrderLine");
+        CompiledCodec.set(line, "amount", 1000);
+        Object order = order(codec, line);
+        assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith("OrderLine.amount (order 10): ");
     }
 
     // ---- model snapshot ----
