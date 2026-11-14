@@ -171,7 +171,7 @@ final class CodecGenerator {
         this.layouts = layouts(model.type(), model.members(), model.subTypes());
         // The local variables of the generated methods.
         List.of("value", "target", "data", "ctx", "writer", "reader", "item", "i", "start",
-                "key", "selected", "copy")
+                "key", "selected", "copy", "e")
             .forEach(allocator::newName);
     }
 

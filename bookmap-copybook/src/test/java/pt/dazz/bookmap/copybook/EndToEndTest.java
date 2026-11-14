@@ -63,7 +63,9 @@ class EndToEndTest {
     private static MappingOptions mappingOptions(String name) {
         if (name.equals("ORDER-TAXES.cpy")) {
             return new MappingOptions(List.of(), MappingOptions.INPUT_MARKERS,
-                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of(),
+                MappingOptions.OUTPUT_MARKERS, Map.of(), Map.of("CARD-DATA",
+                    new SubTypeDecision("PAYMENT-TYPE",
+                        Map.of("CARD-DATA", "C", "SPLIT-DATA", "S"), Map.of())),
                 Map.of("LINE-TAX", "TAX-COUNT"));
         }
         if (!name.equals("ACCOUNT.cpy")) {
@@ -132,6 +134,27 @@ class EndToEndTest {
         List<?> taxes = (List<?>) get(lines.get(0), "lineTax");
         assertThat(get(taxes.get(0), "taxAmount")).isEqualTo(new BigDecimal("2.30"));
         assertThat(get(decoded, "orderTotal")).isEqualTo(new BigDecimal("12.30"));
+    }
+
+    @Test
+    void paymentsRoundTripUsesAnInnerTableInAnItemSubtype() {
+        Compiled classes = compile("ORDER-TAXES.cpy");
+        BookCodec<Object> codec = classes.codec(PACKAGE + ".GetPayments");
+        Object part = classes.create(PACKAGE + ".SplitPart");
+        set(part, "partAmount", 12);
+        Object split = classes.create(PACKAGE + ".SplitData");
+        set(split, "splitPart", List.of(part));
+        Object payments = codec.newInstance();
+        set(payments, "payment", List.of(split));
+
+        byte[] bytes = codec.encodeResponse(payments, LATIN);
+        assertThat(bytes).hasSize(3 * 5);
+        Object decoded = codec.newInstance();
+        codec.decodeResponse(bytes, decoded, LATIN);
+        Object payment = ((List<?>) get(decoded, "payment")).get(0);
+        assertThat(get(payment, "paymentType")).isEqualTo("S");
+        List<?> parts = (List<?>) get(payment, "splitPart");
+        assertThat(get(parts.get(0), "partAmount")).isEqualTo(12);
     }
 
     @Test

@@ -13,3 +13,14 @@
                    15  TAX-CODE         PIC X(4).
                    15  TAX-AMOUNT       PIC S9(7)V99 COMP-3.
            05  ORDER-TOTAL              PIC S9(9)V99 COMP-3.
+      *----------------------------------------------------------------*
+      * GET-PAYMENTS: A REDEFINES AREA WITH A TABLE IN A TABLE ENTRY.  *
+      *----------------------------------------------------------------*
+       01  GET-PAYMENTS.
+           05  PAYMENT OCCURS 3 TIMES.
+               10  PAYMENT-TYPE         PIC X.
+               10  CARD-DATA.
+                   15  CARD-NUMBER      PIC X(4).
+               10  SPLIT-DATA REDEFINES CARD-DATA.
+                   15  SPLIT-PART OCCURS 2 TIMES.
+                       20  PART-AMOUNT  PIC 9(2).
