@@ -5,12 +5,8 @@ import static pt.dazz.bookmap.processor.CodecTypes.BOOK_READER;
 import static pt.dazz.bookmap.processor.CodecTypes.BOOK_WRITER;
 import static pt.dazz.bookmap.processor.CodecTypes.BYTES;
 import static pt.dazz.bookmap.processor.CodecTypes.CODEC_CONTEXT;
-import static pt.dazz.bookmap.processor.CodecTypes.DECIMAL;
-import static pt.dazz.bookmap.processor.CodecTypes.FIELD_CONTEXT;
 import static pt.dazz.bookmap.processor.CodecTypes.GENERATED;
 import static pt.dazz.bookmap.processor.CodecTypes.MAPPING_EXCEPTION;
-import static pt.dazz.bookmap.processor.CodecTypes.USAGE;
-import static pt.dazz.bookmap.processor.CodecTypes.numberAttributes;
 
 import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
@@ -26,21 +22,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
-import pt.dazz.bookmap.annotation.EmptyItem;
-import pt.dazz.bookmap.annotation.Usage;
-import pt.dazz.bookmap.processor.CodecMembers.CollectionNames;
 import pt.dazz.bookmap.processor.CodecMembers.ItemMethods;
-import pt.dazz.bookmap.processor.CodecMembers.Names;
-import pt.dazz.bookmap.processor.HelperMethods.Helper;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
-import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
 import pt.dazz.bookmap.processor.model.ItemModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 import pt.dazz.bookmap.processor.model.OperationModel;
@@ -73,6 +62,8 @@ final class CodecGenerator {
     private final List<MethodSpec> itemMethods = new ArrayList<>();
     private final HelperMethods helpers = new HelperMethods();
     private final CodecMembers members = new CodecMembers();
+    private final FieldCode fields;
+    private final CollectionCode collections;
     /** The layouts of the codec: one without subtypes, else one for each class. */
     private final List<Layout> layouts;
 
@@ -80,6 +71,8 @@ final class CodecGenerator {
         this.model = model;
         this.type = ClassName.get(model.type());
         this.layouts = Layout.of(model.type(), model.members(), model.subTypes());
+        this.fields = new FieldCode(members, helpers);
+        this.collections = new CollectionCode(members, helpers);
     }
 
     /**
@@ -193,24 +186,6 @@ final class CodecGenerator {
             // Not computeIfAbsent: the item members can add the items of inner collections.
             members.putItemMethods(item, addItemMembers(builder, item));
         }
-    }
-
-    /**
-     * Gives a statement on one item. In an indexed collection, a {@code MappingException} of
-     * the statement gets the descriptor of the collection and the index {@code i} of the item.
-     */
-    private CodeBlock onItem(CollectionNames n, CodeBlock statement) {
-        if (!n.indexed()) {
-            return CodeBlock.builder().addStatement(statement).build();
-        }
-        return CodeBlock.builder()
-            .beginControlFlow("try")
-            .addStatement(statement)
-            .nextControlFlow("catch ($T e)", MAPPING_EXCEPTION)
-            .addStatement("throw $L", helpers.call(Helper.AT_ITEM,
-                CodeBlock.of("$N", n.descriptor()), CodeBlock.of("i"), CodeBlock.of("e")))
-            .endControlFlow()
-            .build();
     }
 
     /** Adds the members of an item class and makes its write and read methods. */
@@ -331,28 +306,23 @@ final class CodecGenerator {
             .addStatement("$T target = new $T()", itemType, itemType);
         for (MemberModel member : members) {
             if (member instanceof CollectionModel inner) {
-                write.addCode(setCount(inner));
+                write.addCode(collections.setCount(inner));
             }
         }
         for (MemberModel member : members) {
             switch (member) {
                 case FieldModel field -> {
-                    write.addStatement(write(field));
-                    read.addStatement("target.$N($L)", field.setter(), read(field));
+                    write.addStatement(fields.write(field));
+                    read.addStatement("target.$N($L)", field.setter(), fields.read(field));
                 }
                 case CollectionModel inner -> {
-                    write.addCode(writeItems(inner));
-                    read.addCode(readItems(inner, false));
+                    write.addCode(collections.writeItems(inner));
+                    read.addCode(collections.readItems(inner, false));
                 }
             }
         }
         itemMethods.add(write.build());
         itemMethods.add(read.addStatement("return target").build());
-    }
-
-    private static TypeName listOf(CollectionModel collection) {
-        return ParameterizedTypeName.get(ClassName.get(List.class),
-            ClassName.get(collection.item().type()));
     }
 
     /**
@@ -366,120 +336,18 @@ final class CodecGenerator {
         method.returns(BYTES).addParameter(valueType, "value").addParameter(CODEC_CONTEXT, "ctx");
         for (MemberModel member : members) {
             if (member instanceof CollectionModel collection) {
-                method.addCode(setCount(collection));
+                method.addCode(collections.setCount(collection));
             }
         }
         method.addStatement("$T writer = new $T(ctx)", BOOK_WRITER, BOOK_WRITER);
         for (MemberModel member : members) {
             switch (member) {
-                case FieldModel field -> method.addStatement(write(field));
-                case CollectionModel collection -> method.addCode(writeItems(collection));
+                case FieldModel field -> method.addStatement(fields.write(field));
+                case CollectionModel collection ->
+                    method.addCode(collections.writeItems(collection));
             }
         }
         return method.addStatement("return writer.toByteArray()").build();
-    }
-
-    private CodeBlock setCount(CollectionModel collection) {
-        CollectionNames n = members.names(collection);
-        FieldModel count = collection.countField();
-        CodeBlock.Builder code = CodeBlock.builder()
-            .addStatement("$T $N = value.$N()", listOf(collection), n.list(), collection.getter())
-            .addStatement("int $N = $N == null ? 0 : $N.size()", n.count(), n.list(), n.list())
-            .beginControlFlow("if ($N > $L)", n.count(), collection.maxOccurs())
-            .addStatement("throw new $T($N + $S + $N + $S)", MAPPING_EXCEPTION, n.descriptor(),
-                ": the list has ", n.count(),
-                " items, more than maxOccurs " + collection.maxOccurs())
-            .endControlFlow();
-        if (count != null) {
-            // A Long setter needs a long value. The other count types accept an int.
-            code.addStatement("value.$N($L$N)", count.setter(),
-                count.kind() == JavaKind.LONG_BOXED ? "(long) " : "", n.count());
-        }
-        return code.build();
-    }
-
-    private CodeBlock writeItems(CollectionModel collection) {
-        if (collection.fixed()) {
-            return writeFixedItems(collection);
-        }
-        CollectionNames n = members.names(collection);
-        if (n.indexed()) {
-            // The count is 0 for a null list.
-            return CodeBlock.builder()
-                .beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
-                .add(nullItemCheck(collection, n))
-                .add(onItem(n, CodeBlock.of("$N(writer, item, ctx)",
-                    itemMethodsOf(collection).write())))
-                .endControlFlow()
-                .build();
-        }
-        return CodeBlock.builder()
-            .beginControlFlow("if ($N != null)", n.list())
-            .beginControlFlow("for ($T item : $N)", ClassName.get(collection.item().type()),
-                n.list())
-            .beginControlFlow("if (item == null)")
-            .addStatement("throw new $T($N + $S)", MAPPING_EXCEPTION, n.descriptor(),
-                ": the list contains a null item")
-            .endControlFlow()
-            .addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write())
-            .endControlFlow()
-            .endControlFlow()
-            .build();
-    }
-
-    /**
-     * Writes the items of a fixed collection, then LOW-VALUES in the unused slots. Without a
-     * count field, an item that is all LOW-VALUES is an error: a read cannot find it.
-     */
-    private CodeBlock writeFixedItems(CollectionModel collection) {
-        CollectionNames n = members.names(collection);
-        CodeBlock writeItem = CodeBlock.of("$N(writer, item, ctx)",
-            itemMethodsOf(collection).write());
-        CodeBlock.Builder code = CodeBlock.builder()
-            .beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
-            .add(nullItemCheck(collection, n));
-        if (collection.countField() == null) {
-            code.addStatement("int start = writer.position()")
-                .add(onItem(n, writeItem))
-                .beginControlFlow("if ($L)", n.marker() == null
-                    ? CodeBlock.of("writer.isLowValuesFrom(start)")
-                    : CodeBlock.of("writer.isEmptySlotFrom($N, $N, start)", n.descriptor(),
-                        n.marker()))
-                .addStatement("throw new $T($N + $S + i + $S)", MAPPING_EXCEPTION, n.descriptor(),
-                    ": item ", emptyItemError(collection))
-                .endControlFlow();
-        } else {
-            code.add(onItem(n, writeItem));
-        }
-        code.endControlFlow();
-        if (n.marker() == null) {
-            return code.addStatement("writer.writeLowValues(($L - $N) * $L)",
-                collection.maxOccurs(), n.count(), collection.item().byteLength()).build();
-        }
-        return code.addStatement("writer.writeEmptySlots($N, $L, $L - $N)", n.marker(),
-            collection.item().byteLength(), collection.maxOccurs(), n.count()).build();
-    }
-
-    /** Reads item {@code i} of the list, and checks that it is not null. */
-    private static CodeBlock nullItemCheck(CollectionModel collection, CollectionNames n) {
-        return CodeBlock.builder()
-            .addStatement("$T item = $N.get(i)", ClassName.get(collection.item().type()), n.list())
-            .beginControlFlow("if (item == null)")
-            .addStatement("throw new $T($N + $S)", MAPPING_EXCEPTION, n.descriptor(),
-                ": the list contains a null item")
-            .endControlFlow()
-            .build();
-    }
-
-    /** Gives the end of the message for an item that a read would find empty. */
-    private static String emptyItemError(CollectionModel collection) {
-        if (collection.emptyKey() != null) {
-            return " has an empty key " + collection.emptyKey().name()
-                + ", so a read cannot find it";
-        }
-        return collection.emptyItem() == EmptyItem.SPACES
-            ? " is all spaces, so a read cannot find it"
-            : " is all LOW-VALUES, so a read cannot find it";
     }
 
     /**
@@ -497,49 +365,13 @@ final class CodecGenerator {
             if (direction.test(member.direction())) {
                 switch (member) {
                     case FieldModel field ->
-                        code.addStatement("target.$N($L)", field.setter(), read(field));
-                    case CollectionModel collection -> code.add(readItems(collection,
+                        code.addStatement("target.$N($L)", field.setter(), fields.read(field));
+                    case CollectionModel collection -> code.add(collections.readItems(collection,
                         response && collection.direction() == Direction.OUTPUT));
                 }
             }
         }
         return code.build();
-    }
-
-    private CodeBlock readItems(CollectionModel collection, boolean append) {
-        CollectionNames n = members.names(collection);
-        int itemLength = collection.item().byteLength();
-        CodeBlock marker = n.marker() == null ? CodeBlock.of("")
-            : CodeBlock.of(", $N", n.marker());
-        CodeBlock size = collection.countField() == null
-            ? CodeBlock.of("reader.countUsedSlots($N, $L, $L$L)", n.descriptor(), itemLength,
-                collection.maxOccurs(), marker)
-            : helpers.call(Helper.COLLECTION_SIZE,
-                CodeBlock.of("target.$N()", collection.countField().getter()),
-                CodeBlock.of("$N", n.descriptor()), CodeBlock.of("$L", collection.maxOccurs()));
-        CodeBlock.Builder code = CodeBlock.builder().addStatement("int $N = $L", n.count(), size);
-        if (append) {
-            // A new list: the getter can return a copy or an unmodifiable list.
-            code.addStatement("$T $N = new $T<>($T.requireNonNullElse(target.$N(), $T.of()))",
-                listOf(collection), n.list(), ArrayList.class, Objects.class,
-                collection.getter(), List.class);
-        } else {
-            code.addStatement("$T $N = new $T<>($N)", listOf(collection), n.list(),
-                ArrayList.class, n.count());
-        }
-        code.beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
-            .add(onItem(n, CodeBlock.of("$N.add($N(reader, ctx))", n.list(),
-                itemMethodsOf(collection).read())))
-            .endControlFlow();
-        if (collection.fixed()) {
-            code.addStatement("reader.skipArea($N, ($L - $N) * $L)", n.descriptor(),
-                collection.maxOccurs(), n.count(), itemLength);
-        }
-        return code.addStatement("target.$N($N)", collection.setter(), n.list()).build();
-    }
-
-    private ItemMethods itemMethodsOf(CollectionModel collection) {
-        return members.itemMethods(collection.item());
     }
 
     private MethodSpec resetOutputCollections(MethodSpec.Builder method, TypeName valueType,
@@ -552,86 +384,6 @@ final class CodecGenerator {
             }
         }
         return method.build();
-    }
-
-    private CodeBlock write(FieldModel field) {
-        Names n = members.names(field);
-        CodeBlock value = CodeBlock.of("value.$N()", field.getter());
-        return switch (field.kind()) {
-            case STRING -> CodeBlock.of("writer.writeText($N, $L, $L)", n.descriptor(), value,
-                field.length());
-            case INT, LONG -> writeNumber(field, CodeBlock.of("$T.valueOf($L)", DECIMAL, value));
-            case INTEGER -> writeNumber(field, helpers.call(Helper.DECIMAL_OF_INTEGER, value));
-            case LONG_BOXED -> writeNumber(field, helpers.call(Helper.DECIMAL_OF_LONG, value));
-            case BIG_DECIMAL -> writeNumber(field, value);
-            case LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME -> field.usage() == Usage.COMP3
-                ? CodeBlock.of("writer.writePackedTemporal($N, $L, $L, $L, $N)", n.descriptor(),
-                    value, field.length(), field.signed(), n.formatter())
-                : CodeBlock.of("writer.writeTemporal($N, $L, $L, $N)", n.descriptor(), value,
-                    field.length(), n.formatter());
-            case ENUM -> {
-                CodeBlock text = CodeBlock.of("$N($L, $N)", n.enumMethods().write(), value,
-                    n.descriptor());
-                yield field.enumModel().numeric() ? writeNumber(field, text)
-                    : CodeBlock.of("writer.writeText($N, $L, $L)", n.descriptor(), text,
-                        field.length());
-            }
-            case CONVERTED -> CodeBlock.of("writer.writeConverted($N, $L, $N, $L)",
-                n.descriptor(), value, n.converter(), fieldContext(field));
-        };
-    }
-
-    private CodeBlock writeNumber(FieldModel field, CodeBlock decimal) {
-        Names n = members.names(field);
-        return field.edited() != null
-            ? CodeBlock.of("writer.writeEdited($N, $L, $N)", n.descriptor(), decimal, n.picture())
-            : CodeBlock.of("writer.writeNumber($N, $L, $L)", n.descriptor(), decimal,
-                numberAttributes(field));
-    }
-
-    private CodeBlock read(FieldModel field) {
-        Names n = members.names(field);
-        CodeBlock number = field.edited() != null
-            ? CodeBlock.of("reader.readEdited($N, $N)", n.descriptor(), n.picture())
-            : CodeBlock.of("reader.readNumber($N, $L)", n.descriptor(), numberAttributes(field));
-        CodeBlock descriptor = CodeBlock.of("$N", n.descriptor());
-        return switch (field.kind()) {
-            case STRING -> CodeBlock.of("reader.readText($N, $L)", n.descriptor(), field.length());
-            case INT -> helpers.call(Helper.INT_VALUE, number, descriptor);
-            case INTEGER -> helpers.call(Helper.INTEGER_VALUE, number, descriptor);
-            case LONG -> helpers.call(Helper.LONG_VALUE, number, descriptor);
-            case LONG_BOXED -> helpers.call(Helper.LONG_BOXED_VALUE, number, descriptor);
-            case BIG_DECIMAL -> number;
-            case LOCAL_DATE -> readTemporal("Date", field);
-            case LOCAL_TIME -> readTemporal("Time", field);
-            case LOCAL_DATE_TIME -> readTemporal("DateTime", field);
-            case ENUM -> CodeBlock.of("$N($L, $N)", n.enumMethods().read(),
-                field.enumModel().numeric() ? number
-                    : CodeBlock.of("reader.readText($N, $L)", n.descriptor(), field.length()),
-                n.descriptor());
-            case CONVERTED -> {
-                CodeBlock converted = CodeBlock.of("reader.readConverted($N, $N, $L)",
-                    n.descriptor(), n.converter(), fieldContext(field));
-                yield field.type().getKind().isPrimitive()
-                    ? helpers.call(Helper.NOT_NULL, converted, descriptor) : converted;
-            }
-        };
-    }
-
-    /** Reads a date or time field. A packed field calls {@code readPacked<type>}. */
-    private CodeBlock readTemporal(String type, FieldModel field) {
-        Names n = members.names(field);
-        return field.usage() == Usage.COMP3
-            ? CodeBlock.of("reader.$N($N, $L, $L, $N)", "readPacked" + type, n.descriptor(),
-                field.length(), field.signed(), n.formatter())
-            : CodeBlock.of("reader.$N($N, $L, $N)", "read" + type, n.descriptor(),
-                field.length(), n.formatter());
-    }
-
-    private static CodeBlock fieldContext(FieldModel field) {
-        return CodeBlock.of("new $T($S, $L, $L, $L, $T.$N, $S, $L, ctx.charset())", FIELD_CONTEXT,
-            field.name(), field.length(), field.scale(), field.signed(), USAGE,
-            field.usage().name(), field.pattern(), field.byteLength());
     }
 
     /**
