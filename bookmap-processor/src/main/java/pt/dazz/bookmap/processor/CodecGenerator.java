@@ -25,11 +25,9 @@ import com.palantir.javapoet.NameAllocator;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
-import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,8 +42,9 @@ import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.processor.EnumMethodsGenerator.EnumMethods;
+import pt.dazz.bookmap.processor.HelperMethods.Helper;
 import pt.dazz.bookmap.processor.model.CollectionModel;
-import pt.dazz.bookmap.processor.model.EnumModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
 import pt.dazz.bookmap.processor.model.ItemModel;
@@ -75,19 +74,9 @@ final class CodecGenerator {
     /** The value of the {@code @Generated} annotation of each codec. */
     static final String GENERATOR = "pt.dazz.bookmap.processor.BookmapProcessor";
 
-    /** The helper methods that a generated codec can contain. */
-    private enum Helper {
-        INT_VALUE, INTEGER_VALUE, LONG_VALUE, LONG_BOXED_VALUE, DECIMAL_OF_INTEGER,
-        DECIMAL_OF_LONG, NOT_NULL, COLLECTION_SIZE, AT_ITEM
-    }
-
     /** The names of the generated members of one field. */
     private record Names(String descriptor, String formatter, String converter,
                          EnumMethods enumMethods, String picture) {
-    }
-
-    /** The names of the methods that read and write one enum type in one category. */
-    private record EnumMethods(String read, String write) {
     }
 
     /**
@@ -108,17 +97,16 @@ final class CodecGenerator {
     private final OperationModel model;
     private final ClassName type;
     private final NameAllocator allocator = new NameAllocator();
+    private final EnumMethodsGenerator enumGenerator = new EnumMethodsGenerator(allocator);
     private final Map<FieldModel, Names> names = new HashMap<>();
     private final Map<CollectionModel, CollectionNames> collections = new HashMap<>();
     /** The converter field of each converter class, by qualified class name. */
     private final Map<String, String> converters = new HashMap<>();
     /** The item methods of each item class, by qualified class name. */
     private final Map<String, ItemMethods> items = new HashMap<>();
-    /** The methods of each enum type and category, by qualified name and category. */
     private final Map<String, EnumMethods> enums = new HashMap<>();
     private final List<MethodSpec> itemMethods = new ArrayList<>();
-    private final List<MethodSpec> enumMethodSpecs = new ArrayList<>();
-    private final Set<Helper> helpers = EnumSet.noneOf(Helper.class);
+    private final HelperMethods helpers = new HelperMethods();
     /** The layouts of the codec: one without subtypes, else one for each class. */
     private final List<Layout> layouts;
 
@@ -220,8 +208,8 @@ final class CodecGenerator {
             new SubTypesGenerator().addMethods(builder);
         }
         builder.addMethods(itemMethods);
-        builder.addMethods(enumMethodSpecs);
-        helpers.forEach(helper -> builder.addMethod(helper(helper)));
+        builder.addMethods(enumGenerator.methods());
+        builder.addMethods(helpers.methods());
         return JavaFile.builder(codec.packageName(), builder.build()).build();
     }
 
@@ -248,10 +236,7 @@ final class CodecGenerator {
             case CONVERTED -> converter = converters.computeIfAbsent(
                 field.converter().getQualifiedName().toString(),
                 key -> addConverter(builder, field.converter()));
-            case ENUM -> enumMethods = enums.computeIfAbsent(
-                field.enumModel().type().getQualifiedName() + (field.enumModel().numeric()
-                    ? "/number" : "/text"),
-                key -> addEnumMethods(field.enumModel()));
+            case ENUM -> enumMethods = enumGenerator.methodsOf(field.enumModel());
             default -> {
                 // Text and numbers need no other member.
             }
@@ -276,71 +261,6 @@ final class CodecGenerator {
         builder.addField(FieldSpec.builder(converterType, name, Modifier.PRIVATE,
             Modifier.FINAL).initializer("new $T()", converterType).build());
         return name;
-    }
-
-    /**
-     * Adds the methods that read and write one enum type in one category. The read method
-     * gives the constant that contains a value. The write method gives the canonical value of
-     * a constant. The methods use {@code ==} and {@code equals}, not a {@code switch}, which
-     * needs a synthetic class.
-     */
-    private EnumMethods addEnumMethods(EnumModel model) {
-        ClassName enumType = ClassName.get(model.type());
-        String suffix = String.join("", enumType.simpleNames());
-        String base = Character.toLowerCase(suffix.charAt(0)) + suffix.substring(1);
-        EnumMethods methods = new EnumMethods(allocator.newName(base + "Of"),
-            allocator.newName(base + "Value"));
-        TypeName valueType = model.numeric() ? DECIMAL : ClassName.get(String.class);
-        MethodSpec.Builder read = MethodSpec.methodBuilder(methods.read())
-            .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(enumType)
-            .addParameter(valueType, "key").addParameter(String.class, "field");
-        if (model.numeric()) {
-            read.beginControlFlow("if (key == null)").addStatement("return null")
-                .endControlFlow();
-        }
-        MethodSpec.Builder write = MethodSpec.methodBuilder(methods.write())
-            .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(valueType)
-            .addParameter(enumType, "value").addParameter(String.class, "field")
-            .beginControlFlow("if (value == null)").addStatement("return null")
-            .endControlFlow();
-        for (EnumModel.Constant constant : model.constants()) {
-            List<CodeBlock> tests = new ArrayList<>();
-            constant.values().forEach(value -> tests.add(model.numeric()
-                ? CodeBlock.of("key.compareTo($L) == 0", enumValue(model, value))
-                : CodeBlock.of("key.equals($S)", value)));
-            constant.ranges().forEach(range -> tests.add(CodeBlock.of(
-                "key.compareTo($L) >= 0 && key.compareTo($L) <= 0",
-                enumValue(model, range.from()), enumValue(model, range.thru()))));
-            read.beginControlFlow("if ($L)", CodeBlock.join(tests.stream()
-                    .map(test -> CodeBlock.of("($L)", test)).toList(), " || "))
-                .addStatement("return $T.$N", enumType, constant.name())
-                .endControlFlow();
-            write.beginControlFlow("if (value == $T.$N)", enumType, constant.name())
-                .addStatement("return $L", enumValue(model, constant.canonical()))
-                .endControlFlow();
-        }
-        if (!model.numeric()) {
-            read.beginControlFlow("if (key.isEmpty())").addStatement("return null")
-                .endControlFlow();
-        }
-        if (model.unknown() == null) {
-            read.addStatement("throw new $T(field + $S + $L + $S)", MAPPING_EXCEPTION,
-                ": unknown value '", model.numeric() ? "key.toPlainString()" : "key",
-                "' for enum " + enumType.simpleName());
-        } else {
-            read.addStatement("return $T.$N", enumType, model.unknown());
-        }
-        write.addStatement("throw new $T(field + $S + value.name() + $S)", MAPPING_EXCEPTION,
-            ": the constant ", " of enum " + enumType.simpleName() + " has no COBOL value");
-        enumMethodSpecs.add(read.build());
-        enumMethodSpecs.add(write.build());
-        return methods;
-    }
-
-    /** Gives one value of an enum as a Java expression. */
-    private static CodeBlock enumValue(EnumModel model, String value) {
-        return model.numeric() ? CodeBlock.of("new $T($S)", DECIMAL, value)
-            : CodeBlock.of("$S", value);
     }
 
     /**
@@ -390,8 +310,8 @@ final class CodecGenerator {
             .beginControlFlow("try")
             .addStatement(statement)
             .nextControlFlow("catch ($T e)", MAPPING_EXCEPTION)
-            .addStatement("throw $L", helperCall(Helper.AT_ITEM, CodeBlock.of("$N", n.descriptor()),
-                CodeBlock.of("i"), CodeBlock.of("e")))
+            .addStatement("throw $L", helpers.call(Helper.AT_ITEM,
+                CodeBlock.of("$N", n.descriptor()), CodeBlock.of("i"), CodeBlock.of("e")))
             .endControlFlow()
             .build();
     }
@@ -724,7 +644,7 @@ final class CodecGenerator {
         CodeBlock size = collection.countField() == null
             ? CodeBlock.of("reader.countUsedSlots($N, $L, $L$L)", n.descriptor(), itemLength,
                 collection.maxOccurs(), marker)
-            : helperCall(Helper.COLLECTION_SIZE,
+            : helpers.call(Helper.COLLECTION_SIZE,
                 CodeBlock.of("target.$N()", collection.countField().getter()),
                 CodeBlock.of("$N", n.descriptor()), CodeBlock.of("$L", collection.maxOccurs()));
         CodeBlock.Builder code = CodeBlock.builder().addStatement("int $N = $L", n.count(), size);
@@ -771,8 +691,8 @@ final class CodecGenerator {
             case STRING -> CodeBlock.of("writer.writeText($N, $L, $L)", n.descriptor(), value,
                 field.length());
             case INT, LONG -> writeNumber(field, CodeBlock.of("$T.valueOf($L)", DECIMAL, value));
-            case INTEGER -> writeNumber(field, helperCall(Helper.DECIMAL_OF_INTEGER, value));
-            case LONG_BOXED -> writeNumber(field, helperCall(Helper.DECIMAL_OF_LONG, value));
+            case INTEGER -> writeNumber(field, helpers.call(Helper.DECIMAL_OF_INTEGER, value));
+            case LONG_BOXED -> writeNumber(field, helpers.call(Helper.DECIMAL_OF_LONG, value));
             case BIG_DECIMAL -> writeNumber(field, value);
             case LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME -> field.usage() == Usage.COMP3
                 ? CodeBlock.of("writer.writePackedTemporal($N, $L, $L, $L, $N)", n.descriptor(),
@@ -807,10 +727,10 @@ final class CodecGenerator {
         CodeBlock descriptor = CodeBlock.of("$N", n.descriptor());
         return switch (field.kind()) {
             case STRING -> CodeBlock.of("reader.readText($N, $L)", n.descriptor(), field.length());
-            case INT -> helperCall(Helper.INT_VALUE, number, descriptor);
-            case INTEGER -> helperCall(Helper.INTEGER_VALUE, number, descriptor);
-            case LONG -> helperCall(Helper.LONG_VALUE, number, descriptor);
-            case LONG_BOXED -> helperCall(Helper.LONG_BOXED_VALUE, number, descriptor);
+            case INT -> helpers.call(Helper.INT_VALUE, number, descriptor);
+            case INTEGER -> helpers.call(Helper.INTEGER_VALUE, number, descriptor);
+            case LONG -> helpers.call(Helper.LONG_VALUE, number, descriptor);
+            case LONG_BOXED -> helpers.call(Helper.LONG_BOXED_VALUE, number, descriptor);
             case BIG_DECIMAL -> number;
             case LOCAL_DATE -> readTemporal("Date", field);
             case LOCAL_TIME -> readTemporal("Time", field);
@@ -823,7 +743,7 @@ final class CodecGenerator {
                 CodeBlock converted = CodeBlock.of("reader.readConverted($N, $N, $L)",
                     n.descriptor(), n.converter(), fieldContext(field));
                 yield field.type().getKind().isPrimitive()
-                    ? helperCall(Helper.NOT_NULL, converted, descriptor) : converted;
+                    ? helpers.call(Helper.NOT_NULL, converted, descriptor) : converted;
             }
         };
     }
@@ -842,91 +762,6 @@ final class CodecGenerator {
         return CodeBlock.of("new $T($S, $L, $L, $L, $T.$N, $S, $L, ctx.charset())", FIELD_CONTEXT,
             field.name(), field.length(), field.scale(), field.signed(), USAGE,
             field.usage().name(), field.pattern(), field.byteLength());
-    }
-
-    private CodeBlock helperCall(Helper helper, CodeBlock... arguments) {
-        helpers.add(helper);
-        return CodeBlock.of("$N($L)", helperName(helper), CodeBlock.join(List.of(arguments), ", "));
-    }
-
-    private static String helperName(Helper helper) {
-        return switch (helper) {
-            case INT_VALUE -> "intValue";
-            case INTEGER_VALUE -> "integerValue";
-            case LONG_VALUE -> "longValue";
-            case LONG_BOXED_VALUE -> "longBoxedValue";
-            case DECIMAL_OF_INTEGER, DECIMAL_OF_LONG -> "decimal";
-            case NOT_NULL -> "notNull";
-            case COLLECTION_SIZE -> "collectionSize";
-            case AT_ITEM -> "atItem";
-        };
-    }
-
-    private static MethodSpec helper(Helper helper) {
-        return switch (helper) {
-            case INT_VALUE -> exact(helper, TypeName.INT, "intValueExact", "0", "int");
-            case INTEGER_VALUE -> exact(helper, TypeName.INT.box(), "intValueExact", "null",
-                "Integer");
-            case LONG_VALUE -> exact(helper, TypeName.LONG, "longValueExact", "0", "long");
-            case LONG_BOXED_VALUE -> exact(helper, TypeName.LONG.box(), "longValueExact", "null",
-                "Long");
-            case DECIMAL_OF_INTEGER -> decimal(TypeName.INT.box());
-            case DECIMAL_OF_LONG -> decimal(TypeName.LONG.box());
-            case NOT_NULL -> {
-                TypeVariableName j = TypeVariableName.get("J");
-                yield MethodSpec.methodBuilder(helperName(helper))
-                    .addModifiers(Modifier.PRIVATE, Modifier.STATIC).addTypeVariable(j)
-                    .returns(j).addParameter(j, "value").addParameter(String.class, "field")
-                    .beginControlFlow("if (value == null)")
-                    .addStatement("throw new $T(field + $S)", MAPPING_EXCEPTION,
-                        ": converter returned null for a primitive field")
-                    .endControlFlow()
-                    .addStatement("return value").build();
-            }
-            case COLLECTION_SIZE -> MethodSpec.methodBuilder(helperName(helper))
-                .addJavadoc("Checks the count of a collection. A blank count is 0.\n")
-                .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(int.class)
-                .addParameter(Number.class, "count").addParameter(String.class, "field")
-                .addParameter(int.class, "maxOccurs")
-                .addStatement("long value = count == null ? 0 : count.longValue()")
-                .beginControlFlow("if (value < 0 || value > maxOccurs)")
-                .addStatement("throw new $T(field + $S + value + $S + maxOccurs)",
-                    MAPPING_EXCEPTION, ": count ", " is not between 0 and maxOccurs ")
-                .endControlFlow()
-                .addStatement("return (int) value").build();
-            case AT_ITEM -> MethodSpec.methodBuilder(helperName(helper))
-                .addJavadoc("Adds the collection and the index of an item to a message.\n")
-                .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(MAPPING_EXCEPTION)
-                .addParameter(String.class, "field").addParameter(int.class, "index")
-                .addParameter(MAPPING_EXCEPTION, "e")
-                .addStatement("return new $T(field + $S + index + $S + e.getMessage(), e)",
-                    MAPPING_EXCEPTION, " item ", ": ")
-                .build();
-        };
-    }
-
-    /** Converts a read number to the Java type. A value that does not fit fails. */
-    private static MethodSpec exact(Helper helper, TypeName returns, String method,
-                                    String blank, String typeName) {
-        return MethodSpec.methodBuilder(helperName(helper))
-            .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(returns)
-            .addParameter(DECIMAL, "value").addParameter(String.class, "field")
-            .beginControlFlow("if (value == null)")
-            .addStatement("return $L", blank)
-            .endControlFlow()
-            .beginControlFlow("try")
-            .addStatement("return value.$N()", method)
-            .nextControlFlow("catch ($T e)", ArithmeticException.class)
-            .addStatement("throw new $T(field + $S + value + $S, e)", MAPPING_EXCEPTION,
-                ": value ", " does not fit " + typeName)
-            .endControlFlow().build();
-    }
-
-    private static MethodSpec decimal(TypeName parameter) {
-        return MethodSpec.methodBuilder("decimal")
-            .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(DECIMAL)
-            .addParameter(parameter, "value")
-            .addStatement("return value == null ? null : $T.valueOf(value)", DECIMAL).build();
     }
 
     /**
