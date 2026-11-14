@@ -1,5 +1,20 @@
 package pt.dazz.bookmap.processor;
 
+import static pt.dazz.bookmap.processor.CodecTypes.BOOK_CODEC;
+import static pt.dazz.bookmap.processor.CodecTypes.BOOK_READER;
+import static pt.dazz.bookmap.processor.CodecTypes.BOOK_WRITER;
+import static pt.dazz.bookmap.processor.CodecTypes.BYTES;
+import static pt.dazz.bookmap.processor.CodecTypes.CODEC_CONTEXT;
+import static pt.dazz.bookmap.processor.CodecTypes.DECIMAL;
+import static pt.dazz.bookmap.processor.CodecTypes.EDITED_PICTURE;
+import static pt.dazz.bookmap.processor.CodecTypes.EMPTY_SLOT;
+import static pt.dazz.bookmap.processor.CodecTypes.FIELD_CONTEXT;
+import static pt.dazz.bookmap.processor.CodecTypes.FORMATS;
+import static pt.dazz.bookmap.processor.CodecTypes.GENERATED;
+import static pt.dazz.bookmap.processor.CodecTypes.MAPPING_EXCEPTION;
+import static pt.dazz.bookmap.processor.CodecTypes.USAGE;
+import static pt.dazz.bookmap.processor.CodecTypes.numberAttributes;
+
 import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
@@ -12,7 +27,6 @@ import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
 import com.palantir.javapoet.TypeVariableName;
 import com.palantir.javapoet.WildcardTypeName;
-import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -29,7 +43,6 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.EmptyItem;
-import pt.dazz.bookmap.annotation.Sign;
 import pt.dazz.bookmap.annotation.Usage;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.EnumModel;
@@ -61,28 +74,6 @@ final class CodecGenerator {
 
     /** The value of the {@code @Generated} annotation of each codec. */
     static final String GENERATOR = "pt.dazz.bookmap.processor.BookmapProcessor";
-
-    private static final ClassName BOOK_CODEC = ClassName.get("pt.dazz.bookmap.spi", "BookCodec");
-    private static final ClassName BOOK_WRITER = ClassName.get("pt.dazz.bookmap.codec",
-        "BookWriter");
-    private static final ClassName BOOK_READER = ClassName.get("pt.dazz.bookmap.codec",
-        "BookReader");
-    private static final ClassName FORMATS = ClassName.get("pt.dazz.bookmap.codec", "Formats");
-    private static final ClassName EDITED_PICTURE = ClassName.get("pt.dazz.bookmap.codec",
-        "EditedPicture");
-    private static final ClassName EMPTY_SLOT = ClassName.get("pt.dazz.bookmap.codec",
-        "EmptySlot");
-    private static final ClassName CODEC_CONTEXT = ClassName.get("pt.dazz.bookmap.convert",
-        "CodecContext");
-    private static final ClassName FIELD_CONTEXT = ClassName.get("pt.dazz.bookmap.convert",
-        "FieldContext");
-    private static final ClassName USAGE = ClassName.get("pt.dazz.bookmap.annotation", "Usage");
-    private static final ClassName MAPPING_EXCEPTION = ClassName.get("pt.dazz.bookmap.exception",
-        "MappingException");
-    private static final ClassName GENERATED = ClassName.get("javax.annotation.processing",
-        "Generated");
-    private static final ClassName DECIMAL = ClassName.get(BigDecimal.class);
-    private static final TypeName BYTES = TypeName.get(byte[].class);
 
     /** The helper methods that a generated codec can contain. */
     private enum Helper {
@@ -131,44 +122,10 @@ final class CodecGenerator {
     /** The layouts of the codec: one without subtypes, else one for each class. */
     private final List<Layout> layouts;
 
-    /**
-     * One layout of the codec.
-     *
-     * @param type the class of the layout
-     * @param value the normalized discriminator value, or null for a base class that is not
-     *     in the list
-     * @param members the members, sorted by order
-     */
-    private record Layout(TypeElement type, String value, List<MemberModel> members) {
-    }
-
-    /**
-     * Gives the layouts of an operation class or an item class. Without subtypes, the one
-     * layout is the class itself. With
-     * subtypes, a base class that is not abstract and not in the list comes first, then the
-     * listed classes in the order of the annotation.
-     */
-    private static List<Layout> layouts(TypeElement base, List<? extends MemberModel> members,
-                                        SubTypesModel subTypes) {
-        List<Layout> result = new ArrayList<>();
-        if (subTypes == null) {
-            result.add(new Layout(base, null, List.copyOf(members)));
-            return result;
-        }
-        boolean baseListed = subTypes.variants().stream()
-            .anyMatch(variant -> variant.type().equals(base));
-        if (!subTypes.baseAbstract() && !baseListed) {
-            result.add(new Layout(base, null, List.copyOf(members)));
-        }
-        subTypes.variants().forEach(variant ->
-            result.add(new Layout(variant.type(), variant.value(), variant.members())));
-        return result;
-    }
-
     private CodecGenerator(OperationModel model) {
         this.model = model;
         this.type = ClassName.get(model.type());
-        this.layouts = layouts(model.type(), model.members(), model.subTypes());
+        this.layouts = Layout.of(model.type(), model.members(), model.subTypes());
         // The local variables of the generated methods.
         List.of("value", "target", "data", "ctx", "writer", "reader", "item", "i", "start",
                 "key", "selected", "copy", "e")
@@ -455,7 +412,7 @@ final class CodecGenerator {
 
     /** Adds the members of an item class and makes its write and read methods. */
     private ItemMethods addItemMembers(TypeSpec.Builder builder, ItemModel item) {
-        List<Layout> itemLayouts = layouts(item.type(), item.members(), item.subTypes());
+        List<Layout> itemLayouts = Layout.of(item.type(), item.members(), item.subTypes());
         for (Layout layout : itemLayouts) {
             for (MemberModel member : layout.members()) {
                 switch (member) {
@@ -879,17 +836,6 @@ final class CodecGenerator {
                 field.length(), field.signed(), n.formatter())
             : CodeBlock.of("reader.$N($N, $L, $N)", "read" + type, n.descriptor(),
                 field.length(), n.formatter());
-    }
-
-    /**
-     * Gives the arguments of a number. The sign comes only when it is not the default. Thus,
-     * the codecs of the books without a {@code SIGN} clause do not change.
-     */
-    private static CodeBlock numberAttributes(FieldModel field) {
-        CodeBlock attributes = CodeBlock.of("$L, $L, $L, $T.$N", field.length(), field.scale(),
-            field.signed(), USAGE, field.usage().name());
-        return field.sign() == Sign.TRAILING ? attributes
-            : CodeBlock.of("$L, $T.$N", attributes, Sign.class, field.sign().name());
     }
 
     private static CodeBlock fieldContext(FieldModel field) {
