@@ -12,7 +12,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.EmptyItem;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.convert.FieldContext;
 import pt.dazz.bookmap.convert.NoConverter;

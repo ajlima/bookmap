@@ -1,7 +1,7 @@
 package pt.dazz.bookmap.copybook.parse;
 
 import java.util.Locale;
-import pt.dazz.bookmap.annotation.Sign;
+import pt.dazz.bookmap.cobol.Sign;
 import pt.dazz.bookmap.codec.EditedPicture;
 import pt.dazz.bookmap.copybook.ast.Usage;
 

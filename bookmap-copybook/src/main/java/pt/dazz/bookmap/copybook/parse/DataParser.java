@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import pt.dazz.bookmap.annotation.Sign;
+import pt.dazz.bookmap.cobol.Sign;
 import pt.dazz.bookmap.copybook.ast.Condition;
 import pt.dazz.bookmap.copybook.ast.ConditionValue;
 import pt.dazz.bookmap.copybook.ast.Copybook;

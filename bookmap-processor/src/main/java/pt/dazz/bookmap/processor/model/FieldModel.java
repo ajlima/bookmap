@@ -3,8 +3,8 @@ package pt.dazz.bookmap.processor.model;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import pt.dazz.bookmap.annotation.Direction;
-import pt.dazz.bookmap.annotation.Sign;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Sign;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.codec.EditedPicture;
 
 /**

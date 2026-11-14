@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.exception.MappingException;
 

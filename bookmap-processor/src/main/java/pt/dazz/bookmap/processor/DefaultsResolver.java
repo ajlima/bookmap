@@ -7,7 +7,7 @@ import java.util.Optional;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 
 /**
  * Reads {@code @BookDefaults} of a class and of its package.

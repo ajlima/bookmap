@@ -1,4 +1,4 @@
-package pt.dazz.bookmap.annotation;
+package pt.dazz.bookmap.cobol;
 
 /**
  * Gives the position and the format of the sign of a signed zoned decimal ({@code DISPLAY})

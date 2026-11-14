@@ -62,8 +62,8 @@ The build runs the tasks of independent modules in parallel (`org.gradle.paralle
 The module `bookmap-examples` is not included in these checks.
 
 The rule for allowed packages makes sure that `bookmap-core` and `bookmap-processor` do not depend on Spring, Quarkus, Micronaut, Guice, or a middleware library.
-`ArchitectureTest` ignores two known cycles: `annotation` and `convert` in `bookmap-core`, and `ast` and `parse` in `bookmap-copybook`.
-Each exception ignores only one dependency. A new cycle fails the test.
+`ArchitectureTest` ignores one known cycle: `ast` and `parse` in `bookmap-copybook`.
+The exception ignores only one dependency. A new cycle fails the test.
 
 Run the complexity check or the size report alone:
 

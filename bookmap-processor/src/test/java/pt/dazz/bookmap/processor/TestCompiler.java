@@ -30,6 +30,7 @@ final class TestCompiler {
         "import pt.dazz.bookmap.Continuable;",
         "import pt.dazz.bookmap.Validatable;",
         "import pt.dazz.bookmap.annotation.*;",
+        "import pt.dazz.bookmap.cobol.*;",
         "import pt.dazz.bookmap.convert.FieldContext;",
         "import pt.dazz.bookmap.convert.FieldConverter;",
         "import pt.dazz.bookmap.convert.NoConverter;");
@@ -70,7 +71,7 @@ final class TestCompiler {
         return JavaFileObjects.forSourceString(packageName + ".package-info",
             annotation + " package " + packageName + ";\n"
                 + "import pt.dazz.bookmap.annotation.BookDefaults;\n"
-                + "import pt.dazz.bookmap.annotation.Usage;");
+                + "import pt.dazz.bookmap.cobol.Usage;");
     }
 
     /**

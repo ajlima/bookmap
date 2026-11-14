@@ -10,7 +10,7 @@ import lombok.Setter;
 import pt.dazz.bookmap.annotation.BookCollection;
 import pt.dazz.bookmap.annotation.BookField;
 import pt.dazz.bookmap.annotation.BookOperation;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 
 /**
  * Updates a shipment. The class uses the explicit style. Some fields have Lombok accessors, and
