@@ -36,6 +36,11 @@ public record FieldModel(String ownerSimpleName, String name, int order, int len
     EnumModel enumModel, EditedPicture edited)
     implements MemberModel {
 
+    @Override
+    public int areaLength() {
+        return byteLength;
+    }
+
     /**
      * Gives the category of the Java type of a field.
      */

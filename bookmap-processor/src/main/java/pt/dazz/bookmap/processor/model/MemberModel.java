@@ -37,6 +37,14 @@ public sealed interface MemberModel permits FieldModel, CollectionModel {
     String ownerSimpleName();
 
     /**
+     * Gives the maximum number of bytes of the member in the book. For a collection, this is
+     * the full area: {@code maxOccurs} multiplied by the length of one entry.
+     *
+     * @return the number of bytes
+     */
+    int areaLength();
+
+    /**
      * Gives the text that identifies the member in messages.
      *
      * @return the descriptor, in the format {@code "<ownerSimpleName>.<name> (order <n>)"}

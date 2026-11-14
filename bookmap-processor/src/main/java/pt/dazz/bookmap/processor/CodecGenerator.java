@@ -229,7 +229,7 @@ final class CodecGenerator {
             .addStatement("return $L", layouts.stream()
                 .mapToInt(layout -> layout.members().stream()
                     .filter(member -> member.direction().isOutput())
-                    .mapToInt(CodecGenerator::maxByteLength).sum())
+                    .mapToInt(MemberModel::areaLength).sum())
                 .max().orElseThrow()).build());
         MethodSpec.Builder newInstance = override("newInstance").returns(type);
         if (model.type().getModifiers().contains(Modifier.ABSTRACT)) {
@@ -396,8 +396,11 @@ final class CodecGenerator {
         collections.put(collection, new CollectionNames(descriptor,
             allocator.newName(collection.name()), allocator.newName(collection.name() + "Count"),
             marker));
-        items.computeIfAbsent(collection.item().type().getQualifiedName().toString(),
-            key -> addItemMembers(builder, collection.item()));
+        String itemKey = collection.item().type().getQualifiedName().toString();
+        if (!items.containsKey(itemKey)) {
+            // Not computeIfAbsent: the item members can add the items of inner collections.
+            items.put(itemKey, addItemMembers(builder, collection.item()));
+        }
     }
 
     /** Gives the expression that makes the empty-slot marker of a collection. */
@@ -416,11 +419,17 @@ final class CodecGenerator {
 
     /** Adds the members of an item class and makes its write and read methods. */
     private ItemMethods addItemMembers(TypeSpec.Builder builder, ItemModel item) {
-        List<Layout> itemLayouts = layouts(item.type(), item.fields(), item.subTypes());
+        List<Layout> itemLayouts = layouts(item.type(), item.members(), item.subTypes());
         for (Layout layout : itemLayouts) {
             for (MemberModel member : layout.members()) {
-                if (!names.containsKey((FieldModel) member)) {
-                    addFieldMembers(builder, (FieldModel) member);
+                switch (member) {
+                    case FieldModel field when !names.containsKey(field) ->
+                        addFieldMembers(builder, field);
+                    case CollectionModel inner when !collections.containsKey(inner) ->
+                        addCollectionMembers(builder, inner);
+                    default -> {
+                        // The members of a base class are already in another layout.
+                    }
                 }
             }
         }
@@ -429,7 +438,7 @@ final class CodecGenerator {
         ItemMethods methods = new ItemMethods(allocator.newName("writeItem_" + suffix),
             allocator.newName("readItem_" + suffix));
         if (item.subTypes() == null) {
-            addItemLayoutMethods(methods, item.type(), item.fields());
+            addItemLayoutMethods(methods, item.type(), item.members());
             return methods;
         }
         Map<Layout, ItemMethods> layoutMethods = new HashMap<>();
@@ -437,17 +446,16 @@ final class CodecGenerator {
             String layoutSuffix = String.join("_", ClassName.get(layout.type()).simpleNames());
             ItemMethods names = new ItemMethods(allocator.newName("writeItem_" + layoutSuffix),
                 allocator.newName("readItem_" + layoutSuffix));
-            addItemLayoutMethods(names, layout.type(), layout.members().stream()
-                .map(FieldModel.class::cast).toList());
+            addItemLayoutMethods(names, layout.type(), layout.members());
             layoutMethods.put(layout, names);
         }
         FieldModel discriminator = item.subTypes().discriminator();
         Discriminator key = new Discriminator(discriminator, itemLayouts, itemType);
         itemMethods.add(key.typeOfMethod());
         itemMethods.add(key.unknownValueMethod());
-        int offset = item.fields().stream()
-            .filter(field -> field.order() < discriminator.order())
-            .mapToInt(FieldModel::byteLength).sum();
+        int offset = item.members().stream()
+            .filter(member -> member.order() < discriminator.order())
+            .mapToInt(MemberModel::areaLength).sum();
         String prefix = itemType.simpleName() + ": ";
         // Write: select the layout by the exact class, then fill to the longest layout.
         MethodSpec.Builder write = MethodSpec.methodBuilder(methods.write())
@@ -516,7 +524,7 @@ final class CodecGenerator {
 
     /** Adds the methods that write and read one layout of an item class. */
     private void addItemLayoutMethods(ItemMethods methods, TypeElement layoutClass,
-                                      List<FieldModel> fields) {
+                                      List<MemberModel> members) {
         ClassName itemType = ClassName.get(layoutClass);
         MethodSpec.Builder write = MethodSpec.methodBuilder(methods.write())
             .addModifiers(Modifier.PRIVATE).addParameter(BOOK_WRITER, "writer")
@@ -525,21 +533,25 @@ final class CodecGenerator {
             .addModifiers(Modifier.PRIVATE).returns(itemType)
             .addParameter(BOOK_READER, "reader").addParameter(CODEC_CONTEXT, "ctx")
             .addStatement("$T target = new $T()", itemType, itemType);
-        for (FieldModel field : fields) {
-            write.addStatement(write(field));
-            read.addStatement("target.$N($L)", field.setter(), read(field));
+        for (MemberModel member : members) {
+            if (member instanceof CollectionModel inner) {
+                write.addCode(setCount(inner));
+            }
+        }
+        for (MemberModel member : members) {
+            switch (member) {
+                case FieldModel field -> {
+                    write.addStatement(write(field));
+                    read.addStatement("target.$N($L)", field.setter(), read(field));
+                }
+                case CollectionModel inner -> {
+                    write.addCode(writeItems(inner));
+                    read.addCode(readItems(inner, false));
+                }
+            }
         }
         itemMethods.add(write.build());
         itemMethods.add(read.addStatement("return target").build());
-    }
-
-    /** Gives the maximum number of bytes of a member in the book. */
-    private static int maxByteLength(MemberModel member) {
-        return switch (member) {
-            case FieldModel field -> field.byteLength();
-            case CollectionModel collection ->
-                collection.maxOccurs() * collection.item().byteLength();
-        };
     }
 
     private static TypeName listOf(CollectionModel collection) {
@@ -1127,7 +1139,7 @@ final class CodecGenerator {
             int offset = model.members().stream()
                 .filter(member -> member.order() < discriminator.order())
                 .filter(member -> direction.test(member.direction()))
-                .mapToInt(CodecGenerator::maxByteLength).sum();
+                .mapToInt(MemberModel::areaLength).sum();
             return key.read(CodeBlock.of("new $T(data, ctx).peek($L)", BOOK_READER, offset));
         }
 

@@ -111,7 +111,7 @@ class ValidationTest {
         assertThat(lines.maxOccurs()).isEqualTo(5);
         assertThat(lines.getter()).isEqualTo("getLines");
         assertThat(lines.setter()).isEqualTo("setLines");
-        assertThat(lines.itemFields()).extracting(ModelSnapshot.Member::owner,
+        assertThat(lines.itemMembers()).extracting(ModelSnapshot.Member::owner,
                 ModelSnapshot.Member::name, ModelSnapshot.Member::direction,
                 ModelSnapshot.Member::byteLength)
             .containsExactly(
@@ -575,7 +575,7 @@ class ValidationTest {
         ModelSnapshot model = compiler.only();
         assertThat(model.members()).extracting(ModelSnapshot.Member::getter)
             .containsExactly("getCount", "getLines");
-        assertThat(model.members().get(1).itemFields().get(0).setter()).isEqualTo("setSku");
+        assertThat(model.members().get(1).itemMembers().get(0).setter()).isEqualTo("setSku");
     }
 
     @ParameterizedTest
@@ -981,7 +981,7 @@ class ValidationTest {
     }
 
     @Test
-    void nestedCollection() {
+    void nestedVariableCollection() {
         Compilation compilation = compile(
             order(field("@BookField(order = 1, length = 3)", "int", "count"),
                 field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
@@ -991,8 +991,9 @@ class ValidationTest {
                 field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "parts"),
                 "}"));
-        assertError(compilation, "Order.lines (order 2)",
-            "item class test.Line must not contain a @BookCollection (nested collection)");
+        assertError(compilation, "Line.parts (order 2)",
+            "a collection in an item class must have fixed = true (nested OCCURS DEPENDING ON"
+                + " is not supported)");
     }
 
     @Test
@@ -1050,7 +1051,7 @@ class ValidationTest {
                 "}",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
-        assertThat(compiler.only().members().get(1).itemFields().get(0).owner())
+        assertThat(compiler.only().members().get(1).itemMembers().get(0).owner())
             .isEqualTo("Entry");
     }
 

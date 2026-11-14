@@ -60,7 +60,7 @@ class ConventionTest {
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         ModelSnapshot.Member lines = compiler.only().members().get(1);
         assertThat(lines.direction()).isEqualTo("OUTPUT");
-        assertThat(lines.itemFields().get(0).direction()).isEqualTo("OUTPUT");
+        assertThat(lines.itemMembers().get(0).direction()).isEqualTo("OUTPUT");
     }
 
     @Test
@@ -212,7 +212,7 @@ class ConventionTest {
         assertThat(member(model, "quantity").owner()).isEqualTo("Base");
         assertThat(member(model, "quantity").usage()).isEqualTo("COMP3");
         assertThat(member(model, "units").usage()).isEqualTo("DISPLAY");
-        assertThat(member(model, "lines").itemFields().get(0).usage()).isEqualTo("COMP");
+        assertThat(member(model, "lines").itemMembers().get(0).usage()).isEqualTo("COMP");
     }
 
     @Test
