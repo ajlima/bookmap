@@ -451,6 +451,20 @@ class NestedCollectionTest {
     }
 
     @Test
+    void anInnerCollectionInASubtypeNamesTheOuterIndex() {
+        List<JavaFileObject> files = new ArrayList<>(List.of(getOrder(FIXED_LINES)));
+        files.addAll(List.of(lineSubtypes()));
+        BookCodec<Object> codec = codec("GetOrder", files.toArray(JavaFileObject[]::new));
+        Object product = newObject(codec, "ProductLine");
+        CompiledCodec.set(product, "taxes", List.of(tax(codec, "VA", 1000)));
+        Object order = order(codec, product);
+        assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith("GetOrder.lines (order 20) item 0: ProductLine.taxes"
+                + " (order 20) item 0: LineTax.amount (order 20): ");
+    }
+
+    @Test
     void flatCollectionMessagesHaveNoIndex() {
         BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
             source("OrderLine", "public class OrderLine {",
@@ -487,6 +501,13 @@ class NestedCollectionTest {
                 orderLine(", maxOccurs = 2, dependsOn = \"taxCount\""), lineTax()),
             "OrderLine.taxes (order 30)", "a collection in an item class must have fixed = true"
                 + " (nested OCCURS DEPENDING ON is not supported)");
+    }
+
+    @Test
+    void anInnerVariableCollectionGetsNoCountFieldError() {
+        Compilation compilation = compile(getOrder(FIXED_LINES),
+            orderLine(", maxOccurs = 2, dependsOn = \"nope\""), lineTax());
+        CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
 
     @Test
