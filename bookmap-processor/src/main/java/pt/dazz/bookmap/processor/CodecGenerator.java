@@ -6,10 +6,7 @@ import static pt.dazz.bookmap.processor.CodecTypes.BOOK_WRITER;
 import static pt.dazz.bookmap.processor.CodecTypes.BYTES;
 import static pt.dazz.bookmap.processor.CodecTypes.CODEC_CONTEXT;
 import static pt.dazz.bookmap.processor.CodecTypes.DECIMAL;
-import static pt.dazz.bookmap.processor.CodecTypes.EDITED_PICTURE;
-import static pt.dazz.bookmap.processor.CodecTypes.EMPTY_SLOT;
 import static pt.dazz.bookmap.processor.CodecTypes.FIELD_CONTEXT;
-import static pt.dazz.bookmap.processor.CodecTypes.FORMATS;
 import static pt.dazz.bookmap.processor.CodecTypes.GENERATED;
 import static pt.dazz.bookmap.processor.CodecTypes.MAPPING_EXCEPTION;
 import static pt.dazz.bookmap.processor.CodecTypes.USAGE;
@@ -18,31 +15,28 @@ import static pt.dazz.bookmap.processor.CodecTypes.numberAttributes;
 import com.palantir.javapoet.AnnotationSpec;
 import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
-import com.palantir.javapoet.FieldSpec;
 import com.palantir.javapoet.JavaFile;
 import com.palantir.javapoet.MethodSpec;
-import com.palantir.javapoet.NameAllocator;
 import com.palantir.javapoet.ParameterizedTypeName;
 import com.palantir.javapoet.TypeName;
 import com.palantir.javapoet.TypeSpec;
-import com.palantir.javapoet.WildcardTypeName;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.annotation.Usage;
-import pt.dazz.bookmap.processor.EnumMethodsGenerator.EnumMethods;
+import pt.dazz.bookmap.processor.CodecMembers.CollectionNames;
+import pt.dazz.bookmap.processor.CodecMembers.ItemMethods;
+import pt.dazz.bookmap.processor.CodecMembers.Names;
 import pt.dazz.bookmap.processor.HelperMethods.Helper;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
@@ -74,39 +68,11 @@ final class CodecGenerator {
     /** The value of the {@code @Generated} annotation of each codec. */
     static final String GENERATOR = "pt.dazz.bookmap.processor.BookmapProcessor";
 
-    /** The names of the generated members of one field. */
-    private record Names(String descriptor, String formatter, String converter,
-                         EnumMethods enumMethods, String picture) {
-    }
-
-    /**
-     * The names of the generated members and local variables of one collection.
-     *
-     * @param marker the name of the {@code EmptySlot} constant, or {@code null} for LOW-VALUES
-     * @param indexed {@code true} if a message of an item names the index of the item: the
-     *     collection is in an item class, or its item class has a collection
-     */
-    private record CollectionNames(String descriptor, String list, String count, String marker,
-                                   boolean indexed) {
-    }
-
-    /** The names of the methods that write and read one item class. */
-    private record ItemMethods(String write, String read) {
-    }
-
     private final OperationModel model;
     private final ClassName type;
-    private final NameAllocator allocator = new NameAllocator();
-    private final EnumMethodsGenerator enumGenerator = new EnumMethodsGenerator(allocator);
-    private final Map<FieldModel, Names> names = new HashMap<>();
-    private final Map<CollectionModel, CollectionNames> collections = new HashMap<>();
-    /** The converter field of each converter class, by qualified class name. */
-    private final Map<String, String> converters = new HashMap<>();
-    /** The item methods of each item class, by qualified class name. */
-    private final Map<String, ItemMethods> items = new HashMap<>();
-    private final Map<String, EnumMethods> enums = new HashMap<>();
     private final List<MethodSpec> itemMethods = new ArrayList<>();
     private final HelperMethods helpers = new HelperMethods();
+    private final CodecMembers members = new CodecMembers();
     /** The layouts of the codec: one without subtypes, else one for each class. */
     private final List<Layout> layouts;
 
@@ -114,10 +80,6 @@ final class CodecGenerator {
         this.model = model;
         this.type = ClassName.get(model.type());
         this.layouts = Layout.of(model.type(), model.members(), model.subTypes());
-        // The local variables of the generated methods.
-        List.of("value", "target", "data", "ctx", "writer", "reader", "item", "i", "start",
-                "key", "selected", "copy", "e")
-            .forEach(allocator::newName);
     }
 
     /**
@@ -156,7 +118,7 @@ final class CodecGenerator {
             for (MemberModel member : layout.members()) {
                 if (added.add(member)) {
                     switch (member) {
-                        case FieldModel field -> addFieldMembers(builder, field);
+                        case FieldModel field -> members.addField(builder, field);
                         case CollectionModel collection ->
                             addCollectionMembers(builder, collection, false);
                     }
@@ -188,27 +150,27 @@ final class CodecGenerator {
         }
         builder.addMethod(newInstance.build());
         if (model.subTypes() == null) {
-            List<MemberModel> members = model.members();
-            builder.addMethod(encode(override("encodeRequest"), type, members,
+            List<MemberModel> layout = model.members();
+            builder.addMethod(encode(override("encodeRequest"), type, layout,
                 Direction::isInput));
             builder.addMethod(override("decodeResponse")
                 .addParameter(BYTES, "data").addParameter(type, "target")
                 .addParameter(CODEC_CONTEXT, "ctx")
-                .addCode(decode(members, Direction::isOutput, true)).build());
+                .addCode(decode(layout, Direction::isOutput, true)).build());
             builder.addMethod(override("decodeRequest").returns(type)
                 .addParameter(BYTES, "data").addParameter(CODEC_CONTEXT, "ctx")
                 .addStatement("$T target = newInstance()", type)
-                .addCode(decode(members, Direction::isInput, false))
+                .addCode(decode(layout, Direction::isInput, false))
                 .addStatement("return target").build());
-            builder.addMethod(encode(override("encodeResponse"), type, members,
+            builder.addMethod(encode(override("encodeResponse"), type, layout,
                 Direction::isOutput));
             builder.addMethod(resetOutputCollections(override("resetOutputCollections"), type,
-                members));
+                layout));
         } else {
             new SubTypesGenerator().addMethods(builder);
         }
         builder.addMethods(itemMethods);
-        builder.addMethods(enumGenerator.methods());
+        builder.addMethods(members.enumMethods());
         builder.addMethods(helpers.methods());
         return JavaFile.builder(codec.packageName(), builder.build()).build();
     }
@@ -218,51 +180,6 @@ final class CodecGenerator {
             .addModifiers(Modifier.PUBLIC);
     }
 
-    private void addFieldMembers(TypeSpec.Builder builder, FieldModel field) {
-        String constant = upperSnake(field.name());
-        String descriptor = allocator.newName(constant);
-        builder.addField(FieldSpec.builder(String.class, descriptor, Modifier.PRIVATE,
-            Modifier.STATIC, Modifier.FINAL).initializer("$S", field.descriptor()).build());
-        String formatter = null;
-        String converter = null;
-        EnumMethods enumMethods = null;
-        switch (field.kind()) {
-            case LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME -> {
-                formatter = allocator.newName(constant + "_FORMAT");
-                builder.addField(FieldSpec.builder(DateTimeFormatter.class, formatter,
-                        Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
-                    .initializer("$T.of($S)", FORMATS, field.pattern()).build());
-            }
-            case CONVERTED -> converter = converters.computeIfAbsent(
-                field.converter().getQualifiedName().toString(),
-                key -> addConverter(builder, field.converter()));
-            case ENUM -> enumMethods = enumGenerator.methodsOf(field.enumModel());
-            default -> {
-                // Text and numbers need no other member.
-            }
-        }
-        String picture = null;
-        if (field.edited() != null) {
-            picture = allocator.newName(constant + "_PICTURE");
-            builder.addField(FieldSpec.builder(EDITED_PICTURE, picture, Modifier.PRIVATE,
-                    Modifier.STATIC, Modifier.FINAL)
-                .initializer("$T.parse($S, $L)", EDITED_PICTURE, field.edited().text(),
-                    field.edited().blankWhenZero()).build());
-        }
-        names.put(field, new Names(descriptor, formatter, converter, enumMethods, picture));
-    }
-
-    /** Adds the one instance of a converter class. */
-    private String addConverter(TypeSpec.Builder builder, TypeElement converter) {
-        String simpleName = converter.getSimpleName().toString();
-        String name = allocator.newName(
-            Character.toLowerCase(simpleName.charAt(0)) + simpleName.substring(1));
-        ClassName converterType = ClassName.get(converter);
-        builder.addField(FieldSpec.builder(converterType, name, Modifier.PRIVATE,
-            Modifier.FINAL).initializer("new $T()", converterType).build());
-        return name;
-    }
-
     /**
      * Adds the members of a collection and of its item class.
      *
@@ -270,32 +187,12 @@ final class CodecGenerator {
      */
     private void addCollectionMembers(TypeSpec.Builder builder, CollectionModel collection,
                                       boolean inner) {
-        String descriptor = allocator.newName(upperSnake(collection.name()));
-        builder.addField(FieldSpec.builder(String.class, descriptor, Modifier.PRIVATE,
-            Modifier.STATIC, Modifier.FINAL).initializer("$S", collection.descriptor()).build());
-        String marker = null;
-        if (collection.marked()) {
-            marker = allocator.newName(upperSnake(collection.name()) + "_EMPTY");
-            builder.addField(FieldSpec.builder(EMPTY_SLOT, marker, Modifier.PRIVATE,
-                Modifier.STATIC, Modifier.FINAL).initializer(emptySlot(collection)).build());
-        }
-        collections.put(collection, new CollectionNames(descriptor,
-            allocator.newName(collection.name()), allocator.newName(collection.name() + "Count"),
-            marker, inner || hasInnerCollection(collection.item())));
-        String itemKey = collection.item().type().getQualifiedName().toString();
-        if (!items.containsKey(itemKey)) {
+        members.addCollection(builder, collection, inner);
+        ItemModel item = collection.item();
+        if (members.itemMethods(item) == null) {
             // Not computeIfAbsent: the item members can add the items of inner collections.
-            items.put(itemKey, addItemMembers(builder, collection.item()));
+            members.putItemMethods(item, addItemMembers(builder, item));
         }
-    }
-
-    /** Tells if an item class has a collection, in its own members or in a subtype. */
-    private static boolean hasInnerCollection(ItemModel item) {
-        List<MemberModel> members = new ArrayList<>(item.members());
-        if (item.subTypes() != null) {
-            item.subTypes().variants().forEach(variant -> members.addAll(variant.members()));
-        }
-        return members.stream().anyMatch(CollectionModel.class::isInstance);
     }
 
     /**
@@ -316,29 +213,15 @@ final class CodecGenerator {
             .build();
     }
 
-    /** Gives the expression that makes the empty-slot marker of a collection. */
-    private static CodeBlock emptySlot(CollectionModel collection) {
-        CodeBlock.Builder code = CodeBlock.builder().add("$T.$N()", EMPTY_SLOT,
-            collection.emptyItem() == EmptyItem.SPACES ? "spaces" : "lowValues");
-        FieldModel key = collection.emptyKey();
-        if (key != null && key.kind() == JavaKind.STRING) {
-            code.add(".withTextKey($L, $L)", collection.emptyKeyOffset(), key.byteLength());
-        } else if (key != null) {
-            code.add(".withNumberKey($L, $L)", collection.emptyKeyOffset(),
-                numberAttributes(key));
-        }
-        return code.build();
-    }
-
     /** Adds the members of an item class and makes its write and read methods. */
     private ItemMethods addItemMembers(TypeSpec.Builder builder, ItemModel item) {
         List<Layout> itemLayouts = Layout.of(item.type(), item.members(), item.subTypes());
         for (Layout layout : itemLayouts) {
             for (MemberModel member : layout.members()) {
                 switch (member) {
-                    case FieldModel field when !names.containsKey(field) ->
-                        addFieldMembers(builder, field);
-                    case CollectionModel inner when !collections.containsKey(inner) ->
+                    case FieldModel field when !members.hasNames(field) ->
+                        members.addField(builder, field);
+                    case CollectionModel inner when !members.hasNames(inner) ->
                         addCollectionMembers(builder, inner, true);
                     default -> {
                         // The members of a base class are already in another layout.
@@ -348,8 +231,8 @@ final class CodecGenerator {
         }
         ClassName itemType = ClassName.get(item.type());
         String suffix = String.join("_", itemType.simpleNames());
-        ItemMethods methods = new ItemMethods(allocator.newName("writeItem_" + suffix),
-            allocator.newName("readItem_" + suffix));
+        ItemMethods methods = new ItemMethods(members.newName("writeItem_" + suffix),
+            members.newName("readItem_" + suffix));
         if (item.subTypes() == null) {
             addItemLayoutMethods(methods, item.type(), item.members());
             return methods;
@@ -357,13 +240,13 @@ final class CodecGenerator {
         Map<Layout, ItemMethods> layoutMethods = new HashMap<>();
         for (Layout layout : itemLayouts) {
             String layoutSuffix = String.join("_", ClassName.get(layout.type()).simpleNames());
-            ItemMethods names = new ItemMethods(allocator.newName("writeItem_" + layoutSuffix),
-                allocator.newName("readItem_" + layoutSuffix));
+            ItemMethods names = new ItemMethods(members.newName("writeItem_" + layoutSuffix),
+                members.newName("readItem_" + layoutSuffix));
             addItemLayoutMethods(names, layout.type(), layout.members());
             layoutMethods.put(layout, names);
         }
         FieldModel discriminator = item.subTypes().discriminator();
-        Discriminator key = new Discriminator(discriminator, itemLayouts, itemType);
+        Discriminator key = new Discriminator(members, discriminator, itemLayouts, itemType);
         itemMethods.add(key.typeOfMethod());
         itemMethods.add(key.unknownValueMethod());
         int offset = item.members().stream()
@@ -472,19 +355,6 @@ final class CodecGenerator {
             ClassName.get(collection.item().type()));
     }
 
-    /** Changes {@code orderId} to {@code ORDER_ID}. */
-    private static String upperSnake(String name) {
-        StringBuilder result = new StringBuilder().append(name.charAt(0));
-        for (int i = 1; i < name.length(); i++) {
-            char c = name.charAt(i);
-            if (Character.isUpperCase(c) && Character.isLowerCase(name.charAt(i - 1))) {
-                result.append('_');
-            }
-            result.append(c);
-        }
-        return result.toString().toUpperCase(Locale.ROOT);
-    }
-
     /**
      * Makes an encode method. First, the method sets the count field of each collection to the
      * list size. Then it writes the members in order.
@@ -510,7 +380,7 @@ final class CodecGenerator {
     }
 
     private CodeBlock setCount(CollectionModel collection) {
-        CollectionNames n = collections.get(collection);
+        CollectionNames n = members.names(collection);
         FieldModel count = collection.countField();
         CodeBlock.Builder code = CodeBlock.builder()
             .addStatement("$T $N = value.$N()", listOf(collection), n.list(), collection.getter())
@@ -532,7 +402,7 @@ final class CodecGenerator {
         if (collection.fixed()) {
             return writeFixedItems(collection);
         }
-        CollectionNames n = collections.get(collection);
+        CollectionNames n = members.names(collection);
         if (n.indexed()) {
             // The count is 0 for a null list.
             return CodeBlock.builder()
@@ -562,7 +432,7 @@ final class CodecGenerator {
      * count field, an item that is all LOW-VALUES is an error: a read cannot find it.
      */
     private CodeBlock writeFixedItems(CollectionModel collection) {
-        CollectionNames n = collections.get(collection);
+        CollectionNames n = members.names(collection);
         CodeBlock writeItem = CodeBlock.of("$N(writer, item, ctx)",
             itemMethodsOf(collection).write());
         CodeBlock.Builder code = CodeBlock.builder()
@@ -637,7 +507,7 @@ final class CodecGenerator {
     }
 
     private CodeBlock readItems(CollectionModel collection, boolean append) {
-        CollectionNames n = collections.get(collection);
+        CollectionNames n = members.names(collection);
         int itemLength = collection.item().byteLength();
         CodeBlock marker = n.marker() == null ? CodeBlock.of("")
             : CodeBlock.of(", $N", n.marker());
@@ -669,7 +539,7 @@ final class CodecGenerator {
     }
 
     private ItemMethods itemMethodsOf(CollectionModel collection) {
-        return items.get(collection.item().type().getQualifiedName().toString());
+        return members.itemMethods(collection.item());
     }
 
     private MethodSpec resetOutputCollections(MethodSpec.Builder method, TypeName valueType,
@@ -685,7 +555,7 @@ final class CodecGenerator {
     }
 
     private CodeBlock write(FieldModel field) {
-        Names n = names.get(field);
+        Names n = members.names(field);
         CodeBlock value = CodeBlock.of("value.$N()", field.getter());
         return switch (field.kind()) {
             case STRING -> CodeBlock.of("writer.writeText($N, $L, $L)", n.descriptor(), value,
@@ -712,7 +582,7 @@ final class CodecGenerator {
     }
 
     private CodeBlock writeNumber(FieldModel field, CodeBlock decimal) {
-        Names n = names.get(field);
+        Names n = members.names(field);
         return field.edited() != null
             ? CodeBlock.of("writer.writeEdited($N, $L, $N)", n.descriptor(), decimal, n.picture())
             : CodeBlock.of("writer.writeNumber($N, $L, $L)", n.descriptor(), decimal,
@@ -720,7 +590,7 @@ final class CodecGenerator {
     }
 
     private CodeBlock read(FieldModel field) {
-        Names n = names.get(field);
+        Names n = members.names(field);
         CodeBlock number = field.edited() != null
             ? CodeBlock.of("reader.readEdited($N, $N)", n.descriptor(), n.picture())
             : CodeBlock.of("reader.readNumber($N, $L)", n.descriptor(), numberAttributes(field));
@@ -750,7 +620,7 @@ final class CodecGenerator {
 
     /** Reads a date or time field. A packed field calls {@code readPacked<type>}. */
     private CodeBlock readTemporal(String type, FieldModel field) {
-        Names n = names.get(field);
+        Names n = members.names(field);
         return field.usage() == Usage.COMP3
             ? CodeBlock.of("reader.$N($N, $L, $L, $N)", "readPacked" + type, n.descriptor(),
                 field.length(), field.signed(), n.formatter())
@@ -765,104 +635,6 @@ final class CodecGenerator {
     }
 
     /**
-     * Generates the code that reads a discriminator and selects a class: a {@code typeOf}
-     * method that gives the class of a value, and an {@code unknownValue} method that makes the
-     * exception for an unknown value.
-     */
-    private final class Discriminator {
-
-        private final FieldModel field;
-        private final List<Layout> layouts;
-        private final ClassName base;
-        private final boolean numeric;
-        private final String typeOf;
-        private final String unknownValue;
-
-        Discriminator(FieldModel field, List<Layout> layouts, ClassName base) {
-            this.field = field;
-            this.layouts = layouts;
-            this.base = base;
-            this.numeric = field.kind() != JavaKind.STRING;
-            String suffix = String.join("_", base.simpleNames());
-            this.typeOf = allocator.newName("typeOf_" + suffix);
-            this.unknownValue = allocator.newName("unknownValue_" + suffix);
-        }
-
-        String typeOf() {
-            return typeOf;
-        }
-
-        String unknownValue() {
-            return unknownValue;
-        }
-
-        /** Gives the type of a read value: {@code BigDecimal} or {@code String}. */
-        TypeName keyType() {
-            return numeric ? DECIMAL : ClassName.get(String.class);
-        }
-
-        /** Gives {@code Class<? extends Base>}. */
-        TypeName subtypeClass() {
-            return ParameterizedTypeName.get(ClassName.get(Class.class),
-                WildcardTypeName.subtypeOf(base));
-        }
-
-        /** Reads the value with a reader at the position of the discriminator. */
-        CodeBlock read(CodeBlock reader) {
-            String descriptor = names.get(field).descriptor();
-            return numeric
-                ? CodeBlock.of("$L.readNumber($N, $L)", reader, descriptor,
-                    numberAttributes(field))
-                : CodeBlock.of("$L.readText($N, $L)", reader, descriptor, field.length());
-        }
-
-        /** Gives a value as a Java literal for the setter of the discriminator. */
-        CodeBlock literal(String value) {
-            return switch (field.kind()) {
-                case STRING -> CodeBlock.of("$S", value);
-                case LONG, LONG_BOXED -> CodeBlock.of("$LL", value);
-                default -> CodeBlock.of("$L", value);
-            };
-        }
-
-        /** Gives the class of a discriminator value, or null for an unknown value. */
-        MethodSpec typeOfMethod() {
-            MethodSpec.Builder method = MethodSpec.methodBuilder(typeOf)
-                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
-                .returns(subtypeClass()).addParameter(keyType(), "key");
-            for (Layout layout : layouts) {
-                if (layout.value() != null) {
-                    if (numeric) {
-                        method.beginControlFlow("if (key != null && key.compareTo($T.valueOf($LL))"
-                            + " == 0)", DECIMAL, layout.value());
-                    } else {
-                        method.beginControlFlow("if (key.equals($S))", layout.value());
-                    }
-                    method.addStatement("return $T.class", ClassName.get(layout.type()))
-                        .endControlFlow();
-                }
-            }
-            return method.addStatement("return null").build();
-        }
-
-        /** Makes the exception for an unknown discriminator value. */
-        MethodSpec unknownValueMethod() {
-            String known = layouts.stream().map(Layout::value).filter(Objects::nonNull)
-                .collect(Collectors.joining(", "));
-            CodeBlock key = numeric
-                ? CodeBlock.of("(key == null ? $S : key.toPlainString())", "(blank)")
-                : CodeBlock.of("key");
-            return MethodSpec.methodBuilder(unknownValue)
-                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
-                .returns(MAPPING_EXCEPTION).addParameter(keyType(), "key")
-                .addStatement("return new $T($N + $S + $L + $S)", MAPPING_EXCEPTION,
-                    names.get(field).descriptor(), ": unknown discriminator value '", key,
-                    "'. Known values: " + known)
-                .build();
-        }
-    }
-
-    /**
      * Generates the methods of a codec with subtypes. Each layout gets private methods. The
      * public methods select the layout by the exact class of the object or by the value of the
      * discriminator.
@@ -871,17 +643,17 @@ final class CodecGenerator {
 
         private final SubTypesModel subTypes = model.subTypes();
         private final FieldModel discriminator = subTypes.discriminator();
-        private final Discriminator key = new Discriminator(discriminator, layouts, type);
+        private final Discriminator key = new Discriminator(members, discriminator, layouts, type);
         private final TypeName keyType = key.keyType();
         private final TypeName subtypeClass = key.subtypeClass();
         private final String typeOf = key.typeOf();
         private final String unknownValue = key.unknownValue();
         private final String prefix = type.simpleName() + ": ";
         private final Map<Layout, LayoutMethods> methods = new HashMap<>();
-        private final String unknownSubclass = allocator.newName("unknownSubclass");
-        private final String selectResponse = allocator.newName("selectResponse");
-        private final String decodeInto = allocator.newName("decodeInto");
-        private final String newSubtype = allocator.newName("newSubtype");
+        private final String unknownSubclass = members.newName("unknownSubclass");
+        private final String selectResponse = members.newName("selectResponse");
+        private final String decodeInto = members.newName("decodeInto");
+        private final String newSubtype = members.newName("newSubtype");
 
         /** The names of the private methods of one layout. */
         private record LayoutMethods(String encodeRequest, String encodeResponse,
@@ -892,11 +664,11 @@ final class CodecGenerator {
             for (Layout layout : layouts) {
                 String suffix = String.join("_", ClassName.get(layout.type()).simpleNames());
                 LayoutMethods names = new LayoutMethods(
-                    allocator.newName("encodeRequest_" + suffix),
-                    allocator.newName("encodeResponse_" + suffix),
-                    allocator.newName("decodeResponse_" + suffix),
-                    allocator.newName("decodeRequest_" + suffix),
-                    allocator.newName("resetOutputCollections_" + suffix));
+                    members.newName("encodeRequest_" + suffix),
+                    members.newName("encodeResponse_" + suffix),
+                    members.newName("decodeResponse_" + suffix),
+                    members.newName("decodeRequest_" + suffix),
+                    members.newName("resetOutputCollections_" + suffix));
                 methods.put(layout, names);
                 TypeName layoutType = ClassName.get(layout.type());
                 builder.addMethod(encode(privateMethod(names.encodeRequest()), layoutType,
