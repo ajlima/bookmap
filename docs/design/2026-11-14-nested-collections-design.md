@@ -1,7 +1,7 @@
 # Nested collections (design)
 
 Date: 2026-11-14
-Status: approved.
+Status: implemented in v0.24.0.
 Issue: #43
 Parent specs: `2026-11-10-bookmap-design.md` (section 2.2), `2026-11-11-bookmap-fixed-occurs-design.md`, `2026-11-13-empty-item-markers-design.md`
 
