@@ -77,7 +77,7 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 
 - No `REDEFINES` without a discriminator. See [Subtypes (REDEFINES)](Subtypes-REDEFINES).
 - No subtypes in a subtype, and no base fields after the redefined area.
-- No nested collections.
+- No `OCCURS DEPENDING ON` in a table entry. A nested collection must be fixed.
 - No `COMP-1` or `COMP-2`.
 - Single-byte charsets only.
 - No alphanumeric edited pictures, for example `XXBXX`. No currency sign other than `$`, and no `DECIMAL-POINT IS COMMA`.

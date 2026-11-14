@@ -221,6 +221,7 @@ Compile errors on the field, for example `Invoice.partyRole (order 30): enum Par
 | `maxOccurs` | The maximum number of items in one call. | Mandatory. |
 
 The item class has `@BookField` fields without `direction`. They use the direction of the collection.
+The item class can have a fixed `@BookCollection` without `direction` (a nested collection). See [Nested collections](Collections-and-fixed-OCCURS#nested-collections).
 The item class needs a public constructor without arguments.
 The digits of the count field must hold `maxOccurs`. For example, `9(1)` with `maxOccurs = 50` is a compile error.
 

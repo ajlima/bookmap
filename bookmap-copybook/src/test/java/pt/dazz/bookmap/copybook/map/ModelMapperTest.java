@@ -185,11 +185,10 @@ class ModelMapperTest {
     }
 
     @Test
-    void nestedOccursIsAnError() {
+    void nestedOccursMapsToAnInnerCollection() {
         MapResult result = map("01 ORDER.", "05 LINE OCCURS 2.", "10 TAG OCCURS 3 PIC X.");
-        assertThat(errors(result)).containsExactly(
-            "OCCURS TAG is inside OCCURS LINE. BookMap does not support nested collections."
-                + " See issue #43.");
+        assertThat(errors(result)).isEmpty();
+        assertThat(member(type(result, "Line"), "tag")).isInstanceOf(CollectionMember.class);
     }
 
     @Test

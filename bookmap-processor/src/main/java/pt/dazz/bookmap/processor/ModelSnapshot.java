@@ -34,7 +34,7 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
 
     /**
      * Gives a copy of one member. A collection has no length, scale, sign, usage, pattern, Java
-     * kind, or converter. A field has no count field, no maximum, and no item fields.
+     * kind, or converter. A field has no count field, no maximum, and no item members.
      *
      * @param owner the simple name of the declaring class
      * @param name the field name
@@ -53,13 +53,13 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
      * @param countField the name of the count field, or {@code ""}
      * @param maxOccurs the maximum number of entries, or 0
      * @param fixed {@code true} for a fixed collection
-     * @param itemFields the fields of one entry
+     * @param itemMembers the members of one entry: fields, and inner collections
      * @param edited the edited picture, with {@code BLANK WHEN ZERO}, or {@code ""}
      */
     record Member(String owner, String name, int order, String direction, int length, int scale,
         boolean signed, String usage, String pattern, int byteLength, String javaKind,
         String getter, String setter, String converter, String countField, int maxOccurs,
-        boolean fixed, List<Member> itemFields, String edited) {
+        boolean fixed, List<Member> itemMembers, String edited) {
     }
 
     /**
@@ -88,7 +88,7 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
                 collection.setter(), "",
                 collection.countField() == null ? "" : collection.countField().name(),
                 collection.maxOccurs(), collection.fixed(),
-                collection.item().fields().stream().map(ModelSnapshot::field).toList(), "");
+                collection.item().members().stream().map(ModelSnapshot::member).toList(), "");
         };
     }
 

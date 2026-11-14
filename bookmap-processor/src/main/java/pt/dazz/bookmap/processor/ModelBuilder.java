@@ -1,8 +1,10 @@
 package pt.dazz.bookmap.processor;
 
 import java.math.BigInteger;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,6 +61,8 @@ public final class ModelBuilder {
         JavaKind.INTEGER, JavaKind.LONG, JavaKind.LONG_BOXED, JavaKind.BIG_DECIMAL);
     private static final Set<JavaKind> COUNT_KINDS = EnumSet.of(JavaKind.INT, JavaKind.INTEGER,
         JavaKind.LONG, JavaKind.LONG_BOXED);
+    /** The maximum number of collection levels: the top-level collection and the inner ones. */
+    static final int MAX_LEVELS = 7;
 
     private final Elements elements;
     private final Types types;
@@ -134,6 +138,8 @@ public final class ModelBuilder {
         private final Problems problems = new Problems();
         /** The operation class, its superclasses, the item classes, and their superclasses. */
         private final Set<TypeElement> declaringClasses = new LinkedHashSet<>();
+        /** The item classes of the collections that the builder builds now, outer first. */
+        private final Deque<TypeElement> itemPath = new ArrayDeque<>();
 
         Run(TypeElement type) {
             this.type = type;
@@ -168,7 +174,7 @@ public final class ModelBuilder {
             for (AnnotatedMember member : annotated) {
                 if (member.collection()) {
                     CollectionModel collection = collection(type, continuable, member, annotated,
-                        byName, Set.of(), fields, members, countUsers);
+                        byName, Set.of(), fields, members, countUsers, null);
                     if (collection != null) {
                         members.add(collection);
                     }
@@ -494,10 +500,7 @@ public final class ModelBuilder {
             List<MemberModel> members = new ArrayList<>();
             for (AnnotatedMember member : own) {
                 byName.put(member.name(), member);
-                if (member.collection() && itemDirection != null) {
-                    problems.error(member, "an item class must not contain a @BookCollection"
-                        + " (nested collection)");
-                } else if (!member.collection()) {
+                if (!member.collection()) {
                     FieldModel field = fieldResolver.resolve(subtype, member, itemDirection,
                         codecPackage, problems);
                     if (field != null) {
@@ -522,9 +525,9 @@ public final class ModelBuilder {
             }
             Map<String, String> countUsers = new HashMap<>();
             for (AnnotatedMember member : own) {
-                if (member.collection() && itemDirection == null) {
+                if (member.collection()) {
                     CollectionModel collection = collection(subtype, subtypeContinuable, member,
-                        own, byName, baseNames, fields, members, countUsers);
+                        own, byName, baseNames, fields, members, countUsers, itemDirection);
                     if (collection != null) {
                         members.add(collection);
                     }
@@ -603,6 +606,8 @@ public final class ModelBuilder {
          * @param owner the class that the generated code uses for the accessors
          * @param continuable {@code true} if the owner implements {@code Continuable}
          * @param outside the names of members that the layout cannot use as a count field
+         * @param itemDirection the direction of the outer collection for a collection in an
+         *     item class, or null
          */
         private CollectionModel collection(TypeElement owner, boolean continuable,
                                            AnnotatedMember member,
@@ -611,21 +616,25 @@ public final class ModelBuilder {
                                            Set<String> outside,
                                            Map<String, FieldModel> fields,
                                            List<MemberModel> members,
-                                           Map<String, String> countUsers) {
+                                           Map<String, String> countUsers,
+                                           Direction itemDirection) {
             int before = problems.count();
             Map<String, Object> values = member.values();
-            Direction direction = Direction.valueOf(
+            boolean fixed = (Boolean) values.getOrDefault("fixed", false);
+            if (itemDirection != null && !innerRules(member, fixed)) {
+                return null;
+            }
+            Direction direction = itemDirection != null ? itemDirection : Direction.valueOf(
                 (String) values.getOrDefault("direction", Direction.OUTPUT.name()));
             int maxOccurs = (Integer) values.get("maxOccurs");
             if (maxOccurs < 1) {
                 problems.error(member, "maxOccurs must be at least 1");
             }
-            if (continuable && direction == Direction.INPUT_OUTPUT) {
+            if (itemDirection == null && continuable && direction == Direction.INPUT_OUTPUT) {
                 problems.error(member,
                     "an INPUT_OUTPUT collection is not permitted in a Continuable class");
             }
             ItemModel item = item(member, direction);
-            boolean fixed = (Boolean) values.getOrDefault("fixed", false);
             // A fixed collection without dependsOn has no count field: no convention applies.
             boolean counted = !fixed || !((String) values.getOrDefault("dependsOn", "")).isEmpty();
             FieldModel count = counted ? countField(member, direction, maxOccurs, annotated,
@@ -642,12 +651,12 @@ public final class ModelBuilder {
             FieldModel emptyKey = null;
             int emptyKeyOffset = 0;
             if (fixed && !counted && !keyName.isEmpty() && item != null) {
-                for (FieldModel field : item.fields()) {
-                    if (field.name().equals(keyName)) {
+                for (MemberModel candidate : item.members()) {
+                    if (candidate instanceof FieldModel field && field.name().equals(keyName)) {
                         emptyKey = field;
                         break;
                     }
-                    emptyKeyOffset += field.byteLength();
+                    emptyKeyOffset += candidate.areaLength();
                 }
                 if (emptyKey == null) {
                     problems.error(member, "emptyKey field '" + keyName
@@ -672,12 +681,64 @@ public final class ModelBuilder {
                 emptyKeyOffset);
         }
 
+        /**
+         * Checks the rules of a collection in an item class: it is fixed, and it has no
+         * direction.
+         *
+         * @return {@code true} if the rules are met
+         */
+        private boolean innerRules(AnnotatedMember member, boolean fixed) {
+            int before = problems.count();
+            if (member.values().containsKey("direction")) {
+                problems.error(member, "direction must not be set on a collection in an item"
+                    + " class");
+            }
+            if (!fixed) {
+                problems.error(member, "a collection in an item class must have fixed = true"
+                    + " (nested OCCURS DEPENDING ON is not supported)");
+            }
+            return problems.count() == before;
+        }
+
+        /**
+         * Builds the layout of one entry of a collection. The method checks the cycles and the
+         * depth of the nested collections.
+         */
         private ItemModel item(AnnotatedMember collection, Direction direction) {
             TypeElement itemType = listItem(collection.field().asType());
             if (itemType == null) {
                 problems.error(collection, "a collection must have the type List<X>");
                 return null;
             }
+            if (itemPath.contains(itemType)) {
+                List<String> path = new ArrayList<>();
+                boolean inCycle = false;
+                for (TypeElement outer : itemPath) {
+                    inCycle |= outer.equals(itemType);
+                    if (inCycle) {
+                        path.add(outer.getSimpleName().toString());
+                    }
+                }
+                path.add(itemType.getSimpleName().toString());
+                problems.error(collection, "item class " + itemType.getSimpleName()
+                    + " contains itself: " + String.join(" > ", path));
+                return null;
+            }
+            if (itemPath.size() == MAX_LEVELS) {
+                problems.error(collection, "a collection must not have more than " + MAX_LEVELS
+                    + " levels of nested collections");
+                return null;
+            }
+            itemPath.addLast(itemType);
+            try {
+                return itemLayout(collection, itemType, direction);
+            } finally {
+                itemPath.removeLast();
+            }
+        }
+
+        private ItemModel itemLayout(AnnotatedMember collection, TypeElement itemType,
+                                     Direction direction) {
             int before = problems.count();
             // An abstract item class with subtypes needs only to be public: the codec never
             // creates it.
@@ -699,29 +760,40 @@ public final class ModelBuilder {
                     + " must have at least one @BookField");
                 return null;
             }
-            if (annotated.stream().anyMatch(AnnotatedMember::collection)) {
-                problems.error(collection, "item class " + itemType.getQualifiedName()
-                    + " must not contain a @BookCollection (nested collection)");
-                return null;
-            }
             checkDuplicateOrders(annotated);
-            List<FieldModel> fields = new ArrayList<>();
+            Map<String, AnnotatedMember> byName = new HashMap<>();
+            Map<String, FieldModel> fields = new HashMap<>();
+            List<MemberModel> members = new ArrayList<>();
             for (AnnotatedMember member : annotated) {
-                FieldModel field = fieldResolver.resolve(itemType, member, direction,
-                    codecPackage, problems);
-                if (field != null) {
-                    fields.add(field);
+                byName.put(member.name(), member);
+                if (!member.collection()) {
+                    FieldModel field = fieldResolver.resolve(itemType, member, direction,
+                        codecPackage, problems);
+                    if (field != null) {
+                        fields.put(member.name(), field);
+                        members.add(field);
+                    }
                 }
             }
-            if (problems.count() != before || fields.size() != annotated.size()) {
+            Map<String, String> countUsers = new HashMap<>();
+            for (AnnotatedMember member : annotated) {
+                if (member.collection()) {
+                    CollectionModel inner = collection(itemType, false, member, annotated,
+                        byName, Set.of(), fields, members, countUsers, direction);
+                    if (inner != null) {
+                        members.add(inner);
+                    }
+                }
+            }
+            if (problems.count() != before || members.size() != annotated.size()) {
                 return null;
             }
-            fields.sort(Comparator.comparingInt(FieldModel::order));
-            int byteLength = fields.stream().mapToInt(FieldModel::byteLength).sum();
+            members.sort(Comparator.comparingInt(MemberModel::order));
+            int byteLength = members.stream().mapToInt(MemberModel::areaLength).sum();
             if (!SubTypesResolver.present(itemType)) {
-                return new ItemModel(itemType, List.copyOf(fields), byteLength, null);
+                return new ItemModel(itemType, List.copyOf(members), byteLength, null);
             }
-            SubTypesModel subTypes = subTypes(itemType, annotated, fields, direction);
+            SubTypesModel subTypes = subTypes(itemType, annotated, members, direction);
             if (subTypes == null) {
                 return null;
             }
@@ -729,9 +801,9 @@ public final class ModelBuilder {
             int longest = subTypes.baseAbstract() ? 0 : byteLength;
             for (VariantModel variant : subTypes.variants()) {
                 longest = Math.max(longest, variant.members().stream()
-                    .mapToInt(member -> ((FieldModel) member).byteLength()).sum());
+                    .mapToInt(MemberModel::areaLength).sum());
             }
-            return new ItemModel(itemType, List.copyOf(fields), longest, subTypes);
+            return new ItemModel(itemType, List.copyOf(members), longest, subTypes);
         }
 
         private TypeElement listItem(TypeMirror fieldType) {
@@ -778,7 +850,9 @@ public final class ModelBuilder {
                 return null;
             }
             if (target == null) {
-                problems.error(collection, prefix + "does not exist");
+                problems.error(collection, prefix + "does not exist" + (itemPath.isEmpty() ? ""
+                    : " in item class " + itemPath.getLast().getSimpleName() + ". The count"
+                    + " field of a nested collection must be in the item class"));
                 return null;
             }
             FieldModel count = fields.get(name);

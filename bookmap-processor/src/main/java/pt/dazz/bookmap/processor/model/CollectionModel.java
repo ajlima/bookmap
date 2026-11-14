@@ -27,6 +27,11 @@ public record CollectionModel(String ownerSimpleName, String name, int order,
     String setter, EmptyItem emptyItem, FieldModel emptyKey, int emptyKeyOffset)
     implements MemberModel {
 
+    @Override
+    public int areaLength() {
+        return maxOccurs * item.byteLength();
+    }
+
     /**
      * Tells if the collection needs an empty-slot marker other than LOW-VALUES.
      *

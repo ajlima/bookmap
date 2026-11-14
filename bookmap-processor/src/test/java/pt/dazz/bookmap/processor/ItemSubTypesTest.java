@@ -261,14 +261,14 @@ class ItemSubTypesTest {
     }
 
     @Test
-    void itemSubtypeWithCollection() {
+    void itemSubtypeWithVariableCollection() {
         assertError(compile(getStatement(), abstractEntry(),
                 cardPayment(field("@BookField(order = 30, length = 1)", "int", "count"),
                     field("@BookCollection(order = 40, maxOccurs = 2)", "List<Transfer>",
                         "parts")),
                 transfer()),
-            "CardPayment.parts (order 40): an item class must not contain a @BookCollection"
-                + " (nested collection)");
+            "CardPayment.parts (order 40): a collection in an item class must have fixed = true"
+                + " (nested OCCURS DEPENDING ON is not supported)");
     }
 
     @Test

@@ -7,6 +7,10 @@ import java.lang.annotation.Target;
 
 /**
  * Maps a Java list field to a COBOL table (OCCURS).
+ *
+ * <p>An item class can also have a collection (a table in a table entry). This inner
+ * collection must be fixed, must not set {@link #direction()}, and has its count field in the
+ * item class. It uses the direction of the outer collection.
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.CLASS)

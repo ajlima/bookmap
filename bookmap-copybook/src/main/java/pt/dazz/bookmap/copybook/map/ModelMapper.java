@@ -345,9 +345,10 @@ public final class ModelMapper {
      */
     private void collection(DataItem item, DataItem previous, ClassBuilder owner,
                             Context context, Usage usage) {
-        if (context.occurs() != null) {
-            error(item, "OCCURS " + item.name() + " is inside OCCURS " + context.occurs()
-                + ". BookMap does not support nested collections. See issue #43.");
+        if (context.occurs() != null && item.occurs().dependingOn() != null) {
+            error(item, "OCCURS " + item.name() + " DEPENDING ON " + item.occurs().dependingOn()
+                + " is inside OCCURS " + context.occurs() + ". BookMap does not support a"
+                + " DEPENDING ON table in a table entry (complex OCCURS DEPENDING ON).");
             return;
         }
         String dependsOn = null;
@@ -376,7 +377,8 @@ public final class ModelMapper {
         } else {
             field(item, type, inner, usage, "value");
         }
-        if (continuable != null && context.direction() == Direction.INPUT_OUTPUT) {
+        if (continuable != null && context.occurs() == null
+            && context.direction() == Direction.INPUT_OUTPUT) {
             error(item, item.name() + " is an INPUT_OUTPUT collection. BookMap does not permit"
                 + " it in a Continuable class. Put the table in the output alternative of a"
                 + " REDEFINES area.");
@@ -384,9 +386,9 @@ public final class ModelMapper {
         boolean fixed = item.occurs().dependingOn() == null;
         EmptyItem emptyItem = emptyItems.fillOf(item);
         String emptyKey = emptyItems.keyOf(item, type);
-        // An item class has only fields: a nested OCCURS is an error above.
         if (fixed && dependsOn == null && !emptyItems.hasKey(item) && type.members.stream()
-            .anyMatch(member -> ((FieldMember) member).pic().endsWith(" COMP"))) {
+            .anyMatch(member -> member instanceof FieldMember field
+                && field.pic().endsWith(" COMP"))) {
             diagnostics.info(item.source(), item.line(), item.column(), item.name()
                 + ": a COMP value of 0 is all LOW-VALUES and cannot be written."
                 + " Link the count field with the option countFields, or the key item with"
