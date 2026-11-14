@@ -33,8 +33,6 @@ New layout features in the core and the processor. Milestone: [Mapping](https://
 - [#40](https://github.com/ajlima/bookmap/issues/40) Support base fields after the redefined area
 - [#41](https://github.com/ajlima/bookmap/issues/41) Support a base count field for a collection in a subclass
 - [#42](https://github.com/ajlima/bookmap/issues/42) Support more discriminator types
-- [#43](https://github.com/ajlima/bookmap/issues/43) Support nested collections
-- [#44](https://github.com/ajlima/bookmap/issues/44) Support other empty-item markers in fixed collections
 - [#45](https://github.com/ajlima/bookmap/issues/45) Support a response that ends inside a fixed collection
 - [#46](https://github.com/ajlima/bookmap/issues/46) Support COMP-1 and COMP-2
 - [#49](https://github.com/ajlima/bookmap/issues/49) Support multi-byte charsets (DBCS and NATIONAL)
@@ -49,9 +47,23 @@ Other DI containers and API styles. Milestone: [Integrations](https://github.com
 
 ## 5. Maintenance
 
-Deferred review findings. Milestone: [Maintenance](https://github.com/ajlima/bookmap/milestone/6).
+Deferred review findings and internal changes. Milestone: [Maintenance](https://github.com/ajlima/bookmap/milestone/6).
 
-- [#54](https://github.com/ajlima/bookmap/issues/54) Triage the deferred minors in the follow-ups file
+- [#92](https://github.com/ajlima/bookmap/issues/92) Check the record length for an int overflow
+- [#93](https://github.com/ajlima/bookmap/issues/93) Name the collection and the index in an item field error
+- [#94](https://github.com/ajlima/bookmap/issues/94) Reject non-ASCII letters in a PIC
+- [#95](https://github.com/ajlima/bookmap/issues/95) Report each processor error only one time
+- [#96](https://github.com/ajlima/bookmap/issues/96) Defer a class whose interface is not generated yet
+- [#97](https://github.com/ajlima/bookmap/issues/97) Report the accessor errors also when the class has other errors
+- [#98](https://github.com/ajlima/bookmap/issues/98) Do not add a bookmap error next to a javac error for an unresolved value
+- [#99](https://github.com/ajlima/bookmap/issues/99) Compare the type arguments of a getter and a setter
+- [#100](https://github.com/ajlima/bookmap/issues/100) Compare the charsets by charset, and decide the empty charset
+- [#101](https://github.com/ajlima/bookmap/issues/101) Keep the caller stack trace in a simulator exception
+- [#102](https://github.com/ajlima/bookmap/issues/102) Show a binary COMP field and a FieldConverter in bookmap-examples
+- [#103](https://github.com/ajlima/bookmap/issues/103) Internal clean-up from the v1 reviews
+- [#110](https://github.com/ajlima/bookmap/issues/110) Remove the package cycle between annotation and convert in bookmap-core
+- [#111](https://github.com/ajlima/bookmap/issues/111) Remove the package cycle between ast and parse in bookmap-copybook
+- [#117](https://github.com/ajlima/bookmap/issues/117) Divide CodecGenerator into smaller classes
 
 ## Out of scope
 
