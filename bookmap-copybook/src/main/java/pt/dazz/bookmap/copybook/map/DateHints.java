@@ -19,9 +19,9 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import pt.dazz.bookmap.codec.Formats;
 import pt.dazz.bookmap.copybook.ast.DataItem;
+import pt.dazz.bookmap.copybook.ast.Picture;
 import pt.dazz.bookmap.copybook.ast.Usage;
 import pt.dazz.bookmap.copybook.model.JavaType;
-import pt.dazz.bookmap.copybook.parse.Picture;
 
 /**
  * Applies the date hints of the mapping options. A hint maps an item, or the items that match

@@ -12,6 +12,7 @@ import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.copybook.ast.Condition;
 import pt.dazz.bookmap.copybook.ast.Copybook;
 import pt.dazz.bookmap.copybook.ast.DataItem;
+import pt.dazz.bookmap.copybook.ast.Picture;
 import pt.dazz.bookmap.copybook.ast.QualifiedName;
 import pt.dazz.bookmap.copybook.ast.Usage;
 import pt.dazz.bookmap.copybook.diag.Diagnostics;
@@ -23,7 +24,6 @@ import pt.dazz.bookmap.copybook.model.FieldMember;
 import pt.dazz.bookmap.copybook.model.JavaType;
 import pt.dazz.bookmap.copybook.model.MemberModel;
 import pt.dazz.bookmap.copybook.model.SubTypes;
-import pt.dazz.bookmap.copybook.parse.Picture;
 
 /**
  * Applies the BookMap rules to the data items of a copybook and gives the model.

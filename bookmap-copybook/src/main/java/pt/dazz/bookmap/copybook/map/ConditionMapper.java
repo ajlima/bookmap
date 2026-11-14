@@ -16,13 +16,13 @@ import pt.dazz.bookmap.copybook.ast.ConditionValue;
 import pt.dazz.bookmap.copybook.ast.Copybook;
 import pt.dazz.bookmap.copybook.ast.DataItem;
 import pt.dazz.bookmap.copybook.ast.Literal;
+import pt.dazz.bookmap.copybook.ast.Picture;
 import pt.dazz.bookmap.copybook.ast.QualifiedName;
 import pt.dazz.bookmap.copybook.model.ConditionMember;
 import pt.dazz.bookmap.copybook.model.EnumConstant;
 import pt.dazz.bookmap.copybook.model.EnumModel;
 import pt.dazz.bookmap.copybook.model.JavaType;
 import pt.dazz.bookmap.copybook.model.ValueRange;
-import pt.dazz.bookmap.copybook.parse.Picture;
 
 /**
  * Maps the level 88 items and the {@code VALUE} clause of an elementary item: an enum,

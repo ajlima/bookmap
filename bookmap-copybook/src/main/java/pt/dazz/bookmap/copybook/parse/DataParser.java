@@ -14,6 +14,7 @@ import pt.dazz.bookmap.copybook.ast.Copybook;
 import pt.dazz.bookmap.copybook.ast.DataItem;
 import pt.dazz.bookmap.copybook.ast.Literal;
 import pt.dazz.bookmap.copybook.ast.Occurs;
+import pt.dazz.bookmap.copybook.ast.Picture;
 import pt.dazz.bookmap.copybook.ast.QualifiedName;
 import pt.dazz.bookmap.copybook.ast.Usage;
 import pt.dazz.bookmap.copybook.diag.Diagnostics;
