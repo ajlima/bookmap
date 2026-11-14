@@ -1,7 +1,7 @@
 # BookMap, edited pictures: design
 
 Date: 2026-11-13
-Status: approved.
+Status: implemented in v0.23.0.
 
 Related documents: `docs/design/2026-11-10-bookmap-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-11-bookmap-copybook-design.md`, GitHub issue #48.
 
