@@ -27,8 +27,8 @@ import pt.dazz.bookmap.processor.model.OperationModel;
  * <p>The processor builds the model of each class, reports the mapping errors, and generates
  * the codec of each valid class. In the last round, it writes the service file
  * {@code META-INF/services/pt.dazz.bookmap.spi.BookCodec}. A class with
- * a field type or a superclass from another generator, or with missing getters or setters, waits
- * for the next round. In the last round, the processor builds the waiting classes again only to
+ * a field type, a superclass, or an interface from another generator, or with missing getters or
+ * setters, waits for the next round. In the last round, the processor builds the waiting classes again only to
  * report their errors. It never generates sources in the last round.
  */
 public final class BookmapProcessor extends AbstractProcessor {

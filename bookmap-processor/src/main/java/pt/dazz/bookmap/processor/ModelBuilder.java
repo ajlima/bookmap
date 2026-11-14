@@ -16,6 +16,7 @@ import java.util.Set;
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
@@ -69,6 +70,8 @@ public final class ModelBuilder {
     private final Messager messager;
     private final DefaultsResolver defaultsResolver;
     private final FieldResolver fieldResolver;
+    /** The keys of the problems that the builder reported, in all builds and rounds. */
+    private final Set<String> reported = new HashSet<>();
     private boolean deferred;
 
     /**
@@ -87,11 +90,15 @@ public final class ModelBuilder {
     /**
      * Builds the model of an operation class.
      *
-     * <p>If a field type or a superclass is not available yet (another generator makes it later),
-     * or if only getters or setters are missing, and {@code lastRound} is {@code false}, the
-     * method reports nothing and returns empty. Then {@link #deferred()} returns {@code true}. In all other
-     * cases the method reports the problems. It reports missing getters and setters only in the
-     * last round.
+     * <p>If a field type, a superclass, or an interface is not available yet (another generator
+     * makes it later), and {@code lastRound} is {@code false}, the method reports nothing and
+     * returns empty. Then {@link #deferred()} returns {@code true}.
+     *
+     * <p>In all other cases the method reports the problems. It reports missing getters and
+     * setters only in the last round: before that round, another generator can still add them.
+     * Thus, if getters or setters are missing before the last round, the method reports the
+     * other problems, and {@link #deferred()} returns {@code true}. The next build of the class
+     * does not report these problems again.
      *
      * @param type the class with {@code @BookOperation}
      * @param lastRound {@code true} in the last processing round
@@ -101,9 +108,8 @@ public final class ModelBuilder {
         Run run = new Run(type);
         OperationModel model = run.build();
         Problems problems = run.problems;
-        deferred = !lastRound && (problems.unresolved
-            || problems.errors.isEmpty() && !problems.accessorErrors.isEmpty());
-        if (deferred) {
+        deferred = !lastRound && (problems.unresolved || !problems.accessorErrors.isEmpty());
+        if (!lastRound && problems.unresolved) {
             return Optional.empty();
         }
         problems.errors.forEach(this::report);
@@ -124,8 +130,18 @@ public final class ModelBuilder {
         return deferred;
     }
 
+    /**
+     * Reports a problem, but only one time. Two operation classes can share a superclass, and two
+     * collections can share an item class: then two builds find the same problem. javac can make
+     * new element objects in a new round, so the key uses the names of the element.
+     */
     private void report(Problems.Problem problem) {
-        messager.printMessage(Diagnostic.Kind.ERROR, problem.message(), problem.element());
+        Element element = problem.element();
+        String key = element.getKind() + " " + element.getEnclosingElement() + "."
+            + element.getSimpleName() + ": " + problem.message();
+        if (reported.add(key)) {
+            messager.printMessage(Diagnostic.Kind.ERROR, problem.message(), element);
+        }
     }
 
     /** The state of one call of {@link #build}. */
@@ -140,6 +156,12 @@ public final class ModelBuilder {
         private final Set<TypeElement> declaringClasses = new LinkedHashSet<>();
         /** The item classes of the collections that the builder builds now, outer first. */
         private final Deque<TypeElement> itemPath = new ArrayDeque<>();
+        /**
+         * {@code true} if an annotated field has a value that javac could not resolve. The
+         * builder does not know that field. Thus, it does not report that a field is missing:
+         * javac reports the real problem.
+         */
+        private boolean unresolvedMember;
 
         Run(TypeElement type) {
             this.type = type;
@@ -255,6 +277,10 @@ public final class ModelBuilder {
             if (!name.isEmpty()) {
                 DefaultsResolver.charsetProblem(name).ifPresent(this::classError);
             }
+            if (defaultsResolver.unresolved(type)) {
+                // The operation charset is not known. javac reports the unresolved value.
+                return name;
+            }
             String operationCharset = name.isEmpty() ? "(none)" : "'" + name + "'";
             PackageElement operationPackage = elements.getPackageOf(type);
             for (TypeElement declaring : declaringClasses) {
@@ -302,6 +328,7 @@ public final class ModelBuilder {
                     if (values.containsValue(Mirrors.UNRESOLVED)) {
                         // javac reports the unresolved value. Wait for a generator, or stop.
                         problems.unresolved = true;
+                        unresolvedMember = true;
                         continue;
                     }
                     AnnotatedMember member = new AnnotatedMember(field, bookField.isEmpty(),
@@ -322,9 +349,25 @@ public final class ModelBuilder {
 
         private TypeElement superclass(TypeElement current) {
             TypeMirror superclass = current.getSuperclass();
-            problems.unresolved |= superclass.getKind() == TypeKind.ERROR;
+            problems.unresolved |= superclass.getKind() == TypeKind.ERROR
+                || unresolvedInterface(current);
             return superclass.getKind() == TypeKind.DECLARED
                 ? (TypeElement) types.asElement(superclass) : null;
+        }
+
+        /**
+         * Tells if an interface of a class or interface, or one of its superinterfaces, is not
+         * available yet. Another generator can make it later. Until then, the builder cannot
+         * tell if the class implements {@code Continuable} or {@code Validatable}.
+         */
+        private boolean unresolvedInterface(TypeElement element) {
+            for (TypeMirror superinterface : element.getInterfaces()) {
+                if (superinterface.getKind() == TypeKind.ERROR
+                    || unresolvedInterface((TypeElement) types.asElement(superinterface))) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static boolean isUnresolved(TypeMirror type) {
@@ -546,9 +589,12 @@ public final class ModelBuilder {
             Optional<AnnotatedMember> member = baseAnnotated.stream()
                 .filter(candidate -> candidate.name().equals(name)).findFirst();
             if (member.isEmpty()) {
-                problems.classError(base, "discriminator field '" + name + "' "
-                    + (ownNames.contains(name)
-                    ? "must be in the base class or its superclasses" : "does not exist"));
+                if (ownNames.contains(name)) {
+                    problems.classError(base, "discriminator field '" + name
+                        + "' must be in the base class or its superclasses");
+                } else if (!unresolvedMember) {
+                    problems.classError(base, "discriminator field '" + name + "' does not exist");
+                }
                 return null;
             }
             return member.get();
@@ -659,8 +705,10 @@ public final class ModelBuilder {
                     emptyKeyOffset += candidate.areaLength();
                 }
                 if (emptyKey == null) {
-                    problems.error(member, "emptyKey field '" + keyName
-                        + "' is not a field of item class " + item.type().getQualifiedName());
+                    if (!unresolvedMember) {
+                        problems.error(member, "emptyKey field '" + keyName
+                            + "' is not a field of item class " + item.type().getQualifiedName());
+                    }
                 } else if (!KEY_KINDS.contains(emptyKey.kind())) {
                     problems.error(member, "emptyKey field '" + keyName
                         + "' must be String or a number without a converter");
@@ -832,6 +880,10 @@ public final class ModelBuilder {
                                       List<MemberModel> members,
                                       Map<String, String> countUsers) {
             String name = (String) collection.values().getOrDefault("dependsOn", "");
+            if (name.isEmpty() && unresolvedMember) {
+                // The member before the collection is not known.
+                return null;
+            }
             if (name.isEmpty()) {
                 Optional<AnnotatedMember> previous = annotated.stream()
                     .filter(member -> member.order() < collection.order())
@@ -847,6 +899,9 @@ public final class ModelBuilder {
             String prefix = "dependsOn field '" + name + "' ";
             if (target == null && outside.contains(name)) {
                 problems.error(collection, prefix + "must be in the subtype layout");
+                return null;
+            }
+            if (target == null && unresolvedMember) {
                 return null;
             }
             if (target == null) {

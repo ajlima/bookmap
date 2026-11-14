@@ -10,7 +10,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.convert.FieldContext;
 import pt.dazz.bookmap.convert.FieldConverter;

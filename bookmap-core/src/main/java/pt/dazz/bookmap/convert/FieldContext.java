@@ -1,7 +1,7 @@
 package pt.dazz.bookmap.convert;
 
 import java.nio.charset.Charset;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 
 /**
  * Describes one field to a {@link FieldConverter}.

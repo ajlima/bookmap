@@ -6,7 +6,7 @@ import static pt.dazz.bookmap.processor.CodecTypes.USAGE;
 import static pt.dazz.bookmap.processor.CodecTypes.numberAttributes;
 
 import com.palantir.javapoet.CodeBlock;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.processor.CodecMembers.Names;
 import pt.dazz.bookmap.processor.HelperMethods.Helper;
 import pt.dazz.bookmap.processor.model.FieldModel;

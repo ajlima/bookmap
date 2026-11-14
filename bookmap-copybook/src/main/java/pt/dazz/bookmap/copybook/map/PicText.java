@@ -1,8 +1,8 @@
 package pt.dazz.bookmap.copybook.map;
 
-import pt.dazz.bookmap.annotation.Sign;
+import pt.dazz.bookmap.cobol.Sign;
+import pt.dazz.bookmap.copybook.ast.Picture;
 import pt.dazz.bookmap.copybook.ast.Usage;
-import pt.dazz.bookmap.copybook.parse.Picture;
 
 /**
  * Gives the {@code pic} text of a generated field.

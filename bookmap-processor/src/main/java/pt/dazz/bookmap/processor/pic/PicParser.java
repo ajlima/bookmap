@@ -4,8 +4,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import pt.dazz.bookmap.annotation.Sign;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Sign;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.codec.EditedPicture;
 import pt.dazz.bookmap.processor.pic.PicSpec.Category;
 

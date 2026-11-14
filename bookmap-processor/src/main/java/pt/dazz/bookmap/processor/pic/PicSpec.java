@@ -1,8 +1,8 @@
 package pt.dazz.bookmap.processor.pic;
 
 import java.util.Optional;
-import pt.dazz.bookmap.annotation.Sign;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Sign;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.codec.EditedPicture;
 
 /**

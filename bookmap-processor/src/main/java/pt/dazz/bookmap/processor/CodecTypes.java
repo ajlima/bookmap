@@ -4,7 +4,7 @@ import com.palantir.javapoet.ClassName;
 import com.palantir.javapoet.CodeBlock;
 import com.palantir.javapoet.TypeName;
 import java.math.BigDecimal;
-import pt.dazz.bookmap.annotation.Sign;
+import pt.dazz.bookmap.cobol.Sign;
 import pt.dazz.bookmap.processor.model.FieldModel;
 
 /**
@@ -24,7 +24,7 @@ final class CodecTypes {
         "CodecContext");
     static final ClassName FIELD_CONTEXT = ClassName.get("pt.dazz.bookmap.convert",
         "FieldContext");
-    static final ClassName USAGE = ClassName.get("pt.dazz.bookmap.annotation", "Usage");
+    static final ClassName USAGE = ClassName.get("pt.dazz.bookmap.cobol", "Usage");
     static final ClassName MAPPING_EXCEPTION = ClassName.get("pt.dazz.bookmap.exception",
         "MappingException");
     static final ClassName GENERATED = ClassName.get("javax.annotation.processing",

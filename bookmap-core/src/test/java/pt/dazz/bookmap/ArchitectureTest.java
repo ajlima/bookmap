@@ -1,8 +1,6 @@
 package pt.dazz.bookmap;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
-import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.name;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -28,15 +26,10 @@ class ArchitectureTest {
                 .check(MAIN_CLASSES);
     }
 
-    /**
-     * A known cycle: {@code annotation} uses {@code convert.FieldConverter}, and {@code convert.FieldContext}
-     * uses {@code annotation.Usage}. Both are public API, so a fix is a breaking change.
-     * The rule ignores only this dependency, so a new cycle fails the test.
-     */
+    /** No package of the module is in a cycle. */
     @Test
     void hasNoPackageCycles() {
         slices().matching("pt.dazz.(**)").should().beFreeOfCycles()
-                .ignoreDependency(resideInAPackage("pt.dazz.bookmap.convert"), name("pt.dazz.bookmap.annotation.Usage"))
                 .check(MAIN_CLASSES);
     }
 }

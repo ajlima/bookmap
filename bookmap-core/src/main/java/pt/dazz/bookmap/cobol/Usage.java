@@ -1,4 +1,4 @@
-package pt.dazz.bookmap.annotation;
+package pt.dazz.bookmap.cobol;
 
 /**
  * Gives the COBOL storage format of a numeric field.

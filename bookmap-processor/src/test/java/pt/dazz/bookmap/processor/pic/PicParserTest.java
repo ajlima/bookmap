@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import pt.dazz.bookmap.annotation.Sign;
-import pt.dazz.bookmap.annotation.Usage;
+import pt.dazz.bookmap.cobol.Sign;
+import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.codec.EditedPicture;
 import pt.dazz.bookmap.processor.pic.PicSpec.Category;
 
