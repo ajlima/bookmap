@@ -286,16 +286,26 @@ GetOrderTaxes.lines (order 30) item 1: TaxedOrderLine.taxes (order 40): the list
 GetOrderTaxes.lines (order 30) item 2: TaxedOrderLine.taxes (order 40) item 0: LineTax.taxAmount (order 20): ...
 ```
 
-The index starts at 0. A collection without an inner collection, and not in an item class, keeps the messages without an index.
+The index starts at 0. Each level adds its prefix, outer level first. A collection without an inner collection gets the prefix too. See [Messages](#messages).
 
 ## Messages
 
 The codec throws `MappingException` with one of these messages. `<field>` has the format `Owner.field (order n)`.
 
+A message about an item starts with the collection and the index of the item, for example:
+
+```
+CreateShipment.lines (order 30) item 2: ShipmentLine.sku (order 1): text is longer than 10 characters (12)
+```
+
+The index starts at 0. The codec adds the prefix to the same exception object. Thus, the class and the cause of the exception do not change, also for a subclass of `MappingException` from a converter.
+A `BookmapException` from a converter that is not a `MappingException` goes to the caller unchanged, without the prefix.
+The messages in the table below are about the collection. They do not get the prefix of their own collection.
+
 | Message | Cause |
 |---|---|
 | `<field>: the list has N items, more than maxOccurs M` | The list is too large for the book. |
-| `<field>: the list contains a null item` | An item of the list is `null`. |
+| `<field>: item I is null` | Item I of the list is `null`. |
 | `<field>: count V is not between 0 and maxOccurs M` | The response has a count that is not valid. |
 | `<field>: item I is all LOW-VALUES, so a read cannot find it` | LOW-VALUES mode: an item encodes to `0x00` bytes only. |
 | `<field>: item I is all spaces, so a read cannot find it` | SPACES mode: an item encodes to spaces only. |

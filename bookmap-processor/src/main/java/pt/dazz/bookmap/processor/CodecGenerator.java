@@ -109,7 +109,7 @@ final class CodecGenerator {
                     switch (member) {
                         case FieldModel field -> members.addField(builder, field);
                         case CollectionModel collection ->
-                            items.addCollection(builder, collection, false);
+                            items.addCollection(builder, collection);
                     }
                 }
             }

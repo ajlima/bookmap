@@ -227,7 +227,7 @@ class FixedCollectionGenerationTest {
         Object order = order(codec, 1, lines);
         assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
             .isInstanceOf(MappingException.class)
-            .hasMessageContaining("the list contains a null item");
+            .hasMessageContaining(": item 0 is null");
     }
 
     @Test

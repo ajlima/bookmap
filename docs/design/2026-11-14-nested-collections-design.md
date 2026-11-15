@@ -180,6 +180,8 @@ GetOrder.lines (order 40) item 2: OrderLine.taxes (order 40): count 7 is not bet
 
 A collection that is not in a nested path does not get the prefix. Thus, the messages of existing books do not change.
 
+Note: `2026-11-14-processor-limits-and-item-errors-design.md` (issue #93) replaces this rule. All collections get the prefix. The codec adds the prefix to the same exception object with `MappingException.atItem`, so it makes no new exception and no cause.
+
 ## 9. Depth limit
 
 A collection path has at most 7 levels: the top-level collection and 6 levels of nested collections. The COBOL 85 standard permits 7 levels of `OCCURS`. **[builder call]**

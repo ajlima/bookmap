@@ -21,7 +21,7 @@ final class HelperMethods {
     /** The helper methods that a generated codec can contain. */
     enum Helper {
         INT_VALUE, INTEGER_VALUE, LONG_VALUE, LONG_BOXED_VALUE, DECIMAL_OF_INTEGER,
-        DECIMAL_OF_LONG, NOT_NULL, COLLECTION_SIZE, AT_ITEM
+        DECIMAL_OF_LONG, NOT_NULL, COLLECTION_SIZE
     }
 
     private final Set<Helper> used = EnumSet.noneOf(Helper.class);
@@ -46,7 +46,6 @@ final class HelperMethods {
             case DECIMAL_OF_INTEGER, DECIMAL_OF_LONG -> "decimal";
             case NOT_NULL -> "notNull";
             case COLLECTION_SIZE -> "collectionSize";
-            case AT_ITEM -> "atItem";
         };
     }
 
@@ -82,14 +81,6 @@ final class HelperMethods {
                     MAPPING_EXCEPTION, ": count ", " is not between 0 and maxOccurs ")
                 .endControlFlow()
                 .addStatement("return (int) value").build();
-            case AT_ITEM -> MethodSpec.methodBuilder(name(helper))
-                .addJavadoc("Adds the collection and the index of an item to a message.\n")
-                .addModifiers(Modifier.PRIVATE, Modifier.STATIC).returns(MAPPING_EXCEPTION)
-                .addParameter(String.class, "field").addParameter(int.class, "index")
-                .addParameter(MAPPING_EXCEPTION, "e")
-                .addStatement("return new $T(field + $S + index + $S + e.getMessage(), e)",
-                    MAPPING_EXCEPTION, " item ", ": ")
-                .build();
         };
     }
 

@@ -14,6 +14,7 @@ import java.util.List;
 import javax.tools.JavaFileObject;
 import org.junit.jupiter.api.Test;
 import pt.dazz.bookmap.convert.CodecContext;
+import pt.dazz.bookmap.exception.BusinessException;
 import pt.dazz.bookmap.exception.MappingException;
 import pt.dazz.bookmap.spi.BookCodec;
 
@@ -415,8 +416,7 @@ class NestedCollectionTest {
             .isInstanceOf(MappingException.class)
             .hasMessageStartingWith("GetOrder.lines (order 20) item 1: OrderLine.taxes (order 30)"
                 + " item 1: LineTax.amount (order 20): ")
-            .cause().isInstanceOf(MappingException.class)
-            .hasMessageStartingWith("OrderLine.taxes (order 30) item 1: LineTax.amount");
+            .hasNoCause();
     }
 
     @Test
@@ -479,16 +479,97 @@ class NestedCollectionTest {
     }
 
     @Test
-    void flatCollectionMessagesHaveNoIndex() {
-        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
-            source("OrderLine", "public class OrderLine {",
-                field("@BookField(order = 10, pic = \"9(3)\")", "int", "amount"), "}"));
-        Object line = newObject(codec, "OrderLine");
-        CompiledCodec.set(line, "amount", 1000);
-        Object order = order(codec, line);
+    void flatCollectionWriteErrorNamesTheIndex() {
+        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES), flatLine(""));
+        Object order = order(codec, flatLine(codec, 1), flatLine(codec, 1000));
         assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
             .isInstanceOf(MappingException.class)
-            .hasMessageStartingWith("OrderLine.amount (order 10): ");
+            .hasMessageStartingWith("GetOrder.lines (order 20) item 1: OrderLine.amount"
+                + " (order 10): ")
+            .hasNoCause();
+    }
+
+    @Test
+    void flatCollectionReadErrorNamesTheIndex() {
+        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES), flatLine(""));
+        assertThatThrownBy(() -> decodeResponse(codec, bytes("001A01OK")))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith("GetOrder.lines (order 20) item 1: OrderLine.amount"
+                + " (order 10): ");
+    }
+
+    @Test
+    void variableFlatCollectionNamesTheIndexAndTheNullItem() {
+        BookCodec<Object> codec = codec("GetOrder",
+            source("GetOrder", "@BookOperation public class GetOrder {",
+                field("@BookField(order = 10, pic = \"9\", direction = Direction.OUTPUT)",
+                    "int", "lineCount"),
+                field("@BookCollection(order = 20, maxOccurs = 3)", "List<OrderLine>", "lines"),
+                field("@BookField(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
+                    "String", "status"),
+                "}"),
+            flatLine(""));
+        Object order = order(codec, flatLine(codec, 1), flatLine(codec, 1000));
+        assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
+            .isInstanceOf(MappingException.class)
+            .hasMessageStartingWith("GetOrder.lines (order 20) item 1: OrderLine.amount"
+                + " (order 10): ");
+        List<Object> lines = new ArrayList<>();
+        lines.add(flatLine(codec, 1));
+        lines.add(null);
+        CompiledCodec.set(order, "lines", lines);
+        assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
+            .isInstanceOf(MappingException.class)
+            .hasMessage("GetOrder.lines (order 20): item 1 is null");
+    }
+
+    @Test
+    void mappingExceptionSubclassOfAConverterKeepsItsClass() {
+        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
+            flatLine(", converter = FailingConverter.class"), failingConverter(
+                "throw new LineMappingException();"),
+            source("LineMappingException",
+                "public class LineMappingException extends pt.dazz.bookmap.exception.MappingException {",
+                "private static final long serialVersionUID = 1L;",
+                "public LineMappingException() { super(\"OrderLine.amount: bad amount\"); }",
+                "}"));
+        Object order = order(codec, flatLine(codec, 1));
+        assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
+            .hasMessage("GetOrder.lines (order 20) item 0: OrderLine.amount: bad amount")
+            .extracting(e -> e.getClass().getSimpleName()).isEqualTo("LineMappingException");
+    }
+
+    @Test
+    void businessExceptionOfAConverterIsUnchanged() {
+        BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
+            flatLine(", converter = FailingConverter.class"), failingConverter(
+                "throw new pt.dazz.bookmap.exception.BusinessException(\"amount refused\");"));
+        Object order = order(codec, flatLine(codec, 1));
+        assertThatThrownBy(() -> codec.encodeResponse(order, LATIN))
+            .isInstanceOf(BusinessException.class)
+            .hasMessage("amount refused");
+    }
+
+    /** amount (3), with more attributes after {@code pic}. */
+    private static JavaFileObject flatLine(String attributes) {
+        return source("OrderLine", "public class OrderLine {",
+            field("@BookField(order = 10, pic = \"9(3)\"" + attributes + ")", "int", "amount"),
+            "}");
+    }
+
+    private static Object flatLine(BookCodec<Object> codec, int amount) {
+        Object line = newObject(codec, "OrderLine");
+        CompiledCodec.set(line, "amount", amount);
+        return line;
+    }
+
+    /** A converter of {@code int} that runs the statement on encode and on decode. */
+    private static JavaFileObject failingConverter(String statement) {
+        return source("FailingConverter",
+            "public class FailingConverter implements FieldConverter<Integer> {",
+            "public Integer decode(byte[] b, FieldContext c) { " + statement + " }",
+            "public byte[] encode(Integer v, FieldContext c) { " + statement + " }",
+            "}");
     }
 
     // ---- model snapshot ----

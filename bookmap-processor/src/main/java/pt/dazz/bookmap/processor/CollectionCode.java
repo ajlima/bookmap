@@ -67,26 +67,12 @@ final class CollectionCode {
             return writeFixedItems(collection);
         }
         CollectionNames n = members.names(collection);
-        if (n.indexed()) {
-            // The count is 0 for a null list.
-            return CodeBlock.builder()
-                .beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
-                .add(nullItemCheck(collection, n))
-                .add(onItem(n, CodeBlock.of("$N(writer, item, ctx)",
-                    itemMethodsOf(collection).write())))
-                .endControlFlow()
-                .build();
-        }
+        // The count is 0 for a null list.
         return CodeBlock.builder()
-            .beginControlFlow("if ($N != null)", n.list())
-            .beginControlFlow("for ($T item : $N)", ClassName.get(collection.item().type()),
-                n.list())
-            .beginControlFlow("if (item == null)")
-            .addStatement("throw new $T($N + $S)", MAPPING_EXCEPTION, n.descriptor(),
-                ": the list contains a null item")
-            .endControlFlow()
-            .addStatement("$N(writer, item, ctx)", itemMethodsOf(collection).write())
-            .endControlFlow()
+            .beginControlFlow("for (int i = 0; i < $N; i++)", n.count())
+            .add(nullItemCheck(collection, n))
+            .add(onItem(n, CodeBlock.of("$N(writer, item, ctx)",
+                itemMethodsOf(collection).write())))
             .endControlFlow()
             .build();
     }
@@ -129,8 +115,8 @@ final class CollectionCode {
         return CodeBlock.builder()
             .addStatement("$T item = $N.get(i)", ClassName.get(collection.item().type()), n.list())
             .beginControlFlow("if (item == null)")
-            .addStatement("throw new $T($N + $S)", MAPPING_EXCEPTION, n.descriptor(),
-                ": the list contains a null item")
+            .addStatement("throw new $T($N + $S + i + $S)", MAPPING_EXCEPTION, n.descriptor(),
+                ": item ", " is null")
             .endControlFlow()
             .build();
     }
@@ -184,19 +170,16 @@ final class CollectionCode {
     }
 
     /**
-     * Gives a statement on one item. In an indexed collection, a {@code MappingException} of
-     * the statement gets the descriptor of the collection and the index {@code i} of the item.
+     * Gives a statement on one item. A {@code MappingException} of the statement gets the
+     * descriptor of the collection and the index {@code i} of the item at the start of its
+     * message. The exception object and its class do not change.
      */
-    private CodeBlock onItem(CollectionNames n, CodeBlock statement) {
-        if (!n.indexed()) {
-            return CodeBlock.builder().addStatement(statement).build();
-        }
+    private static CodeBlock onItem(CollectionNames n, CodeBlock statement) {
         return CodeBlock.builder()
             .beginControlFlow("try")
             .addStatement(statement)
             .nextControlFlow("catch ($T e)", MAPPING_EXCEPTION)
-            .addStatement("throw $L", helpers.call(Helper.AT_ITEM,
-                CodeBlock.of("$N", n.descriptor()), CodeBlock.of("i"), CodeBlock.of("e")))
+            .addStatement("throw e.atItem($N, i)", n.descriptor())
             .endControlFlow()
             .build();
     }

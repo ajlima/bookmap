@@ -179,7 +179,8 @@ class ItemSubTypesTest {
         assertThatThrownBy(() -> codec.decodeResponse(bytes("01X" + CARD.substring(1)),
             codec.newInstance(), LATIN))
             .isInstanceOf(MappingException.class)
-            .hasMessage("StatementEntry.entryType (order 10): unknown discriminator value 'X'."
+            .hasMessage("GetStatement.entries (order 30) item 0: StatementEntry.entryType (order 10):"
+                + " unknown discriminator value 'X'."
                 + " Known values: C, T");
     }
 
@@ -191,7 +192,8 @@ class ItemSubTypesTest {
         set(statement, "entries", List.of(create(codec, "Refund")));
         assertThatThrownBy(() -> codec.encodeResponse(statement, LATIN))
             .isInstanceOf(MappingException.class)
-            .hasMessage("StatementEntry: unknown subclass test.Refund");
+            .hasMessage("GetStatement.entries (order 30) item 0: StatementEntry: unknown subclass"
+                + " test.Refund");
     }
 
     @Test

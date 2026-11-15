@@ -122,6 +122,16 @@ Most messages start with the field. The field has the format `Owner.field (order
 | `<field>: converter failed (<message>)` | Your `FieldConverter` threw a `RuntimeException`. The cause is the original exception. When the exception has no message, the message is the exception class. A `BookmapException` from a converter goes to the caller unchanged. |
 | `<field>: converter must return N bytes but returned M bytes` | Your `FieldConverter` returned the wrong number of bytes. |
 
+A message about a field of an item starts with the collection and the index of the item. The index starts at 0. With nested collections, each level adds its prefix, outer level first:
+
+```
+CreateShipment.lines (order 30) item 2: ShipmentLine.sku (order 1): text is longer than 10 characters (12)
+GetShipment.packages (order 30) item 1: ShipmentPackage.lines (order 40) item 0: ShipmentLine.sku (order 10): text is longer than 10 characters (12)
+```
+
+The codec adds the prefix to the same exception object. Thus, the class and the cause do not change. A subclass of `MappingException` from a converter keeps its class.
+Another `BookmapException` from a converter goes to the caller unchanged, without the prefix.
+
 For the messages of collections and subtypes, see [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#messages) and [Subtypes (REDEFINES)](Subtypes-REDEFINES#behavior).
 For the messages of the simulator, see [Transports and simulator](Transports-and-simulator#simulate-failures).
 

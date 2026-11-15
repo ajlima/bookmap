@@ -45,13 +45,9 @@ final class ItemMethodsGenerator {
         return methods;
     }
 
-    /**
-     * Adds the members of a collection and of its item class.
-     *
-     * @param inner {@code true} for a collection in an item class
-     */
-    void addCollection(TypeSpec.Builder builder, CollectionModel collection, boolean inner) {
-        members.addCollection(builder, collection, inner);
+    /** Adds the members of a collection and of its item class. */
+    void addCollection(TypeSpec.Builder builder, CollectionModel collection) {
+        members.addCollection(builder, collection);
         ItemModel item = collection.item();
         if (members.itemMethods(item) == null) {
             // Not computeIfAbsent: the item members can add the items of inner collections.
@@ -68,7 +64,7 @@ final class ItemMethodsGenerator {
                     case FieldModel field when !members.hasNames(field) ->
                         members.addField(builder, field);
                     case CollectionModel inner when !members.hasNames(inner) ->
-                        addCollection(builder, inner, true);
+                        addCollection(builder, inner);
                     default -> {
                         // The members of a base class are already in another layout.
                     }

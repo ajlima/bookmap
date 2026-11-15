@@ -615,7 +615,7 @@ class CollectionGenerationTest {
 
         assertThatThrownBy(() -> codec.encodeResponse(catalog, LATIN))
             .isInstanceOf(MappingException.class)
-            .hasMessage("Catalog.data (order 4): the list contains a null item");
+            .hasMessage("Catalog.data (order 4): item 0 is null");
     }
 
     private static JavaFileObject parcels() {
