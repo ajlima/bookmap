@@ -47,7 +47,7 @@ This design adds a fixed collection that supports both ways.
 
 - Nested collections (unchanged: still not supported).
 - A different "empty" marker (for example, spaces, or a key field with zeros). Only `LOW-VALUES` marks an empty item.
-- Partial responses that end inside the fixed area.
+- Partial responses that end inside the fixed area. See `2026-11-15-partial-fixed-collection-design.md` (#45).
 
 ### 2.3 Anti-goals
 
