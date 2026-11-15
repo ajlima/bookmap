@@ -178,8 +178,10 @@ In both formats, lower case is permitted. The generator changes the names and th
 | `POINTER` | Error. See [POINTER](#pointer). |
 | An incorrect edited picture | Error, for example `edited picture Z*9: Z, *, and a floating string are mutually exclusive`. |
 | Pictures with `P`, `A`, or `N` | Error, for example `picture symbol A is not supported by BookMap`. The message for `N` gives issue #49. |
+| A picture with a character that is not ASCII | Error, for example `picture string 'ſ9(5)' has the character 'ſ' (U+017F), which is not ASCII`. |
 | A picture with an incorrect form, for example `X9` | Error: `picture X9 is not valid`. |
 | Another word | Error, for example `unknown clause FOO`. |
+| A word with a letter that is not ASCII, for example `PıC` | Error, for example `unknown clause PıC`. The generator changes only the ASCII letters to upper case. Thus, such a word is never a keyword. |
 
 Other errors:
 
@@ -1169,5 +1171,6 @@ private BigDecimal invDiscount;
 - The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).
 - `SYNC` in an `OCCURS` is an error if the item needs slack bytes.
 - BookMap writes a `COMP-5` value only if it has the digits of the picture.
+- The generator adds the lengths of a record in `int`. A record longer than 2147483647 bytes gives a wrong length in the diagnostics (#122). The processor rejects the generated class.
 
 The [Roadmap](Roadmap) lists the plan for these limitations.

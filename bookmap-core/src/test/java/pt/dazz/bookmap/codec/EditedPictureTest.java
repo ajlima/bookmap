@@ -165,4 +165,17 @@ class EditedPictureTest {
             .isNotEqualTo("ZZ9");
         assertThat(picture.hashCode()).isNotEqualTo(EditedPicture.parse("ZZ9", true).hashCode());
     }
+
+    @Test
+    void rejectsANonAsciiCharacter() {
+        assertThatThrownBy(() -> EditedPicture.parse("ZZſ9", false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("character 'ſ' (U+017F) is not ASCII");
+        assertThatThrownBy(() -> EditedPicture.parse("Z𝟗", false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("character '𝟗' (U+1D7D7) is not ASCII");
+        assertThatThrownBy(() -> EditedPicture.parse("ZZ9\u007f", false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .message().doesNotContain("ASCII");
+    }
 }

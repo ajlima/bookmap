@@ -217,6 +217,30 @@ class DataParserTest {
     }
 
     @Test
+    void rejectsANonAsciiPicture() {
+        parse("01 ORDER.", "05 AMOUNT PIC ſ9(5).");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::message)
+            .contains(tuple(Severity.ERROR, "picture string 'ſ9(5)' has the character"
+                + " 'ſ' (U+017F), which is not ASCII"));
+    }
+
+    @Test
+    void aNonAsciiWordIsNotAKeyword() {
+        parse("01 ORDER.", "05 CODE PıC X(5).");
+        assertThat(diagnostics.all()).extracting(Diagnostic::severity, Diagnostic::message)
+            .containsExactly(tuple(Severity.ERROR, "unknown clause PıC"));
+    }
+
+    @Test
+    void acceptsANonAsciiLiteral() {
+        Copybook copybook = parse("01 ORDER.", "05 STATUS PIC X.",
+            "88 STATUS-OPEN VALUE 'É'.");
+        assertThat(diagnostics.all()).isEmpty();
+        assertThat(child(copybook.records().get(0), 0).conditions().get(0).values())
+            .extracting(v -> v.from().text()).containsExactly("É");
+    }
+
+    @Test
     void valuesAtTheEndOfTheTokens() {
         parse("01 ORDER.", "05 CODE PIC X.", "88 CODE-A VALUE 'A' THRU");
         parse("01 ORDER.", "05 CODE PIC X.", "88 CODE-B");

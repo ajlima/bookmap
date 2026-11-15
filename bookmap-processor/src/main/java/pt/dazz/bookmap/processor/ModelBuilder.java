@@ -203,8 +203,21 @@ public final class ModelBuilder {
                 }
             }
             members.sort(Comparator.comparingInt(MemberModel::order));
+            long length = length(members);
+            if (length > Problems.MAX_LENGTH) {
+                classError("the record " + Problems.tooLong(length));
+            }
             SubTypesModel subTypes = SubTypesResolver.present(type)
                 ? subTypes(type, annotated, members, null) : null;
+            if (subTypes != null && length <= Problems.MAX_LENGTH) {
+                for (VariantModel variant : subTypes.variants()) {
+                    long variantLength = length(variant.members());
+                    if (variantLength > Problems.MAX_LENGTH) {
+                        classError("the record of subtype " + variant.type().getSimpleName()
+                            + " " + Problems.tooLong(variantLength));
+                    }
+                }
+            }
             String charsetName = charset();
             return new OperationModel(type, operationName, charsetName, List.copyOf(members),
                 continuable, implementsInterface(type, VALIDATABLE), subTypes);
@@ -681,6 +694,14 @@ public final class ModelBuilder {
                     "an INPUT_OUTPUT collection is not permitted in a Continuable class");
             }
             ItemModel item = item(member, direction);
+            if (item != null) {
+                long area = (long) maxOccurs * item.byteLength();
+                if (area > Problems.MAX_LENGTH) {
+                    problems.error(member, "the collection has " + area + " bytes (maxOccurs "
+                        + maxOccurs + " x " + item.byteLength() + " bytes), more than the maximum"
+                        + " of " + Problems.MAX_LENGTH + " bytes");
+                }
+            }
             // A fixed collection without dependsOn has no count field: no convention applies.
             boolean counted = !fixed || !((String) values.getOrDefault("dependsOn", "")).isEmpty();
             FieldModel count = counted ? countField(member, direction, maxOccurs, annotated,
@@ -837,21 +858,40 @@ public final class ModelBuilder {
                 return null;
             }
             members.sort(Comparator.comparingInt(MemberModel::order));
-            int byteLength = members.stream().mapToInt(MemberModel::areaLength).sum();
+            long byteLength = length(members);
+            if (byteLength > Problems.MAX_LENGTH) {
+                problems.error(collection, "item class " + itemType.getSimpleName() + " "
+                    + Problems.tooLong(byteLength));
+                return null;
+            }
             if (!SubTypesResolver.present(itemType)) {
-                return new ItemModel(itemType, List.copyOf(members), byteLength, null);
+                return new ItemModel(itemType, List.copyOf(members), (int) byteLength, null);
             }
             SubTypesModel subTypes = subTypes(itemType, annotated, members, direction);
             if (subTypes == null) {
                 return null;
             }
-            // Each entry has the length of the longest layout.
-            int longest = subTypes.baseAbstract() ? 0 : byteLength;
+            // Each entry has the length of the longest layout. Each subtype layout has the base
+            // members, so the base length is never more than a subtype length.
+            long longest = byteLength;
             for (VariantModel variant : subTypes.variants()) {
-                longest = Math.max(longest, variant.members().stream()
-                    .mapToInt(MemberModel::areaLength).sum());
+                long variantLength = length(variant.members());
+                if (variantLength > Problems.MAX_LENGTH) {
+                    problems.error(collection, "subtype " + variant.type().getSimpleName()
+                        + " of item class " + itemType.getSimpleName() + " "
+                        + Problems.tooLong(variantLength));
+                }
+                longest = Math.max(longest, variantLength);
             }
-            return new ItemModel(itemType, List.copyOf(members), longest, subTypes);
+            if (longest > Problems.MAX_LENGTH) {
+                return null;
+            }
+            return new ItemModel(itemType, List.copyOf(members), (int) longest, subTypes);
+        }
+
+        /** Gives the number of bytes of the members of a layout, without an int overflow. */
+        private static long length(List<? extends MemberModel> members) {
+            return members.stream().mapToLong(MemberModel::areaLength).sum();
         }
 
         private TypeElement listItem(TypeMirror fieldType) {

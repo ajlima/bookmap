@@ -20,6 +20,9 @@ final class Problems {
     record Problem(Element element, String message) {
     }
 
+    /** The maximum number of bytes of a field, an item, a collection, or a record. */
+    static final long MAX_LENGTH = Integer.MAX_VALUE;
+
     final List<Problem> errors = new ArrayList<>();
     final List<Problem> accessorErrors = new ArrayList<>();
     boolean unresolved;
@@ -61,5 +64,15 @@ final class Problems {
      */
     int count() {
         return errors.size();
+    }
+
+    /**
+     * Gives the end of a message about a length that is too large.
+     *
+     * @param bytes the length
+     * @return {@code "has <bytes> bytes, more than the maximum of 2147483647 bytes"}
+     */
+    static String tooLong(long bytes) {
+        return "has " + bytes + " bytes, more than the maximum of " + MAX_LENGTH + " bytes";
     }
 }

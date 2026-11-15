@@ -84,6 +84,8 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 - No `P` scaling, `A`, or `N` in a picture, and no `COMP-5`.
 - An operation class must not be a record. `@lombok.Value` is not supported, because it gives no setters.
 - The CTG transport sends a COMMAREA. Channels and containers are not supported.
+- A record, an item, a collection, or a field must not be longer than 2147483647 bytes. A longer layout is a compile error.
+- A `pic` string must have only ASCII characters.
 
 The [Roadmap](Roadmap) lists the plan for each limitation.
 

@@ -66,9 +66,17 @@ public record Picture(String text, boolean numeric, boolean signed, int integerD
      *
      * @param text the picture string
      * @return the picture
-     * @throws IllegalArgumentException if BookMap does not support the picture
+     * @throws IllegalArgumentException if BookMap does not support the picture, or if the
+     *     picture has a character that is not ASCII
      */
     public static Picture parse(String text) {
+        // Check before toUpperCase(): it changes some characters that are not ASCII to ASCII
+        // letters, for example U+017F to S.
+        text.codePoints().filter(c -> c > 0x7F).findFirst().ifPresent(c -> {
+            throw new IllegalArgumentException("picture string '" + text + "' has the character '"
+                + Character.toString(c) + "' (" + String.format("U+%04X", c)
+                + "), which is not ASCII");
+        });
         String upper = text.toUpperCase(Locale.ROOT);
         if (EditedPicture.isEdited(upper)) {
             return edited(upper, false);

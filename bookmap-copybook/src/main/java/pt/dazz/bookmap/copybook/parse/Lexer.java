@@ -2,7 +2,6 @@ package pt.dazz.bookmap.copybook.parse;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.regex.Pattern;
 import pt.dazz.bookmap.copybook.diag.Diagnostics;
 
@@ -92,16 +91,29 @@ public final class Lexer {
         }
         String value = text.substring(from, end);
         if (expectPicture && !value.equalsIgnoreCase("IS")) {
-            tokens.add(token(TokenType.PICTURE, value.toUpperCase(Locale.ROOT), line, from));
+            tokens.add(token(TokenType.PICTURE, asciiUpper(value), line, from));
             expectPicture = false;
         } else if (NUMBER.matcher(value).matches()) {
             tokens.add(token(TokenType.NUMBER, value, line, from));
         } else {
-            String upper = value.toUpperCase(Locale.ROOT);
+            String upper = asciiUpper(value);
             tokens.add(token(TokenType.WORD, upper, line, from));
             expectPicture = expectPicture || upper.equals("PIC") || upper.equals("PICTURE");
         }
         return end;
+    }
+
+    /**
+     * Changes only the ASCII letters to upper case. {@code toUpperCase} changes some other
+     * letters to ASCII letters, for example U+0131 to {@code I}. Then a word such as
+     * {@code PıC} would be the keyword {@code PIC}.
+     */
+    private static String asciiUpper(String value) {
+        StringBuilder out = new StringBuilder(value.length());
+        for (char c : value.toCharArray()) {
+            out.append(c >= 'a' && c <= 'z' ? (char) (c - 'a' + 'A') : c);
+        }
+        return out.toString();
     }
 
     /** Reads literal characters from {@code from}. Gives the index after the closing quote. */

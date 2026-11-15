@@ -11,7 +11,6 @@ import com.palantir.javapoet.MethodSpec;
 import com.palantir.javapoet.NameAllocator;
 import com.palantir.javapoet.TypeSpec;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -24,7 +23,6 @@ import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
 import pt.dazz.bookmap.processor.model.ItemModel;
-import pt.dazz.bookmap.processor.model.MemberModel;
 
 /**
  * The names of a codec. Gives each generated member and method a unique name, and adds the
@@ -42,11 +40,8 @@ final class CodecMembers {
      * The names of the generated members and local variables of one collection.
      *
      * @param marker the name of the {@code EmptySlot} constant, or {@code null} for LOW-VALUES
-     * @param indexed {@code true} if a message of an item names the index of the item: the
-     *     collection is in an item class, or its item class has a collection
      */
-    record CollectionNames(String descriptor, String list, String count, String marker,
-                           boolean indexed) {
+    record CollectionNames(String descriptor, String list, String count, String marker) {
     }
 
     /** The names of the methods that write and read one item class. */
@@ -152,10 +147,8 @@ final class CodecMembers {
 
     /**
      * Adds the constant fields of a collection, and gives the names of its local variables.
-     *
-     * @param inner {@code true} for a collection in an item class
      */
-    void addCollection(TypeSpec.Builder builder, CollectionModel collection, boolean inner) {
+    void addCollection(TypeSpec.Builder builder, CollectionModel collection) {
         String descriptor = allocator.newName(upperSnake(collection.name()));
         builder.addField(FieldSpec.builder(String.class, descriptor, Modifier.PRIVATE,
             Modifier.STATIC, Modifier.FINAL).initializer("$S", collection.descriptor()).build());
@@ -167,16 +160,7 @@ final class CodecMembers {
         }
         collections.put(collection, new CollectionNames(descriptor,
             allocator.newName(collection.name()), allocator.newName(collection.name() + "Count"),
-            marker, inner || hasInnerCollection(collection.item())));
-    }
-
-    /** Tells if an item class has a collection, in its own members or in a subtype. */
-    private static boolean hasInnerCollection(ItemModel item) {
-        List<MemberModel> members = new ArrayList<>(item.members());
-        if (item.subTypes() != null) {
-            item.subTypes().variants().forEach(variant -> members.addAll(variant.members()));
-        }
-        return members.stream().anyMatch(CollectionModel.class::isInstance);
+            marker));
     }
 
     /** Gives the expression that makes the empty-slot marker of a collection. */
