@@ -1171,5 +1171,6 @@ private BigDecimal invDiscount;
 - The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).
 - `SYNC` in an `OCCURS` is an error if the item needs slack bytes.
 - BookMap writes a `COMP-5` value only if it has the digits of the picture.
+- The generator adds the lengths of a record in `int`. A record longer than 2147483647 bytes gives a wrong length in the diagnostics (#122). The processor rejects the generated class.
 
 The [Roadmap](Roadmap) lists the plan for these limitations.
