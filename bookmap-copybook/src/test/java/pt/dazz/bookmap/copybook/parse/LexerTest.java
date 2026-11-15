@@ -41,6 +41,8 @@ class LexerTest {
                 tuple(TokenType.PERIOD, "."));
         assertThat(free("05 A PIC ſ9(5).")).extracting(Token::type, Token::text)
             .endsWith(tuple(TokenType.PICTURE, "ſ9(5)"), tuple(TokenType.PERIOD, "."));
+        // The characters before 'a' and after 'z' do not change.
+        assertThat(free("05 `az{.")).extracting(Token::text).contains("`AZ{");
     }
 
     @Test

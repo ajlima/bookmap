@@ -103,4 +103,11 @@ class PictureTest {
         assertThatThrownBy(() -> Picture.parse(text).withBlankWhenZero())
             .isInstanceOf(IllegalArgumentException.class).hasMessage(message);
     }
+
+    @Test
+    void deleteIsAsciiButNotAPictureSymbol() {
+        assertThatThrownBy(() -> Picture.parse("X\u007f"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("picture X\u007f is not valid");
+    }
 }

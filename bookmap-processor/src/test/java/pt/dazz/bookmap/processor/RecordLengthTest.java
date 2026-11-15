@@ -185,4 +185,59 @@ class RecordLengthTest {
             "GetShipments: the record has 2999999998 bytes, " + MAX);
         // The subtype also has the base members, but the builder does not report it again.
     }
+
+    /** An abstract item class with a subtype of {@code bytes} bytes: 1 + 999999999 + rest. */
+    private static JavaFileObject[] itemWithSubtype(int rest) {
+        return new JavaFileObject[] {
+            source("ShipmentLine",
+                "@BookSubTypes(discriminator = \"kind\", value = {",
+                "  @BookSubTypes.Type(value = \"H\", type = HugeLine.class)})",
+                "public abstract class ShipmentLine {",
+                text(1, "length = 1", "kind"), "}"),
+            source("HugeLine", "public class HugeLine extends ShipmentLine {",
+                large(2, "a"), large(3, "b"), text(4, "pic = \"X(" + rest + ")\"", "c"), "}")};
+    }
+
+    @Test
+    void acceptsAnItemSubtypeOfTheMaximumLength() {
+        JavaFileObject[] item = itemWithSubtype(147483648);
+        Compilation compilation = compiler.compile(operation(lines(1, "ShipmentLine")), item[0],
+            item[1]);
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+    }
+
+    @Test
+    void rejectsAnItemSubtypeOneByteLongerThanTheMaximum() {
+        JavaFileObject[] item = itemWithSubtype(147483649);
+        assertOnlyError(compiler.compile(operation(lines(1, "ShipmentLine")), item[0], item[1]),
+            "GetShipments.lines (order 10): subtype HugeLine of item class ShipmentLine has"
+                + " 2147483648 bytes, " + MAX);
+    }
+
+    /** An operation with a base of {@code base} bytes and a subtype with {@code extra} more. */
+    private Compilation operationWithSubtype(String base, String extra) {
+        return compiler.compile(
+            source("GetShipments",
+                "@BookOperation @BookSubTypes(discriminator = \"kind\", value = {",
+                "  @BookSubTypes.Type(value = \"H\", type = HugeShipments.class)})",
+                "public abstract class GetShipments {",
+                text(1, "length = 1", "kind"), large(2, "a"), large(3, "b"),
+                text(4, "pic = \"X(" + base + ")\"", "c"), "}"),
+            source("HugeShipments", "public class HugeShipments extends GetShipments {",
+                text(5, "pic = \"X(" + extra + ")\"", "d"), "}"));
+    }
+
+    @Test
+    void acceptsAnOperationSubtypeOfTheMaximumLength() {
+        Compilation compilation = operationWithSubtype("147483647", "1");
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        BookCodec<Object> codec = CompiledCodec.load(compilation, "test.GetShipments");
+        assertThat(codec.maxResponseLength()).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
+    void rejectsASubtypeOfABaseOfTheMaximumLength() {
+        assertOnlyError(operationWithSubtype("147483648", "1"),
+            "GetShipments: the record of subtype HugeShipments has 2147483648 bytes, " + MAX);
+    }
 }

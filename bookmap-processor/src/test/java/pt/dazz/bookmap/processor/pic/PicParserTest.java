@@ -69,6 +69,14 @@ class PicParserTest {
     }
 
     @Test
+    void deleteIsAsciiButNotAPictureSymbol() {
+        assertThatThrownBy(() -> PicParser.parse("X(3)\u007f"))
+            .isInstanceOf(PicSyntaxException.class)
+            .hasMessageEndingWith(": unexpected or unsupported character '\u007f' in the"
+                + " picture");
+    }
+
+    @Test
     void rejectsANonAsciiSpaceBeforeThePicture() {
         assertThatThrownBy(() -> PicParser.parse("\u2003X(5)"))
             .isInstanceOf(PicSyntaxException.class)

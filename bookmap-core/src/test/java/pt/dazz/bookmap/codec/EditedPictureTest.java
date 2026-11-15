@@ -174,5 +174,8 @@ class EditedPictureTest {
         assertThatThrownBy(() -> EditedPicture.parse("Z𝟗", false))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("character '𝟗' (U+1D7D7) is not ASCII");
+        assertThatThrownBy(() -> EditedPicture.parse("ZZ9\u007f", false))
+            .isInstanceOf(IllegalArgumentException.class)
+            .message().doesNotContain("ASCII");
     }
 }
