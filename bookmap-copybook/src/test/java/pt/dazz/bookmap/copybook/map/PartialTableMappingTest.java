@@ -85,7 +85,7 @@ class PartialTableMappingTest {
         MapResult result = map(options(table),
             "01 ORDER.", "05 N PIC 9(2).", "05 ODO OCCURS 1 TO 5 DEPENDING ON N PIC X.",
             "05 LINE OCCURS 4.", "10 ID PIC 9(6).", "10 TAX OCCURS 2 PIC X(3).",
-            "05 CODES OCCURS 3 PIC X(2).");
+            "10 NOTE PIC X(5).", "05 CODES OCCURS 3 PIC X(2).");
         assertThat(errors(result)).containsExactly(message);
         assertThat(result.model()).isNull();
     }

@@ -101,7 +101,7 @@ final class PartialTableResolver {
                 index++;
             }
             firstOutput(members.subList(index + 1, members.size()))
-                .or(() -> firstOutputBelow(table.owner().name))
+                .or(() -> firstOutputOfSubclass(table.owner().name))
                 .ifPresent(after -> mapper.error(table.table(), KIND + ": "
                     + table.table().name() + " is not at the end of the response: "
                     + after.cobolName() + " comes after it"));
@@ -113,11 +113,10 @@ final class PartialTableResolver {
             .findFirst();
     }
 
-    /** Gives the first output member of a subclass of a class, or of a subclass of it. */
-    private Optional<MemberModel> firstOutputBelow(String className) {
+    /** Gives the first output member of a subclass of a class. A subclass has no subclass. */
+    private Optional<MemberModel> firstOutputOfSubclass(String className) {
         return mapper.classes.stream().filter(type -> className.equals(type.superclass))
-            .flatMap(type -> firstOutput(type.members).or(() -> firstOutputBelow(type.name))
-                .stream())
+            .flatMap(type -> firstOutput(type.members).stream())
             .findFirst();
     }
 
