@@ -5,7 +5,7 @@ Status: proposed.
 
 Related documents: `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` (fixed collections, section 2.2 lists this feature as a non-goal), `docs/design/2026-11-13-empty-item-markers-design.md` (#44), `docs/design/2026-11-14-nested-collections-design.md` (#43), `docs/design/2026-11-14-processor-limits-and-item-errors-design.md` (#92 to #94), GitHub issue #45.
 
-Decisions marked **[builder call]** come from the spec author, not from the project owner. Section 12 lists them for review.
+Decisions marked **[builder call]** come from the spec author, not from the project owner. Section 15 lists them for review.
 
 ## 1. Intent
 
@@ -75,7 +75,7 @@ The area of a fixed collection starts at offset `A` of the response. It has `max
 | Full area | `P >= maxOccurs × L` | As today. Extra bytes are ignored. |
 | Cut on a slot boundary | `0 <= P < maxOccurs × L` and `P % L == 0` | `P / L` slots are present. The other slots are missing. |
 | Cut inside a slot | `P % L != 0` | `MappingException` (section 7). |
-| Cut before the area | `P < 0` | The existing `take` message of the member that is cut. |
+| Cut before the area | `P < 0` | The existing `take` message of the member that is cut. If the reader is already past the end of the data, `presentSlots` throws the existing message `<field>: the response is too short for the fixed area`. |
 
 A response that ends exactly at the start of the area (`P = 0`) has 0 present slots. This is valid.
 
@@ -202,7 +202,7 @@ The behavior for a full area is the same as today. The `emptyItem` value has no 
 | SPACES | Unused. | A cut inside a slot. |
 | Key | Unused. | A cut inside a slot. |
 
-In the marker modes, a cut on a slot boundary after a used slot is not detected. The CAUTION in the documentation (section 11) tells this risk.
+In the marker modes, a cut on a slot boundary after a used slot is not detected. The CAUTION in the documentation (section 13) tells this risk.
 
 ### 8.5 Nested collections and subtypes
 
@@ -227,12 +227,12 @@ Add one public method to `BookReader`. The existing signatures do not change.
  * @param slotLength the number of bytes of one slot
  * @param slots the number of slots of the full area
  * @return the number of complete slots, from 0 to {@code slots}
- * @throws MappingException if the data ends inside a slot
+ * @throws MappingException if the data ends inside a slot, or before the start of the area
  */
 public int presentSlots(String field, int slotLength, int slots)
 ```
 
-The method calculates in `long` (#92). The generated code then calls the existing methods with `S` in place of `maxOccurs`:
+The method calculates in `long` (#92). The reader position can be past the end of the data, for example after a variable collection of subtype items: the last item ends with the unchecked `skip`. Then the method throws `<field>: the response is too short for the fixed area`, as `skipArea` and `countUsedSlots` do today. The generated code then calls the existing methods with `S` in place of `maxOccurs`:
 
 ```java
 int ordersPresent = reader.presentSlots(ORDERS, 14, 10);
@@ -325,7 +325,7 @@ The last two checks use the directions that the generator gives to the items. Th
 
 `MappingOptions` gets a new component `List<String> partialTables`. These places build a `MappingOptions` record, and each one must pass the new component:
 
-- `MappingOptions`: the canonical constructor (a copy of the list). A new overload keeps the current constructor with 13 components and gives an empty list. The other six overloads call it. `defaults()` uses an overload. `withHints` passes `partialTables`.
+- `MappingOptions`: the canonical constructor (a copy of the list). A new overload keeps the current constructor with 13 components and gives an empty list. The constructor with 11 components calls this overload, and the other overloads call it through a chain. `defaults()` uses an overload. `withHints` passes `partialTables`.
 - `GeneratorConfigJson`: the key `partialTables` in `KEYS`, and the constructor call.
 - `Main` (CLI), line 271: the option `--partial-table`, the constructor call, and the usage text.
 - `CopybookTree`, line 202: the constructor call. `CopybookTree` is in `bookmap-copybook`. The Gradle plugin (`GenerateCopybookClasses`) and the Maven plugin (`GenerateMojo`) only call `CopybookTree.run`. They need no change, because the option is in the options file. The Maven `Fingerprint` already reads the options files.
@@ -336,9 +336,33 @@ The model and the generated classes also change:
 - `ModelMapper`, line 397: sets `partial`.
 - `ModelJson`: writes and reads the key `partial`. A missing key is `false`.
 - `JavaClassGenerator`, line 316: writes `partial = true`. It writes nothing for `false`.
-- `ModelSnapshot` in the processor tests: a new value `partial` in `Member`.
+- `ModelSnapshot` in `bookmap-processor` (main code that the tests read): a new value `partial` in `Member`.
 
-## 12. Decisions for review
+## 12. Tests
+
+- `bookmap-core`: `presentSlots` for a full area, a longer response, each slot boundary, 0 slots, a cut inside the first and the last slot, a reader position past the end of the data, and a large area in `long`.
+- `bookmap-processor`: each compile error of section 7. The generated code for each mode, for a response with 0 slots, some slots, and the full area. Each message of section 10. A class with subtypes, items with subtypes, and items with an inner fixed collection. A class without `partial` keeps the current messages. An `INPUT_OUTPUT` collection: the request needs the full area, the response can be partial.
+- `bookmap-transport-simulator`: a byte-level `SimulatedOperation` returns a short response.
+- `bookmap-copybook`, CLI, and plugins: the option in the options file and on the command line, each diagnostic of section 11.2, the model JSON, and the generated annotation.
+- `bookmap-examples`: the example `ListOpenOrders` in package `pt.dazz.bookmap.examples.orders`, with a round-trip test through the simulator.
+
+## 13. Documentation
+
+- `docs/wiki/Collections-and-fixed-OCCURS.md`: a new section "Partial responses". Change the line "The response must contain the full area, in all modes" in "Rules for all modes". Add the two messages to the table of "Messages". Add a CAUTION: "Use `partial` only for a program that sends the used entries. In the marker modes, a response that a gateway cuts on a slot boundary gives a shorter list without an error."
+- `docs/wiki/Annotations-reference.md`: the attribute `partial`.
+- `docs/wiki/Error-handling.md`: a reference to the new messages.
+- `docs/wiki/FAQ-and-troubleshooting.md`: change the line "For a fixed collection, the response must contain the full area." Refer to `partial`.
+- `docs/wiki/Copybook-generator.md` and `docs/wiki/Copybook-generator-CLI.md`: the option `partialTables` and `--partial-table`.
+- `docs/wiki/Transports-and-simulator.md`, `docs/wiki/HTTP-transport.md`, and `docs/wiki/IBM-MQ.md`: a short note that these transports give the response as the program sent it.
+- Javadoc of `@BookCollection` and of `BookReader`.
+- `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` section 2.2: refer to this spec.
+- `ROADMAP.md` line 36 (#45): remove the item after the release.
+
+## 14. Release
+
+A `feat:` commit merged to `main` publishes a new minor version. The owner must approve the merge.
+
+## 15. Decisions for review
 
 1. Opt-in through the new attribute `partial` on `@BookCollection`, default `false`. Other names: `endsResponse`, `shortResponse`. A default of `true` would hide a cut in the marker modes.
 2. Only a cut on a slot boundary (section 4.1). A cut inside a slot is an error in all modes. The alternative is to fill the missing bytes with `0x00` up to `maxResponseLength()`. This alternative supports a transport that removes trailing `0x00` bytes:
@@ -353,30 +377,7 @@ The model and the generated classes also change:
 6. Count mode: a count larger than the present slots is an error. Present slots after the count are ignored.
 7. Marker modes: a missing slot is an unused slot. The `emptyItem` value has no effect on a missing slot.
 8. A response that ends at the start of the area (0 present slots) is valid. In count mode, the count must then be 0.
-9. The request does not change: `encodeRequest`, `encodeResponse`, and `decodeRequest` always use the full area.
+9. The write direction and the read of a request do not change: `encodeRequest`, `encodeResponse`, and `decodeRequest` always use the full area.
 10. The two new messages of section 10 do not use the form `<collection> item <i>: `. They are about the collection, as the existing collection messages.
 11. `maxResponseLength()` does not change.
 12. The copybook generator gets the option `partialTables` and `--partial-table` (section 11). The Gradle and Maven plugins get no new setting.
-
-## 13. Tests
-
-- `bookmap-core`: `presentSlots` for a full area, a longer response, each slot boundary, 0 slots, a cut inside the first and the last slot, and a large area in `long`.
-- `bookmap-processor`: each compile error of section 7. The generated code for each mode, for a response with 0 slots, some slots, and the full area. Each message of section 10. A class with subtypes, items with subtypes, and items with an inner fixed collection. A class without `partial` keeps the current messages. An `INPUT_OUTPUT` collection: the request needs the full area, the response can be partial.
-- `bookmap-transport-simulator`: a byte-level `SimulatedOperation` returns a short response.
-- `bookmap-copybook`, CLI, and plugins: the option in the options file and on the command line, each diagnostic of section 11.2, the model JSON, and the generated annotation.
-- `bookmap-examples`: the example `ListOpenOrders` in package `pt.dazz.bookmap.examples.orders`, with a round-trip test through the simulator.
-
-## 14. Documentation
-
-- `docs/wiki/Collections-and-fixed-OCCURS.md`: a new section "Partial responses". Change the line "The response must contain the full area, in all modes" in "Rules for all modes". Add the two messages to the table of "Messages". Add a CAUTION: "Use `partial` only for a program that sends the used entries. In the marker modes, a response that a gateway cuts on a slot boundary gives a shorter list without an error."
-- `docs/wiki/Annotations-reference.md`: the attribute `partial`.
-- `docs/wiki/Error-handling.md`: a reference to the new messages.
-- `docs/wiki/Copybook-generator.md` and `docs/wiki/Copybook-generator-CLI.md`: the option `partialTables` and `--partial-table`.
-- `docs/wiki/Transports-and-simulator.md`, `docs/wiki/HTTP-transport.md`, and `docs/wiki/IBM-MQ.md`: a short note that these transports give the response as the program sent it.
-- Javadoc of `@BookCollection` and of `BookReader`.
-- `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` section 2.2: refer to this spec.
-- `ROADMAP.md` line 36 (#45): remove the item after the release.
-
-## 15. Release
-
-A `feat:` commit merged to `main` publishes a new minor version. The owner must approve the merge.
