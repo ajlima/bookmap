@@ -77,6 +77,19 @@ class ModelJsonTest {
     }
 
     @Test
+    void partialTableRoundTrip() {
+        BookModel model = Models.partialModel();
+        String json = ModelJson.write(model);
+        assertThat(json).contains("\"partial\" : true");
+        assertThat(ModelJson.read(json)).isEqualTo(model);
+        assertThat(ModelJson.write(Models.markerModel())).doesNotContain("partial");
+        CollectionMember full = (CollectionMember) ModelJson.read(
+                json.replace("\"partial\" : true", "\"partial\" : false"))
+            .classes().get(0).members().get(0);
+        assertThat(full.partial()).isFalse();
+    }
+
+    @Test
     void enumTypeAgreesWithJavaType() {
         String json = ModelJson.write(conditionModel());
         assertThatThrownBy(() -> ModelJson.read(json.replace("\"javaType\" : \"ENUM\"",

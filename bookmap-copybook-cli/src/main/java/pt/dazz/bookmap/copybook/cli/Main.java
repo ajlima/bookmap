@@ -71,6 +71,8 @@ public final class Main {
                                      The bytes of an unused slot of a fixed table.
           --empty-key <table>=<item> The key item that marks an empty slot of a fixed
                                      table: blank or zero.
+          --partial-table <table>    A fixed table that a response can end inside, on an
+                                     entry boundary. Repeat for more.
           --config <file.json>       A file with all options. The command line has priority.
         """;
 
@@ -278,7 +280,8 @@ public final class Main {
             pairs(arguments, "--validatable", "RECORD=CLASS", base.validatable()),
             conditions,
             pairs(arguments, "--empty-item", "TABLE=SPACES or TABLE=LOW-VALUES", base.emptyItems()),
-            pairs(arguments, "--empty-key", "TABLE=ITEM", base.emptyKeys()));
+            pairs(arguments, "--empty-key", "TABLE=ITEM", base.emptyKeys()),
+            concat(base.partialTables(), arguments.all("--partial-table")));
     }
 
     /** Adds the KEY=VALUE values of an option to the values of the options file. */

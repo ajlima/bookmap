@@ -75,6 +75,14 @@ class JavaClassGeneratorTest {
     }
 
     @Test
+    void collectionGetsThePartialAttribute() {
+        assertThat(JavaClassGenerator.generate(Models.partialModel(), PLAIN).get(0).toString())
+            .contains("fixed = true,", "partial = true");
+        assertThat(JavaClassGenerator.generate(Models.markerModel(), PLAIN).get(0).toString())
+            .doesNotContain("partial");
+    }
+
+    @Test
     void writeToCreatesPackageDirectoriesAndOverwrites(@TempDir Path dir) throws IOException {
         Path file = dir.resolve("com/example/accounts/Holder.java");
         Files.createDirectories(file.getParent());

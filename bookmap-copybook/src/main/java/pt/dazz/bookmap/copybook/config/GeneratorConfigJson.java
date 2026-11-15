@@ -29,7 +29,7 @@ public final class GeneratorConfigJson {
     private static final Set<String> KEYS = Set.of("format", "charset", "copyDirs",
         "recordName", "stripPrefixes", "inputMarkers", "outputMarkers", "directions",
         "subTypes", "conditions", "countFields", "maxRecordLength", "dates", "continuable",
-        "validatable", "emptyItems", "emptyKeys", "package", "lombok");
+        "validatable", "emptyItems", "emptyKeys", "partialTables", "package", "lombok");
     private static final Set<String> SUBTYPE_KEYS = Set.of("discriminator", "values",
         "classNames");
 
@@ -77,7 +77,8 @@ public final class GeneratorConfigJson {
             root.has("validatable") ? root.textMap("validatable") : Map.of(),
             root.has("conditions") ? conditions(root) : Map.of(),
             root.has("emptyItems") ? root.textMap("emptyItems") : Map.of(),
-            root.has("emptyKeys") ? root.textMap("emptyKeys") : Map.of());
+            root.has("emptyKeys") ? root.textMap("emptyKeys") : Map.of(),
+            root.has("partialTables") ? root.texts("partialTables") : List.of());
         return new GeneratorConfig(parse, mapping, root.optionalText("package"),
             root.has("lombok") ? root.bool("lombok") : null);
     }

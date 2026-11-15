@@ -193,6 +193,30 @@ class MainTest {
     }
 
     @Test
+    void partialTableOptionsAddToTheOptionsFile() throws IOException {
+        Path copybook = dir.resolve("ORDERS.cpy");
+        Files.writeString(copybook, String.join("\n",
+            "       01  LIST-OPEN-ORDERS.",
+            "           05  RESPONSE-DATA.",
+            "               10  OPEN-ORDER OCCURS 5 TIMES PIC X(14).",
+            "               10  OPEN-SHIPMENT OCCURS 5 TIMES PIC X(12).",
+            "           05  REQUEST-DATA REDEFINES RESPONSE-DATA.",
+            "               10  CUSTOMER-ID PIC X(10)."));
+        Path config = dir.resolve("config.json");
+        Files.writeString(config, "{\"partialTables\": [\"OPEN-SHIPMENT\"]}");
+        assertThat(run("generate", copybook.toString(), "--config", config.toString(),
+            "--package", "com.example.orders", "--output-dir", dir.resolve("src").toString()))
+            .isEqualTo(Main.OK);
+        assertThat(Files.readString(dir.resolve("src/com/example/orders/ListOpenOrders.java")))
+            .containsOnlyOnce("partial = true");
+        assertThat(run("generate", copybook.toString(), "--partial-table", "OPEN-ORDER",
+            "--package", "com.example.orders", "--output-dir", dir.resolve("src2").toString()))
+            .isEqualTo(Main.FAILED);
+        assertThat(err()).contains("partial table option: OPEN-ORDER is not at the end"
+            + " of the response: OPEN-SHIPMENT comes after it");
+    }
+
+    @Test
     void countFieldSuggestionIsPrinted() throws IOException {
         Path copybook = dir.resolve("INVOICE.cpy");
         Files.writeString(copybook, String.join("\n",
@@ -351,6 +375,8 @@ class MainTest {
         "generate A.cpy --package a --output-dir x --empty-key LINE=|--empty-key needs"
             + " TABLE=ITEM, not 'LINE='",
         "generate A.json --package a --output-dir x --empty-key A=B|parse and mapping"
+            + " options are not permitted with a model input",
+        "generate A.json --package a --output-dir x --partial-table A|parse and mapping"
             + " options are not permitted with a model input",
         "generate A.cpy --package a --output-dir x --max-record-length 0|--max-record-length"
             + " needs a number of bytes of 1 or more, not '0'",

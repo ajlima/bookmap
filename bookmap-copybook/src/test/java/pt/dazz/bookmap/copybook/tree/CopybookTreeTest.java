@@ -192,6 +192,21 @@ class CopybookTreeTest {
     }
 
     @Test
+    void optionsFileKeepsThePartialTables() throws IOException {
+        Path source = Files.createDirectories(work.resolve("partial"));
+        Files.writeString(source.resolve("ORDER.cpy"), String.join("\n",
+            "       01  ORDER.",
+            "           05  ORDER-LINE OCCURS 5 TIMES.",
+            "               10  PRODUCT-ID           PIC 9(6).", ""));
+        Files.writeString(source.resolve("ORDER.json"), "{\"partialTables\": [\"ORDER-LINE\"]}");
+        CopybookTree.run(settings(source, List.of(), BASE, false, false),
+            TestCopybooks.copybooks(source), output, log);
+        assertThat(log.errors).isEmpty();
+        assertThat(output.resolve("com/example/mainframe/Order.java")).content()
+            .contains("partial = true");
+    }
+
+    @Test
     void optionsFileKeepsTheDateHints() throws IOException {
         Path source = Files.createDirectories(work.resolve("dates"));
         Files.writeString(source.resolve("ORDER.cpy"),
