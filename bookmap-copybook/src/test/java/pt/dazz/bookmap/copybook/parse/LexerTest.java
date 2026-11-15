@@ -32,6 +32,18 @@ class LexerTest {
     }
 
     @Test
+    void onlyAsciiLettersAreUpperCase() {
+        // U+0131 and U+017F have an ASCII upper case. Thus, a word with them is not a keyword.
+        assertThat(free("05 order-ıd pıc ſ9(5).")).extracting(Token::type,
+                Token::text)
+            .containsExactly(tuple(TokenType.NUMBER, "05"), tuple(TokenType.WORD, "ORDER-ıD"),
+                tuple(TokenType.WORD, "PıC"), tuple(TokenType.WORD, "ſ9(5)"),
+                tuple(TokenType.PERIOD, "."));
+        assertThat(free("05 A PIC ſ9(5).")).extracting(Token::type, Token::text)
+            .endsWith(tuple(TokenType.PICTURE, "ſ9(5)"), tuple(TokenType.PERIOD, "."));
+    }
+
+    @Test
     void tagWordIsOneToken() {
         assertThat(free("05 :PREFIX:-ID PIC X.")).extracting(Token::text)
             .contains(":PREFIX:-ID");

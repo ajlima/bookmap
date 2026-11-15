@@ -37,6 +37,8 @@ class PictureTest {
         "S9.99|edited picture S9.99: S is not permitted in an edited picture. Use '+', '-', CR, or DB",
         "9CR9|edited picture 9CR9: CR or DB must be the last symbol",
         "9(5)P|picture symbol P is not supported by BookMap",
+        "ſ9(5)|picture string 'ſ9(5)' has the character 'ſ' (U+017F), which is not ASCII",
+        "X(5)𝟗|picture string 'X(5)𝟗' has the character '𝟗' (U+1D7D7), which is not ASCII",
         "A(3)|picture symbol A is not supported by BookMap",
         "N(3)|picture symbol N is not supported by BookMap. See issue #49.",
         "X9|picture X9 is not valid",
