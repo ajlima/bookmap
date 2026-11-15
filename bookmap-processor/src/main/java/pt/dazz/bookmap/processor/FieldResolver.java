@@ -205,6 +205,10 @@ final class FieldResolver {
                     + simpleName(fieldType)));
         }
         checkSign(member, kind, textOnly, signed, usage, sign, problems);
+        if (usage == Usage.DISPLAY && sign.separate() && length == Problems.MAX_LENGTH) {
+            // The separate sign adds one byte.
+            problems.error(member, "the field " + Problems.tooLong(Problems.MAX_LENGTH + 1));
+        }
         EnumModel enumModel = null;
         if (problems.count() == before) {
             checkTypeAndUsage(member, kind, textOnly && !(temporal && packed), fieldType, usage,
