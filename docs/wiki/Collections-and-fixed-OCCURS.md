@@ -211,9 +211,58 @@ The fixed area always has 5 slots of 14 bytes. `returnCode` is always at the sam
 
 - The fixed area is `maxOccurs` multiplied by the item length. With subtype items, the item length is the length of the longest layout.
 - A field after a fixed collection has a fixed offset, if no variable collection comes before it.
-- The response must contain the full area, in all modes. A response that ends in the area causes a `MappingException`.
+- The response must contain the full area, in all modes. A response that ends in the area causes a `MappingException`. To accept a response with only the used entries, set `partial = true`. See [Partial responses](#partial-responses).
 - Pagination, the reset of `OUTPUT` collections, and items with subtypes work as for a variable collection.
 - The full examples are `GetOrder`, `ListShipments`, and `ListBackorders` in `bookmap-examples`, package `pt.dazz.bookmap.examples.orders`.
+
+## Partial responses
+
+Some programs send only the used entries of a fixed table. For example, an MQ message or an HTTP body ends after the last used entry. Set `partial = true` for this table:
+
+```cobol
+01  LIST-OPEN-ORDERS.
+    05  CUSTOMER-ID       PIC X(10).
+    05  RETURN-CODE       PIC X(4).
+    05  ORDER-COUNT       PIC 9(2).
+    05  OPEN-ORDER OCCURS 10.
+        10  ORDER-ID      PIC X(12).
+        10  ORDER-STATUS  PIC X(2).
+```
+
+```java
+@BookField(order = 30, pic = "9(2)")
+private int orderCount;
+
+@BookCollection(order = 40, maxOccurs = 10, fixed = true, dependsOn = "orderCount",
+    partial = true)
+private List<OpenOrder> orders;
+```
+
+The full response has `4 + 2 + 10 × 14 = 146` bytes. With 3 open orders, the program can send `4 + 2 + 3 × 14 = 48` bytes.
+
+- The response can end on a slot boundary inside the area. The missing slots are unused slots.
+- The response can also end at the start of the area. This gives 0 slots.
+- A response that ends inside a slot causes a `MappingException`, in all modes.
+- Count mode: a count larger than the number of slots in the response causes a `MappingException`. The codec ignores the slots after the count.
+- LOW-VALUES, SPACES, and key mode: the codec checks only the slots in the response. The rules of the mode apply to them.
+- A response with the full area works as without `partial`.
+- A write and a request always use the full area. `maxResponseLength()` does not change.
+
+Rules. Each rule gives a compile error if the class does not obey it:
+
+| Rule | Message |
+|---|---|
+| Set `fixed = true`. | `partial needs fixed = true` |
+| Use the direction `OUTPUT` or `INPUT_OUTPUT`. | `partial needs the direction OUTPUT or INPUT_OUTPUT` |
+| Use `partial` only on a top-level collection, not in an item class. | `partial is permitted only on a top-level collection` |
+| Put no `OUTPUT` or `INPUT_OUTPUT` member after the collection, also in a subtype. An `INPUT` member is permitted. | `partial needs the collection at the end of the response: <member> comes after it` |
+
+A slot is the unit. A slot with an inner collection or with a subtype item is complete in the response, or the response ends before it.
+
+**CAUTION:** Use `partial` only for a program that sends the used entries. In LOW-VALUES, SPACES, and key mode, a response that a gateway cuts on a slot boundary gives a shorter list without an error.
+
+The CICS Transaction Gateway transport always gives the full COMMAREA. The HTTP and MQ transports give the response as the program sent it.
+The full example is `ListOpenOrders` in `bookmap-examples`, package `pt.dazz.bookmap.examples.orders`.
 
 ## Nested collections
 
@@ -312,4 +361,6 @@ The messages in the table below are about the collection. They do not get the pr
 | `<field>: item I has an empty key K, so a read cannot find it` | Key mode: the key of an item is blank or zero. |
 | `<field>: slot A is empty, but slot B after it has data` | LOW-VALUES, SPACES, or key mode: an empty slot comes before a slot with data. |
 | `<field> slot S: byte 0x.. at offset N of the field is not valid in a zoned decimal` | Key mode: the number key of slot S has bytes that are not valid. |
-| `<field>: the response is too short for the fixed area` | The response ends inside a fixed area. |
+| `<field>: the response is too short for the fixed area` | The response ends inside a fixed area, without `partial = true`. |
+| `<field>: the response ends inside slot S, after B of L bytes` | `partial = true`: the response ends inside slot `S`. The index starts at 0. |
+| `<field>: count C is more than the number of slots in the response (P)` | `partial = true`, count mode: the response has fewer slots than the count. |

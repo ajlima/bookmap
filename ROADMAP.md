@@ -33,7 +33,6 @@ New layout features in the core and the processor. Milestone: [Mapping](https://
 - [#40](https://github.com/ajlima/bookmap/issues/40) Support base fields after the redefined area
 - [#41](https://github.com/ajlima/bookmap/issues/41) Support a base count field for a collection in a subclass
 - [#42](https://github.com/ajlima/bookmap/issues/42) Support more discriminator types
-- [#45](https://github.com/ajlima/bookmap/issues/45) Support a response that ends inside a fixed collection
 - [#46](https://github.com/ajlima/bookmap/issues/46) Support COMP-1 and COMP-2
 - [#49](https://github.com/ajlima/bookmap/issues/49) Support multi-byte charsets (DBCS and NATIONAL)
 
