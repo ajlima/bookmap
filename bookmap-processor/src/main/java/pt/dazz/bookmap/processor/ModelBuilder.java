@@ -871,8 +871,9 @@ public final class ModelBuilder {
             if (subTypes == null) {
                 return null;
             }
-            // Each entry has the length of the longest layout.
-            long longest = subTypes.baseAbstract() ? 0 : byteLength;
+            // Each entry has the length of the longest layout. Each subtype layout has the base
+            // members, so the base length is never more than a subtype length.
+            long longest = byteLength;
             for (VariantModel variant : subTypes.variants()) {
                 long variantLength = length(variant.members());
                 if (variantLength > Problems.MAX_LENGTH) {
