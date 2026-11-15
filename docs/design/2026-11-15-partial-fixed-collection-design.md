@@ -1,7 +1,7 @@
 # A response that ends inside a fixed collection (design)
 
 Date: 2026-11-15
-Status: proposed.
+Status: approved.
 
 Related documents: `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` (fixed collections, section 2.2 lists this feature as a non-goal), `docs/design/2026-11-13-empty-item-markers-design.md` (#44), `docs/design/2026-11-14-nested-collections-design.md` (#43), `docs/design/2026-11-14-processor-limits-and-item-errors-design.md` (#92 to #94), GitHub issue #45.
 
