@@ -47,7 +47,7 @@ public final class ModelJson {
     private static final Set<String> CONSTANT_KEYS = Set.of("name", "cobolName", "values");
     private static final Set<String> COLLECTION_KEYS = Set.of("kind", "name", "order",
         "direction", "maxOccurs", "fixed", "dependsOn", "itemClass", "cobolName", "declaration",
-        "emptyItem", "emptyKey");
+        "emptyItem", "emptyKey", "partial");
 
     private ModelJson() {
     }
@@ -156,6 +156,9 @@ public final class ModelJson {
                 }
                 if (collection.emptyKey() != null) {
                     node.put("emptyKey", collection.emptyKey());
+                }
+                if (collection.partial()) {
+                    node.put("partial", true);
                 }
             }
         }
@@ -267,7 +270,8 @@ public final class ModelJson {
                 member.optionalText("dependsOn"), member.text("itemClass"),
                 member.has("emptyItem") ? member.enumValue("emptyItem", EmptyItem.class)
                     : EmptyItem.LOW_VALUES,
-                member.optionalText("emptyKey"));
+                member.optionalText("emptyKey"),
+                member.has("partial") && member.bool("partial"));
         }
         JsonObject member = JsonObject.of(node, path, FIELD_KEYS);
         if (!"FIELD".equals(member.text("kind"))) {

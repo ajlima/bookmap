@@ -41,7 +41,7 @@ A negative value in an unsigned field also causes this error. Add `S` to the `pi
 
 The message is `<field>: response too short, need N bytes at position P but only R remain`. The field in the message is the first field that does not fit.
 The response is shorter than the layout. Check the `order` values, the sizes, and the directions against the copybook.
-For a fixed collection, the response must contain the full area.
+For a fixed collection, the response must contain the full area. If the program sends only the used entries, set `partial = true`. See [Partial responses](Collections-and-fixed-OCCURS#partial-responses).
 The codec ignores extra bytes at the end of a response.
 
 ## The client throws ContinuationLimitException

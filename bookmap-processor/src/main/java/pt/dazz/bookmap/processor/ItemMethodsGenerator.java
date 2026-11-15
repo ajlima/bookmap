@@ -184,7 +184,7 @@ final class ItemMethodsGenerator {
                 }
                 case CollectionModel inner -> {
                     write.addCode(collections.writeItems(inner));
-                    read.addCode(collections.readItems(inner, false));
+                    read.addCode(collections.readItems(inner, false, false));
                 }
             }
         }

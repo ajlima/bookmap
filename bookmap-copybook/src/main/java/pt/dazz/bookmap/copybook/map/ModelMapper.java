@@ -126,6 +126,7 @@ public final class ModelMapper {
     private String continuable;
     private final CountFieldResolver countFields;
     private final EmptyItemResolver emptyItems;
+    private final PartialTableResolver partialTables;
     private final ConditionMapper conditions;
 
     private ModelMapper(Copybook copybook, MappingOptions options) {
@@ -136,6 +137,7 @@ public final class ModelMapper {
         this.redefines = new RedefinesResolver(this);
         this.countFields = new CountFieldResolver(this);
         this.emptyItems = new EmptyItemResolver(this);
+        this.partialTables = new PartialTableResolver(this);
         this.conditions = new ConditionMapper(this, copybook);
     }
 
@@ -153,6 +155,7 @@ public final class ModelMapper {
         OperationHandlers handlers = new OperationHandlers(mapper, copybook.records());
         mapper.countFields.checkOptions();
         mapper.emptyItems.checkOptions(mapper.countFields);
+        mapper.partialTables.checkOptions();
         mapper.conditions.checkOptions();
         for (DataItem record : copybook.records()) {
             info(mapper, record);
@@ -170,6 +173,8 @@ public final class ModelMapper {
         mapper.dates.checkUnused();
         mapper.countFields.checkUnmapped();
         mapper.emptyItems.checkUnmapped();
+        mapper.partialTables.checkAtEnd();
+        mapper.partialTables.checkUnmapped();
         BookModel model = new BookModel(BookModel.FORMAT_VERSION, copybook.sourceName(),
             mapper.classes.stream().map(ClassBuilder::build).toList(), mapper.conditions.enums);
         return new MapResult(mapper.diagnostics.hasErrors() ? null : model,
@@ -394,9 +399,13 @@ public final class ModelMapper {
                 + " Link the count field with the option countFields, or the key item with"
                 + " the option emptyKeys, if the program has one.");
         }
+        boolean partial = partialTables.partial(item, context);
         owner.members.add(new CollectionMember(name, order, context.direction(), item.name(),
             item.declaration(), item.occurs().max(), fixed, dependsOn, type.name, emptyItem,
-            emptyKey));
+            emptyKey, partial));
+        if (partial) {
+            partialTables.added(owner, name, item);
+        }
     }
 
     /** Resolves the {@code DEPENDING ON} item. Gives its field name, or {@code null}. */

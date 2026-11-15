@@ -219,6 +219,7 @@ Compile errors on the field, for example `Invoice.partyRole (order 30): enum Par
 | `fixed` | `true` for a fixed table (`OCCURS n` without `DEPENDING ON`). | `false` |
 | `emptyItem` | Fixed table: the bytes of an unused slot, `EmptyItem.LOW_VALUES` or `EmptyItem.SPACES`. Without `emptyKey` and `dependsOn`, these bytes also mark an empty slot on read. | `EmptyItem.LOW_VALUES` |
 | `emptyKey` | Fixed table: the name of a field of the item class. A slot is empty if this key is blank or zero. Not permitted with `dependsOn`. | No key. |
+| `partial` | Fixed table: `true` if the response can end on a slot boundary inside the area. The collection must be the last member of the response. See [Partial responses](Collections-and-fixed-OCCURS#partial-responses). | `false` |
 | `maxOccurs` | The maximum number of items in one call. | Mandatory. |
 
 The item class has `@BookField` fields without `direction`. They use the direction of the collection.

@@ -27,6 +27,7 @@ import pt.dazz.bookmap.annotation.Direction;
  *     {@code LOW-VALUES}), by COBOL name of the table
  * @param emptyKeys the key item that marks an empty slot of a fixed table: COBOL name of the
  *     table to COBOL name of the key
+ * @param partialTables the COBOL names of the fixed tables that a response can end inside
  */
 public record MappingOptions(List<String> stripPrefixes, List<String> inputMarkers,
                              List<String> outputMarkers, Map<String, Direction> directions,
@@ -35,7 +36,8 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
                              Map<String, String> dates, Map<String, String> continuable,
                              Map<String, String> validatable,
                              Map<String, ConditionMode> conditions,
-                             Map<String, String> emptyItems, Map<String, String> emptyKeys) {
+                             Map<String, String> emptyItems, Map<String, String> emptyKeys,
+                             List<String> partialTables) {
 
     /** The default input markers. */
     public static final List<String> INPUT_MARKERS = List.of("INPUT", "IN", "REQUEST", "REQ");
@@ -59,6 +61,7 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
      * @param conditions the condition modes
      * @param emptyItems the bytes of the unused slots of fixed tables
      * @param emptyKeys the key items of fixed tables
+     * @param partialTables the tables that a response can end inside
      * @throws IllegalArgumentException if the maximum record length is less than 1
      */
     public MappingOptions {
@@ -74,10 +77,41 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
         conditions = Map.copyOf(conditions);
         emptyItems = Map.copyOf(emptyItems);
         emptyKeys = Map.copyOf(emptyKeys);
+        partialTables = List.copyOf(partialTables);
         if (maxRecordLength != null && maxRecordLength < 1) {
             throw new IllegalArgumentException("the maximum record length must be 1 or more,"
                 + " not " + maxRecordLength);
         }
+    }
+
+    /**
+     * Creates the options without partial tables.
+     *
+     * @param stripPrefixes the prefixes
+     * @param inputMarkers the input markers
+     * @param outputMarkers the output markers
+     * @param directions the directions
+     * @param subTypes the subtype decisions
+     * @param countFields the count fields of fixed tables
+     * @param maxRecordLength the maximum record length
+     * @param dates the date hints
+     * @param continuable the {@code Continuable} handlers
+     * @param validatable the {@code Validatable} handlers
+     * @param conditions the condition modes
+     * @param emptyItems the bytes of the unused slots of fixed tables
+     * @param emptyKeys the key items of fixed tables
+     */
+    public MappingOptions(List<String> stripPrefixes, List<String> inputMarkers,
+                          List<String> outputMarkers, Map<String, Direction> directions,
+                          Map<String, SubTypeDecision> subTypes,
+                          Map<String, String> countFields, Integer maxRecordLength,
+                          Map<String, String> dates, Map<String, String> continuable,
+                          Map<String, String> validatable,
+                          Map<String, ConditionMode> conditions,
+                          Map<String, String> emptyItems, Map<String, String> emptyKeys) {
+        this(stripPrefixes, inputMarkers, outputMarkers, directions, subTypes, countFields,
+            maxRecordLength, dates, continuable, validatable, conditions, emptyItems, emptyKeys,
+            List.of());
     }
 
     /**
@@ -223,7 +257,7 @@ public record MappingOptions(List<String> stripPrefixes, List<String> inputMarke
                                     Map<String, String> newValidatable) {
         return new MappingOptions(stripPrefixes, inputMarkers, outputMarkers, directions,
             subTypes, countFields, maxRecordLength, newDates, newContinuable, newValidatable,
-            conditions, emptyItems, emptyKeys);
+            conditions, emptyItems, emptyKeys, partialTables);
     }
 
     /** Copies a map and keeps its order, for deterministic diagnostics. */

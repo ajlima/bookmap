@@ -136,19 +136,35 @@ final class CollectionCode {
      * Gives the code that reads the items and sets the list of {@code target}.
      *
      * @param append {@code true} to add the items to a new list with the existing items
+     * @param partial {@code true} if the data can end on a slot boundary inside the fixed area
      */
-    CodeBlock readItems(CollectionModel collection, boolean append) {
+    CodeBlock readItems(CollectionModel collection, boolean append, boolean partial) {
         CollectionNames n = members.names(collection);
         int itemLength = collection.item().byteLength();
+        CodeBlock.Builder code = CodeBlock.builder();
+        // The slots that a read can use: the present slots of a partial response, else all.
+        CodeBlock slots = CodeBlock.of("$L", collection.maxOccurs());
+        if (partial) {
+            code.addStatement("int $N = reader.presentSlots($N, $L, $L)", n.present(),
+                n.descriptor(), itemLength, collection.maxOccurs());
+            slots = CodeBlock.of("$N", n.present());
+        }
         CodeBlock marker = n.marker() == null ? CodeBlock.of("")
             : CodeBlock.of(", $N", n.marker());
         CodeBlock size = collection.countField() == null
             ? CodeBlock.of("reader.countUsedSlots($N, $L, $L$L)", n.descriptor(), itemLength,
-                collection.maxOccurs(), marker)
+                slots, marker)
             : helpers.call(Helper.COLLECTION_SIZE,
                 CodeBlock.of("target.$N()", collection.countField().getter()),
                 CodeBlock.of("$N", n.descriptor()), CodeBlock.of("$L", collection.maxOccurs()));
-        CodeBlock.Builder code = CodeBlock.builder().addStatement("int $N = $L", n.count(), size);
+        code.addStatement("int $N = $L", n.count(), size);
+        if (partial && collection.countField() != null) {
+            code.beginControlFlow("if ($N > $N)", n.count(), n.present())
+                .addStatement("throw new $T($N + $S + $N + $S + $N + $S)", MAPPING_EXCEPTION,
+                    n.descriptor(), ": count ", n.count(),
+                    " is more than the number of slots in the response (", n.present(), ")")
+                .endControlFlow();
+        }
         if (append) {
             // A new list: the getter can return a copy or an unmodifiable list.
             code.addStatement("$T $N = new $T<>($T.requireNonNullElse(target.$N(), $T.of()))",
@@ -164,7 +180,7 @@ final class CollectionCode {
             .endControlFlow();
         if (collection.fixed()) {
             code.addStatement("reader.skipArea($N, ($L - $N) * $L)", n.descriptor(),
-                collection.maxOccurs(), n.count(), itemLength);
+                slots, n.count(), itemLength);
         }
         return code.addStatement("target.$N($N)", collection.setter(), n.list()).build();
     }

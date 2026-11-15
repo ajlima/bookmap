@@ -320,6 +320,9 @@ public final class JavaClassGenerator {
                     spec.addMember("emptyItem", "$T.$L", EmptyItem.class,
                         collection.emptyItem().name());
                 }
+                if (collection.partial()) {
+                    spec.addMember("partial", "true");
+                }
                 yield spec.build();
             }
         };

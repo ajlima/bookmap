@@ -132,7 +132,7 @@ GetShipment.packages (order 30) item 1: ShipmentPackage.lines (order 40) item 0:
 The codec adds the prefix to the same exception object. Thus, the class and the cause do not change. A subclass of `MappingException` from a converter keeps its class.
 Another `BookmapException` from a converter goes to the caller unchanged, without the prefix.
 
-For the messages of collections and subtypes, see [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#messages) and [Subtypes (REDEFINES)](Subtypes-REDEFINES#behavior).
+For the messages of collections, also for a partial response, and of subtypes, see [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#messages) and [Subtypes (REDEFINES)](Subtypes-REDEFINES#behavior).
 For the messages of the simulator, see [Transports and simulator](Transports-and-simulator#simulate-failures).
 
 ## Mapping errors

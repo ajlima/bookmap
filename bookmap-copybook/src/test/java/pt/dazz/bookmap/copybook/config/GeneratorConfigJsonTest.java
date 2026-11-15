@@ -43,6 +43,7 @@ class GeneratorConfigJsonTest {
           "countFields": { "INVOICE-LINE": "INVOICE-LINE-COUNT" },
           "emptyItems": { "INVOICE-LINE": "SPACES" },
           "emptyKeys": { "PAYMENT": "PAYMENT-ID" },
+          "partialTables": [ "PAYMENT" ],
           "maxRecordLength": 32500,
           "dates": { "OPENED-ON": "yyyyMMdd", "*-TIME": "HHmmss" },
           "continuable": { "GET-ACCOUNT": "com.example.accounts.AccountPaging" },
@@ -72,6 +73,7 @@ class GeneratorConfigJsonTest {
             "INVOICE-LINE-COUNT"));
         assertThat(config.mapping().emptyItems()).isEqualTo(Map.of("INVOICE-LINE", "SPACES"));
         assertThat(config.mapping().emptyKeys()).isEqualTo(Map.of("PAYMENT", "PAYMENT-ID"));
+        assertThat(config.mapping().partialTables()).containsExactly("PAYMENT");
         assertThat(config.mapping().maxRecordLength()).isEqualTo(32500);
         assertThat(config.mapping().dates()).containsExactly(
             Map.entry("OPENED-ON", "yyyyMMdd"), Map.entry("*-TIME", "HHmmss"));
@@ -81,6 +83,11 @@ class GeneratorConfigJsonTest {
             "ReturnCodes"));
         assertThat(config.packageName()).isEqualTo("com.example.accounts");
         assertThat(config.lombok()).isFalse();
+    }
+
+    @Test
+    void partialTablesAreEmptyByDefault() {
+        assertThat(GeneratorConfigJson.read("{}", BASE).mapping().partialTables()).isEmpty();
     }
 
     @Test

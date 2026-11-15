@@ -82,4 +82,15 @@ public @interface BookCollection {
      * @return the field name, or an empty value for no key
      */
     String emptyKey() default "";
+
+    /**
+     * Tells if a response can end on a slot boundary inside the area of a fixed table. The
+     * missing slots are unused slots. A cut inside a slot is an error. A request always has the
+     * full area. Use this attribute only with {@code fixed = true}, on a top-level collection
+     * with the direction {@code OUTPUT} or {@code INPUT_OUTPUT}. The collection must be the
+     * last member of the response.
+     *
+     * @return {@code true} if the response can have only the used slots
+     */
+    boolean partial() default false;
 }

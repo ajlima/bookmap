@@ -69,4 +69,16 @@ public final class Models {
                     EmptyItem.SPACES, "invoiceNumber"))),
             new ClassModel("InvoiceLine", ClassKind.ITEM, null, null, List.of(number))));
     }
+
+    /** A model with a partial table: the response can end inside it. */
+    public static BookModel partialModel() {
+        FieldMember orderId = new FieldMember("orderId", JavaType.STRING, 10, "X(12)",
+            Direction.INPUT_OUTPUT, "ORDER-ID", "10 ORDER-ID PIC X(12).");
+        return new BookModel(BookModel.FORMAT_VERSION, "LIST-OPEN-ORDERS.cpy", List.of(
+            new ClassModel("ListOpenOrders", ClassKind.OPERATION, null, null, List.of(
+                new CollectionMember("openOrder", 10, Direction.OUTPUT, "OPEN-ORDER",
+                    "05 OPEN-ORDER OCCURS 10.", 10, true, null, "OpenOrder",
+                    EmptyItem.LOW_VALUES, null, true))),
+            new ClassModel("OpenOrder", ClassKind.ITEM, null, null, List.of(orderId))));
+    }
 }

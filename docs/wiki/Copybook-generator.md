@@ -92,6 +92,7 @@ All keys are optional. An unknown key is an error.
 | `countFields` | map | The count field of each fixed table: the table name, then the name of the count field. See [Count field of a fixed table](#count-field-of-a-fixed-table). | empty |
 | `emptyItems` | map | The bytes of an unused entry of each fixed table: the table name, then `SPACES` or `LOW-VALUES`. See [Empty entries of a fixed table](#empty-entries-of-a-fixed-table). | empty |
 | `emptyKeys` | map | The key item that marks an empty entry of each fixed table: the table name, then the name of the key item. See [Empty entries of a fixed table](#empty-entries-of-a-fixed-table). | empty |
+| `partialTables` | list | The fixed tables that a response can end inside, on an entry boundary. See [Partial tables](#partial-tables). | empty |
 | `maxRecordLength` | integer | The maximum record length in bytes. A longer record gives a warning. See [Record length](#record-length). | no check |
 | `dates` | map | The date hints: a date or time pattern for each item name or name pattern. See [Date hints](#date-hints). | empty |
 | `continuable` | map | The handler class of each `Continuable` record. See [Continuable and Validatable](#continuable-and-validatable). | empty |
@@ -536,6 +537,47 @@ Rules for the options:
 | `empty key option: K must map to a text or a number field` | The key has a date hint, or it maps to an enum. |
 | `empty key option: T has a count field. Remove one of the two options.` | The table also has `countFields`. |
 | `empty item options: T is not in a generated class, so the options have no effect` | The table is skipped, for example a `REDEFINES` of an elementary item. |
+
+### Partial tables
+
+Some programs send only the used entries of a fixed table. The response then ends after the last used entry:
+
+```cobol
+       01  LIST-OPEN-ORDERS.
+           05  RETURN-CODE          PIC X(4).
+           05  ORDER-COUNT          PIC 9(2).
+           05  OPEN-ORDER OCCURS 10 TIMES.
+               10  ORDER-ID         PIC X(12).
+               10  ORDER-STATUS     PIC X(2).
+```
+
+The copybook does not tell this. Thus, the generator does not guess it. Name the table in the option `partialTables`:
+
+```json
+{
+  "countFields": { "OPEN-ORDER": "ORDER-COUNT" },
+  "partialTables": [ "OPEN-ORDER" ]
+}
+```
+
+On the command line, use `--partial-table OPEN-ORDER`. The generator then writes `partial = true` on the fixed collection. See [Partial responses](Collections-and-fixed-OCCURS#partial-responses).
+
+Rules for the option:
+
+- The table has `OCCURS n` and no `DEPENDING ON`. A name can be qualified with `OF` or `IN`.
+- The table is not in a table entry.
+- The table is not in an input area.
+- No output item comes after the table, also in a subtype. An input item after the table is permitted.
+
+| Message | Cause |
+|---|---|
+| `partial table option: item NOPE does not exist` | No item has this name. The position is `<file>:1:1`. |
+| `partial table option: N has no OCCURS` | The item is not a table. |
+| `partial table option: T has OCCURS DEPENDING ON. Remove the option: the response has only the used entries.` | The table is not fixed. |
+| `partial table option: T is in an entry of O. Only a top-level table can end the response.` | The table is in an entry of the table `O`. |
+| `partial table option: T has the direction INPUT. A request always has the full table.` | The table is in an input area. |
+| `partial table option: T is not at the end of the response: I comes after it` | The output item `I` comes after the table. |
+| `partial table option: T is not in a generated class, so the option has no effect` | The table is skipped, for example a `REDEFINES` of an elementary item. |
 
 ### REDEFINES of an elementary item
 
