@@ -59,6 +59,12 @@ public final class PicParser {
     }
 
     private PicSpec parse() {
+        // Check before strip() and toUpperCase(): both change some characters that are not
+        // ASCII without an error.
+        original.codePoints().filter(c -> c > 0x7F).findFirst().ifPresent(c -> {
+            throw error("character '" + Character.toString(c) + "' ("
+                + String.format("U+%04X", c) + ") is not ASCII");
+        });
         String text = original.strip();
         if (text.endsWith(".")) {
             text = text.substring(0, text.length() - 1).strip();

@@ -3,6 +3,7 @@
 The processor parses `pic` at compile time. An incorrect or unsupported `pic` is a compile error.
 
 - The prefix `PIC` or `PICTURE` and a final `.` are optional. Letters are not case-sensitive.
+- Use only ASCII characters. A character that is not ASCII is a compile error, for example `ſ` (U+017F) in `ſ9(5)`. The message shows the character and its code point.
 - Write the picture as one word, without spaces. For example, `S9(7) V99` is a compile error. A space is necessary only between the picture and a clause.
 - `PIC IS` is not supported. Write `PIC X(3)`, not `PIC IS X(3)`.
 - Text: `X(n)` or a sequence of `X`.

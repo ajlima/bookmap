@@ -53,6 +53,28 @@ class PicParserTest {
             .hasMessageContaining(pic);
     }
 
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        // pic          | character | code point
+        "ſ9(5)         | ſ | U+017F",
+        "PıC X(5)      | ı | U+0131",
+        "9(3)ß         | ß | U+00DF",
+        "X(5) 𝟗    | 𝟗 | U+1D7D7",
+    })
+    void rejectsANonAsciiCharacter(String pic, String character, String codePoint) {
+        assertThatThrownBy(() -> PicParser.parse(pic))
+            .isInstanceOf(PicSyntaxException.class)
+            .hasMessage("Invalid PIC string \"" + pic + "\": character '" + character + "' ("
+                + codePoint + ") is not ASCII");
+    }
+
+    @Test
+    void rejectsANonAsciiSpaceBeforeThePicture() {
+        assertThatThrownBy(() -> PicParser.parse("\u2003X(5)"))
+            .isInstanceOf(PicSyntaxException.class)
+            .hasMessageEndingWith(": character '\u2003' (U+2003) is not ASCII");
+    }
+
     @Test
     void rejectsEmptyPicture() {
         assertThatThrownBy(() -> PicParser.parse(""))

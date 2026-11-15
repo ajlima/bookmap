@@ -84,9 +84,16 @@ public final class EditedPicture {
      *     not case-sensitive.
      * @param blankWhenZero {@code true} if the item has the clause {@code BLANK WHEN ZERO}
      * @return the picture
-     * @throws IllegalArgumentException if BookMap does not support the picture
+     * @throws IllegalArgumentException if BookMap does not support the picture, or if the
+     *     picture has a character that is not ASCII
      */
     public static EditedPicture parse(String picture, boolean blankWhenZero) {
+        // Check before toUpperCase(): it changes some characters that are not ASCII to ASCII
+        // letters, for example U+017F to S.
+        picture.codePoints().filter(c -> c > 0x7F).findFirst().ifPresent(c -> {
+            throw new IllegalArgumentException("character '" + Character.toString(c) + "' ("
+                + String.format("U+%04X", c) + ") is not ASCII");
+        });
         String upper = picture.toUpperCase(Locale.ROOT);
         if (blankWhenZero && upper.startsWith("S")) {
             throw new IllegalArgumentException("BLANK WHEN ZERO is not permitted with S or '*'");
