@@ -1,7 +1,7 @@
 # Processor limits and item field errors (design)
 
 Date: 2026-11-14
-Status: proposed.
+Status: approved.
 Issues: #92, #93, #94
 Parent specs: `2026-11-10-bookmap-design.md`, `2026-11-14-nested-collections-design.md` (section 8)
 
