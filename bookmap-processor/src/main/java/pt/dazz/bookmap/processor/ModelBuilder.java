@@ -162,6 +162,8 @@ public final class ModelBuilder {
          * javac reports the real problem.
          */
         private boolean unresolvedMember;
+        /** The annotated member of each collection with {@code partial = true}. */
+        private final Map<CollectionModel, AnnotatedMember> partials = new HashMap<>();
 
         Run(TypeElement type) {
             this.type = type;
@@ -209,6 +211,10 @@ public final class ModelBuilder {
             }
             SubTypesModel subTypes = SubTypesResolver.present(type)
                 ? subTypes(type, annotated, members, null) : null;
+            checkPartialAtEnd(members);
+            if (subTypes != null) {
+                subTypes.variants().forEach(variant -> checkPartialAtEnd(variant.members()));
+            }
             if (subTypes != null && length <= Problems.MAX_LENGTH) {
                 for (VariantModel variant : subTypes.variants()) {
                     long variantLength = length(variant.members());
@@ -221,6 +227,23 @@ public final class ModelBuilder {
             String charsetName = charset();
             return new OperationModel(type, operationName, charsetName, List.copyOf(members),
                 continuable, implementsInterface(type, VALIDATABLE), subTypes);
+        }
+
+        /**
+         * Checks that no member of the response comes after a collection with
+         * {@code partial = true}: a response that ends inside the area cannot hold it.
+         */
+        private void checkPartialAtEnd(List<? extends MemberModel> layout) {
+            for (int i = 0; i < layout.size(); i++) {
+                if (layout.get(i) instanceof CollectionModel collection
+                    && collection.partial()) {
+                    layout.subList(i + 1, layout.size()).stream()
+                        .filter(after -> after.direction().isOutput()).findFirst()
+                        .ifPresent(after -> problems.error(partials.get(collection),
+                            "partial needs the collection at the end of the response: "
+                                + after.descriptor() + " comes after it"));
+                }
+            }
         }
 
         // ---- operation class ----
@@ -709,6 +732,10 @@ public final class ModelBuilder {
             EmptyItem emptyItem = EmptyItem.valueOf(
                 (String) values.getOrDefault("emptyItem", EmptyItem.LOW_VALUES.name()));
             String keyName = (String) values.getOrDefault("emptyKey", "");
+            boolean partial = (Boolean) values.getOrDefault("partial", false);
+            if (partial) {
+                partialRules(member, fixed, direction, itemDirection != null);
+            }
             if (!fixed && (values.containsKey("emptyItem") || values.containsKey("emptyKey"))) {
                 problems.error(member, "emptyItem and emptyKey need fixed = true");
             } else if (!keyName.isEmpty() && counted) {
@@ -745,9 +772,25 @@ public final class ModelBuilder {
                 || setter.isEmpty()) {
                 return null;
             }
-            return new CollectionModel(member.owner(), member.name(), member.order(), direction,
-                count, maxOccurs, fixed, item, getter.get(), setter.get(), emptyItem, emptyKey,
-                emptyKeyOffset);
+            CollectionModel collection = new CollectionModel(member.owner(), member.name(),
+                member.order(), direction, count, maxOccurs, fixed, item, getter.get(),
+                setter.get(), emptyItem, emptyKey, emptyKeyOffset, partial);
+            if (partial) {
+                partials.put(collection, member);
+            }
+            return collection;
+        }
+
+        /** Checks the rules of a collection with {@code partial = true}. */
+        private void partialRules(AnnotatedMember member, boolean fixed, Direction direction,
+                                  boolean inItem) {
+            if (inItem) {
+                problems.error(member, "partial is permitted only on a top-level collection");
+            } else if (!fixed) {
+                problems.error(member, "partial needs fixed = true");
+            } else if (direction == Direction.INPUT) {
+                problems.error(member, "partial needs the direction OUTPUT or INPUT_OUTPUT");
+            }
         }
 
         /**

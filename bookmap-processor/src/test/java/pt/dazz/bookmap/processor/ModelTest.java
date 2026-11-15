@@ -27,7 +27,7 @@ class ModelTest {
             "setLineCount", null, 3, null, null);
         MemberModel lines = new CollectionModel("Order", "lines", 4, Direction.OUTPUT, count, 5,
             false, new ItemModel(null, List.of(), 0, null), "getLines", "setLines",
-            EmptyItem.LOW_VALUES, null, 0);
+            EmptyItem.LOW_VALUES, null, 0, false);
         assertThat(count.descriptor()).isEqualTo("Order.lineCount (order 3)");
         assertThat(lines.descriptor()).isEqualTo("Order.lines (order 4)");
     }

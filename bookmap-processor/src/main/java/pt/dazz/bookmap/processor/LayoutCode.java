@@ -79,7 +79,8 @@ final class LayoutCode {
                     case FieldModel field ->
                         code.addStatement("target.$N($L)", field.setter(), fields.read(field));
                     case CollectionModel collection -> code.add(collections.readItems(collection,
-                        response && collection.direction() == Direction.OUTPUT));
+                        response && collection.direction() == Direction.OUTPUT,
+                        response && collection.partial()));
                 }
             }
         }

@@ -40,8 +40,11 @@ final class CodecMembers {
      * The names of the generated members and local variables of one collection.
      *
      * @param marker the name of the {@code EmptySlot} constant, or {@code null} for LOW-VALUES
+     * @param present the name of the number of present slots, or {@code null} for a
+     *     collection without {@code partial = true}
      */
-    record CollectionNames(String descriptor, String list, String count, String marker) {
+    record CollectionNames(String descriptor, String list, String count, String marker,
+                           String present) {
     }
 
     /** The names of the methods that write and read one item class. */
@@ -160,7 +163,8 @@ final class CodecMembers {
         }
         collections.put(collection, new CollectionNames(descriptor,
             allocator.newName(collection.name()), allocator.newName(collection.name() + "Count"),
-            marker));
+            marker,
+            collection.partial() ? allocator.newName(collection.name() + "Present") : null));
     }
 
     /** Gives the expression that makes the empty-slot marker of a collection. */

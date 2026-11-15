@@ -21,11 +21,12 @@ import pt.dazz.bookmap.annotation.EmptyItem;
  * @param emptyKey the key field that marks an empty slot, or {@code null}. It is a field of
  *     the base layout of the item
  * @param emptyKeyOffset the offset of the key in the slot, or 0 without a key
+ * @param partial {@code true} if a response can end on a slot boundary inside the area
  */
 public record CollectionModel(String ownerSimpleName, String name, int order,
     Direction direction, FieldModel countField, int maxOccurs, boolean fixed, ItemModel item, String getter,
-    String setter, EmptyItem emptyItem, FieldModel emptyKey, int emptyKeyOffset)
-    implements MemberModel {
+    String setter, EmptyItem emptyItem, FieldModel emptyKey, int emptyKeyOffset,
+    boolean partial) implements MemberModel {
 
     @Override
     public int areaLength() {
