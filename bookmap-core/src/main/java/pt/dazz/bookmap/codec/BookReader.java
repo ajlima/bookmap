@@ -84,6 +84,30 @@ public final class BookReader {
     }
 
     /**
+     * Gives the number of slots of a fixed collection that the data holds, for a response that
+     * can end inside the area. A missing slot is an unused slot. The reader does not move.
+     *
+     * @param field the collection descriptor, for error messages
+     * @param slotLength the number of bytes of one slot
+     * @param slots the number of slots of the full area
+     * @return the number of complete slots, from 0 to {@code slots}
+     * @throws MappingException if the data ends inside a slot, or before the current position
+     */
+    public int presentSlots(String field, int slotLength, int slots) {
+        long remaining = (long) data.length - position;
+        if (remaining < 0) {
+            throw new MappingException(field + ": the response is too short for the fixed area");
+        }
+        long present = Math.min(remaining, (long) slotLength * slots);
+        long cut = present % slotLength;
+        if (cut != 0) {
+            throw new MappingException(field + ": the response ends inside slot "
+                + present / slotLength + ", after " + cut + " of " + slotLength + " bytes");
+        }
+        return (int) (present / slotLength);
+    }
+
+    /**
      * Counts the used slots of a fixed collection. A slot is empty if all its bytes are
      * LOW-VALUES ({@code 0x00}). The check does not use the charset. The reader does not move.
      *
