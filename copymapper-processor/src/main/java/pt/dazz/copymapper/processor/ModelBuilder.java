@@ -332,9 +332,13 @@ public final class ModelBuilder {
 
         /** Gives the annotated fields of the classes, in the order of the list. */
         private List<AnnotatedMember> annotatedFields(List<TypeElement> hierarchy) {
-            declaringClasses.addAll(hierarchy);
             List<AnnotatedMember> result = new ArrayList<>();
             for (TypeElement current : hierarchy) {
+                boolean firstVisit = declaringClasses.add(current);
+                if (firstVisit) {
+                    ForeignAnnotations.classProblem(current)
+                        .ifPresent(message -> problems.classError(current, message));
+                }
                 for (VariableElement field : ElementFilter.fieldsIn(current.getEnclosedElements())) {
                     Optional<AnnotationMirror> fieldMirror = Mirrors.find(field, FIELD);
                     Optional<AnnotationMirror> occursMirror = Mirrors.find(field,
@@ -343,6 +347,10 @@ public final class ModelBuilder {
                     Optional<AnnotationMirror> annotation = fieldMirror.or(() -> occursMirror)
                         .or(() -> groupMirror);
                     if (annotation.isEmpty()) {
+                        if (firstVisit) {
+                            ForeignAnnotations.memberProblem(field)
+                                .ifPresent(message -> problems.fieldError(field, message));
+                        }
                         continue;
                     }
                     Map<String, Object> values = Mirrors.explicitValues(annotation.get());

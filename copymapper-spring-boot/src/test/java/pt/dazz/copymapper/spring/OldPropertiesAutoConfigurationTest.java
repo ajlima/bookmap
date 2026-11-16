@@ -17,8 +17,8 @@ class OldPropertiesAutoConfigurationTest {
         .withConfiguration(AutoConfigurations.of(OldPropertiesAutoConfiguration.class,
             CopyMapperAutoConfiguration.class));
 
-    private static ApplicationContextRunner withEnvironmentVariables(ApplicationContextRunner runner,
-                                                                     Map<String, Object> variables) {
+    private static ApplicationContextRunner withEnvironmentVariables(
+            ApplicationContextRunner runner, Map<String, Object> variables) {
         return runner.withInitializer(context -> context.getEnvironment().getPropertySources()
             .addFirst(new SystemEnvironmentPropertySource("systemEnvironment", variables)));
     }

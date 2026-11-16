@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 
 /**
  * Collects the problems that one build of an operation class finds.
@@ -35,6 +36,18 @@ final class Problems {
      */
     void error(AnnotatedMember member, String message) {
         errors.add(new Problem(member.field(), member.descriptor() + ": " + message));
+    }
+
+    /**
+     * Adds an error about a field without a CopyMapper annotation. The message starts with the
+     * simple class name and the field name.
+     *
+     * @param field the field
+     * @param message the problem
+     */
+    void fieldError(VariableElement field, String message) {
+        errors.add(new Problem(field, field.getEnclosingElement().getSimpleName() + "."
+            + field.getSimpleName() + ": " + message));
     }
 
     /**

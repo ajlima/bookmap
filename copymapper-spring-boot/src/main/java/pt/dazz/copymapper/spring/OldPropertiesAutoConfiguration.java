@@ -18,7 +18,8 @@ import org.springframework.core.env.Environment;
  * <p>Spring Boot ignores an unknown property. Without this check, an application with
  * {@code bookmap.charset} would start with the default charset and write incorrect data.
  * The check uses the relaxed binding of Spring Boot, so it also finds the environment variables,
- * for example {@code BOOKMAP_TRANSPORT_CTG_PASSWORD}. The message shows the names, never the values.
+ * for example {@code BOOKMAP_TRANSPORT_CTG_PASSWORD}. The message shows the names, never the
+ * values.
  *
  * <p>This class is temporary. A later release can remove it.
  */
