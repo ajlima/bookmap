@@ -7,7 +7,7 @@
 #   - the version badge;
 #   - each dependency "pt.dazz.copymapper:<module>:<version>";
 #   - each plugin declaration id("pt.dazz.copymapper.copybook") version "<version>";
-#   - each <version> line directly after an <artifactId>bookmap-...</artifactId> line,
+#   - each <version> line directly after an <artifactId>copymapper-...</artifactId> line,
 #     and each command line pt.dazz.copymapper:copymapper-copybook-maven-plugin:<version>:generate;
 #   - the texts "the version is `...`" and "at version `...`".
 # The script fails if one of these places is missing, so that a change to a README
@@ -29,11 +29,11 @@ for file in "$root" "$plugin" "$maven"; do
   sed -E -i.bak \
     -e "s#(alt=\"Version )[^\"]+\"#\1${version}\"#" \
     -e "s#(img\.shields\.io/badge/version-).*(-f89820)#\1${version}\2#" \
-    -e "s#(pt\.dazz\.bookmap:bookmap-[a-z-]+:)[^\"]+\"#\1${version}\"#g" \
-    -e "s#(id\(\"pt\.dazz\.bookmap\.copybook\"\) version \")[^\"]+\"#\1${version}\"#g" \
+    -e "s#(pt\.dazz\.copymapper:copymapper-[a-z-]+:)[^\"]+\"#\1${version}\"#g" \
+    -e "s#(id\(\"pt\.dazz\.copymapper\.copybook\"\) version \")[^\"]+\"#\1${version}\"#g" \
     -e "s#(version is |at version )\`[^\`]+\`#\1\`${version}\`#g" \
     -e "s#(copymapper-copybook-maven-plugin:)[0-9][^:]*(:generate)#\1${version}\2#g" \
-    -e "/<artifactId>bookmap-[a-z-]+<\/artifactId>/{n;s#<version>[^<]*</version>#<version>${version}</version>#;}" \
+    -e "/<artifactId>copymapper-[a-z-]+<\/artifactId>/{n;s#<version>[^<]*</version>#<version>${version}</version>#;}" \
     "$file"
   rm -f "$file.bak"
 done
