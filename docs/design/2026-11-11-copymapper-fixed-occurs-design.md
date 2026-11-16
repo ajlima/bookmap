@@ -10,7 +10,7 @@ Decisions marked **[builder call]** come from the spec author, not from the proj
 
 ## 1. Intent
 
-CopyMapper maps a COBOL table only as `OCCURS DEPENDING ON`. A `@Occurs` always has a count field. The codec writes and reads only the items that the count gives. The offsets of the members after the collection change with the number of items.
+CopyMapper maps a COBOL table only as `OCCURS DEPENDING ON`. An `@Occurs` always has a count field. The codec writes and reads only the items that the count gives. The offsets of the members after the collection change with the number of items.
 
 Many COBOL books use a **fixed** table:
 

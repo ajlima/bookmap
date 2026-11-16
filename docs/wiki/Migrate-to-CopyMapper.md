@@ -1,8 +1,8 @@
 The library has a new name, CopyMapper, to prevent confusion with another software product with the name BookMap.
 The release `0.28.0` is the first release with the new name. This page tells how to update a project from BookMap `0.27.0` or earlier.
 
-The behavior of the codec, the processor, the generator, and the transports does not change.
-Only the names change. The releases of BookMap stay on Maven Central with their old names.
+The behavior of the codec, the generator, and the transports does not change.
+The names change, and two new checks help the migration (see [Errors that help the migration](#errors-that-help-the-migration)). The releases of BookMap stay on Maven Central with their old names.
 
 ## What changes
 
@@ -78,6 +78,9 @@ The attributes do not change. `@CobolValue`, `@CobolUnknown`, `Direction`, and `
 | Maven plugin goal | `bookmap-copybook:generate` | `copymapper-copybook:generate` |
 | Maven plugin properties | `bookmap.copybook.*` | `copymapper.copybook.*` |
 | Command line JAR | `bookmap-copybook-cli-<version>-all.jar` | `copymapper-copybook-cli-<version>-all.jar` |
+| Spring Boot bean names | `bookmapClient`, `bookmapMissingTransport`, `bookmapSslBundleHttpClient` | `copyMapperClient`, `copyMapperMissingTransport`, `copyMapperSslBundleHttpClient` |
+
+If you select a bean by name, for example with `@Qualifier("bookmapClient")`, change the name.
 
 ## Update a project
 
@@ -100,17 +103,27 @@ The attributes do not change. `@CobolValue`, `@CobolUnknown`, `Direction`, and `
 3. Replace the names in the build files:
 
    ```bash
-   find . \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'pom.xml' \) -not -path '*/build/*' -not -path '*/target/*' -exec perl -pi -e '
+   find . \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'pom.xml' -o -name '*.toml' -o -name 'gradle.properties' \) -not -path '*/build/*' -not -path '*/target/*' -exec perl -pi -e '
      s/\bpt\.dazz\.bookmap\b/pt.dazz.copymapper/g;
-     s/\bbookmap-/copymapper-/g;
+     s/(?<=[:>"])bookmap-(core|processor|transport-simulator|transport-ctg|transport-http|transport-mq|spring-boot|copybook|copybook-cli|copybook-gradle-plugin|copybook-maven-plugin)\b/copymapper-$1/g;
      s/^(\s*)bookmap \{/$1copymapper {/;
      s/\bbookmap\.copybook\./copymapper.copybook./g;
    ' {} +
    ```
 
    Then set the version of each CopyMapper dependency and plugin to `0.28.0`.
-4. Replace the Spring Boot properties in `application.properties`, `application.yml`, and the deployment files. In YAML, change the top-level key `bookmap:` to `copymapper:`. Change each environment variable `BOOKMAP_*` to `COPYMAPPER_*`.
-5. Compile the project again. The codecs that BookMap generated are not found by CopyMapper, because the name of the services file changed.
+4. Replace the Spring Boot properties in the configuration files and in the Java test properties:
+
+   ```bash
+   find . \( -name 'application*.properties' -o -name 'application*.yml' -o -name 'application*.yaml' -o -name '*.java' \) -not -path '*/build/*' -not -path '*/target/*' -exec perl -pi -e '
+     s/\bbookmap\.(charset|max-calls|maxCalls|transport\.)/copymapper.$1/g;
+     s/^bookmap:/copymapper:/;
+   ' {} +
+   ```
+
+   Change each environment variable `BOOKMAP_CHARSET`, `BOOKMAP_MAXCALLS`, and `BOOKMAP_TRANSPORT_*` in the deployment files to `COPYMAPPER_*`.
+5. Compile the project again from a clean state, for example with `./gradlew clean build` or `mvn clean verify`. CopyMapper does not find the codecs that BookMap generated, because the name of the services file changed.
+   Also build again each library of your own that contains annotated classes, and publish it with the new dependencies. Without this step, a call fails with the message `No codec for <class>`.
 6. Run the tests.
 
 A file that imports `java.lang.reflect.Field` and an annotation with the name `Field` does not compile after step 2. In that file, use the qualified name of one of the two types.

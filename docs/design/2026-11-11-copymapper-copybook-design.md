@@ -147,8 +147,8 @@ The parser keeps the line and column of each item for diagnostics. The parser al
 |---|---|
 | Record (level `01`) | An operation class with `@Operation`. |
 | Group without `OCCURS` | No class. Its items go into the class of the parent (the group is **flattened**). |
-| Group with `OCCURS` | An item class, and a `@Occurs` field in the parent class. |
-| Elementary item with `OCCURS` | An item class with one field named `value`, and a `@Occurs` field in the parent class. |
+| Group with `OCCURS` | An item class, and an `@Occurs` field in the parent class. |
+| Elementary item with `OCCURS` | An item class with one field named `value`, and an `@Occurs` field in the parent class. |
 | `OCCURS` in an item of another `OCCURS` | Error (CopyMapper has no nested collections). |
 | Elementary item | A `@Field` field. |
 | `FILLER` | A `@Field` field `filler1`, `filler2`, ... in each class. |

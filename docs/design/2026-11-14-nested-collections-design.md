@@ -9,7 +9,7 @@ Decisions marked **[builder call]** come from the spec author, not from the proj
 
 ## 1. Intent
 
-CopyMapper rejects a `@Occurs` in an item class. The copybook generator rejects an `OCCURS` in an `OCCURS`. Many books have a table in a table entry:
+CopyMapper rejects an `@Occurs` in an item class. The copybook generator rejects an `OCCURS` in an `OCCURS`. Many books have a table in a table entry:
 
 ```cobol
 01  GET-ORDER.
@@ -31,7 +31,7 @@ This spec adds a collection in an item class (a **nested collection**), with the
 
 ### 2.1 Goals
 
-- A `@Occurs` in an item class, also in a subtype of an item class.
+- An `@Occurs` in an item class, also in a subtype of an item class.
 - A fixed inner collection in all four modes: count, LOW-VALUES, SPACES, and key.
 - A fixed or a variable outer collection.
 - Nested collections at more than two levels, up to the depth limit (section 9).
@@ -210,7 +210,7 @@ The options find a table through its COBOL name, bare or qualified (`LINE-TAX` o
 
 ### 10.4 Generated classes and model JSON
 
-- An item class can have a `@Occurs` member.
+- An item class can have an `@Occurs` member.
 - The model JSON of a collection item can contain collection members. The snapshot of the processor (`ModelSnapshot`) gets the members of each item, not only the fields.
 
 ## 11. Round-trip guarantee
@@ -224,7 +224,7 @@ For each supported combination, `decode(encode(x))` gives an object equal to `x`
 
 ## 12. Documentation and examples
 
-- `docs/wiki/Collections-and-fixed-OCCURS.md`: a new section "Nested collections", with the combinations, the count field rule, the markers at each level, and the messages with an index. Remove the rule "Do not put a `@Occurs` in an item class".
+- `docs/wiki/Collections-and-fixed-OCCURS.md`: a new section "Nested collections", with the combinations, the count field rule, the markers at each level, and the messages with an index. Remove the rule "Do not put an `@Occurs` in an item class".
 - `docs/wiki/Copybook-generator.md`: the clause table and the limitations.
 - `docs/wiki/Home.md` and the README: change "nested collections" in the known limitations to "a `DEPENDING ON` table in a table entry".
 - `docs/design/2026-11-10-copymapper-design.md` section 2.2: refer to this spec.

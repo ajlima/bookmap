@@ -1,4 +1,4 @@
-A `@Occurs` maps a COBOL `OCCURS` to a `List<Item>`. A collection is variable or fixed:
+An `@Occurs` maps a COBOL `OCCURS` to a `List<Item>`. A collection is variable or fixed:
 
 - A **variable collection** works like `OCCURS DEPENDING ON`. The book size changes with the number of items.
 - A **fixed collection** (`fixed = true`) works like `OCCURS n` without `DEPENDING ON`. The area always holds `n` items.
@@ -13,7 +13,7 @@ Each rule gives a compile error if the class does not obey it:
 - The item class is public, has a public constructor without arguments, and has no type parameters.
 - The item class has at least one `@Field`. An abstract item class is permitted only with `@SubTypes`.
 - Do not set `direction` on an item field. The item fields use the direction of the collection.
-- A `@Occurs` in an item class must be fixed. See [Nested collections](#nested-collections).
+- An `@Occurs` in an item class must be fixed. See [Nested collections](#nested-collections).
 
 ### The count field
 
