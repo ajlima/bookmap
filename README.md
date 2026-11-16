@@ -84,13 +84,21 @@ Download the file. Replace `X.Y.Z` with the version:
 curl -fsSLO https://repo1.maven.org/maven2/pt/dazz/bookmap/bookmap-core/X.Y.Z/bookmap-core-X.Y.Z.jar
 ```
 
-Verify the file:
+Verify the file. The command depends on the release, because this repository moved from `ajlima/bookmap` to `dazz-pt/copymapper` after the release `0.26.0`.
+
+For the release `0.26.0` and each earlier release:
 
 ```bash
-gh attestation verify bookmap-core-X.Y.Z.jar --repo ajlima/bookmap --signer-workflow ajlima/bookmap/.github/workflows/release.yml
+gh attestation verify bookmap-core-X.Y.Z.jar --owner ajlima --signer-workflow ajlima/bookmap/.github/workflows/release.yml
 ```
 
-The command fails if no attestation of this repository and this workflow has the same SHA-256 digest as the file.
+For each release after `0.26.0`:
+
+```bash
+gh attestation verify bookmap-core-X.Y.Z.jar --repo dazz-pt/copymapper --signer-workflow dazz-pt/copymapper/.github/workflows/release.yml
+```
+
+The command fails if no attestation of this workflow has the same SHA-256 digest as the file.
 
 ## Quick start: from Java to CICS
 
