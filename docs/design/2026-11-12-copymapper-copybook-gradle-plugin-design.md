@@ -1,15 +1,15 @@
-# BookMap copybook Gradle plugin: design
+# CopyMapper copybook Gradle plugin: design
 
 Date: 2026-11-12
 Status: implemented in v0.5.0.
 
-Related documents: `docs/design/2026-11-11-bookmap-copybook-design.md` (the generator), `CLAUDE.md` (project rules).
+Related documents: `docs/design/2026-11-11-copymapper-copybook-design.md` (the generator), `CLAUDE.md` (project rules).
 
 ## 1. Intent
 
-Version 0.4.0 added the copybook generator: the `bookmap-copybook` library and the `bookmap-copybook-cli` program. Today a build runs the generator through one `JavaExec` task for each copybook (see `bookmap-examples/build.gradle.kts`). That approach needs about 30 lines of build script in each project.
+Version 0.4.0 added the copybook generator: the `copymapper-copybook` library and the `copymapper-copybook-cli` program. Today a build runs the generator through one `JavaExec` task for each copybook (see `copymapper-examples/build.gradle.kts`). That approach needs about 30 lines of build script in each project.
 
-This design adds a Gradle plugin. A project applies the plugin, points it at a directory tree of copybooks, and gets the BookMap classes in a generated source set before `compileJava`. The plugin is a thin adapter over the public API of `bookmap-copybook`. It does not parse, map, or generate code itself.
+This design adds a Gradle plugin. A project applies the plugin, points it at a directory tree of copybooks, and gets the CopyMapper classes in a generated source set before `compileJava`. The plugin is a thin adapter over the public API of `copymapper-copybook`. It does not parse, map, or generate code itself.
 
 The author expects real projects to keep all copybooks in one directory tree. The directory structure gives the Java subpackages.
 
@@ -36,7 +36,7 @@ Anti-goals (a failure even if the code works):
 
 - The plugin contains parser, mapper, or Java generation logic. It must call `Copybooks`, `GeneratorConfigJson`, and `JavaClassGenerator.writeTo` only.
 - A build that silently skips a copybook, or that compiles stale generated classes after a copybook change.
-- The plugin adds `bookmap-core` or another dependency to the user's `implementation` configuration without the user's knowledge.
+- The plugin adds `copymapper-core` or another dependency to the user's `implementation` configuration without the user's knowledge.
 
 ## 3. Decisions of the author
 
@@ -46,21 +46,21 @@ These decisions come from the author. Do not change them without the author.
 2. **`COPY` members have a declared location.** The user declares the copy directories, in search order. The plugin does not search the tree for members. This matches the parser: `ParseOptions.copyDirs` is an ordered list, and `CopyExpander` searches each directory (not recursively) for the member name with no extension, `.cpy`, `.cbl`, or `.cob`. An optional `exclude` pattern lets a user keep members inside the source tree.
 3. **Document the `COPY` member rule in the module README.** This is very important to the author. The README must explain the search, the order, the extensions, the failure message, and a warning about members inside the source tree.
 4. **Publication: Maven Central only.** No Gradle Plugin Portal.
-5. **Examples: keep both forms.** `bookmap-examples` stays as it is (the `JavaExec` and CLI form). A new standalone build, `bookmap-examples-gradle-plugin/`, shows the plugin.
+5. **Examples: keep both forms.** `copymapper-examples` stays as it is (the `JavaExec` and CLI form). A new standalone build, `copymapper-examples-gradle-plugin/`, shows the plugin.
 6. **Class name collisions: the `packagePerCopybook` option.** The mapper makes class names unique only in one copybook. Two copybooks in one directory can generate the same class (for example, both `COPY ADDRESS`, or both have a group `CUSTOMER`). The option `packagePerCopybook = true` adds one package segment from the copybook name and removes the collision. With the option off (the default), the build fails with a clear message. Document this well in the module README.
 
 ## 4. Module and publication
 
-- New module: `bookmap-copybook-gradle-plugin`. Add it to `settings.gradle.kts`.
-- Plugin id: `pt.dazz.bookmap.copybook`.
-- Implementation class: `pt.dazz.bookmap.copybook.gradle.BookmapCopybookPlugin`. Package `pt.dazz.bookmap.copybook.gradle`.
+- New module: `copymapper-copybook-gradle-plugin`. Add it to `settings.gradle.kts`.
+- Plugin id: `pt.dazz.copymapper.copybook`.
+- Implementation class: `pt.dazz.copymapper.copybook.gradle.CopyMapperCopybookPlugin`. Package `pt.dazz.copymapper.copybook.gradle`.
 - The module applies `java-gradle-plugin` and declares the plugin in `gradlePlugin { plugins { ... } }`.
-- Dependencies: `implementation(project(":bookmap-copybook"))` and the Gradle API. No other runtime dependency.
-- Publication: the root build publishes the module with `com.vanniktech.maven.publish`. For this module, configure `GradlePlugin(javadocJar = JavadocJar.Javadoc(), sourcesJar = true)` instead of `JavaLibrary(...)`. The publication must contain the plugin JAR and the plugin marker artifact `pt.dazz.bookmap.copybook:pt.dazz.bookmap.copybook.gradle.plugin`. The marker artifact must have the same signing and POM data as the other modules.
-- Add the module to `publishedModules` in the root `build.gradle.kts` with the description "BookMap copybook generator Gradle plugin."
+- Dependencies: `implementation(project(":copymapper-copybook"))` and the Gradle API. No other runtime dependency.
+- Publication: the root build publishes the module with `com.vanniktech.maven.publish`. For this module, configure `GradlePlugin(javadocJar = JavadocJar.Javadoc(), sourcesJar = true)` instead of `JavaLibrary(...)`. The publication must contain the plugin JAR and the plugin marker artifact `pt.dazz.copymapper.copybook:pt.dazz.copymapper.copybook.gradle.plugin`. The marker artifact must have the same signing and POM data as the other modules.
+- Add the module to `publishedModules` in the root `build.gradle.kts` with the description "CopyMapper copybook generator Gradle plugin."
 - Add the module to the list of published JARs in `.github/workflows/release.yml` (job `publish`, step "Collect the published JARs").
-- The plugin version is the BookMap version. The plugin brings `bookmap-copybook` of the same version.
-- The plugin shares the buildscript classpath of the user's build. It does not isolate or shade its dependencies (`bookmap-core`, JavaPoet, Jackson). The README lists them. (A call of the designer: this keeps the adapter thin.)
+- The plugin version is the CopyMapper version. The plugin brings `copymapper-copybook` of the same version.
+- The plugin shares the buildscript classpath of the user's build. It does not isolate or shade its dependencies (`copymapper-core`, JavaPoet, Jackson). The README lists them. (A call of the designer: this keeps the adapter thin.)
 - The plugin needs a Gradle daemon on JDK 21 or later, because the module compiles for Java 21. The tests use only the Gradle version of the wrapper (9.9.1). The README gives both facts. (A call of the designer.)
 
 Users add Maven Central to the plugin repositories:
@@ -80,15 +80,15 @@ pluginManagement {
 ```kotlin
 plugins {
     java
-    id("pt.dazz.bookmap.copybook") version "X.Y.Z"
+    id("pt.dazz.copymapper.copybook") version "X.Y.Z"
 }
 
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-core:X.Y.Z")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:X.Y.Z")
+    implementation("pt.dazz.copymapper:copymapper-core:X.Y.Z")
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:X.Y.Z")
 }
 
-bookmap {
+copymapper {
     copybooks {
         sourceDir = layout.projectDirectory.dir("src/main/copybook") // the default
         copyDirs.from("src/main/copylib")                            // COPY members, in search order
@@ -100,7 +100,7 @@ bookmap {
 }
 ```
 
-The extension `bookmap` has one nested block, `copybooks`. The nesting leaves space for other BookMap build options later. (This is a call of the designer, shown to the author in the brainstorm.)
+The extension `copymapper` has one nested block, `copybooks`. The nesting leaves space for other CopyMapper build options later. (This is a call of the designer, shown to the author in the brainstorm.)
 
 Properties of `copybooks`:
 
@@ -117,7 +117,7 @@ Properties of `copybooks`:
 Rules:
 
 - The default include pattern is `**/*.cpy`. If the user calls `include(...)`, the user's patterns replace the default.
-- If `packageName` is not set and at least one copybook exists, the task fails with: "Set bookmap.copybooks.packageName." If no copybook exists, the task does nothing and does not need `packageName`.
+- If `packageName` is not set and at least one copybook exists, the task fails with: "Set copymapper.copybooks.packageName." If no copybook exists, the task does nothing and does not need `packageName`.
 - If `sourceDir` does not exist, the task does nothing.
 
 ## 6. Package derivation
@@ -157,7 +157,7 @@ Examples, with `packageName = "com.example.mainframe"`:
 
 ## 8. The task
 
-- Name: `generateCopybookClasses`. Group: `build`. Description: "Generates the BookMap classes from the COBOL copybooks."
+- Name: `generateCopybookClasses`. Group: `build`. Description: "Generates the CopyMapper classes from the COBOL copybooks."
 - Type: `GenerateCopybookClasses`, an abstract class with Gradle managed properties. Annotate it with `@CacheableTask`.
 - Inputs:
   - The copybook files: the file tree of `sourceDir` with the include and exclude patterns. Use `@InputFiles` and `@PathSensitive(RELATIVE)`. Do not use `@SkipWhenEmpty`: an empty tree must still clean the output.
@@ -180,14 +180,14 @@ Examples, with `packageName = "com.example.mainframe"`:
 
 - The plugin reacts to the `java` plugin (`plugins.withType(JavaPlugin)`). Without the `java` plugin, the plugin registers the extension and the task, but adds no source directory.
 - With the `java` plugin, add the task output to `sourceSets.main.java` with `srcDir(taskProvider)`. Gradle then runs the task before `compileJava` and before the `sourcesJar` task.
-- The plugin does not add dependencies to the user's configurations. The README tells the user to add `bookmap-core` and `bookmap-processor`.
+- The plugin does not add dependencies to the user's configurations. The README tells the user to add `copymapper-core` and `copymapper-processor`.
 
 ## 10. The example build
 
-Add `bookmap-examples-gradle-plugin/` at the repository root. It is a standalone Gradle build, not a subproject of the root build.
+Add `copymapper-examples-gradle-plugin/` at the repository root. It is a standalone Gradle build, not a subproject of the root build.
 
-- `settings.gradle.kts` includes the root build twice: `pluginManagement { includeBuild("..") }` for the plugin, and a top-level `includeBuild("..")` for `bookmap-core`, `bookmap-processor`, and `bookmap-transport-simulator`. Gradle substitutes the `pt.dazz.bookmap:*` dependencies with the projects of the root build.
-- The build uses the Gradle wrapper of the root build: `./gradlew -p bookmap-examples-gradle-plugin build`.
+- `settings.gradle.kts` includes the root build twice: `pluginManagement { includeBuild("..") }` for the plugin, and a top-level `includeBuild("..")` for `copymapper-core`, `copymapper-processor`, and `copymapper-transport-simulator`. Gradle substitutes the `pt.dazz.copymapper:*` dependencies with the projects of the root build.
+- The build uses the Gradle wrapper of the root build: `./gradlew -p copymapper-examples-gradle-plugin build`.
 - Layout:
 
   ```
@@ -197,18 +197,18 @@ Add `bookmap-examples-gradle-plugin/` at the repository root. It is a standalone
   src/main/copylib/ADDRESS.cpy              (a COPY member; no classes)
   ```
 
-- The base package is `pt.dazz.bookmap.examples.plugin`.
+- The base package is `pt.dazz.copymapper.examples.plugin`.
 - At least one copybook uses `COPY ADDRESS`.
-- A test in the example encodes and decodes a record through `bookmap-transport-simulator`.
-- Add a step to the `build` job in `.github/workflows/release.yml`, after "Build and test": `./gradlew -p bookmap-examples-gradle-plugin build --no-daemon`.
+- A test in the example encodes and decodes a record through `copymapper-transport-simulator`.
+- Add a step to the `build` job in `.github/workflows/release.yml`, after "Build and test": `./gradlew -p copymapper-examples-gradle-plugin build --no-daemon`.
 - Risk: the double `includeBuild("..")` is expected to work on Gradle 9.9.1. Validate it in the first implementation task. If it does not work, the fallback is: the CI step runs `./gradlew publishToMavenLocal` first, and the example build uses `mavenLocal()` with the snapshot version. Record the result in the plan.
 - Do not apply the Jacoco rule to the example build.
 
 ## 11. Tests and coverage
 
-- The module has 100% line and branch coverage, as the root build requires for each subproject except `bookmap-examples`.
+- The module has 100% line and branch coverage, as the root build requires for each subproject except `copymapper-examples`.
 - Functional tests use Gradle TestKit (`GradleRunner`) with `withPluginClasspath()`. Cover at least:
-  - Generation into the source set, and a successful `compileJava` of a project with `bookmap-core` on the classpath.
+  - Generation into the source set, and a successful `compileJava` of a project with `copymapper-core` on the classpath.
   - Subpackages from directories, with the conversion rules of section 6.
   - `package` and `lombok` in a `<NAME>.json` file win over the extension.
   - A `COPY` member in `copyDirs`, and a failure with a clear message when the member is missing.
@@ -226,7 +226,7 @@ Add `bookmap-examples-gradle-plugin/` at the repository root. It is a standalone
 
 ## 12. Documentation
 
-- New file `bookmap-copybook-gradle-plugin/README.md`. Sections:
+- New file `copymapper-copybook-gradle-plugin/README.md`. Sections:
   1. What the plugin does.
   2. Setup: `pluginManagement` with `mavenCentral()`, the `plugins` block, and the dependencies.
   3. The DSL, with the table of section 5.
@@ -236,7 +236,7 @@ Add `bookmap-examples-gradle-plugin/` at the repository root. It is a standalone
   7. **`COPY` members: where to put them.** Explain: the plugin does not search the tree; declare the directories in `copyDirs`; the search order (the options file first, then the extension); the search is not recursive; the accepted extensions (none, `.cpy`, `.cbl`, `.cob`); the build fails if a member is missing, and the message lists the searched directories. Add this warning: "Do not put `COPY` members in `sourceDir` without an `exclude` pattern. The plugin tries to generate classes from each member, and the build can fail."
   8. Up-to-date checks, the build cache, and the configuration cache.
   9. Requirements: JDK 21 or later for the Gradle daemon; the tested Gradle version; the dependencies that the plugin brings to the buildscript classpath.
-  10. A link to `bookmap-examples-gradle-plugin/`.
+  10. A link to `copymapper-examples-gradle-plugin/`.
 - In the root `README.md`, add a short "Gradle plugin" subsection to the "Copybook generator" section, with the minimum setup and a link to the module README.
 - Write all documentation in English, in ASD-STE100 style (see `CLAUDE.md`).
 

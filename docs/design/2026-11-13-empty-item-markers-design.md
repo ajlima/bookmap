@@ -3,7 +3,7 @@
 Date: 2026-11-13
 Status: implemented in v0.20.0.
 
-Related documents: `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` (fixed collections, section 2.2 lists this feature as a non-goal), `docs/design/2026-11-13-count-field-design.md` (the generator option `countFields`), `docs/design/2026-11-10-bookmap-design.md` (the main design), GitHub issue #44.
+Related documents: `docs/design/2026-11-11-copymapper-fixed-occurs-design.md` (fixed collections, section 2.2 lists this feature as a non-goal), `docs/design/2026-11-13-count-field-design.md` (the generator option `countFields`), `docs/design/2026-11-10-copymapper-design.md` (the main design), GitHub issue #44.
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. Section 10 lists them for review.
 
@@ -27,7 +27,7 @@ This spec adds two markers: SPACES, and a key field that is blank or zero.
 
 - A fixed collection without a count field can find empty slots through LOW-VALUES (as today), SPACES, or a key field.
 - The same marker gives the bytes that a write puts in the unused slots.
-- Support in `bookmap-core`, `bookmap-processor`, the copybook generator (options file and command line), and the documentation. 100% line and branch coverage.
+- Support in `copymapper-core`, `copymapper-processor`, the copybook generator (options file and command line), and the documentation. 100% line and branch coverage.
 
 ### 2.2 Non-goals
 
@@ -44,7 +44,7 @@ This spec adds two markers: SPACES, and a key field that is blank or zero.
 
 ## 3. Annotation API
 
-A new enum in `pt.dazz.bookmap.annotation`:
+A new enum in `pt.dazz.copymapper.annotation`:
 
 ```java
 public enum EmptyItem {
@@ -55,7 +55,7 @@ public enum EmptyItem {
 }
 ```
 
-Two new attributes of `@BookCollection`:
+Two new attributes of `@Occurs`:
 
 | Attribute | Meaning | Default |
 |---|---|---|
@@ -64,15 +64,15 @@ Two new attributes of `@BookCollection`:
 
 ```java
 // MOVE SPACES TO the table.
-@BookCollection(order = 30, maxOccurs = 20, fixed = true, emptyItem = EmptyItem.SPACES)
+@Occurs(order = 30, maxOccurs = 20, fixed = true, emptyItem = EmptyItem.SPACES)
 private List<OrderLine> lines;
 
 // INITIALIZE the table, or MOVE ZERO to the key of an unused entry.
-@BookCollection(order = 30, maxOccurs = 20, fixed = true, emptyKey = "productId")
+@Occurs(order = 30, maxOccurs = 20, fixed = true, emptyKey = "productId")
 private List<OrderLine> lines;
 
 // Both: the key marks the empty slot, and a write fills the unused slots with spaces.
-@BookCollection(order = 30, maxOccurs = 20, fixed = true, emptyKey = "productId",
+@Occurs(order = 30, maxOccurs = 20, fixed = true, emptyKey = "productId",
     emptyItem = EmptyItem.SPACES)
 private List<OrderLine> lines;
 ```
@@ -103,7 +103,7 @@ The key is a field of the base layout, so its offset in the slot is a compile-ti
 
 ### 5.1 One rule for read and write
 
-Each mode has one predicate "the slot is empty". One method in `bookmap-core` gives this predicate for read and for write. Thus, the two sides cannot be different. The codec obeys two invariants:
+Each mode has one predicate "the slot is empty". One method in `copymapper-core` gives this predicate for read and for write. Thus, the two sides cannot be different. The codec obeys two invariants:
 
 1. The bytes of an unused slot, as a write makes them, satisfy the predicate.
 2. A write rejects each item whose bytes satisfy the predicate.
@@ -145,9 +145,9 @@ In key mode, the other bytes of the slot do not have an effect. The program uses
 
 Unchanged. A subtype item is checked on the full slot (SPACES), or on the key of the base class (key mode).
 
-## 6. Runtime API in `bookmap-core`
+## 6. Runtime API in `copymapper-core`
 
-Add a public final class `pt.dazz.bookmap.codec.EmptySlot`. It is immutable. The generated codec keeps one instance in a `static final` field for each collection with a marker other than LOW-VALUES.
+Add a public final class `pt.dazz.copymapper.codec.EmptySlot`. It is immutable. The generated codec keeps one instance in a `static final` field for each collection with a marker other than LOW-VALUES.
 
 ```java
 public static EmptySlot lowValues();
@@ -180,7 +180,7 @@ The generator does not guess the marker. Two new options give it, as `countField
 - A name can be qualified with `OF` or `IN`. A command line value has priority over the options file for the same table.
 - The Gradle plugin and the Maven plugin use the options file `<NAME>.json`. They get no new property.
 - `MappingOptions` gets the components `emptyItems` and `emptyKeys`. The existing constructors stay. `CopybookTree` and `Main` rebuild the options record, so they copy the new components. A test covers each place.
-- The mapper writes `emptyItem` and `emptyKey` on the generated `@BookCollection`.
+- The mapper writes `emptyItem` and `emptyKey` on the generated `@Occurs`.
 
 The mapper gives these errors:
 
@@ -204,8 +204,8 @@ The model JSON gets two optional keys on a collection member: `emptyItem` (`"SPA
 - `docs/wiki/Copybook-generator.md`: the options `emptyItems` and `emptyKeys`, the command line options, and the `COMP` diagnostic.
 - `docs/wiki/Home.md` and `docs/wiki/FAQ-and-troubleshooting.md`: remove the limitation "only LOW-VALUES or a count field".
 - `ROADMAP.md`: remove #44 after the release.
-- The Javadoc of `@BookCollection` and of `EmptyItem`.
-- `bookmap-examples`: one example with `emptyKey` and international business data (orders).
+- The Javadoc of `@Occurs` and of `EmptyItem`.
+- `copymapper-examples`: one example with `emptyKey` and international business data (orders).
 
 ## 9. Release
 

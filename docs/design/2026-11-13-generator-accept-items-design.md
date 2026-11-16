@@ -1,9 +1,9 @@
-# bookmap — Generator: accept the COBOL items that are errors today (design)
+# copymapper — Generator: accept the COBOL items that are errors today (design)
 
 Date: 2026-11-13
 Status: implemented in v0.17.0.
 Issue: #37
-Parent spec: `2026-11-11-bookmap-copybook-design.md`
+Parent spec: `2026-11-11-copymapper-copybook-design.md`
 
 ## 1. Intent
 
@@ -11,23 +11,23 @@ Today the copybook generator stops with an error on these items: level `66` and 
 
 Real copybooks often contain these items. A developer must then edit the copybook before the generator can read it.
 
-This change accepts each item that BookMap can map without data loss. Each other item stays an error, with a clear message.
+This change accepts each item that CopyMapper can map without data loss. Each other item stays an error, with a clear message.
 
 ## 2. Rules
 
 - Do not lose data silently. A skipped item always gives a diagnostic (anti-goal 3.3 of the parent spec).
-- Do not change `bookmap-core` or `bookmap-processor`. The generated code uses only the current BookMap features.
+- Do not change `copymapper-core` or `copymapper-processor`. The generated code uses only the current CopyMapper features.
 - Do not give generated code with incorrect offsets.
 - Do not change the level 88 handling or the `VALUE` clause. Issue #36 changes them.
 - Other issues add new core features. Keep the errors for their items, and give the issue number in the message:
 
 | Item | Issue | New message |
 |---|---|---|
-| `COMP-1`, `COMP-2` | #46 | `COMP-1 is not supported by BookMap. See issue #46.` |
-| `SIGN LEADING`, `SEPARATE` | #47 | `LEADING is not supported by BookMap. See issue #47.` |
-| Edited pictures | #48 | `edited picture ZZ9 is not supported by BookMap. See issue #48.` |
-| `NATIONAL`, picture symbol `N` | #49 | `NATIONAL is not supported by BookMap. See issue #49.` |
-| `OCCURS` in an `OCCURS` | #43 | `... BookMap does not support nested collections. See issue #43.` |
+| `COMP-1`, `COMP-2` | #46 | `COMP-1 is not supported by CopyMapper. See issue #46.` |
+| `SIGN LEADING`, `SEPARATE` | #47 | `LEADING is not supported by CopyMapper. See issue #47.` |
+| Edited pictures | #48 | `edited picture ZZ9 is not supported by CopyMapper. See issue #48.` |
+| `NATIONAL`, picture symbol `N` | #49 | `NATIONAL is not supported by CopyMapper. See issue #49.` |
+| `OCCURS` in an `OCCURS` | #43 | `... CopyMapper does not support nested collections. See issue #43.` |
 
 The picture symbols `P` and `A` have no issue. Their messages do not change.
 
@@ -69,7 +69,7 @@ The generator calculates the offsets with the rules of the mapper. Each alternat
 
 These cases are errors, because the generator cannot add the slack bytes in the correct place:
 
-- An item in an `OCCURS` that needs slack bytes. This includes the slack bytes between two occurrences. The message is `SYNC on AMOUNT in OCCURS LINES needs slack bytes. BookMap cannot add them in a table. Align the item by hand.`
+- An item in an `OCCURS` that needs slack bytes. This includes the slack bytes between two occurrences. The message is `SYNC on AMOUNT in OCCURS LINES needs slack bytes. CopyMapper cannot add them in a table. Align the item by hand.`
 - An elementary item with `REDEFINES` that needs slack bytes. The message is `SYNC on C needs slack bytes, but C has REDEFINES. Align the item by hand.`
 
 A copybook without level `01` has a synthetic record. The generator does not know the offset of the copybook in the real record. If a binary item has `SYNC`, the generator gives a `warning`: `the copybook has no level 01. SYNC assumes that ORDER starts on a doubleword boundary.`
@@ -80,13 +80,13 @@ A copybook without level `01` has a synthetic record. The generator does not kno
 
 The parser accepts `JUSTIFIED [RIGHT]` and `JUST [RIGHT]`. The item is a text field, as before.
 
-`JUSTIFIED` changes only the result of a COBOL `MOVE`. It does not change the bytes in the record. But BookMap always writes a text with spaces on the right. A program that compares the field with a right-aligned value can then give a different result. Thus, the generator gives a `warning`: `JUSTIFIED on NAME is ignored. BookMap writes the text on the left and keeps the spaces on the left when it reads.`
+`JUSTIFIED` changes only the result of a COBOL `MOVE`. It does not change the bytes in the record. But CopyMapper always writes a text with spaces on the right. A program that compares the field with a right-aligned value can then give a different result. Thus, the generator gives a `warning`: `JUSTIFIED on NAME is ignored. CopyMapper writes the text on the left and keeps the spaces on the left when it reads.`
 
 ### 3.5 `BLANK WHEN ZERO`
 
 The parser accepts `BLANK [WHEN] ZERO`, `ZEROS`, or `ZEROES`. Another word after `BLANK` is an error: `BLANK needs WHEN ZERO`.
 
-BookMap reads a blank number as `0` (`int`, `long`) or `null` (`BigDecimal`). It writes the value 0 as digits, which a COBOL program reads as zero. No data is lost. The generator gives an `info` diagnostic: `BLANK WHEN ZERO on TOTAL is ignored. BookMap reads spaces as no value and writes zero as digits.`
+CopyMapper reads a blank number as `0` (`int`, `long`) or `null` (`BigDecimal`). It writes the value 0 as digits, which a COBOL program reads as zero. No data is lost. The generator gives an `info` diagnostic: `BLANK WHEN ZERO on TOTAL is ignored. CopyMapper reads spaces as no value and writes zero as digits.`
 
 ### 3.6 `COMP-5` and `COMPUTATIONAL-5`
 
@@ -104,8 +104,8 @@ A `COMP-5` item has the same bytes as a `COMP` item: big-endian binary, two's co
 | 10 to 18 digits, signed | 8 | `long` |
 | 10 to 18 digits, unsigned | 8 | `BigDecimal` |
 
-- The BookMap reader accepts all values of the bytes. The BookMap writer accepts only values with the digits of the picture. A larger value gives a `MappingException`, not silent data loss.
-- The generator gives a `warning`: `COMP-5 on COUNTER is mapped as COMP. BookMap reads all binary values, but writes only values with at most 4 digits.`
+- The CopyMapper reader accepts all values of the bytes. The CopyMapper writer accepts only values with the digits of the picture. A larger value gives a `MappingException`, not silent data loss.
+- The generator gives a `warning`: `COMP-5 on COUNTER is mapped as COMP. CopyMapper reads all binary values, but writes only values with at most 4 digits.`
 
 ### 3.7 `INDEX`
 
@@ -120,7 +120,7 @@ An index data item (`USAGE INDEX`) has no picture. In IBM Enterprise COBOL, it h
 
 A pointer has 4 bytes or 8 bytes. The size depends on the compiler option `LP`, and the copybook does not tell it. A size guess can give incorrect offsets. Also, an address has no meaning outside the program.
 
-The message tells the developer what to do: `POINTER is not supported by BookMap: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with the REPLACE statement.`
+The message tells the developer what to do: `POINTER is not supported by CopyMapper: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with the REPLACE statement.`
 
 ### 3.9 The `REPLACE` statement
 
@@ -136,13 +136,13 @@ The generator applies the `REPLACE` statement, as a COBOL compiler does:
 
 ### 3.10 A `REDEFINES` area in another `REDEFINES` area
 
-BookMap has no subtypes in a subtype (#39), and no `REDEFINES` without a discriminator (#38). Thus, BookMap cannot map the inner alternatives.
+CopyMapper has no subtypes in a subtype (#39), and no `REDEFINES` without a discriminator (#38). Thus, CopyMapper cannot map the inner alternatives.
 
-The generator uses the rule for an elementary item with `REDEFINES` (parent spec 5.6): it keeps the redefined group, and it skips each group that redefines it, with a `warning`: `the REDEFINES area C is inside another REDEFINES area. BookMap keeps C and skips D. See issues #38 and #39.`
+The generator uses the rule for an elementary item with `REDEFINES` (parent spec 5.6): it keeps the redefined group, and it skips each group that redefines it, with a `warning`: `the REDEFINES area C is inside another REDEFINES area. CopyMapper keeps C and skips D. See issues #38 and #39.`
 
 The bytes of the skipped group are still in the fields of the kept group. Thus, no data is lost.
 
-A skipped group that is longer than the kept group is an error, because the items after the area would move: `D redefines C and is longer than C. BookMap keeps C, so the items after it would move.`
+A skipped group that is longer than the kept group is an error, because the items after the area would move: `D redefines C and is longer than C. CopyMapper keeps C, so the items after it would move.`
 
 ## 4. AST and model
 
@@ -169,12 +169,12 @@ All decisions in this section come from the builder, not from the owner. The own
 
 | # | Item | Options | Decision | Reason |
 |---|---|---|---|---|
-| 1 | Level 66 | (a) Keep the error. (b) Map an alias. (c) Ignore with `info`. | (c) | `RENAMES` adds no bytes, so nothing is lost. BookMap has no alias field. |
+| 1 | Level 66 | (a) Keep the error. (b) Map an alias. (c) Ignore with `info`. | (c) | `RENAMES` adds no bytes, so nothing is lost. CopyMapper has no alias field. |
 | 2 | Level 77 | (a) Keep the error. (b) Make an operation class for each item. (c) Skip with a `warning`. | (c) | A level 77 item is not part of a record, so the message layout does not change. A class with one field is not useful as an operation. A `warning`, not an `info`, because a developer can expect the item in the class. |
-| 3 | `SYNC` | (a) Keep the error. (b) Ignore it. (c) Add slack `FILLER` items with the IBM rules; error in a table. | (c) | (b) gives incorrect offsets when the compiler adds slack bytes. (c) gives the COBOL offsets. In a table, the slack bytes go between the occurrences, and a BookMap item class cannot have them in all cases. |
+| 3 | `SYNC` | (a) Keep the error. (b) Ignore it. (c) Add slack `FILLER` items with the IBM rules; error in a table. | (c) | (b) gives incorrect offsets when the compiler adds slack bytes. (c) gives the COBOL offsets. In a table, the slack bytes go between the occurrences, and a CopyMapper item class cannot have them in all cases. |
 | 4 | `SYNC` in a copybook without level `01` | (a) Error. (b) Assume offset 0, with a `warning`. | (b) | Most copybooks without level `01` start at offset 0 of the record. The warning tells the assumption. |
 | 5 | `JUSTIFIED` | (a) Keep the error. (b) Accept with `warning`. | (b) | The bytes do not change. Only the alignment of a written value changes. |
-| 6 | `BLANK WHEN ZERO` | (a) Keep the error. (b) Accept with `info`. | (b) | BookMap already reads a blank number. A written zero is valid for COBOL. |
+| 6 | `BLANK WHEN ZERO` | (a) Keep the error. (b) Accept with `info`. | (b) | CopyMapper already reads a blank number. A written zero is valid for COBOL. |
 | 7 | `COMP-5` | (a) Keep the error. (b) Map as `COMP` with the type of the digits. (c) Map as `COMP` with the type of the bytes, with a `warning`. | (c) | The bytes are the same as `COMP`. The Java type of (c) holds all values that the reader gives. The writer limit is in the core; a new core feature can remove it. |
 | 8 | `INDEX` | (a) Keep the error. (b) Map as `PIC S9(9) COMP`, with `info`. | (b) | IBM Enterprise COBOL stores an index in 4 bytes of signed binary data. `int` holds all values. |
 | 9 | `POINTER` | (a) Map as 4 bytes. (b) Keep the error with a better message. | (b) | The size depends on the `LP` compiler option. A guess can give incorrect offsets (anti-goal of the parent spec). |

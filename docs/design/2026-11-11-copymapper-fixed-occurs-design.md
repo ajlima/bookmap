@@ -1,16 +1,16 @@
-# bookmap — Fixed `OCCURS` (design)
+# copymapper — Fixed `OCCURS` (design)
 
 Date: 2026-11-11
 Status: implemented in v0.3.0.
-Base package: `pt.dazz.bookmap`
-Parent spec: `2026-11-10-bookmap-design.md`
-Related spec: `2026-11-11-bookmap-copybook-design.md` (the copybook generator needs this feature)
+Base package: `pt.dazz.copymapper`
+Parent spec: `2026-11-10-copymapper-design.md`
+Related spec: `2026-11-11-copymapper-copybook-design.md` (the copybook generator needs this feature)
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. You can change them if you have a good reason. All other decisions come from the project owner.
 
 ## 1. Intent
 
-BookMap maps a COBOL table only as `OCCURS DEPENDING ON`. A `@BookCollection` always has a count field. The codec writes and reads only the items that the count gives. The offsets of the members after the collection change with the number of items.
+CopyMapper maps a COBOL table only as `OCCURS DEPENDING ON`. A `@Occurs` always has a count field. The codec writes and reads only the items that the count gives. The offsets of the members after the collection change with the number of items.
 
 Many COBOL books use a **fixed** table:
 
@@ -24,7 +24,7 @@ Many COBOL books use a **fixed** table:
     05  ORDER-TOTAL       PIC S9(9)V99 COMP-3.
 ```
 
-The area of `ORDER-LINE` is always 20 items long, with data or not. `ORDER-TOTAL` is always at the same offset. BookMap cannot express this book today. A mapping as a normal collection gives incorrect offsets for `ORDER-TOTAL`.
+The area of `ORDER-LINE` is always 20 items long, with data or not. `ORDER-TOTAL` is always at the same offset. CopyMapper cannot express this book today. A mapping as a normal collection gives incorrect offsets for `ORDER-TOTAL`.
 
 The owner says that a fixed `OCCURS` is common. The program tells the caller the number of used items in one of two ways:
 
@@ -41,7 +41,7 @@ This design adds a fixed collection that supports both ways.
 - An optional count field.
 - Without a count field, empty items are detected through `LOW-VALUES`.
 - Compile-time offsets for the members after a fixed collection.
-- Support in the processor, `bookmap-core`, the simulator transport, and `bookmap-examples`. 100% line and branch coverage in all modules.
+- Support in the processor, `copymapper-core`, the simulator transport, and `copymapper-examples`. 100% line and branch coverage in all modules.
 
 ### 2.2 Non-goals
 
@@ -57,17 +57,17 @@ This design adds a fixed collection that supports both ways.
 
 ## 3. Annotation
 
-Add one attribute to `@BookCollection`:
+Add one attribute to `@Occurs`:
 
 | Attribute | Meaning | Default |
 |---|---|---|
 | `fixed` | `true` for a fixed table (`OCCURS n` without `DEPENDING ON`). The area always holds `maxOccurs` items. | `false` |
 
 ```java
-@BookCollection(order = 30, maxOccurs = 20, fixed = true)
+@Occurs(order = 30, maxOccurs = 20, fixed = true)
 private List<OrderLine> lines;                       // no count field: LOW-VALUES mode
 
-@BookCollection(order = 30, maxOccurs = 20, fixed = true, dependsOn = "lineCount")
+@Occurs(order = 30, maxOccurs = 20, fixed = true, dependsOn = "lineCount")
 private List<OrderLine> lines;                       // count field mode
 ```
 
@@ -133,13 +133,13 @@ No new error for `fixed = false`: the behavior of existing books does not change
 ## 7. Simulator and examples
 
 - The simulator uses the generated codec. It needs no change other than tests for both modes.
-- Add an example to `bookmap-examples` with international business data: an order with a fixed table of order lines and a field after the table. Show both modes. **[builder call]** for the class names.
+- Add an example to `copymapper-examples` with international business data: an order with a fixed table of order lines and a field after the table. Show both modes. **[builder call]** for the class names.
 - Add a round-trip test through the simulator for each mode, and for a fixed collection of subtype items.
 
 ## 8. Documentation
 
-- README: update the `@BookCollection` table, the "Collections and pagination" section, the conventions list (convention 4 does not apply to a fixed collection), and "Known limitations".
-- Javadoc of `@BookCollection`.
+- README: update the `@Occurs` table, the "Collections and pagination" section, the conventions list (convention 4 does not apply to a fixed collection), and "Known limitations".
+- Javadoc of `@Occurs`.
 
 ## 9. Release
 

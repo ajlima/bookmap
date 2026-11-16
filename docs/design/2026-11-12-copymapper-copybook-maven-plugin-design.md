@@ -1,17 +1,17 @@
-# BookMap copybook Maven plugin: design
+# CopyMapper copybook Maven plugin: design
 
 Date: 2026-11-12
 Status: implemented in v0.6.0.
 
-Related documents: `docs/design/2026-11-12-bookmap-copybook-gradle-plugin-design.md` (the Gradle plugin), `docs/design/2026-11-11-bookmap-copybook-design.md` (the generator), `CLAUDE.md` (project rules).
+Related documents: `docs/design/2026-11-12-copymapper-copybook-gradle-plugin-design.md` (the Gradle plugin), `docs/design/2026-11-11-copymapper-copybook-design.md` (the generator), `CLAUDE.md` (project rules).
 
 ## 1. Intent
 
-Version 0.5.0 added the Gradle plugin `pt.dazz.bookmap.copybook`. This design adds the same function for Maven builds.
+Version 0.5.0 added the Gradle plugin `pt.dazz.copymapper.copybook`. This design adds the same function for Maven builds.
 
 The first user is a multi-module Maven project with a corporate parent POM and an internal Nexus. This setup must not be a limitation. The author decided: use the same rules as the Gradle plugin.
 
-A project applies the plugin, points it at a directory tree of copybooks, and gets the BookMap classes in a generated source root before `compile`.
+A project applies the plugin, points it at a directory tree of copybooks, and gets the CopyMapper classes in a generated source root before `compile`.
 
 ## 2. Goals, non-goals, and anti-goals
 
@@ -28,7 +28,7 @@ Non-goals:
 
 - Reading copybooks from a dependency artifact. In a multi-module project, one module generates the classes, and the other modules depend on its JAR (section 9).
 - Maven 4. On 2026-11-12, Maven 4 is still a release candidate (4.0.0-rc-7). The plugin uses only Maven 3 API, and the tests cover 3.6.3 to 3.9. The README says "tested with Maven 3.6.3 to 3.9". (A call of the designer.)
-- A goal prefix that works with no setup (`mvn bookmap-copybook:generate`). Maven resolves a prefix only for the groups in `settings.xml` (`<pluginGroups>`), and the publication does not write group-level plugin metadata. The README shows the `<executions>` form, and the full form `mvn pt.dazz.bookmap:bookmap-copybook-maven-plugin:<version>:generate`. (A call of the designer.)
+- A goal prefix that works with no setup (`mvn copymapper-copybook:generate`). Maven resolves a prefix only for the groups in `settings.xml` (`<pluginGroups>`), and the publication does not write group-level plugin metadata. The README shows the `<executions>` form, and the full form `mvn pt.dazz.copymapper:copymapper-copybook-maven-plugin:<version>:generate`. (A call of the designer.)
 - An m2e (Eclipse) incremental build integration.
 - Global parse or mapping options in the plugin configuration (as in the Gradle plugin, section 2).
 
@@ -47,37 +47,37 @@ Anti-goals (a failure even if the code works):
 
 ## 4. Shared logic
 
-Move the tool-independent logic of the Gradle plugin into `bookmap-copybook`:
+Move the tool-independent logic of the Gradle plugin into `copymapper-copybook`:
 
-- `pt.dazz.bookmap.copybook.gradle.PackageNames` becomes `pt.dazz.bookmap.copybook.tree.PackageNames` (public).
-- `pt.dazz.bookmap.copybook.gradle.CopybookGeneration` and `CopybookGenerationException` become `pt.dazz.bookmap.copybook.tree.CopybookTree` and `pt.dazz.bookmap.copybook.tree.CopybookTreeException` (public). The class names are a call of the designer.
+- `pt.dazz.copymapper.copybook.gradle.PackageNames` becomes `pt.dazz.copymapper.copybook.tree.PackageNames` (public).
+- `pt.dazz.copymapper.copybook.gradle.CopybookGeneration` and `CopybookGenerationException` become `pt.dazz.copymapper.copybook.tree.CopybookTree` and `pt.dazz.copymapper.copybook.tree.CopybookTreeException` (public). The class names are a call of the designer.
 - The `Settings`, `Log`, `run`, `configCopyDirs`, and `optionsFile` members stay, with public visibility.
-- The message for a missing base package depends on the tool. `Settings` gets one more field: `String missingPackageMessage`. The Gradle plugin gives "Set bookmap.copybooks.packageName.". The Maven plugin gives "Set the packageName parameter of bookmap-copybook-maven-plugin.".
-- The collision message also names the tool option: `Settings` gets `String packagePerCopybookHint`. The Gradle plugin gives `bookmap.copybooks.packagePerCopybook = true`. The Maven plugin gives `<packagePerCopybook>true</packagePerCopybook>`.
-- Move the unit tests and the test copybooks with the classes. The 100% coverage rule then applies in `bookmap-copybook`.
+- The message for a missing base package depends on the tool. `Settings` gets one more field: `String missingPackageMessage`. The Gradle plugin gives "Set copymapper.copybooks.packageName.". The Maven plugin gives "Set the packageName parameter of copymapper-copybook-maven-plugin.".
+- The collision message also names the tool option: `Settings` gets `String packagePerCopybookHint`. The Gradle plugin gives `copymapper.copybooks.packagePerCopybook = true`. The Maven plugin gives `<packagePerCopybook>true</packagePerCopybook>`.
+- Move the unit tests and the test copybooks with the classes. The 100% coverage rule then applies in `copymapper-copybook`.
 - The Gradle plugin keeps its behavior and its messages. Its TestKit tests must pass without a change to their expected texts.
 
 ## 5. Module and publication
 
-- New module: `bookmap-copybook-maven-plugin`. Add it to `settings.gradle.kts`.
-- Coordinates: `pt.dazz.bookmap:bookmap-copybook-maven-plugin`. Packaging: `maven-plugin`. Goal prefix: `bookmap-copybook`.
-- Mojo class: `pt.dazz.bookmap.copybook.maven.GenerateMojo`. Goal: `generate`. Default phase: `generate-sources`. Thread-safe: `true`.
+- New module: `copymapper-copybook-maven-plugin`. Add it to `settings.gradle.kts`.
+- Coordinates: `pt.dazz.copymapper:copymapper-copybook-maven-plugin`. Packaging: `maven-plugin`. Goal prefix: `copymapper-copybook`.
+- Mojo class: `pt.dazz.copymapper.copybook.maven.GenerateMojo`. Goal: `generate`. Default phase: `generate-sources`. Thread-safe: `true`.
 - Dependencies:
-  - `implementation(project(":bookmap-copybook"))`.
+  - `implementation(project(":copymapper-copybook"))`.
   - `compileOnly` (Maven scope `provided`): `org.apache.maven:maven-plugin-api:3.6.3`, `org.apache.maven:maven-core:3.6.3`, `org.apache.maven.plugin-tools:maven-plugin-annotations` (a version that works with Maven 3.6.3).
 - The plugin descriptor (`META-INF/maven/plugin.xml`):
   - First choice: the Gradle plugin `de.benediktritter.maven-plugin-development`, which generates the descriptor from the annotations. Its last release (0.4.3) is from 2024. Validate it with Gradle 9.9.1 in the first implementation task.
   - Fallback: write the descriptor by hand in `src/main/resources/META-INF/maven/plugin.xml`, and add a unit test that compares its parameters with the fields of the Mojo. Record the result in the plan.
 - The POM must have packaging `maven-plugin`, and the Maven dependencies must have the scope `provided`. Validate the generated POM.
-- Add the module to `publishedModules` in the root `build.gradle.kts` ("BookMap copybook generator Maven plugin.").
+- Add the module to `publishedModules` in the root `build.gradle.kts` ("CopyMapper copybook generator Maven plugin.").
 - Add the module to the list of published JARs in `.github/workflows/release.yml`.
 
 ## 6. Configuration
 
 ```xml
 <plugin>
-  <groupId>pt.dazz.bookmap</groupId>
-  <artifactId>bookmap-copybook-maven-plugin</artifactId>
+  <groupId>pt.dazz.copymapper</groupId>
+  <artifactId>copymapper-copybook-maven-plugin</artifactId>
   <version>0.6.0</version>
   <executions>
     <execution>
@@ -97,15 +97,15 @@ Move the tool-independent logic of the Gradle plugin into `bookmap-copybook`:
 
 | Parameter | Property | Default | Meaning |
 |---|---|---|---|
-| `sourceDir` | `bookmap.copybook.sourceDir` | `${project.basedir}/src/main/copybook` | The root of the copybook tree. |
+| `sourceDir` | `copymapper.copybook.sourceDir` | `${project.basedir}/src/main/copybook` | The root of the copybook tree. |
 | `copyDirs` | none | empty | The directories with `COPY` members, in search order. |
-| `packageName` | `bookmap.copybook.packageName` | none | The base package. |
-| `lombok` | `bookmap.copybook.lombok` | `false` | Generate Lombok classes. |
-| `packagePerCopybook` | `bookmap.copybook.packagePerCopybook` | `false` | Add one package segment from the copybook name. |
-| `outputDir` | `bookmap.copybook.outputDir` | `${project.build.directory}/generated-sources/copybook` | The directory for the generated Java files. |
+| `packageName` | `copymapper.copybook.packageName` | none | The base package. |
+| `lombok` | `copymapper.copybook.lombok` | `false` | Generate Lombok classes. |
+| `packagePerCopybook` | `copymapper.copybook.packagePerCopybook` | `false` | Add one package segment from the copybook name. |
+| `outputDir` | `copymapper.copybook.outputDir` | `${project.build.directory}/generated-sources/copybook` | The directory for the generated Java files. |
 | `includes` | none | `**/*.cpy` | The patterns of the copybook files. The user's patterns replace the default. |
 | `excludes` | none | empty | The patterns of the files that are not copybooks. |
-| `skip` | `bookmap.copybook.skip` | `false` | Do not run the goal. |
+| `skip` | `copymapper.copybook.skip` | `false` | Do not run the goal. |
 
 - The patterns use the Ant style of Maven (`**/*.cpy`), relative to `sourceDir`.
 - Relative paths in `sourceDir`, `copyDirs`, and `outputDir` start at `${project.basedir}`. Maven resolves `File` parameters this way.
@@ -131,7 +131,7 @@ Maven has no input and output tracking. The goal does its own check:
   - for each copybook, in sorted order of the relative path: the relative path and the content;
   - for each options file (`*.json` in `sourceDir`), in sorted order: the relative path and the content;
   - for each copy directory, in search order (the extension directories, then the directories of the options files): its path relative to `sourceDir`, and the relative path and the content of each file in it.
-- Store the fingerprint in `${project.build.directory}/bookmap-copybook/fingerprint`.
+- Store the fingerprint in `${project.build.directory}/copymapper-copybook/fingerprint`.
 - A changed, added, or removed file, a changed parameter, or a new plugin version gives a new fingerprint. The goal then generates again.
 - `mvn clean` removes the fingerprint and the output.
 - If the goal fails, it does not store a fingerprint. The next build runs the goal again.
@@ -142,39 +142,39 @@ The README shows this pattern:
 
 ```
 parent/
-  pom.xml                       pluginManagement for bookmap-copybook-maven-plugin
-  mainframe-model/              the copybooks; runs the plugin and bookmap-processor
+  pom.xml                       pluginManagement for copymapper-copybook-maven-plugin
+  mainframe-model/              the copybooks; runs the plugin and copymapper-processor
     src/main/copybook/...
     src/main/copylib/...
   orders-service/               depends on mainframe-model
   billing-service/              depends on mainframe-model
 ```
 
-- `mainframe-model` depends on `bookmap-core`, has `bookmap-processor` as an annotation processor, and runs the goal.
+- `mainframe-model` depends on `copymapper-core`, has `copymapper-processor` as an annotation processor, and runs the goal.
 - Its JAR has the generated classes and the generated codecs.
 - The other modules depend on `mainframe-model`. They do not run the plugin.
 
 ## 10. The example build
 
-- Add `bookmap-examples-maven-plugin/` at the repository root: a standalone Maven project with the Maven Wrapper (`mvnw`, `.mvn/wrapper/maven-wrapper.properties`). It is not part of the Gradle build.
-- It is multi-module and follows section 9: a parent POM, a module `mainframe-model` with the copybooks (two subdirectories, an options file, and a `COPY` member in `src/main/copylib`), and a module `orders-service` with a test that encodes and decodes through `bookmap-transport-simulator`.
-- It uses the snapshot version of this repository. The CI step first runs `./gradlew publishToMavenLocal`, then `./bookmap-examples-maven-plugin/mvnw -f bookmap-examples-maven-plugin/pom.xml verify`.
+- Add `copymapper-examples-maven-plugin/` at the repository root: a standalone Maven project with the Maven Wrapper (`mvnw`, `.mvn/wrapper/maven-wrapper.properties`). It is not part of the Gradle build.
+- It is multi-module and follows section 9: a parent POM, a module `mainframe-model` with the copybooks (two subdirectories, an options file, and a `COPY` member in `src/main/copylib`), and a module `orders-service` with a test that encodes and decodes through `copymapper-transport-simulator`.
+- It uses the snapshot version of this repository. The CI step first runs `./gradlew publishToMavenLocal`, then `./copymapper-examples-maven-plugin/mvnw -f copymapper-examples-maven-plugin/pom.xml verify`.
 - Add this step to the `build` job of `.github/workflows/release.yml`, after the Gradle plugin example.
 
 ## 11. Tests and coverage
 
-- `bookmap-copybook` and `bookmap-copybook-maven-plugin` keep 100% line and branch coverage.
+- `copymapper-copybook` and `copymapper-copybook-maven-plugin` keep 100% line and branch coverage.
 - Unit tests of `GenerateMojo` construct the Mojo, set its fields, and call `execute()`, with a `MavenProject` from `maven-core`. Cover: the skip parameter, the source root, the up-to-date skip, each fingerprint input (a change gives a new run), the failure mapping, and the missing `sourceDir`.
 - Integration tests run a real Maven, 3.6.3 and the latest 3.9, on small projects:
   - Use the Maven Wrapper or a Maven distribution that the test downloads. The machine of the author has no `mvn` command.
-  - The tests need the plugin and the BookMap libraries in a local repository. Run them after `publishToMavenLocal`, or use a test-local repository.
+  - The tests need the plugin and the CopyMapper libraries in a local repository. Run them after `publishToMavenLocal`, or use a test-local repository.
   - Cover at least: compile of the generated classes, subpackages, an options file, a missing `COPY` member, a collision with and without `packagePerCopybook`, the second build that skips as up to date, and a multi-module reactor build.
   - Where these tests live (a Gradle test task, or the example build) is left to the builder, if the CI runs them on each pull request.
 - Test data uses an international business domain.
 
 ## 12. Documentation
 
-- New file `bookmap-copybook-maven-plugin/README.md`, with the same structure as the Gradle plugin README:
+- New file `copymapper-copybook-maven-plugin/README.md`, with the same structure as the Gradle plugin README:
   1. What the plugin does.
   2. Setup, with the requirements: Maven 3.6.3 or later, run on JDK 21 or later.
   3. The parameters (section 6).
@@ -184,11 +184,11 @@ parent/
   7. `COPY` members: where to put them, with the same warning as the Gradle README.
   8. Up-to-date check (section 8), and the `skip` parameter.
   9. Multi-module projects (section 9).
-  10. A link to `bookmap-examples-maven-plugin/`.
+  10. A link to `copymapper-examples-maven-plugin/`.
 - Do not duplicate the package and `COPY` rules in two READMEs if a link is clear. The builder decides. The rules must be visible from both READMEs.
 - In the root `README.md`, add a "Maven plugin" subsection next to "Gradle plugin", and change the limitation "No Maven plugin yet."
-- Add `bookmap-copybook-maven-plugin` and `bookmap-examples-maven-plugin` to the module table.
-- Update `scripts/set-readme-version.sh`, so that it also sets the plugin version in the Maven plugin README (`<version>X.Y.Z</version>` after the `bookmap-copybook-maven-plugin` artifact).
+- Add `copymapper-copybook-maven-plugin` and `copymapper-examples-maven-plugin` to the module table.
+- Update `scripts/set-readme-version.sh`, so that it also sets the plugin version in the Maven plugin README (`<version>X.Y.Z</version>` after the `copymapper-copybook-maven-plugin` artifact).
 - Write in English, in ASD-STE100 style.
 
 ## 13. Left to the builder

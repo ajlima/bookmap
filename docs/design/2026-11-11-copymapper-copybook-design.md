@@ -1,18 +1,18 @@
-# bookmap — Copybook generator (design)
+# copymapper — Copybook generator (design)
 
 Date: 2026-11-11
 Status: implemented in v0.4.0.
-Base package: `pt.dazz.bookmap.copybook`
-Parent spec: `2026-11-10-bookmap-design.md`
-Depends on: `2026-11-11-bookmap-fixed-occurs-design.md`. Implement and merge the fixed `OCCURS` feature first, on its own branch and PR. Start the copybook branch from `main` after that merge (or from the fixed `OCCURS` branch, and rebase it after the merge).
+Base package: `pt.dazz.copymapper.copybook`
+Parent spec: `2026-11-10-copymapper-design.md`
+Depends on: `2026-11-11-copymapper-fixed-occurs-design.md`. Implement and merge the fixed `OCCURS` feature first, on its own branch and PR. Start the copybook branch from `main` after that merge (or from the fixed `OCCURS` branch, and rebase it after the merge).
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. You can change them if you have a good reason. All other decisions come from the project owner.
 
 ## 1. Intent
 
-Today a developer reads a COBOL copybook line by line and writes the BookMap class by hand. For each field, the developer writes the Java name, the `order`, the `pic`, and the Java type. For each `OCCURS`, the developer writes an item class. The owner says that this work is the main cost: field by field, with the correct order, names, and mapping.
+Today a developer reads a COBOL copybook line by line and writes the CopyMapper class by hand. For each field, the developer writes the Java name, the `order`, the `pic`, and the Java type. For each `OCCURS`, the developer writes an item class. The owner says that this work is the main cost: field by field, with the correct order, names, and mapping.
 
-The copybook generator does this work. It reads the text of a copybook and writes Java classes with BookMap annotations. The classes compile with the BookMap processor without a change.
+The copybook generator does this work. It reads the text of a copybook and writes Java classes with CopyMapper annotations. The classes compile with the CopyMapper processor without a change.
 
 Two uses are in scope:
 
@@ -28,7 +28,7 @@ copybook text ──parse──▶ AST ──map──▶ model (JSON) ──gen
 ```
 
 1. **Parse.** Read the copybook (fixed or free format, `COPY ... REPLACING`). Produce an **AST**: the tree of COBOL data items, as COBOL defines them. The AST knows nothing about Java.
-2. **Map.** Apply the BookMap decisions to the AST: class names, field names, Java types, `pic`, `order`, directions, collections, and subtypes. Produce the **model**.
+2. **Map.** Apply the CopyMapper decisions to the AST: class names, field names, Java types, `pic`, `order`, directions, collections, and subtypes. Produce the **model**.
 3. **Generate.** Write the Java classes from the model, with JavaPoet.
 
 The model has a JSON form. The owner wants this form for future modules: they will keep old versions of the model, compare them, and show the changes to the developer. This module is **stateless**. It does not keep, compare, or merge models.
@@ -37,12 +37,12 @@ The model has a JSON form. The owner wants this form for future modules: they wi
 
 | Module | Content | Dependencies |
 |---|---|---|
-| `bookmap-copybook` | Parser, AST, mapper, model, JSON reader and writer, Java generator. A public library API. | JavaPoet, Jackson (`jackson-databind`) **[builder call]**. No Gradle, Maven, Spring, or middleware library. |
-| `bookmap-copybook-cli` | A command-line program. It reads the options and calls the API. | `bookmap-copybook`, picocli **[builder call]** |
+| `copymapper-copybook` | Parser, AST, mapper, model, JSON reader and writer, Java generator. A public library API. | JavaPoet, Jackson (`jackson-databind`) **[builder call]**. No Gradle, Maven, Spring, or middleware library. |
+| `copymapper-copybook-cli` | A command-line program. It reads the options and calls the API. | `copymapper-copybook`, picocli **[builder call]** |
 
 Later work adds a Gradle plugin and a Maven plugin. They also call the API. They are not in this design.
 
-The library does not depend on `bookmap-processor`. It can depend on `bookmap-core` for the `Direction` enum. **[builder call]**
+The library does not depend on `copymapper-processor`. It can depend on `copymapper-core` for the `Direction` enum. **[builder call]**
 
 ### 2.2 Library API
 
@@ -62,8 +62,8 @@ The CLI and the future plugins must not need more than this API.
 
 ### 3.1 Goals
 
-- Generate correct BookMap classes from realistic copybooks (orders, invoices, accounts).
-- Generated classes compile with the BookMap processor. They round-trip through the simulator transport.
+- Generate correct CopyMapper classes from realistic copybooks (orders, invoices, accounts).
+- Generated classes compile with the CopyMapper processor. They round-trip through the simulator transport.
 - A deterministic model JSON: the same input and options always give the same bytes.
 - A deterministic Java output: the same model and options always give the same bytes.
 - Clear diagnostics for all problems, with the line and column.
@@ -124,7 +124,7 @@ The parser reads data description entries with these clauses. The design `2026-1
 | `INDEXED BY`, `ASCENDING KEY`, `DESCENDING KEY` | Accepted and ignored (info diagnostic). |
 | `REDEFINES name` | Redefinition. |
 | `VALUE` / `VALUES` | Accepted and ignored. |
-| `SIGN TRAILING` without `SEPARATE` | Accepted (the BookMap default). |
+| `SIGN TRAILING` without `SEPARATE` | Accepted (the CopyMapper default). |
 | `SIGN LEADING`, `SIGN ... SEPARATE` | Error. Changed by `2026-11-13-sign-leading-separate-design.md`: accepted. |
 | `SYNC`, `JUSTIFIED`, `BLANK WHEN ZERO` | Accepted. Changed by the 2026-11-13 design. |
 | `COMP-1`, `COMP-2`, `POINTER`, `NATIONAL` | Error. |
@@ -145,15 +145,15 @@ The parser keeps the line and column of each item for diagnostics. The parser al
 
 | COBOL | Java |
 |---|---|
-| Record (level `01`) | An operation class with `@BookOperation`. |
+| Record (level `01`) | An operation class with `@Operation`. |
 | Group without `OCCURS` | No class. Its items go into the class of the parent (the group is **flattened**). |
-| Group with `OCCURS` | An item class, and a `@BookCollection` field in the parent class. |
-| Elementary item with `OCCURS` | An item class with one field named `value`, and a `@BookCollection` field in the parent class. |
-| `OCCURS` in an item of another `OCCURS` | Error (BookMap has no nested collections). |
-| Elementary item | A `@BookField` field. |
-| `FILLER` | A `@BookField` field `filler1`, `filler2`, ... in each class. |
+| Group with `OCCURS` | An item class, and a `@Occurs` field in the parent class. |
+| Elementary item with `OCCURS` | An item class with one field named `value`, and a `@Occurs` field in the parent class. |
+| `OCCURS` in an item of another `OCCURS` | Error (CopyMapper has no nested collections). |
+| Elementary item | A `@Field` field. |
+| `FILLER` | A `@Field` field `filler1`, `filler2`, ... in each class. |
 
-`@BookOperation` has no value: the operation name is the simple class name. **[builder call]**
+`@Operation` has no value: the operation name is the simple class name. **[builder call]**
 
 ### 5.2 Names
 
@@ -184,18 +184,18 @@ The parser keeps the line and column of each item for diagnostics. The parser al
 
 ### 5.4 Collections
 
-- `OCCURS n` → `@BookCollection(order = …, maxOccurs = n, fixed = true)`, without `dependsOn`. The copybook does not tell which field is a count. The developer adds `dependsOn` by hand if the program uses a count field. Update: the option `countFields` links a count field to a fixed table. See `2026-11-13-count-field-design.md`.
-- `OCCURS m TO n DEPENDING ON X` → `@BookCollection(order = …, maxOccurs = n, dependsOn = "<field name of X>")`. The minimum `m` is ignored.
+- `OCCURS n` → `@Occurs(order = …, maxOccurs = n, fixed = true)`, without `dependsOn`. The copybook does not tell which field is a count. The developer adds `dependsOn` by hand if the program uses a count field. Update: the option `countFields` links a count field to a fixed table. See `2026-11-13-count-field-design.md`.
+- `OCCURS m TO n DEPENDING ON X` → `@Occurs(order = …, maxOccurs = n, dependsOn = "<field name of X>")`. The minimum `m` is ignored.
 - The `DEPENDING ON` field must be in the same generated class, before the table. If not, error.
 - A fixed table of `COMP` items cannot write the value 0 without a count field: its bytes are all LOW-VALUES, and the fixed `OCCURS` codec rejects them. The mapper gives an `INFO` diagnostic for such a table.
-- A generated operation class does not implement `Continuable`. Thus, the BookMap rule against an `INPUT_OUTPUT` collection in a `Continuable` class does not apply. If a developer adds `Continuable` by hand, the developer must also change the direction of such a collection.
+- A generated operation class does not implement `Continuable`. Thus, the CopyMapper rule against an `INPUT_OUTPUT` collection in a `Continuable` class does not apply. If a developer adds `Continuable` by hand, the developer must also change the direction of such a collection.
 - The item class gets the name of the `OCCURS` item (`ORDER-LINE` → `OrderLine`). The collection field gets the field name of the same item (`orderLine`).
 
 ### 5.5 Directions
 
 The copybook does not give the direction of a field.
 
-**Scope (owner decision).** Directions apply only to the alternatives of a group `REDEFINES` area, and to the items in those alternatives. All other items are `INPUT_OUTPUT`. Reason: in BookMap, an `INPUT` field does not occupy bytes in the output area. Outside a `REDEFINES` area, a direction would move the offsets of the items after it, and the offsets would not agree with COBOL. Inside a `REDEFINES` area, the input and output alternatives share the same memory, so the separation by direction agrees with COBOL.
+**Scope (owner decision).** Directions apply only to the alternatives of a group `REDEFINES` area, and to the items in those alternatives. All other items are `INPUT_OUTPUT`. Reason: in CopyMapper, an `INPUT` field does not occupy bytes in the output area. Outside a `REDEFINES` area, a direction would move the offsets of the items after it, and the offsets would not agree with COBOL. Inside a `REDEFINES` area, the input and output alternatives share the same memory, so the separation by direction agrees with COBOL.
 
 - A direction decision for an item outside a group `REDEFINES` area is an error. The message gives this reason.
 - A name marker on a group outside a `REDEFINES` area has no effect.
@@ -213,9 +213,9 @@ Inside a group `REDEFINES` area, the generator resolves the direction of each al
 In the generated code:
 
 - A field with `INPUT_OUTPUT` has no `direction` attribute.
-- A collection always gets an explicit `direction`, because the BookMap default for a collection is `OUTPUT`. **[builder call]**
-- An item class field has no `direction` (a BookMap rule). Thus, a direction decision, a marker group, or a direction split inside an `OCCURS` item is an error. The message tells the developer to use subtypes or to edit the class by hand. **[builder call]**
-- A count field without an explicit `direction` gets the direction of its collection (a BookMap rule). If the resolved direction of the count field is different from the direction of its collection, the generator writes the count field direction explicitly. If the count direction does not include the collection direction (for example, an `INPUT` count for an `OUTPUT` collection), this is an error. **[builder call]**
+- A collection always gets an explicit `direction`, because the CopyMapper default for a collection is `OUTPUT`. **[builder call]**
+- An item class field has no `direction` (a CopyMapper rule). Thus, a direction decision, a marker group, or a direction split inside an `OCCURS` item is an error. The message tells the developer to use subtypes or to edit the class by hand. **[builder call]**
+- A count field without an explicit `direction` gets the direction of its collection (a CopyMapper rule). If the resolved direction of the count field is different from the direction of its collection, the generator writes the count field direction explicitly. If the count direction does not include the collection direction (for example, an `INPUT` count for an `OUTPUT` collection), this is an error. **[builder call]**
 
 ### 5.5.1 Names in options
 
@@ -239,7 +239,7 @@ Options name COBOL items (directions, subtype areas, discriminators). A COBOL na
 2. **Direction split**, if there are exactly two alternatives, and one resolves to `INPUT` and the other to `OUTPUT` (through an explicit decision or a marker, see 5.5).
 3. **Otherwise**: error. The message gives the area, the line, and the two options that resolve it, with an example of each option.
 
-**Direction split.** BookMap calculates the offsets separately for each direction. Thus, the input fields and the output fields of the same area need no subtypes. Both alternatives stay in the same class, with their directions. An example:
+**Direction split.** CopyMapper calculates the offsets separately for each direction. Thus, the input fields and the output fields of the same area need no subtypes. Both alternatives stay in the same class, with their directions. An example:
 
 ```cobol
 01  GET-INVOICE.
@@ -266,21 +266,21 @@ A subtype decision gives, for one area:
 
 The generator then writes:
 
-- `@BookSubTypes(discriminator = …, value = { … })` on the class that contains the area (an operation class or an item class). This class is the base class. It is not abstract. **[builder call]**
+- `@SubTypes(discriminator = …, value = { … })` on the class that contains the area (an operation class or an item class). This class is the base class. It is not abstract. **[builder call]**
 - One subclass for each alternative. Its default name is the PascalCase name of the alternative group. The subclass has the fields of the alternative.
 - The `order` values of a subclass start after the highest `order` of the base class.
 
 Errors:
 
-- An item after the area, at the level of the area or higher, in the same class. BookMap requires the redefined area at the end of the layout.
-- A discriminator that does not exist, is not before the area, or has a type that BookMap does not permit.
+- An item after the area, at the level of the area or higher, in the same class. CopyMapper requires the redefined area at the end of the layout.
+- A discriminator that does not exist, is not before the area, or has a type that CopyMapper does not permit.
 - An alternative without a value, or a value for a name that is not an alternative.
 - A subtype area inside another subtype area.
-- A discriminator that resolves to `INPUT` in an operation class (a BookMap rule).
+- A discriminator that resolves to `INPUT` in an operation class (a CopyMapper rule).
 
 If an area has a subtype decision, the subtype decision wins over a direction split (5.6, step 1). **[builder call]**
 
-The processor checks the remaining BookMap rules on the generated code. The generator checks the rules above, because it can give the copybook line in the message.
+The processor checks the remaining CopyMapper rules on the generated code. The generator checks the rules above, because it can give the copybook line in the message.
 
 ## 6. Model JSON
 
@@ -296,11 +296,11 @@ The processor checks the remaining BookMap rules on the generated code. The gene
 
 - Options: the Java package (mandatory), the output directory, and Lombok (on or off).
 - One `.java` file for each class. The generator overwrites existing files. For a scaffold, use a different directory. **[builder call]**
-- Each class has a Javadoc header: "Generated by the BookMap copybook generator from `<source name>`." No date and no version. **[builder call]**
+- Each class has a Javadoc header: "Generated by the CopyMapper copybook generator from `<source name>`." No date and no version. **[builder call]**
 - Without Lombok: private fields, a public getter and a public setter for each field. Each class has an implicit public constructor without arguments.
 - With Lombok: `@Data` and `@NoArgsConstructor`. A subclass also gets `@EqualsAndHashCode(callSuper = true)` and `@ToString(callSuper = true)`. **[builder call]**
-- Records are not supported. BookMap needs setters.
-- The generated code must compile without warnings under the BookMap build settings.
+- Records are not supported. CopyMapper needs setters.
+- The generated code must compile without warnings under the CopyMapper build settings.
 
 ## 8. Diagnostics
 
@@ -315,8 +315,8 @@ The processor checks the remaining BookMap rules on the generated code. The gene
 Two commands. **[builder call]** for the exact flag names.
 
 ```
-bookmap-copybook parse    <copybook>              [options] --output model.json
-bookmap-copybook generate <copybook | model.json> --package com.example.orders --output-dir src/main/java [options]
+copymapper-copybook parse    <copybook>              [options] --output model.json
+copymapper-copybook generate <copybook | model.json> --package com.example.orders --output-dir src/main/java [options]
 ```
 
 - `parse` writes the model JSON.
@@ -354,14 +354,14 @@ A config file sketch:
 
 - Unit tests for the parser, the mapper, the JSON reader and writer, the names, and the generator.
 - Realistic copybooks in the test resources: an order with a fixed table and a variable table, an invoice with `REQUEST`/`RESPONSE` areas (direction split), a bank account with subtypes, and a copybook with `COPY ... REPLACING`. Use international business data.
-- End-to-end tests: generate the Java, compile it with `javac` and the BookMap processor, load the classes, and round-trip an object through the simulator transport.
+- End-to-end tests: generate the Java, compile it with `javac` and the CopyMapper processor, load the classes, and round-trip an object through the simulator transport.
 - Golden-file tests for the model JSON and the Java output. They also prove determinism.
 - CLI tests: each command, each exit code, and the config file.
-- 100% line and branch coverage in `bookmap-copybook` and `bookmap-copybook-cli`. JaCoCo verification includes both modules.
+- 100% line and branch coverage in `copymapper-copybook` and `copymapper-copybook-cli`. JaCoCo verification includes both modules.
 
 ## 11. Examples and documentation
 
-- `bookmap-examples`: add copybooks and a Gradle task that runs the generator in the build. The generated classes go to a generated source directory and compile with the processor. Tests round-trip them through the simulator. This shows the build use without a plugin.
+- `copymapper-examples`: add copybooks and a Gradle task that runs the generator in the build. The generated classes go to a generated source directory and compile with the processor. Tests round-trip them through the simulator. This shows the build use without a plugin.
 - README: a new section "Copybook generator", with the pipeline, the CLI, the mapping table, the direction rules, and the limitations. Update the module list.
 
 ## 12. Release

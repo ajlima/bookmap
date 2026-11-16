@@ -1,17 +1,17 @@
-# BookMap HTTP transport: design
+# CopyMapper HTTP transport: design
 
 Date: 2026-11-13
 Status: implemented in v0.9.0.
 
-Related documents: `docs/design/2026-11-10-bookmap-design.md` (the main design, sections 2.2, 5.9, and 5.10), `docs/design/2026-11-13-ctg-transport-design.md` (the CTG transport, #26), `CLAUDE.md` (project rules), GitHub issue #28.
+Related documents: `docs/design/2026-11-10-copymapper-design.md` (the main design, sections 2.2, 5.9, and 5.10), `docs/design/2026-11-13-ctg-transport-design.md` (the CTG transport, #26), `CLAUDE.md` (project rules), GitHub issue #28.
 
 ## 1. Intent
 
-BookMap has a transport SPI and an in-memory simulator. This design adds a transport that sends the request bytes of a book to an HTTP endpoint and returns the bytes of the HTTP response.
+CopyMapper has a transport SPI and an in-memory simulator. This design adds a transport that sends the request bytes of a book to an HTTP endpoint and returns the bytes of the HTTP response.
 
 The endpoint receives and sends the raw COBOL bytes of the book. Examples are a CICS web service with a binary body, a custom HTTP program in CICS, or an API gateway in front of the mainframe that accepts a binary body.
 
-A user adds the module `bookmap-transport-http`. The user maps each operation name to a URL, and optionally to an HTTP method and headers. Then the user gives the transport to a `BookmapClient`. The application code does not change: it uses the same book classes as with the simulator.
+A user adds the module `copymapper-transport-http`. The user maps each operation name to a URL, and optionally to an HTTP method and headers. Then the user gives the transport to a `CopyMapperClient`. The application code does not change: it uses the same book classes as with the simulator.
 
 The module uses only the JDK HTTP client (`java.net.http`). It has no external runtime dependency.
 
@@ -23,7 +23,7 @@ Goals:
 - A mapping from operation name to a URL, a method, and headers, set in a builder.
 - Authentication with headers: fixed headers, a header supplier that the transport calls for each request, and a basic authentication shortcut.
 - Mutual TLS, a proxy, and other client settings through an `HttpClient` that the caller supplies.
-- A translation of each HTTP failure to one of the BookMap exceptions of section 5.10 of the main design.
+- A translation of each HTTP failure to one of the CopyMapper exceptions of section 5.10 of the main design.
 - A thread-safe transport.
 - 100% line and branch coverage, with an in-process HTTP server of the JDK. No test dependency is added.
 - Publication to Maven Central.
@@ -41,9 +41,9 @@ Non-goals (possible later):
 
 Anti-goals (failure, even if the code works):
 
-- `bookmap-core` or `bookmap-processor` changes, or depends on an HTTP library.
+- `copymapper-core` or `copymapper-processor` changes, or depends on an HTTP library.
 - The module adds a runtime dependency that is not in the JDK.
-- An `IOException` or another JDK exception goes to the caller without a translation to a BookMap exception.
+- An `IOException` or another JDK exception goes to the caller without a translation to a CopyMapper exception.
 - A message of an exception contains a password, a token, the `Authorization` header, or the user information or the query of the URL.
 - The transport sends a request two times. A CICS program is not always idempotent.
 
@@ -87,7 +87,7 @@ The author selected A.
 
 | Option | Trade-off |
 |---|---|
-| **A. A fixed map, without retry (selected).** | One table maps each status and each JDK exception to a BookMap exception. An optional response header gives an abend code. The transport never sends a request two times. |
+| **A. A fixed map, without retry (selected).** | One table maps each status and each JDK exception to a CopyMapper exception. An optional response header gives an abend code. The transport never sends a request two times. |
 | B. A fixed map, with a retry. | A retry of a connection failure and of `502` or `503`. More configuration. A retry after `502` can run the program two times. |
 | C. A pluggable mapper. | The user maps a status, headers, and a body to an exception. More API. |
 
@@ -112,10 +112,10 @@ The author selected A.
 
 ### 5.1 Module and package
 
-- Module: `bookmap-transport-http`. Dependencies: `api(project(":bookmap-core"))`. No other runtime dependency.
-- Package `pt.dazz.bookmap.http`: `HttpTransport` and `HttpRoute`, both public. `HttpSender`, package-private (see 5.7).
+- Module: `copymapper-transport-http`. Dependencies: `api(project(":copymapper-core"))`. No other runtime dependency.
+- Package `pt.dazz.copymapper.http`: `HttpTransport` and `HttpRoute`, both public. `HttpSender`, package-private (see 5.7).
 
-`bookmap-core` and `bookmap-processor` do not change.
+`copymapper-core` and `copymapper-processor` do not change.
 
 ### 5.2 HttpRoute
 
@@ -273,7 +273,7 @@ The transport opens no connection in `build()`. The first exchange opens the fir
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-transport-http:<version>")
+    implementation("pt.dazz.copymapper:copymapper-transport-http:<version>")
 }
 ```
 
@@ -306,20 +306,20 @@ HttpTransport transport = HttpTransport.builder()
 - `HttpTransportBuilderTest`: the rules of 5.3, the URI resolution, and the conflict of `httpClient` and `connectTimeout`.
 - `HttpTransportTest`, with a JDK `HttpServer` on a free local port: the method, the URI, the body, the merged headers, the basic authentication value, the header supplier, each status row of 5.6, the abend header, the body excerpt (text and hexadecimal), a slow handler with a short timeout, a handler that sends the headers and then stops before the end of the body, a refused connection, a client of the caller, and `close`.
 - `HttpTransportFailureTest`, with a fake `HttpSender`: the connect timeout, the TLS handshake failure, another `IOException`, and the interrupt.
-- `HttpTransportClientTest`: a `BookmapClient` with a generated codec and a full call through the `HttpServer`.
+- `HttpTransportClientTest`: a `CopyMapperClient` with a generated codec and a full call through the `HttpServer`.
 
 No test uses a mainframe or the network outside the local machine.
 
 ## 7. Changes outside the module
 
-- `settings.gradle.kts`: include `bookmap-transport-http`.
-- `build.gradle.kts`: add the module to `publishedModules`, with the description "BookMap HTTP transport (binary body), for example for CICS web services."
+- `settings.gradle.kts`: include `copymapper-transport-http`.
+- `build.gradle.kts`: add the module to `publishedModules`, with the description "CopyMapper HTTP transport (binary body), for example for CICS web services."
 - `docs/wiki/Contributing.md`, and `RELEASING.md`: add the module to the list of published modules.
 - `docs/wiki/HTTP-transport.md`: a new page. `_Sidebar.md` and `Home.md`: a link to the page.
 - `docs/wiki/Transports-and-simulator.md` and `docs/wiki/Getting-started.md`: name the new transport.
 - `README.md`: the module list and the "Project status" section.
 - `ROADMAP.md`: remove #28.
-- `bookmap-core` and `bookmap-processor`: no change.
+- `copymapper-core` and `copymapper-processor`: no change.
 - `gradle/verification-metadata.xml`: no change is expected. Run `scripts/update-verification-metadata.sh` to make sure.
 
 The CTG (#26) and MQ (#27) sessions change the same shared files. Keep the changes there small.

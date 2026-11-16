@@ -1,32 +1,32 @@
-# BookMap Spring Boot auto-configuration of the transports: design
+# CopyMapper Spring Boot auto-configuration of the transports: design
 
 Date: 2026-11-13
 Status: implemented in v0.13.0. The CTG part is in v0.11.0, and the HTTP part is in v0.12.0.
 
-Related documents: `docs/design/2026-11-10-bookmap-design.md` (the main design, section 5.12), `docs/design/2026-11-13-ctg-transport-design.md` (#26), `docs/design/2026-11-13-mq-transport-design.md` (#27), `docs/design/2026-11-13-http-transport-design.md` (#28), `CLAUDE.md` (project rules), GitHub issue #29.
+Related documents: `docs/design/2026-11-10-copymapper-design.md` (the main design, section 5.12), `docs/design/2026-11-13-ctg-transport-design.md` (#26), `docs/design/2026-11-13-mq-transport-design.md` (#27), `docs/design/2026-11-13-http-transport-design.md` (#28), `CLAUDE.md` (project rules), GitHub issue #29.
 
 ## 1. Intent
 
-`bookmap-spring-boot` creates a `BookmapClient` bean from a `Transport` bean. Today, the application must declare the `Transport` bean in its own code.
+`copymapper-spring-boot` creates a `CopyMapperClient` bean from a `Transport` bean. Today, the application must declare the `Transport` bean in its own code.
 
-This design adds an auto-configuration for each real transport: CTG, IBM MQ, and HTTP. Each one creates the `Transport` bean from `bookmap.transport.*` properties. Then a Spring Boot application adds a transport module and some properties, and it gets a `BookmapClient` bean with no Java configuration.
+This design adds an auto-configuration for each real transport: CTG, IBM MQ, and HTTP. Each one creates the `Transport` bean from `copymapper.transport.*` properties. Then a Spring Boot application adds a transport module and some properties, and it gets a `CopyMapperClient` bean with no Java configuration.
 
 ```properties
-bookmap.transport.type=ctg
-bookmap.transport.ctg.url=tcp://ctg.example.com
-bookmap.transport.ctg.server=CICSPROD
-bookmap.transport.ctg.userid=ORDUSER
-bookmap.transport.ctg.password=${CTG_PASSWORD}
-bookmap.transport.ctg.routes[GetCustomerOrders].program=PGMORD01
-bookmap.transport.ctg.routes[GetCustomerOrders].transaction=TX01
-bookmap.transport.ctg.routes[GetInvoice].program=PGMINV01
+copymapper.transport.type=ctg
+copymapper.transport.ctg.url=tcp://ctg.example.com
+copymapper.transport.ctg.server=CICSPROD
+copymapper.transport.ctg.userid=ORDUSER
+copymapper.transport.ctg.password=${CTG_PASSWORD}
+copymapper.transport.ctg.routes[GetCustomerOrders].program=PGMORD01
+copymapper.transport.ctg.routes[GetCustomerOrders].transaction=TX01
+copymapper.transport.ctg.routes[GetInvoice].program=PGMINV01
 ```
 
 ## 2. Goals, non-goals, and anti-goals
 
 Goals:
 
-- One auto-configuration for each transport. It creates the `Transport` bean from properties, and declares `@AutoConfiguration(before = BookmapAutoConfiguration.class)`.
+- One auto-configuration for each transport. It creates the `Transport` bean from properties, and declares `@AutoConfiguration(before = CopyMapperAutoConfiguration.class)`.
 - A clear selection of the transport, also when more than one transport module is on the class path.
 - A binding for each builder setting that has a text value: routes, server, queues, URIs, headers, timeouts, pool sizes, and credentials.
 - A customizer bean for each transport, for the settings that are not text: a header supplier, an `HttpClient`, and others.
@@ -39,20 +39,20 @@ Non-goals (possible later):
 - More than one transport in one application, for example CTG for some operations and HTTP for others. The application can declare its own `Transport` bean for this.
 - A starter module for each transport.
 - Spring Boot health indicators and metrics for the transports.
-- The creation of an IBM `MQConnectionFactory` from BookMap properties. The connection factory comes from the context (see 5.4).
+- The creation of an IBM `MQConnectionFactory` from CopyMapper properties. The connection factory comes from the context (see 5.4).
 
 Anti-goals (failure, even if the code works):
 
-- `bookmap-spring-boot` adds a transport module, `jakarta.jms-api`, or an IBM artifact to its POM.
-- The application starts without a `BookmapClient` bean, and with no message, when `bookmap.transport.type` is set.
+- `copymapper-spring-boot` adds a transport module, `jakarta.jms-api`, or an IBM artifact to its POM.
+- The application starts without a `CopyMapperClient` bean, and with no message, when `copymapper.transport.type` is set.
 - A password goes into a log, an exception message, or the `toString()` of a properties object.
 - An auto-configuration loads an absent class and stops the application, when the user does not use that transport.
-- A change in the main code of a transport module (`bookmap-transport-ctg`, `-mq`, `-http`). The only change is the build file of the CTG module, which shares its test stub (5.10).
+- A change in the main code of a transport module (`copymapper-transport-ctg`, `-mq`, `-http`). The only change is the build file of the CTG module, which shares its test stub (5.10).
 
 ## 3. Constraints
 
-- Spring Boot 4.1.2, from the version catalog. Java 21. No reflection at runtime in BookMap code. Spring Boot itself uses reflection; this is accepted in `bookmap-spring-boot` (main design, 5.12).
-- The transport modules are separate published modules. `bookmap-transport-ctg` is on `main` (PR #71). `bookmap-transport-mq` and `bookmap-transport-http` have an approved design. Their code is in progress on other branches.
+- Spring Boot 4.1.2, from the version catalog. Java 21. No reflection at runtime in CopyMapper code. Spring Boot itself uses reflection; this is accepted in `copymapper-spring-boot` (main design, 5.12).
+- The transport modules are separate published modules. `copymapper-transport-ctg` is on `main` (PR #71). `copymapper-transport-mq` and `copymapper-transport-http` have an approved design. Their code is in progress on other branches.
 - The transport builders have no getters. A test sees a setting only through the behavior of the transport.
 - The IBM CTG library is not in the build. The CTG transport module compiles against a stub that is not published.
 - Dependency verification is on. Each new test dependency needs `scripts/update-verification-metadata.sh`.
@@ -65,7 +65,7 @@ The author decided three points.
 
 | Option | Trade-off |
 |---|---|
-| **A. An explicit type (selected).** | The property `bookmap.transport.type` has the value `ctg`, `mq`, or `http`. Without this property, no transport auto-configuration runs. It is never ambiguous, and the IDE proposes the values. One more line of configuration. |
+| **A. An explicit type (selected).** | The property `copymapper.transport.type` has the value `ctg`, `mq`, or `http`. Without this property, no transport auto-configuration runs. It is never ambiguous, and the IDE proposes the values. One more line of configuration. |
 | B. By the configured section. | A transport runs when its section is set. Two sections cause a failure at startup. Less to write, but more condition code, and a less visible rule. |
 | C. The first match wins. | A fixed order. A second transport is ignored with no message. |
 
@@ -75,8 +75,8 @@ The author selected A.
 
 | Option | Trade-off |
 |---|---|
-| **A. In `bookmap-spring-boot`, with `compileOnly` transports (selected).** | The usual Spring Boot pattern. `@ConditionalOnClass` guards each auto-configuration. The user adds the transport module and the vendor library. No new published module. |
-| B. A module for each transport (`bookmap-spring-boot-ctg`, and so on). | One dependency is sufficient for the user. Three more published modules, with their release, documentation, and coverage setup. |
+| **A. In `copymapper-spring-boot`, with `compileOnly` transports (selected).** | The usual Spring Boot pattern. `@ConditionalOnClass` guards each auto-configuration. The user adds the transport module and the vendor library. No new published module. |
+| B. A module for each transport (`copymapper-spring-boot-ctg`, and so on). | One dependency is sufficient for the user. Three more published modules, with their release, documentation, and coverage setup. |
 
 The author selected A.
 
@@ -84,8 +84,8 @@ The author selected A.
 
 | Option | Trade-off |
 |---|---|
-| **A. An SSL bundle and a customizer (selected).** | `bookmap.transport.http.ssl.bundle` names a `spring.ssl.bundle.*` bundle. The auto-configuration makes an `HttpClient` with the `SSLContext` of the bundle. A customizer bean sets the other settings. |
-| B. A customizer only. | Less BookMap code. Each application writes an `HttpClient` with its own `SSLContext`. |
+| **A. An SSL bundle and a customizer (selected).** | `copymapper.transport.http.ssl.bundle` names a `spring.ssl.bundle.*` bundle. The auto-configuration makes an `HttpClient` with the `SSLContext` of the bundle. A customizer bean sets the other settings. |
+| B. A customizer only. | Less CopyMapper code. Each application writes an `HttpClient` with its own `SSLContext`. |
 
 The author selected A.
 
@@ -93,38 +93,38 @@ The author selected A.
 
 ### 5.1 Module and packages
 
-`bookmap-spring-boot/build.gradle.kts`:
+`copymapper-spring-boot/build.gradle.kts`:
 
 ```kotlin
-compileOnly(project(":bookmap-transport-ctg"))
-compileOnly(project(":bookmap-transport-mq"))
-compileOnly(project(":bookmap-transport-http"))
-testImplementation(project(":bookmap-transport-ctg"))
-testImplementation(project(":bookmap-transport-mq"))
-testImplementation(project(":bookmap-transport-http"))
+compileOnly(project(":copymapper-transport-ctg"))
+compileOnly(project(":copymapper-transport-mq"))
+compileOnly(project(":copymapper-transport-http"))
+testImplementation(project(":copymapper-transport-ctg"))
+testImplementation(project(":copymapper-transport-mq"))
+testImplementation(project(":copymapper-transport-http"))
 ```
 
 Each increment adds only the lines of its transport. A `compileOnly` dependency does not go into the POM or into the Gradle module metadata.
 
 | Package | Content |
 |---|---|
-| `pt.dazz.bookmap.spring` | `BookmapAutoConfiguration`, `BookmapProperties`, `BookmapTransportProperties`, `TransportType`. |
-| `pt.dazz.bookmap.spring.ctg` | `CtgTransportAutoConfiguration`, `CtgTransportProperties`, `CtgTransportBuilderCustomizer`. |
-| `pt.dazz.bookmap.spring.mq` | `MqTransportAutoConfiguration`, `MqTransportProperties`, `MqTransportBuilderCustomizer`. |
-| `pt.dazz.bookmap.spring.http` | `HttpTransportAutoConfiguration`, `HttpTransportProperties`, `HttpTransportBuilderCustomizer`. |
+| `pt.dazz.copymapper.spring` | `CopyMapperAutoConfiguration`, `CopyMapperProperties`, `CopyMapperTransportProperties`, `TransportType`. |
+| `pt.dazz.copymapper.spring.ctg` | `CtgTransportAutoConfiguration`, `CtgTransportProperties`, `CtgTransportBuilderCustomizer`. |
+| `pt.dazz.copymapper.spring.mq` | `MqTransportAutoConfiguration`, `MqTransportProperties`, `MqTransportBuilderCustomizer`. |
+| `pt.dazz.copymapper.spring.http` | `HttpTransportAutoConfiguration`, `HttpTransportProperties`, `HttpTransportBuilderCustomizer`. |
 
 `AutoConfiguration.imports` lists the three new classes.
 
 ### 5.2 The selection of the transport
 
-A new record `BookmapTransportProperties`, with the prefix `bookmap.transport`, has one field: `type`, of the enum `TransportType { CTG, MQ, HTTP }`. Thus, the property is `bookmap.transport.type`. `BookmapAutoConfiguration` enables it. `BookmapProperties` does not change, so its public constructor stays the same. Spring Boot accepts `ctg`, `CTG`, and the other cases. An incorrect value, for example `ctgg`, stops the application at startup, with a binding error.
+A new record `CopyMapperTransportProperties`, with the prefix `copymapper.transport`, has one field: `type`, of the enum `TransportType { CTG, MQ, HTTP }`. Thus, the property is `copymapper.transport.type`. `CopyMapperAutoConfiguration` enables it. `CopyMapperProperties` does not change, so its public constructor stays the same. Spring Boot accepts `ctg`, `CTG`, and the other cases. An incorrect value, for example `ctgg`, stops the application at startup, with a binding error.
 
 Each transport auto-configuration has these conditions, in this order:
 
 ```java
-@AutoConfiguration(before = BookmapAutoConfiguration.class)
+@AutoConfiguration(before = CopyMapperAutoConfiguration.class)
 @ConditionalOnClass(CtgTransport.class)
-@ConditionalOnProperty(name = "bookmap.transport.type", havingValue = "ctg")
+@ConditionalOnProperty(name = "copymapper.transport.type", havingValue = "ctg")
 @EnableConfigurationProperties(CtgTransportProperties.class)
 public class CtgTransportAutoConfiguration {
 
@@ -139,19 +139,19 @@ public class CtgTransportAutoConfiguration {
 - `@ConditionalOnMissingBean(Transport.class)`: a `Transport` bean of the application wins, for example a `SimulatorTransport` in a test.
 - The bean type is the transport class, for example `CtgTransport`. Thus, the application can inject it. Spring Boot calls `close()` of the transport when the context closes (inferred destroy method).
 
-**The missing transport.** `BookmapAutoConfiguration` gets one more bean method. It runs only when `bookmap.transport.type` is set and no `Transport` bean exists. It throws `IllegalStateException`, and the application does not start. The bean has `@Lazy(false)`. Thus, the check also runs with `spring.main.lazy-initialization=true`. The message names the module and the vendor library, for example:
+**The missing transport.** `CopyMapperAutoConfiguration` gets one more bean method. It runs only when `copymapper.transport.type` is set and no `Transport` bean exists. It throws `IllegalStateException`, and the application does not start. The bean has `@Lazy(false)`. Thus, the check also runs with `spring.main.lazy-initialization=true`. The message names the module and the vendor library, for example:
 
-`bookmap.transport.type=ctg, but no Transport bean exists. Add bookmap-transport-ctg and the IBM library ctgclient.jar to the class path.`
+`copymapper.transport.type=ctg, but no Transport bean exists. Add copymapper-transport-ctg and the IBM library ctgclient.jar to the class path.`
 
-Until the increment of a transport is released, its message is: `bookmap.transport.type=mq, but no Transport bean exists. This version of bookmap-spring-boot has no auto-configuration for mq. Declare a Transport bean.` Each increment changes the message of its transport.
+Until the increment of a transport is released, its message is: `copymapper.transport.type=mq, but no Transport bean exists. This version of copymapper-spring-boot has no auto-configuration for mq. Declare a Transport bean.` Each increment changes the message of its transport.
 
 The connector beans (`EciConnector`, `MqConnector`) also have the condition `@ConditionalOnMissingBean(Transport.class)`. Thus, a `Transport` bean of the application stops the whole transport auto-configuration.
 
-`BookmapAutoConfiguration` runs after the transport auto-configurations. Thus, the condition sees their beans.
+`CopyMapperAutoConfiguration` runs after the transport auto-configurations. Thus, the condition sees their beans.
 
 ### 5.3 CTG
 
-Conditions: `CtgTransport` on the class path, and `bookmap.transport.type=ctg`.
+Conditions: `CtgTransport` on the class path, and `copymapper.transport.type=ctg`.
 
 Beans:
 
@@ -162,7 +162,7 @@ Beans:
 
 The `JavaGatewayConnector` bean is in a nested configuration class with `@ConditionalOnClass(name = "com.ibm.ctg.client.JavaGateway")`. If the IBM library is absent and no `EciConnector` bean exists, the `CtgTransport` bean method throws `IllegalStateException`: `No EciConnector bean. Add the IBM library ctgclient.jar, or declare an EciConnector bean.`
 
-Properties, prefix `bookmap.transport.ctg`:
+Properties, prefix `copymapper.transport.ctg`:
 
 | Property | Type | Default | Builder method |
 |---|---|---|---|
@@ -183,20 +183,20 @@ Properties, prefix `bookmap.transport.ctg`:
 
 Rules:
 
-- `userid` and `password` go to `credentials(userid, password)` when `userid` is set. A `password` without a `userid` stops the application: `bookmap.transport.ctg.password is set, but bookmap.transport.ctg.userid is not set.`
+- `userid` and `password` go to `credentials(userid, password)` when `userid` is set. A `password` without a `userid` stops the application: `copymapper.transport.ctg.password is set, but copymapper.transport.ctg.userid is not set.`
 - The properties record has its own nested record `Route(String program, String transaction)`. The auto-configuration converts it to `CtgRoute`. Thus, the configuration metadata has a description for each field, and the binding does not depend on the constructor of `CtgRoute`.
 - The builders check the values: for example, a `timeout` with a fraction of a second, or a program name with 9 characters. A check failure stops the application. The cause is the `IllegalArgumentException` or the `IllegalStateException` of the builder.
 
 ### 5.4 IBM MQ
 
-Conditions: `MqTransport` on the class path, and `bookmap.transport.type=mq`.
+Conditions: `MqTransport` on the class path, and `copymapper.transport.type=mq`.
 
 The MQ transport needs a `jakarta.jms.ConnectionFactory`. This design takes it from the context. Two usual sources:
 
 - The IBM starter `com.ibm.mq:mq-jms-spring-boot-starter`. It creates an `MQConnectionFactory` from the `ibm.mq.*` properties: the host, the port, the queue manager, the channel, and the credentials.
 - The Spring Boot Artemis or JNDI auto-configuration, or a `ConnectionFactory` bean of the application.
 
-Thus, BookMap needs no IBM class, and no MQ connection property of its own.
+Thus, CopyMapper needs no IBM class, and no MQ connection property of its own.
 
 Beans:
 
@@ -205,11 +205,11 @@ Beans:
 | `MqConnector` | No `MqConnector` bean, and no `Transport` bean. | `JmsConnector` with the factory, `user`, `password`, and `mq-native-messages`. |
 | `MqTransport` | No `Transport` bean. | `MqTransport.builder()` with the `MqConnector` bean, the properties, then each customizer. |
 
-Order: `@AutoConfiguration(before = BookmapAutoConfiguration.class)`, with no `afterName`. The connector bean gets the factory from `ObjectProvider<ConnectionFactory>.getIfUnique()` when Spring creates the bean. At that time, all bean definitions exist. Thus, the order of the auto-configuration that creates the factory does not matter, and the code names no class of the IBM starter. `getIfUnique()` also accepts one `@Primary` factory among several factories.
+Order: `@AutoConfiguration(before = CopyMapperAutoConfiguration.class)`, with no `afterName`. The connector bean gets the factory from `ObjectProvider<ConnectionFactory>.getIfUnique()` when Spring creates the bean. At that time, all bean definitions exist. Thus, the order of the auto-configuration that creates the factory does not matter, and the code names no class of the IBM starter. `getIfUnique()` also accepts one `@Primary` factory among several factories.
 
 If no single `ConnectionFactory` bean exists, the `MqConnector` bean method throws `IllegalStateException`: `No MqConnector bean. Declare one jakarta.jms.ConnectionFactory bean, for example with mq-jms-spring-boot-starter, or declare an MqConnector bean.`
 
-Properties, prefix `bookmap.transport.mq`:
+Properties, prefix `copymapper.transport.mq`:
 
 | Property | Type | Default | Builder method |
 |---|---|---|---|
@@ -227,14 +227,14 @@ Properties, prefix `bookmap.transport.mq`:
 
 Rules:
 
-- `user` and `password` follow the rule of CTG: a `password` without a `user` stops the application. Usually, the credentials are in the connection factory (`ibm.mq.user`, `ibm.mq.password`). Set `bookmap.transport.mq.user` only to use other credentials. A `CachingConnectionFactory` does not accept a user for each connection. Thus, the documentation tells not to set `user` with it.
+- `user` and `password` follow the rule of CTG: a `password` without a `user` stops the application. Usually, the credentials are in the connection factory (`ibm.mq.user`, `ibm.mq.password`). Set `copymapper.transport.mq.user` only to use other credentials. A `CachingConnectionFactory` does not accept a user for each connection. Thus, the documentation tells not to set `user` with it.
 - The table follows the approved MQ design. If the MQ code changes a builder method, this table changes with it.
 
 **A shared connection.** Spring Boot and the IBM starter can wrap the factory in a `CachingConnectionFactory`. Then all the sessions of the transport use one connection. The transport still works. But a broken connection affects all the sessions, not only one. The documentation tells this, and tells how to stop it: `spring.jms.cache.enabled=false`, or the pool of the IBM starter.
 
 ### 5.5 HTTP
 
-Conditions: `HttpTransport` on the class path, and `bookmap.transport.type=http`. The HTTP module has no vendor library. Thus, the `type` property is the only guard.
+Conditions: `HttpTransport` on the class path, and `copymapper.transport.type=http`. The HTTP module has no vendor library. Thus, the `type` property is the only guard.
 
 Beans:
 
@@ -242,7 +242,7 @@ Beans:
 |---|---|---|
 | `HttpTransport` | No `Transport` bean. | `HttpTransport.builder()` with the properties, the client of the SSL bundle, then each customizer. |
 
-Properties, prefix `bookmap.transport.http`:
+Properties, prefix `copymapper.transport.http`:
 
 | Property | Type | Default | Builder method |
 |---|---|---|---|
@@ -293,11 +293,11 @@ HttpTransportBuilderCustomizer bearerToken(TokenService tokens) {
 
 ### 5.7 Secrets
 
-- A password is a `String` property. Spring Boot binds it from any property source: an environment variable (`BOOKMAP_TRANSPORT_CTG_PASSWORD`), a configuration tree (`spring.config.import=configtree:/run/secrets/`), or a vault.
+- A password is a `String` property. Spring Boot binds it from any property source: an environment variable (`COPYMAPPER_TRANSPORT_CTG_PASSWORD`), a configuration tree (`spring.config.import=configtree:/run/secrets/`), or a vault.
 - `toString()` of each properties record shows `password=******` when the password is set. It never shows the value.
 - `toString()` shows only the keys of a map that can contain a secret, for example the CTG `protocol-properties` (the password of a key ring) and the HTTP `headers` (an `Authorization` header).
 - The metadata description of each password tells the reader to use an environment variable or a secret store, not a plain value in `application.properties`.
-- The Actuator endpoint `configprops` hides the values by default in Spring Boot 4.1. BookMap does not change this.
+- The Actuator endpoint `configprops` hides the values by default in Spring Boot 4.1. CopyMapper does not change this.
 
 **CAUTION:** Do not write a password as a plain value in `application.properties` in the source repository. Each person who can read the repository can then read the password.
 
@@ -312,12 +312,12 @@ The builder of this design verifies the case rules with a test, also without bra
 
 ### 5.9 The configuration metadata
 
-The configuration processor makes the metadata of each properties record. The text of each `@param` tag is the description (see the comment in `BookmapProperties`). `additional-spring-configuration-metadata.json` adds:
+The configuration processor makes the metadata of each properties record. The text of each `@param` tag is the description (see the comment in `CopyMapperProperties`). `additional-spring-configuration-metadata.json` adds:
 
-- A hint for `bookmap.transport.type` with a description of each value.
-- No hint for `bookmap.transport.http.ssl.bundle`. Spring Boot has no value provider for the names of the SSL bundles.
+- A hint for `copymapper.transport.type` with a description of each value.
+- No hint for `copymapper.transport.http.ssl.bundle`. Spring Boot has no value provider for the names of the SSL bundles.
 
-`ConfigurationMetadataTest` checks for each increment: the list of the keys, the type, the default value, and the start of the description of each new property. `listsOnlyTheBookmapProperties` gets the new keys.
+`ConfigurationMetadataTest` checks for each increment: the list of the keys, the type, the default value, and the start of the description of each new property. `listsOnlyTheCopyMapperProperties` gets the new keys.
 
 ### 5.10 The CTG stub for the tests of other modules
 
@@ -325,9 +325,9 @@ The configuration processor makes the metadata of each properties record. The te
 
 The author decided to share the stub of the CTG module, not to copy it. The Gradle plugin `java-test-fixtures` cannot do this: the main code of the CTG module compiles against the stub, and the test fixtures depend on the main code. Gradle reports a cycle. Thus:
 
-- `bookmap-transport-ctg` keeps the source set `ctgStub`. A task `ctgStubJar` puts the stub classes in a jar.
+- `copymapper-transport-ctg` keeps the source set `ctgStub`. A task `ctgStubJar` puts the stub classes in a jar.
 - A consumable configuration `ctgStubElements` gives this jar to other modules. It is not a variant of the `java` component. Thus, it does not go into the POM or into the Gradle module metadata.
-- `bookmap-spring-boot` uses `testImplementation(project(path = ":bookmap-transport-ctg", configuration = "ctgStubElements"))`.
+- `copymapper-spring-boot` uses `testImplementation(project(path = ":copymapper-transport-ctg", configuration = "ctgStubElements"))`.
 - The check `verifyNoIbmClasses` and the JaCoCo rule of the CTG module do not change.
 
 This change is in PR 1, in its own commit. It does not change the main code or the published files of the CTG module.
@@ -344,15 +344,15 @@ PR 2 and PR 3 can occur in the other order. The last PR says `Closes #29`.
 
 ## 7. Tests
 
-All tests use `ApplicationContextRunner`, as `BookmapAutoConfigurationTest` does.
+All tests use `ApplicationContextRunner`, as `CopyMapperAutoConfigurationTest` does.
 
 For each transport:
 
-- No `bookmap.transport.type`: no transport bean, no client bean.
+- No `copymapper.transport.type`: no transport bean, no client bean.
 - Another type: no bean of this transport.
 - The transport module is absent (`FilteredClassLoader`): no bean, and the missing-transport check fails with the message of 5.2.
 - A `Transport` bean of the application: it wins.
-- A full exchange through a `BookmapClient`: the properties reach the transport. For CTG, a fake `EciConnector` bean records the `EciCall`. For MQ, a fake `MqConnector` bean records the `MqRequest`. For HTTP, a JDK `HttpServer` on a local port records the request.
+- A full exchange through a `CopyMapperClient`: the properties reach the transport. For CTG, a fake `EciConnector` bean records the `EciCall`. For MQ, a fake `MqConnector` bean records the `MqRequest`. For HTTP, a JDK `HttpServer` on a local port records the request.
 - Each default and each property of the table.
 - Each rule that stops the application.
 - The customizer order.
@@ -367,9 +367,9 @@ Special tests:
 
 ## 8. Documentation
 
-- `docs/wiki/Spring-Boot.md`: a section for each transport, with the properties and an example. Remove the sentence "BookMap has no real transport yet".
+- `docs/wiki/Spring-Boot.md`: a section for each transport, with the properties and an example. Remove the sentence "CopyMapper has no real transport yet".
 - `docs/wiki/CICS-Transaction-Gateway.md`, `IBM-MQ.md`, and `HTTP-transport.md` (from the transport PRs): a short "Spring Boot" section with a link.
-- `docs/design/2026-11-10-bookmap-design.md`, section 5.12: one sentence about the transport auto-configurations and `bookmap.transport.type`.
+- `docs/design/2026-11-10-copymapper-design.md`, section 5.12: one sentence about the transport auto-configurations and `copymapper.transport.type`.
 - `ROADMAP.md`: remove #29 in the last PR.
 - `README.md`: the "Project status" section, if it names the Spring Boot features.
 
@@ -377,10 +377,10 @@ Special tests:
 
 These points were not decided by the author. They are proposals of this design:
 
-- The property name `bookmap.transport.type`, the enum `TransportType`, and the record `BookmapTransportProperties`. A new component in `BookmapProperties` would change its public constructor.
-- The missing-transport check in `BookmapAutoConfiguration` (5.2).
+- The property name `copymapper.transport.type`, the enum `TransportType`, and the record `CopyMapperTransportProperties`. A new component in `CopyMapperProperties` would change its public constructor.
+- The missing-transport check in `CopyMapperAutoConfiguration` (5.2).
 - The connector bean (`EciConnector`, `MqConnector`) is separate from the transport bean, so the application can replace only the connector.
-- The MQ connection factory comes from the context, not from BookMap properties.
+- The MQ connection factory comes from the context, not from CopyMapper properties.
 - The properties records have their own route records. They do not bind the route records of the transport modules.
 - The defaults in the properties are the same values as the defaults of the builders, so the IDE shows them. The exception is `connect-timeout` of HTTP (5.5).
 - A password without a user ID stops the application.

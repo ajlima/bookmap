@@ -1,9 +1,9 @@
-# bookmap — Subtypes for `REDEFINES` (design)
+# copymapper — Subtypes for `REDEFINES` (design)
 
 Date: 2026-11-11
 Status: implemented in v0.2.0.
-Base package: `pt.dazz.bookmap`
-Parent spec: `2026-11-10-bookmap-design.md`
+Base package: `pt.dazz.copymapper`
+Parent spec: `2026-11-10-copymapper-design.md`
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. You can change them if you have a good reason. All other decisions come from the project owner.
 
@@ -23,7 +23,7 @@ A COBOL book often uses `REDEFINES` to give one area more than one layout. A fie
         10  MATURITY-DATE     PIC 9(8).
 ```
 
-bookmap v1 does not support `REDEFINES`. The old framework (`cicsannotations`) did not support it either. There, each layout was a separate Java subclass, and the caller selected the subclass before the call. That solution fails when the remote program selects the layout in the response.
+copymapper v1 does not support `REDEFINES`. The old framework (`cicsannotations`) did not support it either. There, each layout was a separate Java subclass, and the caller selected the subclass before the call. That solution fails when the remote program selects the layout in the response.
 
 This design adds **subtypes**, similar to `@JsonTypeInfo` and `@JsonSubTypes` in Jackson:
 
@@ -42,12 +42,12 @@ The processor generates all dispatch code at compile time. The framework uses no
 - The codec writes the discriminator value of a subclass automatically.
 - A clear `MappingException` for a discriminator value that has no subclass. The message contains the value.
 - Compile-time validation of the full hierarchy.
-- Support in the processor, `bookmap-core`, the simulator transport, and `bookmap-examples`. 100% line and branch coverage in all modules.
+- Support in the processor, `copymapper-core`, the simulator transport, and `copymapper-examples`. 100% line and branch coverage in all modules.
 
 ### 2.2 Non-goals
 
 - A `REDEFINES` without a discriminator, where all layouts of the same bytes are available at the same time. See `2026-11-16-redefines-views-design.md`.
-- Subtypes in a subtype (a subclass that declares its own `@BookSubTypes`).
+- Subtypes in a subtype (a subclass that declares its own `@SubTypes`).
 - A change of subclass between two pages of one execution.
 - Base fields after the redefined area (a trailer after the `REDEFINES`). See 4.4.
 - A discriminator with a custom converter, a scale, or a date and time type.
@@ -61,69 +61,69 @@ The processor generates all dispatch code at compile time. The framework uses no
 ## 3. Annotations
 
 ```java
-@BookOperation
-@BookSubTypes(discriminator = "accountType", value = {
-    @BookSubTypes.Type(value = "01", type = CheckingAccount.class),
-    @BookSubTypes.Type(value = "02", type = SavingsAccount.class)
+@Operation
+@SubTypes(discriminator = "accountType", value = {
+    @SubTypes.Type(value = "01", type = CheckingAccount.class),
+    @SubTypes.Type(value = "02", type = SavingsAccount.class)
 })
 public class GetAccount {
 
-    @BookField(order = 10, pic = "X(12)", direction = INPUT)
+    @Field(order = 10, pic = "X(12)", direction = INPUT)
     private String accountId;
 
-    @BookField(order = 20, pic = "9(2)")
+    @Field(order = 20, pic = "9(2)")
     private int accountType;                 // the discriminator, INPUT_OUTPUT
 }
 
 public class CheckingAccount extends GetAccount {
 
-    @BookField(order = 30, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
+    @Field(order = 30, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
     private BigDecimal overdraftLimit;
 
-    @BookField(order = 40, pic = "X(19)", direction = OUTPUT)
+    @Field(order = 40, pic = "X(19)", direction = OUTPUT)
     private String cardNumberMask;
 }
 
 public class SavingsAccount extends GetAccount {
 
-    @BookField(order = 30, pic = "9V9(4)", direction = OUTPUT)
+    @Field(order = 30, pic = "9V9(4)", direction = OUTPUT)
     private BigDecimal interestRate;
 
-    @BookField(order = 40, direction = OUTPUT)
+    @Field(order = 40, direction = OUTPUT)
     private LocalDate maturityDate;
 }
 ```
 
-`@BookSubTypes` (class, in `pt.dazz.bookmap.annotation`):
+`@SubTypes` (class, in `pt.dazz.copymapper.annotation`):
 
 | Attribute | Meaning | Default |
 |---|---|---|
 | `discriminator` | The name of the discriminator field. The base class or one of its superclasses declares the field. | Mandatory. |
-| `value` | The list of `@BookSubTypes.Type`. | Mandatory, at least one. |
+| `value` | The list of `@SubTypes.Type`. | Mandatory, at least one. |
 
-`@BookSubTypes.Type` (nested annotation):
+`@SubTypes.Type` (nested annotation):
 
 | Attribute | Meaning | Default |
 |---|---|---|
 | `value` | The discriminator value of the subclass, as text. | Mandatory. |
 | `type` | The subclass. | Mandatory. |
 
-The owner selected the Jackson style: the base class contains the full list. The owner selected the names `@BookSubTypes` and `@BookSubTypes.Type`, with the attributes `value` (the discriminator value) and `type` (the class).
+The owner selected the Jackson style: the base class contains the full list. The owner selected the names `@SubTypes` and `@SubTypes.Type`, with the attributes `value` (the discriminator value) and `type` (the class).
 
 The same annotation goes on the base class of a collection item:
 
 ```java
-@BookSubTypes(discriminator = "entryType", value = {
-    @BookSubTypes.Type(value = "C", type = CardPayment.class),
-    @BookSubTypes.Type(value = "T", type = Transfer.class)
+@SubTypes(discriminator = "entryType", value = {
+    @SubTypes.Type(value = "C", type = CardPayment.class),
+    @SubTypes.Type(value = "T", type = Transfer.class)
 })
 public abstract class StatementEntry {
-    @BookField(order = 10, pic = "X") private String entryType;
-    @BookField(order = 20, pic = "S9(13)V99 COMP-3") private BigDecimal amount;
+    @Field(order = 10, pic = "X") private String entryType;
+    @Field(order = 20, pic = "S9(13)V99 COMP-3") private BigDecimal amount;
 }
 
 // in the operation class
-@BookCollection(order = 70, maxOccurs = 50)
+@Occurs(order = 70, maxOccurs = 50)
 private List<StatementEntry> entries;
 ```
 
@@ -131,17 +131,17 @@ private List<StatementEntry> entries;
 
 ### 4.1 The base class and the subclasses
 
-- The base class has `@BookSubTypes`. For an operation, the base class also has `@BookOperation`. The subclasses do not have `@BookOperation`. They use the operation name of the base class.
+- The base class has `@SubTypes`. For an operation, the base class also has `@Operation`. The subclasses do not have `@Operation`. They use the operation name of the base class.
 - A `type` must be a subclass of the base class (direct or indirect). It must be public, not abstract, not generic, and it must have a public no-argument constructor. The Lombok rules of the parent spec (5.5) apply.
 - A `type` can be the base class itself, if the base class is not abstract. Then the base class has its own discriminator value **[builder call]**.
-- The base class can be `abstract`. Then the caller always sends a subclass. The rule "operation class must not be abstract" does not apply to a base class with `@BookSubTypes`.
+- The base class can be `abstract`. Then the caller always sends a subclass. The rule "operation class must not be abstract" does not apply to a base class with `@SubTypes`.
 - A class between the base class and a subclass can declare annotated fields. These fields belong to the subclass layout.
 - A `type` must not be a subclass of another `type` in the list. The base class is the only exception. Thus, a class change (4.8) always starts at the base class **[builder call]**.
 - An instance of a class that is not in the list causes `MappingException` ("No codec" for an operation, "unknown subclass" for an item). The codec compares the exact class.
 
 ### 4.2 The discriminator field
 
-- The discriminator is a `@BookField` of the base class or of one of its superclasses. It must not be in a subclass.
+- The discriminator is a `@Field` of the base class or of one of its superclasses. It must not be in a subclass.
 - Its Java type is `String`, `int`, `Integer`, `long`, or `Long`. It has no `converter` and no `scale`. Any `usage` is permitted.
 - **Operation level:** its direction is `OUTPUT` or `INPUT_OUTPUT`, because the response must contain it **[builder call]**. Item fields have no direction of their own. Thus, this rule does not apply to items.
 - An abstract operation base class with an `OUTPUT` discriminator is a compile error. In that case, `decodeRequest` (the simulator) cannot select a subclass **[builder call]**.
@@ -158,7 +158,7 @@ private List<StatementEntry> entries;
 
 - The `order` must be unique along each path from the base class to a subclass. Two subclasses can use the same `order` (they describe the same bytes).
 - Each member of a subclass must have an `order` greater than all members of the base class and its superclasses. Thus, the redefined area is the end of the layout. A base field after the area (a trailer) is a compile error in this version **[builder call]**. To model a trailer, repeat the field in each subclass, and add a filler field to align the offsets.
-- Fields after a collection, `dependsOn`, `@BookDefaults`, and the Lombok rules apply in each subclass as in the parent spec. A field of a subclass uses the defaults of its own declaring class and package.
+- Fields after a collection, `dependsOn`, `@Defaults`, and the Lombok rules apply in each subclass as in the parent spec. A field of a subclass uses the defaults of its own declaring class and package.
 - A subclass in another package needs public accessors, as a superclass does today.
 - The count field (`dependsOn`) of a collection in a subclass must be in the subclass layout: in the subclass, or in a class between the base class and the subclass. A count field in the base class is a compile error **[builder call]**. Thus, the base layout and the discriminator offset are the same for all subclasses, and the convention "the member immediately before the collection" never selects the discriminator. To model a count in the common header, declare it in each subclass.
 - A collection in the base class follows the parent spec, with its count field in the base class.
@@ -182,7 +182,7 @@ private List<StatementEntry> entries;
 
 ### 4.8 Client and class change
 
-`BookmapClient.execute(request)` returns the response object. That object is not always the request object.
+`CopyMapperClient.execute(request)` returns the response object. That object is not always the request object.
 
 1. The client finds the codec by the exact class of the request. The registry has an entry for the base class and for each subclass in the list. All entries give the same codec.
 2. On the first response, the codec selects the subclass.
@@ -258,8 +258,8 @@ The processor reports these new errors. Each message identifies the class, and t
 - A `type` that is not a subclass of the base class, or that is abstract, not public, generic, or without a public no-argument constructor.
 - The same `type` two times.
 - A blank `value`, a duplicate `value` (after normalization), a value that is not a number for a numeric field, or a value that does not fit in the field.
-- A `type` or a class between the base class and a `type` that has `@BookSubTypes` (subtypes in a subtype).
-- A `type` that has `@BookOperation`.
+- A `type` or a class between the base class and a `type` that has `@SubTypes` (subtypes in a subtype).
+- A `type` that has `@Operation`.
 - A `type` that is a subclass of another `type` (except the base class).
 - A collection in a subclass with a count field in the base class.
 - A duplicate `order` along a path from the base class to a subclass.
@@ -270,7 +270,7 @@ The processor reports these new errors. Each message identifies the class, and t
 
 - README: add a section "Subtypes (`REDEFINES`)". Change the limitation "No `REDEFINES`" to "No `REDEFINES` without a discriminator". Change "the same object, filled".
 - Parent spec: in 2.2, change `REDEFINES` to "`REDEFINES` without a discriminator", with a link to this spec. In 5.8, describe the returned object.
-- `bookmap-examples`: an operation `GetAccount` with the subclasses `CheckingAccount` and `SavingsAccount`, and a statement collection with the item subclasses `CardPayment` and `Transfer`. An end-to-end test with the simulator shows: a request with the base class and a response with a subclass, a mixed list of items, and an unknown discriminator value.
+- `copymapper-examples`: an operation `GetAccount` with the subclasses `CheckingAccount` and `SavingsAccount`, and a statement collection with the item subclasses `CardPayment` and `Transfer`. An end-to-end test with the simulator shows: a request with the base class and a response with a subclass, a mixed list of items, and an unknown discriminator value.
 
 ## 6. Left to the builder
 

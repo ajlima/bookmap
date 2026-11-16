@@ -1,19 +1,19 @@
-# BookMap IBM MQ transport: design
+# CopyMapper IBM MQ transport: design
 
 Date: 2026-11-13
 Status: implemented in v0.10.0.
 
-Related documents: `docs/design/2026-11-10-bookmap-design.md` (the main design, sections 2.2, 5.9, and 5.10), `docs/design/2026-11-13-ctg-transport-design.md` (the CTG transport, #26), `CLAUDE.md` (project rules), GitHub issue #27.
+Related documents: `docs/design/2026-11-10-copymapper-design.md` (the main design, sections 2.2, 5.9, and 5.10), `docs/design/2026-11-13-ctg-transport-design.md` (the CTG transport, #26), `CLAUDE.md` (project rules), GitHub issue #27.
 
 ## 1. Intent
 
-BookMap has a transport SPI and an in-memory simulator. This design adds a transport that calls a mainframe program through IBM MQ, with a request queue and a reply queue.
+CopyMapper has a transport SPI and an in-memory simulator. This design adds a transport that calls a mainframe program through IBM MQ, with a request queue and a reply queue.
 
-A user adds the module `bookmap-transport-mq` and a Jakarta Messaging provider, for example the IBM MQ client `com.ibm.mq:com.ibm.mq.jakarta.client`. The user maps each operation name to a request queue and, as an option, a reply queue. Then the user gives the transport to a `BookmapClient`. The application code does not change: it uses the same book classes as with the simulator or the CTG transport.
+A user adds the module `copymapper-transport-mq` and a Jakarta Messaging provider, for example the IBM MQ client `com.ibm.mq:com.ibm.mq.jakarta.client`. The user maps each operation name to a request queue and, as an option, a reply queue. Then the user gives the transport to a `CopyMapperClient`. The application code does not change: it uses the same book classes as with the simulator or the CTG transport.
 
 The server side is a program that gets the request message, for example a CICS transaction that an MQ trigger starts. The program reads the book bytes, writes the response bytes to the reply queue, and copies the message ID of the request to the correlation ID of the reply.
 
-The CTG transport (#26) and this transport use the same structure: a small BookMap connector interface, one adapter class, a builder with routes, and the same failure translation approach. The Spring Boot auto-configuration of the transports is a separate issue (#29).
+The CTG transport (#26) and this transport use the same structure: a small CopyMapper connector interface, one adapter class, a builder with routes, and the same failure translation approach. The Spring Boot auto-configuration of the transports is a separate issue (#29).
 
 ## 2. Goals, non-goals, and anti-goals
 
@@ -23,7 +23,7 @@ Goals:
 - A mapping from operation name to request queue and reply queue, set in a builder.
 - A temporary reply queue when the route and the builder have no reply queue.
 - Two correlation modes: the message ID of the request becomes the correlation ID of the reply (the default), or the server copies the correlation ID of the request to the reply.
-- A translation of each failure to one of the BookMap exceptions of section 5.10 of the main design.
+- A translation of each failure to one of the CopyMapper exceptions of section 5.10 of the main design.
 - A thread-safe transport, with a bounded pool of sessions.
 - 100% line and branch coverage without a real queue manager.
 - Publication to Maven Central, with no IBM artifact in the POM.
@@ -42,9 +42,9 @@ Non-goals (possible later):
 
 Anti-goals (failure, even if the code works):
 
-- `bookmap-core` or `bookmap-processor` depends on Jakarta Messaging or on an MQ library, or contains an MQ concept.
-- A published BookMap artifact contains IBM code, or the POM of a published artifact names an IBM artifact.
-- A `JMSException` or a provider exception goes to the caller without a translation to a BookMap exception.
+- `copymapper-core` or `copymapper-processor` depends on Jakarta Messaging or on an MQ library, or contains an MQ concept.
+- A published CopyMapper artifact contains IBM code, or the POM of a published artifact names an IBM artifact.
+- A `JMSException` or a provider exception goes to the caller without a translation to a CopyMapper exception.
 - Silent data damage: a character conversion changes the bytes of a packed or binary field in the request or in the reply.
 - A reply of another request goes to the caller.
 
@@ -102,11 +102,11 @@ The author selected A.
 
 ### 5.1 Module and packages
 
-- Module: `bookmap-transport-mq`. Dependencies: `api(project(":bookmap-core"))` and `api("jakarta.jms:jakarta.jms-api:3.1.0")`. No other runtime dependency.
-- Package `pt.dazz.bookmap.mq`: `MqTransport`, `MqRoute`, `MqCorrelation`, `MqConnector`, `MqSession`, `MqRequest`, `MqException`, `MqFailure`.
-- Package `pt.dazz.bookmap.mq.jms`: `JmsConnector`, the adapter to Jakarta Messaging. It is the only class that names a `jakarta.jms` class.
+- Module: `copymapper-transport-mq`. Dependencies: `api(project(":copymapper-core"))` and `api("jakarta.jms:jakarta.jms-api:3.1.0")`. No other runtime dependency.
+- Package `pt.dazz.copymapper.mq`: `MqTransport`, `MqRoute`, `MqCorrelation`, `MqConnector`, `MqSession`, `MqRequest`, `MqException`, `MqFailure`.
+- Package `pt.dazz.copymapper.mq.jms`: `JmsConnector`, the adapter to Jakarta Messaging. It is the only class that names a `jakarta.jms` class.
 
-`bookmap-core` and `bookmap-processor` do not change.
+`copymapper-core` and `copymapper-processor` do not change.
 
 ### 5.2 The connector interface
 
@@ -137,7 +137,7 @@ public enum MqFailure { NOT_AUTHORIZED, INVALID_QUEUE, NOT_BYTES, OTHER }
 - `open()` connects to the queue manager and opens one session. A session is used by one thread at a time.
 - `send` puts the request message and returns its message ID. `replyQueue` is the reply-to queue of the message. `null` means the temporary queue of the session. `correlationId` is `null` in the mode `MESSAGE_ID`. `timeToLive` is the expiry of the message: `Duration.ZERO` means no expiry.
 - `receive` waits for a maximum of `wait` for the message with the correlation ID `correlationId` on `replyQueue` (`null`: the temporary queue). It returns the bytes of the message, or `null` after the wait.
-- `MqFailure` tells the type of a failure. The transport selects the BookMap exception from the failure and the step (see 5.5). `NOT_BYTES` means that the reply is not a bytes message.
+- `MqFailure` tells the type of a failure. The transport selects the CopyMapper exception from the failure and the step (see 5.5). `NOT_BYTES` means that the reply is not a bytes message.
 
 A user can implement `MqConnector` for another client, for example a test fake or the IBM MQ classes for Java. `JmsConnector` is the implementation for Jakarta Messaging.
 
@@ -229,7 +229,7 @@ Each failure has one source and one exception:
 
 Each message gives the operation, the queue, and the failure, for example `GetInvoice (INVOICE.REQUEST): no reply after PT30S` or `GetInvoice (INVOICE.REQUEST): send failed (INVALID_QUEUE)`. The cause of the exception is the `MqException`. Its cause is the `JMSException`, with the MQ reason code in its message.
 
-A security failure has no BookMap exception of its own, as in the CTG design. This design adds no exception to `bookmap-core`.
+A security failure has no CopyMapper exception of its own, as in the CTG design. This design adds no exception to `copymapper-core`.
 
 **The JMS exception types.** `JmsConnector` sets the `MqFailure` from the type of the `JMSException`:
 
@@ -281,7 +281,7 @@ A reply with the format `MQFMT_NONE` comes as a `BytesMessage`, without a charac
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-transport-mq:<version>")
+    implementation("pt.dazz.copymapper:copymapper-transport-mq:<version>")
     runtimeOnly("com.ibm.mq:com.ibm.mq.jakarta.client:9.4.3.0")   // IBM license
 }
 ```
@@ -292,7 +292,7 @@ The user creates the `MQConnectionFactory` in the application code. Thus, the ap
 
 - `MqRouteTest`: the rules of 5.3.
 - `MqTransportTest`, with a fake `MqConnector`: each row of the table of 5.5, the values in `MqRequest`, the two correlation modes, the reply queue selection (route, default, temporary), the builder rules (also the rule for persistent messages and a temporary queue), the pool (reuse, the limit, the wait timeout, the discard after a failure, the interrupt), and `close`.
-- `MqTransportClientTest`: a `BookmapClient` with a generated codec, a fake connector, and a full call.
+- `MqTransportClientTest`: a `CopyMapperClient` with a generated codec, a fake connector, and a full call.
 - `JmsConnectorTest`, with an embedded Apache ActiveMQ Artemis broker (in-VM, no network, no persistence): a request and a reply from a small server thread in the test, both correlation modes, a named reply queue and a temporary queue, the selector (a reply for another correlation ID stays on the queue), the timeout, a `TextMessage` reply (`NOT_BYTES`), the time to live, the credentials, and `close`.
 - `JmsConnectorTest`, for the failure types: a `JMSSecurityException`, an `InvalidDestinationException`, and another `JMSException` give the correct `MqFailure`. The test makes these exceptions directly, and with the broker where possible (security on, and a queue that does not exist with the automatic creation of queues off).
 - `JmsConnectorTest`, for the queue names: `mqNativeMessages(true)` gives `queue:///NAME?targetClient=1`, a name that starts with `queue://` does not change, and `false` gives the name as it is. Artemis does not accept the IBM form, so this test calls the name function directly.
@@ -301,8 +301,8 @@ No test uses a real queue manager or the IBM library.
 
 ## 7. Changes outside the module
 
-- `settings.gradle.kts`: include `bookmap-transport-mq`.
-- `build.gradle.kts`: add the module to `publishedModules`, with the description "BookMap transport for IBM MQ (Jakarta Messaging request and reply)."
+- `settings.gradle.kts`: include `copymapper-transport-mq`.
+- `build.gradle.kts`: add the module to `publishedModules`, with the description "CopyMapper transport for IBM MQ (Jakarta Messaging request and reply)."
 - `gradle/libs.versions.toml`: `jakarta-jms-api` 3.1.0, and the Artemis test libraries (`artemis-jakarta-server`, `artemis-jakarta-client`).
 - `gradle/verification-metadata.xml`: run `scripts/update-verification-metadata.sh`.
 - `docs/wiki/Contributing.md`, `RELEASING.md`, and the release workflow: add the module to the list of published modules, if the workflow has a list.
@@ -310,7 +310,7 @@ No test uses a real queue manager or the IBM library.
 - `docs/wiki/Transports-and-simulator.md` and `docs/wiki/Getting-started.md`: name the new transport.
 - `README.md`: the module list and the "Project status" section.
 - `ROADMAP.md`: remove #27.
-- `bookmap-core` and `bookmap-processor`: no change.
+- `copymapper-core` and `copymapper-processor`: no change.
 
 ## 8. Calls made by the builder of this design
 
@@ -325,7 +325,7 @@ These points were not decided by the author. They are proposals of this design:
 - Non-persistent request messages by default. Request and reply traffic is usually non-persistent, and a temporary reply queue does not accept persistent messages.
 - `mqNativeMessages(true)` by default, because the module is for IBM MQ.
 - One queue manager and one set of credentials for each transport. The credentials are in the connector, not in the transport.
-- The pool code is a copy of the pool of the CTG transport, not a shared module. `bookmap-core` does not change, and the two transports are on separate branches. A shared internal module can come later.
+- The pool code is a copy of the pool of the CTG transport, not a shared module. `copymapper-core` does not change, and the two transports are on separate branches. A shared internal module can come later.
 - The tests of the adapter use an embedded Artemis broker. It is a test dependency only, and it does not go into the POM.
 
 ## 9. Left to the implementation

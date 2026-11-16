@@ -2,8 +2,8 @@
 
 Date: 2026-11-16
 Status: approved.
-Base package: `pt.dazz.bookmap`
-Parent specs: `2026-11-10-bookmap-design.md`, `2026-11-11-bookmap-subtypes-design.md`
+Base package: `pt.dazz.copymapper`
+Parent specs: `2026-11-10-copymapper-design.md`, `2026-11-11-copymapper-subtypes-design.md`
 Issue: #38
 
 ## 1. Intent
@@ -35,7 +35,7 @@ This design adds **views**. A view is a member that reads and writes the bytes o
 
 These are facts from `main` (v0.26.0):
 
-- `bookmap-processor`: a member is a `FieldModel` or a `CollectionModel` (sealed `MemberModel`). Each member occupies its own bytes after the member before it. The offset of a member is the sum of `areaLength()` of the members before it. `SubTypesGenerator` and `ItemMethodsGenerator` (the discriminator offset of an operation and of an item), `ModelBuilder` (`emptyKeyOffset`, record length in `long`), and `CodecGenerator.maxResponseLength()` all use this sum.
+- `copymapper-processor`: a member is a `FieldModel` or a `CollectionModel` (sealed `MemberModel`). Each member occupies its own bytes after the member before it. The offset of a member is the sum of `areaLength()` of the members before it. `SubTypesGenerator` and `ItemMethodsGenerator` (the discriminator offset of an operation and of an item), `ModelBuilder` (`emptyKeyOffset`, record length in `long`), and `CodecGenerator.maxResponseLength()` all use this sum.
 - A group without `OCCURS` has no Java class. The processor knows only operation classes, item classes, and subclasses.
 - Two members with the same `order` along one path is a compile error: `duplicate order, also used by <Owner>.<name>`.
 - `BookWriter` is append-only (`ByteArrayOutputStream`). It cannot write over bytes that it wrote before. `BookReader.peek(offset)` gives a second reader on the same bytes. The subtypes code uses it to read the discriminator.
@@ -48,8 +48,8 @@ These are facts from `main` (v0.26.0):
   - A group `REDEFINES` area becomes a direction split (`directions`, or a marker in the name) or subtypes (`subTypes`). Without a decision, the generator stops with `REDEFINES area INVOICE-QUERY at line 3 needs a decision. ...`.
   - An elementary item with `REDEFINES` is skipped, with the warning `E2 redefines E1 and is skipped`. A longer item is an error. An elementary item that redefines a group is an error.
   - A group that redefines an elementary item is an error: `<item> redefines <name>, which is not a group with the same parent`.
-  - A group area in an alternative of another area (in a subtype, or in a split alternative): the generator keeps the redefined group and skips the others, with the warning `the REDEFINES area LIMITS is inside another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS. See issues #38 and #39.`
-  - An alternative with `OCCURS` is an error: `the REDEFINES alternative X has OCCURS. BookMap does not support this.`
+  - A group area in an alternative of another area (in a subtype, or in a split alternative): the generator keeps the redefined group and skips the others, with the warning `the REDEFINES area LIMITS is inside another REDEFINES area. CopyMapper keeps LIMITS and skips OTHER-LIMITS. See issues #38 and #39.`
+  - An alternative with `OCCURS` is an error: `the REDEFINES alternative X has OCCURS. CopyMapper does not support this.`
   - `RecordLength` and `RedefinesResolver.length` already use the longest alternative.
 
 ## 3. Goals, non-goals, and anti-goals
@@ -62,12 +62,12 @@ These are facts from `main` (v0.26.0):
 - A view can be in an operation class, an item class, a subclass, or a group class. A view can contain a fixed table and another area.
 - Members after the area (a trailer) are permitted.
 - The copybook generator maps an area to views with a new option.
-- Support in the processor, `bookmap-core`, the simulator, the generator, the CLI, and the plugins. 100% line and branch coverage.
+- Support in the processor, `copymapper-core`, the simulator, the generator, the CLI, and the plugins. 100% line and branch coverage.
 
 ### 3.2 Non-goals
 
 - A member of an area that is a variable collection (`OCCURS DEPENDING ON`) or that contains one. COBOL does not permit a variable item in a `REDEFINES` area either. An area in the item class of a variable collection is permitted, because the item length is fixed.
-- A `@BookGroup` outside a `REDEFINES` area. See decision 3.
+- A `@Group` outside a `REDEFINES` area. See decision 3.
 - Subtypes in a group class.
 - A view with a different direction from its area. The direction split covers this case.
 - A lazy decode on the first call of a getter. The POJO is the class of the user, so a getter cannot call the codec.
@@ -82,15 +82,15 @@ These are facts from `main` (v0.26.0):
 
 ### 4.1 The attribute `redefines`
 
-`@BookField`, `@BookCollection`, and the new `@BookGroup` get one attribute:
+`@Field`, `@Occurs`, and the new `@Group` get one attribute:
 
 | Attribute | Meaning | Default |
 |---|---|---|
 | `redefines` | The Java field name of the member that this member redefines. The member is in the same class. | `""`: not a view. |
 
-### 4.2 The annotation `@BookGroup`
+### 4.2 The annotation `@Group`
 
-`@BookGroup` (field, in `pt.dazz.bookmap.annotation`, retention `CLASS`) maps a COBOL group without `OCCURS` to a field of a **group class**.
+`@Group` (field, in `pt.dazz.copymapper.annotation`, retention `CLASS`) maps a COBOL group without `OCCURS` to a field of a **group class**.
 
 | Attribute | Meaning | Default |
 |---|---|---|
@@ -98,57 +98,57 @@ These are facts from `main` (v0.26.0):
 | `direction` | The direction. Only on the redefined member of an area at the operation level. | `INPUT_OUTPUT` |
 | `redefines` | See 4.1. | `""` |
 
-A group class follows the rules of an item class: public, not generic, a public no-argument constructor, at least one `@BookField`, and only fixed collections. Its members have no `direction`. `@BookDefaults` and the charset rule of an item class apply.
+A group class follows the rules of an item class: public, not generic, a public no-argument constructor, at least one `@Field`, and only fixed collections. Its members have no `direction`. `@Defaults` and the charset rule of an item class apply.
 A group class can contain a `REDEFINES` area. Thus, an area in an area is possible.
 
 ### 4.3 Terms
 
 - An **area** is one redefined member and all its views.
-- The **redefined member** is the first member of the area. It has no `redefines`. It can be a `@BookField`, a `@BookGroup`, or a fixed `@BookCollection`.
+- The **redefined member** is the first member of the area. It has no `redefines`. It can be a `@Field`, a `@Group`, or a fixed `@Occurs`.
 - A **view** is a member with `redefines`. Each view names the redefined member, never another view. This is the COBOL rule.
 
 ### 4.4 Example
 
 ```java
-@BookOperation
+@Operation
 public class GetShipment {
 
-    @BookField(order = 10, pic = "X(10)", direction = Direction.INPUT)
+    @Field(order = 10, pic = "X(10)", direction = Direction.INPUT)
     private String shipmentId;
 
-    @BookField(order = 20, pic = "X(16)", direction = Direction.OUTPUT)
+    @Field(order = 20, pic = "X(16)", direction = Direction.OUTPUT)
     private String trackingCode;
 
-    @BookGroup(order = 30, redefines = "trackingCode")
+    @Group(order = 30, redefines = "trackingCode")
     private TrackingParts trackingParts;
 
-    @BookField(order = 40, pic = "X(2)", direction = Direction.OUTPUT)
+    @Field(order = 40, pic = "X(2)", direction = Direction.OUTPUT)
     private String resultCode;
 
-    @BookGroup(order = 50, direction = Direction.OUTPUT)
+    @Group(order = 50, direction = Direction.OUTPUT)
     private ResultDetail resultDetail;
 
-    @BookGroup(order = 60, redefines = "resultDetail")
+    @Group(order = 60, redefines = "resultDetail")
     private DeliveryData deliveryData;
 
-    @BookField(order = 70, pic = "S9(7)V99 COMP-3", direction = Direction.OUTPUT)
+    @Field(order = 70, pic = "S9(7)V99 COMP-3", direction = Direction.OUTPUT)
     private BigDecimal shippingCharge;
 }
 
 public class TrackingParts {
-    @BookField(order = 10, pic = "X(4)") private String carrierCode;
-    @BookField(order = 20, pic = "9(6)") private int routeNumber;
-    @BookField(order = 30, pic = "9(6)") private int sequenceNumber;
+    @Field(order = 10, pic = "X(4)") private String carrierCode;
+    @Field(order = 20, pic = "9(6)") private int routeNumber;
+    @Field(order = 30, pic = "9(6)") private int sequenceNumber;
 }
 
 public class ResultDetail {
-    @BookField(order = 10, pic = "X(40)") private String errorText;
+    @Field(order = 10, pic = "X(40)") private String errorText;
 }
 
 public class DeliveryData {
-    @BookField(order = 10, pic = "9(8)") private LocalDate deliveryDate;
-    @BookField(order = 20, pic = "S9(5)V99 COMP-3") private BigDecimal deliveredWeight;
-    @BookField(order = 30, pic = "X(20)") private String signedBy;
+    @Field(order = 10, pic = "9(8)") private LocalDate deliveryDate;
+    @Field(order = 20, pic = "S9(5)V99 COMP-3") private BigDecimal deliveredWeight;
+    @Field(order = 30, pic = "X(20)") private String signedBy;
 }
 ```
 
@@ -181,7 +181,7 @@ All code that adds `areaLength()` sees the area once: the record length check, `
 The **top members** of an area are the redefined member and its views. A top member must not be:
 
 - A count field (`dependsOn`, also the default "member immediately before the collection").
-- A discriminator of `@BookSubTypes`.
+- A discriminator of `@SubTypes`.
 - An `emptyKey` field.
 - A collection with `dependsOn`, or a collection that is not fixed.
 - A collection with `partial = true`.
@@ -230,7 +230,7 @@ To send the bytes of a view again, set the members before it to `null`. For an `
 
 - A base class, a subclass, and an item subclass can contain an area.
 - The discriminator must not be in an area (5.4).
-- A group class must not have `@BookSubTypes`.
+- A group class must not have `@SubTypes`.
 - The redefined member and its views are in the same class. A subclass cannot redefine a member of the base class.
 
 ### 5.9 Partial responses and `maxResponseLength()`
@@ -257,14 +257,14 @@ Each message starts with the descriptor `<Owner>.<name> (order <n>): ` of the an
 | `dependsOn field 'x' must not be in a REDEFINES area` | 5.4. Also for the default count field. |
 | `discriminator must not be in a REDEFINES area` | 5.4. |
 | `emptyKey field 'x' must not be in a REDEFINES area` | 5.4. |
-| `a @BookGroup must be in a REDEFINES area` | A `@BookGroup` that no view names, and without `redefines`. |
+| `a @Group must be in a REDEFINES area` | A `@Group` that no view names, and without `redefines`. |
 | `group class X must be a public class with a public no-argument constructor` | 4.2. |
 | `group class X must not have type parameters` | 4.2. |
-| `group class X must have at least one @BookField` | 4.2. |
-| `group class X must not have @BookSubTypes` | 5.8. |
+| `group class X must have at least one @Field` | 4.2. |
+| `group class X must not have @SubTypes` | 5.8. |
 | `group class X contains itself: A > B > A` | A group class that contains itself, directly or through an item class. |
 
-A field with `@BookField(redefines = ...)` and `@BookCollection` gives the existing error `a field must not have both @BookField and @BookCollection`. The same rule applies to `@BookGroup`: `a field must have only one of @BookField, @BookCollection, and @BookGroup`.
+A field with `@Field(redefines = ...)` and `@Occurs` gives the existing error `a field must not have both @Field and @Occurs`. The same rule applies to `@Group`: `a field must have only one of @Field, @Occurs, and @Group`.
 
 ## 7. Runtime messages
 
@@ -278,12 +278,12 @@ The area adds no new runtime message. These existing messages apply:
 
 A member that is not valid on read gives `null` and no message (5.5).
 
-## 8. Runtime API in `bookmap-core`
+## 8. Runtime API in `copymapper-core`
 
-- `@BookGroup` (new) and the attribute `redefines` on `@BookField` and `@BookCollection`.
+- `@Group` (new) and the attribute `redefines` on `@Field` and `@Occurs`.
 - `BookReader.area(String field, int length)` (new). It checks that `length` bytes remain, with the message of `take`. It gives a reader on a copy of the bytes of the area, and it moves this reader after the area. Thus, a member cannot read past the end of the area.
 - `BookReader.orNull(Supplier<J> read)` (new, static). It calls `read`, and it gives `null` if `read` throws `InvalidValueException`. Other exceptions go to the caller. A generated codec calls it once for each member of an area. A lambda is not reflection.
-- `InvalidValueException` (new, in `pt.dazz.bookmap.exception`), a subclass of `MappingException`. The messages do not change.
+- `InvalidValueException` (new, in `pt.dazz.copymapper.exception`), a subclass of `MappingException`. The messages do not change.
 - `BookWriter`: no change. The generated code selects the member before it writes, and it calls `writeFiller` for the remaining bytes.
 
 The method names are a builder call.
@@ -318,9 +318,9 @@ On the command line, use `--view TRACKING-CODE --view RESULT-DETAIL`.
 
 ### 10.2 What the generator writes
 
-- An elementary alternative gives a `@BookField`. An integer gets `Integer` or `Long`, not `int` or `long`.
-- A group alternative gives a `@BookGroup` and a group class (`ClassKind.GROUP`). The class name comes from the item name, with the rules of an item class name.
-- An alternative with `OCCURS n` gives a fixed `@BookCollection`.
+- An elementary alternative gives a `@Field`. An integer gets `Integer` or `Long`, not `int` or `long`.
+- A group alternative gives a `@Group` and a group class (`ClassKind.GROUP`). The class name comes from the item name, with the rules of an item class name.
+- An alternative with `OCCURS n` gives a fixed `@Occurs`.
 - Each alternative after the first gets `redefines` with the Java name of the first.
 - An elementary top member gets no initial value (5.6). Its `VALUE` gives the `info` diagnostic `the VALUE of X is ignored, because X is in a REDEFINES view`. The members inside a group class keep their initial values.
 - The level 88 items of an elementary top member give an enum or constants, as for other fields.
@@ -350,7 +350,7 @@ Changed messages. Each one gets a hint about the option:
 |---|---|
 | `REDEFINES area INVOICE-QUERY at line 3 needs a decision. ... "02"}}}.` | The same text, then ` Or map the area to views: "views": ["INVOICE-QUERY"].` |
 | `E2 redefines E1 and is skipped` | `E2 redefines E1 and is skipped. To keep both, add "views": ["E1"].` |
-| `the REDEFINES area LIMITS is inside another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS. See issues #38 and #39.` | `... BookMap keeps LIMITS and skips OTHER-LIMITS. To keep both, add "views": ["LIMITS"].` |
+| `the REDEFINES area LIMITS is inside another REDEFINES area. CopyMapper keeps LIMITS and skips OTHER-LIMITS. See issues #38 and #39.` | `... CopyMapper keeps LIMITS and skips OTHER-LIMITS. To keep both, add "views": ["LIMITS"].` |
 
 These three messages are in `docs/wiki/Copybook-generator.md`. The two errors about a longer elementary item and an elementary item that redefines a group stay, if the area has no `views` option.
 
@@ -377,14 +377,14 @@ Other generator changes:
 
 - Processor: each compile error of section 6, and a `ModelSnapshot` of the example.
 - Core: `BookReader.area` and `orNull`.
-- End to end with the simulator, in `bookmap-examples`: the example of 4.4 with a delivered and a failed shipment; an area in an item; a view with a fixed table; an area in an area; an `INPUT_OUTPUT` area on two pages of a `Continuable` operation.
+- End to end with the simulator, in `copymapper-examples`: the example of 4.4 with a delivered and a failed shipment; an area in an item; a view with a fixed table; an area in an area; an `INPUT_OUTPUT` area on two pages of a `Continuable` operation.
 - Generator: a golden test for each case of 10.1, each diagnostic of 10.3, and the unchanged output without the option.
-- Mutation tests on `bookmap-core`, `bookmap-processor`, and `bookmap-copybook`.
+- Mutation tests on `copymapper-core`, `copymapper-processor`, and `copymapper-copybook`.
 
 ## 12. Documentation
 
 - A new wiki page "REDEFINES views", with the example of 4.4 and the rules of 5.5 and 5.6.
-- `docs/wiki/Annotations-reference.md`: `@BookGroup` and `redefines`.
+- `docs/wiki/Annotations-reference.md`: `@Group` and `redefines`.
 - `docs/wiki/Copybook-generator.md` and `docs/wiki/Copybook-generator-CLI.md`: the option `views` and `--view`, and the changed messages.
 - `docs/wiki/Home.md`: remove the limitation "No `REDEFINES` without a discriminator". The README has no list of limitations.
 - `README.md`: a row "`REDEFINES` without a discriminator" in the feature table, next to the row of subtypes.
@@ -397,9 +397,9 @@ A `feat:` commit merged to `main` publishes a new minor version. The owner must 
 
 ## 14. Decisions for review
 
-1. Names: the attribute `redefines` and the annotation `@BookGroup`. Other names: `@BookView`, `overlays`. `redefines` uses the COBOL word.
+1. Names: the attribute `redefines` and the annotation `@Group`. Other names: `@BookView`, `overlays`. `redefines` uses the COBOL word.
 2. A view names the redefined member, not the view before it. This is the COBOL rule.
-3. `@BookGroup` only in a `REDEFINES` area. A general `@BookGroup` (a group without `OCCURS` anywhere) is a small extension. It needs a rule for a `null` group on write. The generator would still flatten a normal group.
+3. `@Group` only in a `REDEFINES` area. A general `@Group` (a group without `OCCURS` anywhere) is a small extension. It needs a rule for a `null` group on write. The generator would still flatten a normal group.
 4. Read: decode all members of the area, every time. A lazy decode is not possible without a codec in the POJO.
 5. Read: a member that is not valid gives `null`, with no error and no log (5.5). Alternatives:
    - Strict by default, with an opt-in `lenient` attribute. Most areas with a number view would then need the attribute.

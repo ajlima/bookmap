@@ -1,9 +1,9 @@
-# BookMap, SIGN LEADING and SIGN SEPARATE: design
+# CopyMapper, SIGN LEADING and SIGN SEPARATE: design
 
 Date: 2026-11-13
 Status: implemented in v0.21.0.
 
-Related documents: `docs/design/2026-11-10-bookmap-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-11-bookmap-copybook-design.md` (the generator), GitHub issue #47.
+Related documents: `docs/design/2026-11-10-copymapper-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-11-copymapper-copybook-design.md` (the generator), GitHub issue #47.
 
 ## 1. Intent
 
@@ -29,7 +29,7 @@ Goals:
 
 Non-goals:
 
-- No `sign` default in `@BookDefaults`. COBOL has no such default. The group-level clause of the generator covers the copybooks.
+- No `sign` default in `@Defaults`. COBOL has no such default. The group-level clause of the generator covers the copybooks.
 - No sign format for `COMP-3` or `COMP`. COBOL permits the `SIGN` clause only for `DISPLAY`.
 - No change to `FieldContext`. A field with a converter cannot have a sign format other than the default (see 3.4).
 - No compiler options such as `NUMPROC`. The read rules for the zones stay as today.
@@ -38,7 +38,7 @@ Non-goals:
 
 ### 3.1 The enum `Sign`
 
-A new enum in `pt.dazz.bookmap.annotation`:
+A new enum in `pt.dazz.copymapper.annotation`:
 
 | Constant | COBOL clause | Bytes |
 |---|---|---|
@@ -49,10 +49,10 @@ A new enum in `pt.dazz.bookmap.annotation`:
 
 `length` is the number of digits. The separate sign character is one more byte.
 
-### 3.2 The attribute `BookField.sign`
+### 3.2 The attribute `Field.sign`
 
 ```java
-@BookField(order = 10, length = 7, scale = 2, signed = true, sign = Sign.LEADING_SEPARATE)
+@Field(order = 10, length = 7, scale = 2, signed = true, sign = Sign.LEADING_SEPARATE)
 private BigDecimal tax;
 ```
 
@@ -61,7 +61,7 @@ The default is `Sign.TRAILING`. The processor treats the attribute as set only w
 ### 3.3 The `SIGN` clause in `pic`
 
 ```java
-@BookField(order = 10, pic = "S9(5)V99 SIGN LEADING SEPARATE")
+@Field(order = 10, pic = "S9(5)V99 SIGN LEADING SEPARATE")
 private BigDecimal tax;
 ```
 
@@ -191,7 +191,7 @@ The generator writes the sign clause in `pic`. It does not write the default:
 ```
 
 ```java
-@BookField(order = 30, pic = "S9(5)V99 SIGN LEADING SEPARATE")
+@Field(order = 30, pic = "S9(5)V99 SIGN LEADING SEPARATE")
 private BigDecimal orderTax;
 ```
 
@@ -207,7 +207,7 @@ Thus, the JSON model, `MappingOptions`, and the Gradle and Maven plugins do not 
 
 1. **API.** The sign goes into `pic`, as the usage. The attribute `sign` is for a field without `pic`. `pic` together with `sign` is a compile error.
 2. **One enum with four constants.** The alternative is two attributes (`signLeading`, `signSeparate`). One enum gives no invalid combination.
-3. **No `sign` in `@BookDefaults`.**
+3. **No `sign` in `@Defaults`.**
 4. **No sign format with a converter.** `FieldContext` does not change. A later change can add the sign to `FieldContext`.
 5. **Explicit `sign` on an unsigned field is an error**, also `TRAILING`. This is the COBOL rule.
 6. **Strict separate sign.** Only `+` and `-`. A space in the sign byte is an error.

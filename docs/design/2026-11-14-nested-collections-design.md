@@ -3,13 +3,13 @@
 Date: 2026-11-14
 Status: implemented in v0.24.0.
 Issue: #43
-Parent specs: `2026-11-10-bookmap-design.md` (section 2.2), `2026-11-11-bookmap-fixed-occurs-design.md`, `2026-11-13-empty-item-markers-design.md`
+Parent specs: `2026-11-10-copymapper-design.md` (section 2.2), `2026-11-11-copymapper-fixed-occurs-design.md`, `2026-11-13-empty-item-markers-design.md`
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. Section 14 lists them for review.
 
 ## 1. Intent
 
-BookMap rejects a `@BookCollection` in an item class. The copybook generator rejects an `OCCURS` in an `OCCURS`. Many books have a table in a table entry:
+CopyMapper rejects a `@Occurs` in an item class. The copybook generator rejects an `OCCURS` in an `OCCURS`. Many books have a table in a table entry:
 
 ```cobol
 01  GET-ORDER.
@@ -31,12 +31,12 @@ This spec adds a collection in an item class (a **nested collection**), with the
 
 ### 2.1 Goals
 
-- A `@BookCollection` in an item class, also in a subtype of an item class.
+- A `@Occurs` in an item class, also in a subtype of an item class.
 - A fixed inner collection in all four modes: count, LOW-VALUES, SPACES, and key.
 - A fixed or a variable outer collection.
 - Nested collections at more than two levels, up to the depth limit (section 9).
 - Messages that name the index at each level of a nested collection.
-- Support in `bookmap-processor`, `bookmap-core` (only if necessary, add-only), the copybook generator, the documentation, and `bookmap-examples`. 100% line and branch coverage.
+- Support in `copymapper-processor`, `copymapper-core` (only if necessary, add-only), the copybook generator, the documentation, and `copymapper-examples`. 100% line and branch coverage.
 
 ### 2.2 Non-goals
 
@@ -80,7 +80,7 @@ A count field outside the item class is a compile error. One count for all entri
 
 ## 4. Annotation API
 
-No new annotation and no new attribute. `@BookCollection` is now permitted in an item class, with these rules:
+No new annotation and no new attribute. `@Occurs` is now permitted in an item class, with these rules:
 
 - An inner collection must have `fixed = true`.
 - `dependsOn` names a field of the same item class (with subtypes: of the same layout, as for an operation class).
@@ -91,16 +91,16 @@ No new annotation and no new attribute. `@BookCollection` is now permitted in an
 ```java
 public class OrderLine {
 
-    @BookField(order = 10, pic = "X(8)")
+    @Field(order = 10, pic = "X(8)")
     private String productCode;
 
-    @BookField(order = 20, pic = "9(5)")
+    @Field(order = 20, pic = "9(5)")
     private int quantity;
 
-    @BookField(order = 30, pic = "9")
+    @Field(order = 30, pic = "9")
     private int taxCount;
 
-    @BookCollection(order = 40, maxOccurs = 3, fixed = true, dependsOn = "taxCount")
+    @Occurs(order = 40, maxOccurs = 3, fixed = true, dependsOn = "taxCount")
     private List<LineTax> taxes;
 
     // getters and setters
@@ -193,7 +193,7 @@ The processor also detects a cycle: an item class that contains itself. Without 
 ### 10.1 Mapping
 
 - An `OCCURS` without `DEPENDING ON` in an `OCCURS` entry maps to a fixed inner collection in the item class.
-- An `OCCURS DEPENDING ON` in an `OCCURS` entry is an error (section 3.2). The message: `OCCURS <inner> DEPENDING ON <object> is inside OCCURS <outer>. BookMap does not support a DEPENDING ON table in a table entry (complex OCCURS DEPENDING ON).` **[builder call]**
+- An `OCCURS DEPENDING ON` in an `OCCURS` entry is an error (section 3.2). The message: `OCCURS <inner> DEPENDING ON <object> is inside OCCURS <outer>. CopyMapper does not support a DEPENDING ON table in a table entry (complex OCCURS DEPENDING ON).` **[builder call]**
 - An inner table gets the direction of the outer table. The `Continuable` check of an `INPUT_OUTPUT` table applies only to a top-level table.
 - The info diagnostic about a `COMP` item in LOW-VALUES mode applies to each fixed table.
 - The record length and the "largest tables" warning count the inner tables in the outer entry length. The warning names only top-level tables.
@@ -210,7 +210,7 @@ The options find a table through its COBOL name, bare or qualified (`LINE-TAX` o
 
 ### 10.4 Generated classes and model JSON
 
-- An item class can have a `@BookCollection` member.
+- An item class can have a `@Occurs` member.
 - The model JSON of a collection item can contain collection members. The snapshot of the processor (`ModelSnapshot`) gets the members of each item, not only the fields.
 
 ## 11. Round-trip guarantee
@@ -224,11 +224,11 @@ For each supported combination, `decode(encode(x))` gives an object equal to `x`
 
 ## 12. Documentation and examples
 
-- `docs/wiki/Collections-and-fixed-OCCURS.md`: a new section "Nested collections", with the combinations, the count field rule, the markers at each level, and the messages with an index. Remove the rule "Do not put a `@BookCollection` in an item class".
+- `docs/wiki/Collections-and-fixed-OCCURS.md`: a new section "Nested collections", with the combinations, the count field rule, the markers at each level, and the messages with an index. Remove the rule "Do not put a `@Occurs` in an item class".
 - `docs/wiki/Copybook-generator.md`: the clause table and the limitations.
 - `docs/wiki/Home.md` and the README: change "nested collections" in the known limitations to "a `DEPENDING ON` table in a table entry".
-- `docs/design/2026-11-10-bookmap-design.md` section 2.2: refer to this spec.
-- `bookmap-examples`: an order with order lines and line taxes (`GetOrderTaxes`), with a fixed inner table in count mode, and a round-trip test.
+- `docs/design/2026-11-10-copymapper-design.md` section 2.2: refer to this spec.
+- `copymapper-examples`: an order with order lines and line taxes (`GetOrderTaxes`), with a fixed inner table in count mode, and a round-trip test.
 
 ## 13. Release
 

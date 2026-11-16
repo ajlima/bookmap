@@ -3,7 +3,7 @@
 Date: 2026-11-14
 Status: implemented in v0.25.0.
 Issues: #92, #93, #94
-Parent specs: `2026-11-10-bookmap-design.md`, `2026-11-14-nested-collections-design.md` (section 8)
+Parent specs: `2026-11-10-copymapper-design.md`, `2026-11-14-nested-collections-design.md` (section 8)
 
 This spec has three small changes from the triage of #54. They are independent. Each change gets its own commit.
 
@@ -158,7 +158,7 @@ CreateShipment.packages (order 30) item 1: ShipmentPackage.lines (order 40): ite
 
 ### 4.4 The mechanism: keep the exception object
 
-Add one public method to `MappingException` in `bookmap-core`:
+Add one public method to `MappingException` in `copymapper-core`:
 
 ```java
 /**
@@ -185,7 +185,7 @@ The behavior for each exception from an item:
 |---|---|
 | `MappingException` | The same object, with the prefix. |
 | A subclass of `MappingException` | The same object and the same class, with the prefix. |
-| Another `BookmapException`, for example a `BusinessException` from a converter | Unchanged, without the prefix. The wiki says that it goes to the caller unchanged. |
+| Another `CopyMapperException`, for example a `BusinessException` from a converter | Unchanged, without the prefix. The wiki says that it goes to the caller unchanged. |
 | Another `RuntimeException` from a converter | `BookReader` and `BookWriter` already make a `MappingException` (`converter failed`). Then it gets the prefix. |
 | Another `RuntimeException` from a getter or a setter | Unchanged, as today. |
 
@@ -210,7 +210,7 @@ Three places say that a flat collection keeps the messages without an index. Cha
 - A subclass of `MappingException` from a converter in an item keeps its class, and has the prefix.
 - A `BusinessException` from a converter in an item is unchanged.
 - A nested error has two prefixes and no wrapper in the cause.
-- A unit test of `MappingException.atItem` and `getMessage` in `bookmap-core`.
+- A unit test of `MappingException.atItem` and `getMessage` in `copymapper-core`.
 
 ## 5. #94: reject non-ASCII characters in a `pic` string
 
@@ -237,15 +237,15 @@ The code point has 4 hexadecimal digits, or more for a supplementary character (
 
 After the check, `toUpperCase(Locale.ROOT)` changes only ASCII letters. **[builder call]** The other messages keep the upper-case text, for example `unexpected text 'FOO' after the usage`. The full original string is in the message, so the user can find the text.
 
-### 5.2 `EditedPicture` in `bookmap-core`
+### 5.2 `EditedPicture` in `copymapper-core`
 
-`EditedPicture.parse` and `EditedPicture.isEdited` are public, and they upper-case in the same way. Their callers in BookMap give them a checked string: `PicParser`, the copybook `Picture`, and the generated codecs.
+`EditedPicture.parse` and `EditedPicture.isEdited` are public, and they upper-case in the same way. Their callers in CopyMapper give them a checked string: `PicParser`, the copybook `Picture`, and the generated codecs.
 
 **[builder call]** Add the same check to `EditedPicture.parse`. It throws `IllegalArgumentException` with the message `character 'ſ' (U+017F) is not ASCII`. `isEdited` gives a boolean and does not change. This protects a direct call of the public API.
 
 ### 5.3 The copybook generator
 
-`bookmap-copybook` has the same problem in two places:
+`copymapper-copybook` has the same problem in two places:
 
 - `Lexer.word` upper-cases a `PICTURE` token and a `WORD` token with `Locale.ROOT`. Thus, `PıC` becomes the keyword `PIC`, and `ſ9(5)` becomes `S9(5)`.
 - `Picture.parse` upper-cases the picture again.
@@ -272,11 +272,11 @@ The proposed fix:
 2. #92: The check also covers one field: a `DISPLAY` number with a separate sign and 2147483647 digits.
 3. #92: The copybook generator also adds lengths in `int` (`RedefinesResolver.length` and `RecordLength`). This spec does not change it. Open a follow-up issue.
 4. #93: All collections get the prefix `<collection> item <i>: `. This changes the messages of flat collections, against the promise of the nested collections spec, of the wiki, and of the test `flatCollectionMessagesHaveNoIndex`.
-5. #93: The new public method `MappingException.atItem` changes the exception in place, and `getMessage()` adds the prefix. This keeps the class, the cause, and the stack trace. The alternative, a new `MappingException` with the cause, loses the subclass. The method is a `feat:` change in `bookmap-core`.
-6. #93: A `BookmapException` that is not a `MappingException` stays unchanged, without the index.
+5. #93: The new public method `MappingException.atItem` changes the exception in place, and `getMessage()` adds the prefix. This keeps the class, the cause, and the stack trace. The alternative, a new `MappingException` with the cause, loses the subclass. The method is a `feat:` change in `copymapper-core`.
+6. #93: A `CopyMapperException` that is not a `MappingException` stays unchanged, without the index.
 7. #93: The three empty-item messages keep the form `<collection>: item I is ...`. They do not change to `<collection> item I: ...`.
 8. #93: The null item message changes to `<collection>: item I is null`.
 9. #94: The message shows the character and its code point: `character 'ſ' (U+017F) is not ASCII`.
 10. #94: The other `PicParser` messages keep the upper-case ASCII text.
-11. #94: `EditedPicture.parse` in `bookmap-core` gets the same check.
+11. #94: `EditedPicture.parse` in `copymapper-core` gets the same check.
 12. #94: The copybook generator gets the fix of section 5.3 in the same branch: a check of the picture string, and ASCII-only upper case for words.

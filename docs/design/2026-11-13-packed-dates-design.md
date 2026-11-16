@@ -1,9 +1,9 @@
-# BookMap, packed dates: design
+# CopyMapper, packed dates: design
 
 Date: 2026-11-13
 Status: implemented in v0.22.0.
 
-Related documents: `docs/design/2026-11-10-bookmap-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-13-generator-date-hints-design.md` (the date hints of the generator), GitHub issue #50.
+Related documents: `docs/design/2026-11-10-copymapper-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-13-generator-date-hints-design.md` (the date hints of the generator), GitHub issue #50.
 
 ## 1. Intent
 
@@ -11,7 +11,7 @@ A COBOL program often keeps a date in a packed field, for example `ORDER-DATE PI
 Today, a `LocalDate` field must have the usage `DISPLAY`. A packed date needs a `FieldConverter`.
 The copybook generator also rejects a date hint on a `COMP-3` item.
 
-This design lets `@BookField` map a packed field to `LocalDate`, `LocalTime`, or `LocalDateTime` with a pattern.
+This design lets `@Field` map a packed field to `LocalDate`, `LocalTime`, or `LocalDateTime` with a pattern.
 The pattern rules are the same as for a `DISPLAY` date. The digits of the packed number are the text of the pattern.
 
 ## 2. Goals, non-goals, and anti-goals
@@ -28,7 +28,7 @@ Non-goals:
 - Binary dates (`COMP`, `COMP-5`). They stay a compile error. Write a converter for them.
 - A century digit that is not a constant, for example `CYYMMDD` with `C` = `0` for 19xx and `1` for 20xx in one field. `DateTimeFormatter` has no letter for it. Write a converter for it.
 - Signed or decimal `DISPLAY` dates. They stay a compile error.
-- A change of the `@BookDefaults` rules.
+- A change of the `@Defaults` rules.
 
 Anti-goals:
 
@@ -40,23 +40,23 @@ Anti-goals:
 The API does not change. A date field gets the usage `COMP3` from its `pic`, or from an explicit `usage`:
 
 ```java
-@BookField(order = 10, pic = "S9(8) COMP-3", pattern = "yyyyMMdd")
+@Field(order = 10, pic = "S9(8) COMP-3", pattern = "yyyyMMdd")
 private LocalDate orderDate;
 
-@BookField(order = 20, pic = "9(7) COMP-3", pattern = "yyyyDDD")
+@Field(order = 20, pic = "9(7) COMP-3", pattern = "yyyyDDD")
 private LocalDate shipDate;
 
-@BookField(order = 30, pic = "S9(7) COMP-3", pattern = "'0'HHmmss")
+@Field(order = 30, pic = "S9(7) COMP-3", pattern = "'0'HHmmss")
 private LocalTime shipTime;
 
-@BookField(order = 40, usage = Usage.COMP3, pattern = "yyyyMMddHHmmss")
+@Field(order = 40, usage = Usage.COMP3, pattern = "yyyyMMddHHmmss")
 private LocalDateTime lastUpdate;
 ```
 
 Without `pic`, the length is the length of the pattern text, as for a `DISPLAY` date. The field `lastUpdate` has 14 digits, thus 8 bytes.
 The attribute `signed` is permitted on a packed date without `pic`. It is not permitted on a `DISPLAY` date.
 
-`@BookDefaults(usage = ...)` does not apply to a date field. This rule does not change: a date field is `DISPLAY` unless its `pic` or its `usage` says `COMP-3`.
+`@Defaults(usage = ...)` does not apply to a date field. This rule does not change: a date field is `DISPLAY` unless its `pic` or its `usage` says `COMP-3`.
 
 ## 4. Valid fields
 
@@ -173,7 +173,7 @@ The generator needs no new option. `MappingOptions`, the model JSON, `formatVers
 
 - `docs/wiki/Home.md`: remove "Packed dates need a converter" from the known limitations.
 - `docs/wiki/PIC-syntax-and-type-mapping.md`: a section for packed dates.
-- `docs/wiki/Annotations-reference.md` and the Javadoc of `BookField.pattern`.
+- `docs/wiki/Annotations-reference.md` and the Javadoc of `Field.pattern`.
 - `docs/wiki/Copybook-generator.md`: the new rule, the new message, and the limitations.
 - `ROADMAP.md`: remove #50.
 
@@ -201,7 +201,7 @@ The designer made these decisions. Each one lists the options and the reason.
    Options: (a) permitted with `COMP3`; (b) not permitted, use `pic`.
    Choice: (a). Without it, a signed packed date needs `pic`. The two ways to declare a field stay equal.
 
-6. **`@BookDefaults(usage = COMP3)` and date fields.**
+6. **`@Defaults(usage = COMP3)` and date fields.**
    Options: (a) no change: the default usage applies only to numeric types; (b) the default usage also applies to date fields.
    Choice: (a). Option (b) changes the bytes of the existing classes with this default.
 

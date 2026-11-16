@@ -2,8 +2,8 @@
 
 Date: 2026-11-13
 Status: implemented in v0.18.0.
-Issue: [#35](https://github.com/ajlima/bookmap/issues/35)
-Parent spec: `2026-11-11-bookmap-copybook-design.md`
+Issue: [#35](https://github.com/dazz-pt/copymapper/issues/35)
+Parent spec: `2026-11-11-copymapper-copybook-design.md`
 
 ## 1. Intent
 
@@ -21,7 +21,7 @@ This design adds three explicit options:
 
 Goals:
 
-- A date field in the generated class, with the `pattern` of `@BookField`, from an explicit hint.
+- A date field in the generated class, with the `pattern` of `@Field`, from an explicit hint.
 - A diagnostic for each hint that matches nothing.
 - The generator checks the hint against the picture, and gives the copybook line in the message.
 - A `Continuable` or `Validatable` operation class in build mode, without an edit of the generated code.
@@ -38,7 +38,7 @@ Non-goals:
 Anti-goals:
 
 - A hint that changes nothing without a diagnostic.
-- Generated code that does not compile with the processor because of a hint. The generator checks the BookMap rules that it can check, with the copybook line.
+- Generated code that does not compile with the processor because of a hint. The generator checks the CopyMapper rules that it can check, with the copybook line.
 
 ## 3. Date hints
 
@@ -111,13 +111,13 @@ These errors have the position `<file>:1:1`, like the other option errors. A pat
 
 - `JavaType` gets three values: `LOCAL_DATE`, `LOCAL_TIME`, and `LOCAL_DATE_TIME`.
 - A field member gets an optional key `pattern`.
-- The generator writes `pattern` in `@BookField`, also for `yyyyMMdd`:
+- The generator writes `pattern` in `@Field`, also for `yyyyMMdd`:
 
 ```java
 /**
  * {@code 10 ORDER-DATE PIC 9(8).}
  */
-@BookField(
+@Field(
         order = 20,
         pic = "9(8)",
         pattern = "yyyyMMdd"
@@ -144,7 +144,7 @@ On the command line: `--continuable <record>=<class>` and `--validatable <record
 ### 4.2 Generated code
 
 ```java
-@BookOperation
+@Operation
 public class ListShipments implements Continuable, Validatable {
     // fields, getters, and setters
 
@@ -183,7 +183,7 @@ The `javac` compiler checks the handler. A missing class or method is a compile 
 
 - A key that is not a record name: error at `<file>:1:1`.
 - A value that is not a Java class name (`SourceVersion.isName`): error at `<file>:1:1`.
-- BookMap does not permit an `INPUT_OUTPUT` collection in a `Continuable` class. For a continuable record, each `INPUT_OUTPUT` collection of the operation class and of its subtypes is an error at the line of the collection. The message tells the developer to put the table in an output alternative of a `REDEFINES` area.
+- CopyMapper does not permit an `INPUT_OUTPUT` collection in a `Continuable` class. For a continuable record, each `INPUT_OUTPUT` collection of the operation class and of its subtypes is an error at the line of the collection. The message tells the developer to put the table in an output alternative of a `REDEFINES` area.
 
 ### 4.4 Model
 
@@ -225,7 +225,7 @@ The author was away. The designer made these decisions. Each one lists the optio
 
 5. **`pattern` for the default `yyyyMMdd`.**
    Options: (a) always write `pattern`; (b) omit it when it is `yyyyMMdd`.
-   Choice: (a). The generated code shows the hint, and it does not depend on `@BookDefaults`.
+   Choice: (a). The generated code shows the hint, and it does not depend on `@Defaults`.
 
 6. **A numeric picture with a pattern that gives other characters than digits**, for example `yyyy-MM-dd` on `9(10)`.
    Options: (a) error; (b) accept it, as the processor does.
