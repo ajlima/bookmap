@@ -8,13 +8,28 @@ The roadmap gives no dates and no version numbers. The release version comes fro
 
 To propose a new item, open an issue.
 
-## 1. Transports
+## 1. Dynamic runtime
+
+A runtime codec that reads a copybook and converts JSON to bytes and bytes to JSON, with no generated class. The group also adds the CTG transport changes that a runtime caller needs. Milestone: [Dynamic runtime](https://github.com/dazz-pt/copymapper/milestone/7).
+
+- [#135](https://github.com/dazz-pt/copymapper/issues/135) Write the design of the dynamic runtime
+- [#136](https://github.com/dazz-pt/copymapper/issues/136) Compile an immutable physical layout from the copybook AST
+- [#137](https://github.com/dazz-pt/copymapper/issues/137) Encode and decode JSON with an interpreted codec on the layout
+- [#138](https://github.com/dazz-pt/copymapper/issues/138) Support a fixed OCCURS in the layout and the codec
+- [#139](https://github.com/dazz-pt/copymapper/issues/139) Add a test kit of byte-exact fixtures
+- [#140](https://github.com/dazz-pt/copymapper/issues/140) Support binary integers, signs, and dates in the layout and the codec
+- [#141](https://github.com/dazz-pt/copymapper/issues/141) Support OCCURS DEPENDING ON in the layout and the codec
+- [#142](https://github.com/dazz-pt/copymapper/issues/142) Support REDEFINES with a discriminator in the layout and the codec
+- [#143](https://github.com/dazz-pt/copymapper/issues/143) Set a timeout for each call in the CTG transport
+- [#144](https://github.com/dazz-pt/copymapper/issues/144) Separate a CTG failure before the send from a failure after the send
+
+## 2. Transports
 
 Real transports for the transport SPI. The SPI accepts them without a change to the core. Milestone: [Transports](https://github.com/dazz-pt/copymapper/milestone/2).
 
 No open issue.
 
-## 2. Copybook generator
+## 3. Copybook generator
 
 New features of the copybook generator and its build plugins. Milestone: [Copybook generator](https://github.com/dazz-pt/copymapper/milestone/3).
 
@@ -24,7 +39,7 @@ New features of the copybook generator and its build plugins. Milestone: [Copybo
 - [#33](https://github.com/dazz-pt/copymapper/issues/33) Read copybooks from a dependency artifact
 - [#34](https://github.com/dazz-pt/copymapper/issues/34) Support Maven 4 in the Maven plugin
 
-## 3. Mapping
+## 4. Mapping
 
 New layout features in the core and the processor. Milestone: [Mapping](https://github.com/dazz-pt/copymapper/milestone/4).
 
@@ -35,7 +50,7 @@ New layout features in the core and the processor. Milestone: [Mapping](https://
 - [#46](https://github.com/dazz-pt/copymapper/issues/46) Support COMP-1 and COMP-2
 - [#49](https://github.com/dazz-pt/copymapper/issues/49) Support multi-byte charsets (DBCS and NATIONAL)
 
-## 4. Integrations
+## 5. Integrations
 
 Other DI containers and API styles. Milestone: [Integrations](https://github.com/dazz-pt/copymapper/milestone/5).
 
@@ -43,7 +58,7 @@ Other DI containers and API styles. Milestone: [Integrations](https://github.com
 - [#52](https://github.com/dazz-pt/copymapper/issues/52) Add a Micronaut integration
 - [#53](https://github.com/dazz-pt/copymapper/issues/53) Add an asynchronous or reactive API
 
-## 5. Maintenance
+## 6. Maintenance
 
 Deferred review findings and internal changes. Milestone: [Maintenance](https://github.com/dazz-pt/copymapper/milestone/6).
 
