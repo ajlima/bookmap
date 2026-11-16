@@ -1,4 +1,4 @@
-# Releasing BookMap
+# Releasing CopyMapper
 
 GitHub Actions makes each release. Read this file to set up the release and to understand the cycle.
 
@@ -15,16 +15,17 @@ The workflow `.github/workflows/release.yml` runs on each push to `main`.
 3. The `publish` job checks out the same commit, signs the modules, and publishes them to Maven Central.
 4. The `attest` job makes a build provenance attestation for each JAR, POM, and Gradle module file that went to Maven Central. See [Verify an artifact](#verify-an-artifact).
 5. The `release` job creates the tag `vX.Y.Z` and a GitHub release. It attaches the same JAR files that went to Maven Central.
-6. The `release` job sets the new version in `README.md`, `bookmap-copybook-gradle-plugin/README.md`, and `bookmap-copybook-maven-plugin/README.md` with `scripts/set-readme-version.sh`. Then it pushes the commit `docs: set the README version to X.Y.Z` to `main`. A `docs:` commit makes no release.
+6. The `release` job sets the new version in `README.md`, `copymapper-copybook-gradle-plugin/README.md`, and `copymapper-copybook-maven-plugin/README.md` with `scripts/set-readme-version.sh`. Then it pushes the commit `docs: set the README version to X.Y.Z` to `main`. A `docs:` commit makes no release.
 
 The `release` job runs only after a successful `publish` job. Thus, each GitHub release is also on Maven Central.
 The `release` job does not wait for the `attest` job. If the `attest` job fails, run the failed job again from the workflow run page.
 Do this before the end of the 7-day retention of the `maven-central-files` artifact.
 
-These modules go to Maven Central with the group `pt.dazz.bookmap`:
-`bookmap-core`, `bookmap-processor`, `bookmap-transport-simulator`, `bookmap-transport-ctg`, `bookmap-transport-http`, `bookmap-transport-mq`, `bookmap-spring-boot`,
-`bookmap-copybook`, `bookmap-copybook-cli`, `bookmap-copybook-gradle-plugin`, and `bookmap-copybook-maven-plugin`.
+These modules go to Maven Central with the group `pt.dazz.copymapper`:
+`copymapper-core`, `copymapper-processor`, `copymapper-transport-simulator`, `copymapper-transport-ctg`, `copymapper-transport-http`, `copymapper-transport-mq`, `copymapper-spring-boot`,
+`copymapper-copybook`, `copymapper-copybook-cli`, `copymapper-copybook-gradle-plugin`, and `copymapper-copybook-maven-plugin`.
 The examples are not published.
+The releases until `0.27.0` used the group `pt.dazz.bookmap` and the module names `bookmap-*`. These releases stay on Maven Central.
 
 ## One-time setup
 
@@ -73,7 +74,7 @@ Use the `hkps://` form: some networks block the default HKP port 11371.
 The `publish` job uses the GitHub environment `maven-central`. Its secrets are visible only to that job.
 
 ```bash
-gh api --method PUT repos/ajlima/bookmap/environments/maven-central
+gh api --method PUT repos/dazz-pt/copymapper/environments/maven-central
 ```
 
 Optional: add yourself as a required reviewer. Then each publication waits for your approval.
@@ -109,8 +110,8 @@ A repository of a personal account cannot add GitHub Actions to the bypass list.
 Create the app:
 
 1. Open **Settings** (of your account) > **Developer settings** > **GitHub Apps** > **New GitHub App**.
-2. Set **GitHub App name** to a unique name, for example `bookmap-release-<your-login>`.
-3. Set **Homepage URL** to `https://github.com/ajlima/bookmap`.
+2. Set **GitHub App name** to a unique name, for example `copymapper-release-<your-login>`.
+3. Set **Homepage URL** to `https://github.com/dazz-pt/copymapper`.
 4. In **Webhook**, clear **Active**.
 5. In **Repository permissions**, set **Contents** to **Read and write**. Keep all other permissions at **No access**.
 6. In **Where can this GitHub App be installed?**, select **Only on this account**.
@@ -121,7 +122,7 @@ Create the app:
 Install the app on the repository:
 
 10. In the app settings, open **Install App**, and click **Install** next to your account.
-11. Select **Only select repositories**, select `bookmap`, and click **Install**.
+11. Select **Only select repositories**, select `copymapper`, and click **Install**.
 
 Add the app to the bypass list of the ruleset:
 
@@ -132,7 +133,7 @@ Give the app to the `release` job. The `readme-update` environment holds the set
 13. Create the environment, then set the Client ID as an environment variable:
 
 ```bash
-gh api --method PUT repos/ajlima/bookmap/environments/readme-update
+gh api --method PUT repos/dazz-pt/copymapper/environments/readme-update
 ```
 
 ```bash
@@ -194,11 +195,11 @@ For the user instructions, see "Verify an artifact" in the [README](README.md#ve
   The `publish` job uses no cache, so a release always builds from clean dependencies.
 - Gradle dependency verification pins the SHA-256 checksum of each plugin, library, POM, and Gradle module file that the build downloads.
   The file `gradle/verification-metadata.xml` applies to the root build: `build`, `publishToMavenLocal`, and `publishAndReleaseToMavenCentral`.
-  The standalone example `bookmap-examples-gradle-plugin` is a separate root build, so it has its own file `bookmap-examples-gradle-plugin/gradle/verification-metadata.xml`.
+  The standalone example `copymapper-examples-gradle-plugin` is a separate root build, so it has its own file `copymapper-examples-gradle-plugin/gradle/verification-metadata.xml`.
   The build fails if a downloaded file has a different checksum, or if a file has no checksum.
   The Javadoc JARs and the source JARs are trusted without a checksum: an IDE downloads them, and the build does not run them.
-  Gradle verification does not cover the Maven wrapper and the dependencies of `bookmap-examples-maven-plugin`.
-  It also does not cover the Maven distributions that the integration tests of `bookmap-copybook-maven-plugin` download.
+  Gradle verification does not cover the Maven wrapper and the dependencies of `copymapper-examples-maven-plugin`.
+  It also does not cover the Maven distributions that the integration tests of `copymapper-copybook-maven-plugin` download.
 
 ### Update the dependency checksums
 

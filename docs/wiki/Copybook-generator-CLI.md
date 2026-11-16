@@ -1,5 +1,5 @@
-The command line `bookmap-copybook` runs the [copybook generator](Copybook-generator) from a terminal or a script.
-Use it in scaffold mode, in a CI pipeline, or from a build tool that has no BookMap plugin.
+The command line `copymapper-copybook` runs the [copybook generator](Copybook-generator) from a terminal or a script.
+Use it in scaffold mode, in a CI pipeline, or from a build tool that has no CopyMapper plugin.
 
 ## Requirements
 
@@ -7,34 +7,34 @@ Use it in scaffold mode, in a CI pipeline, or from a build tool that has no Book
 
 ## Installation
 
-The command line is one executable JAR with all dependencies: `bookmap-copybook-cli-<version>-all.jar`.
-Replace `<version>` with the latest version: ![Maven Central](https://img.shields.io/maven-central/v/pt.dazz.bookmap/bookmap-copybook-cli)
+The command line is one executable JAR with all dependencies: `copymapper-copybook-cli-<version>-all.jar`.
+Replace `<version>` with the latest version: ![Maven Central](https://img.shields.io/maven-central/v/pt.dazz.copymapper/copymapper-copybook-cli)
 
 Get the JAR from one of these places:
 
-- The assets of the [GitHub release](https://github.com/ajlima/bookmap/releases).
-- Maven Central, with the coordinates `pt.dazz.bookmap:bookmap-copybook-cli:<version>` and the classifier `all`.
+- The assets of the [GitHub release](https://github.com/dazz-pt/copymapper/releases).
+- Maven Central, with the coordinates `pt.dazz.copymapper:copymapper-copybook-cli:<version>` and the classifier `all`.
 
 Download it from Maven Central:
 
 ```bash
-curl -fLO https://repo1.maven.org/maven2/pt/dazz/bookmap/bookmap-copybook-cli/<version>/bookmap-copybook-cli-<version>-all.jar
+curl -fLO https://repo1.maven.org/maven2/pt/dazz/copymapper/copymapper-copybook-cli/<version>/copymapper-copybook-cli-<version>-all.jar
 ```
 
 Make a short command (optional, Linux and macOS):
 
 ```bash
-alias bookmap-copybook='java -jar /opt/bookmap/bookmap-copybook-cli-<version>-all.jar'
+alias copymapper-copybook='java -jar /opt/copymapper/copymapper-copybook-cli-<version>-all.jar'
 ```
 
-The examples on this page use the name `bookmap-copybook`. Without the alias, use `java -jar bookmap-copybook-cli-<version>-all.jar`.
+The examples on this page use the name `copymapper-copybook`. Without the alias, use `java -jar copymapper-copybook-cli-<version>-all.jar`.
 
 ## Commands
 
 ```
-bookmap-copybook parse <copybook> --output <model.json> [options]
-bookmap-copybook generate <copybook | model.json> --package <name> --output-dir <dir> [--lombok] [options]
-bookmap-copybook --help
+copymapper-copybook parse <copybook> --output <model.json> [options]
+copymapper-copybook generate <copybook | model.json> --package <name> --output-dir <dir> [--lombok] [options]
+copymapper-copybook --help
 ```
 
 | Command | Result |
@@ -128,7 +128,7 @@ v2.json: error: unsupported formatVersion 2. This reader supports 1.
 error: nodir/GET-ORDER.json
 ```
 
-For exit code 2, the command writes `error: <message>` and then `Run bookmap-copybook --help for the options.` to the standard error:
+For exit code 2, the command writes `error: <message>` and then `Run copymapper-copybook --help for the options.` to the standard error:
 
 | Message | Cause |
 |---|---|
@@ -159,12 +159,12 @@ For exit code 2, the command writes `error: <message>` and then `Run bookmap-cop
 
 ## Examples
 
-Most examples use the copybooks of [`bookmap-examples-gradle-plugin`](https://github.com/ajlima/bookmap/tree/main/bookmap-examples-gradle-plugin/src/main). The example of a `REDEFINES` direction shows its own copybook.
+Most examples use the copybooks of [`copymapper-examples-gradle-plugin`](https://github.com/dazz-pt/copymapper/tree/main/copymapper-examples-gradle-plugin/src/main). The example of a `REDEFINES` direction shows its own copybook.
 
 ### Generate the classes of one copybook
 
 ```bash
-bookmap-copybook generate GET-ORDER.cpy --package com.example.orders --output-dir src/main/java
+copymapper-copybook generate GET-ORDER.cpy --package com.example.orders --output-dir src/main/java
 ```
 
 The command writes `src/main/java/com/example/orders/GetOrder.java` and `OrderLine.java`.
@@ -173,7 +173,7 @@ See the generated class in [Copybook generator](Copybook-generator#example).
 ### See the errors
 
 ```
-$ bookmap-copybook generate GET-INVOICE.cpy --package com.example.billing --output-dir out
+$ copymapper-copybook generate GET-INVOICE.cpy --package com.example.billing --output-dir out
 GET-INVOICE.cpy:5:12: error: copy member 'ADDRESS' not found: no copy directory is set
 $ echo $?
 1
@@ -195,7 +195,7 @@ $ echo $?
 ```
 
 ```bash
-bookmap-copybook generate GET-INVOICE.cpy \
+copymapper-copybook generate GET-INVOICE.cpy \
   --package com.example.billing \
   --output-dir src/main/java \
   --copy-dir copylib \
@@ -216,7 +216,7 @@ GET-INVOICE.cpy:9:12: info: INVOICE-LINE: INVOICE-LINE-COUNT can be the count fi
 Give the count fields on the command line:
 
 ```bash
-bookmap-copybook generate GET-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
+copymapper-copybook generate GET-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
   --copy-dir copylib --strip-prefix INV- \
   --count-field INVOICE-LINE=INVOICE-LINE-COUNT --count-field TAX-SUMMARY-ENTRY=TAX-SUMMARY-COUNT
 ```
@@ -226,7 +226,7 @@ See [Count field of a fixed table](Copybook-generator#count-field-of-a-fixed-tab
 ### Write Lombok classes
 
 ```bash
-bookmap-copybook generate GET-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
+copymapper-copybook generate GET-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
   --copy-dir copylib --lombok
 ```
 
@@ -251,7 +251,7 @@ This copybook is not in the examples. The names `INVOICE-QUERY` and `INVOICE-DET
 Without a decision, the command stops with exit code 1 and the error `REDEFINES area INVOICE-QUERY at line 3 needs a decision. ...`. Give the directions:
 
 ```bash
-bookmap-copybook generate QUERY-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
+copymapper-copybook generate QUERY-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
   --direction INVOICE-QUERY=INPUT --direction INVOICE-DETAIL=OUTPUT
 ```
 
@@ -260,7 +260,7 @@ See [Directions](Copybook-generator#directions).
 If no field selects the layout, map the area to views:
 
 ```bash
-bookmap-copybook generate QUERY-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
+copymapper-copybook generate QUERY-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
   --view INVOICE-QUERY
 ```
 
@@ -271,7 +271,7 @@ See [Views](Copybook-generator#views).
 Create the directory `model`. Then write the model JSON, and keep it in version control:
 
 ```bash
-bookmap-copybook parse GET-ORDER.cpy --output model/GET-ORDER.json
+copymapper-copybook parse GET-ORDER.cpy --output model/GET-ORDER.json
 ```
 
 When the copybook changes, write the model again and compare the two files:
@@ -283,14 +283,14 @@ git diff model/GET-ORDER.json
 Generate the classes from the model:
 
 ```bash
-bookmap-copybook generate model/GET-ORDER.json --package com.example.orders --output-dir src/main/java
+copymapper-copybook generate model/GET-ORDER.json --package com.example.orders --output-dir src/main/java
 ```
 
 ### Generate all copybooks of a directory
 
 ```bash
 for copybook in copybooks/*.cpy; do
-  bookmap-copybook generate "$copybook" --package com.example.mainframe \
+  copymapper-copybook generate "$copybook" --package com.example.mainframe \
     --output-dir src/main/java --copy-dir copylib || exit 1
 done
 ```
@@ -300,20 +300,20 @@ The build plugins detect this collision. See [Copybook generator Gradle plugin](
 
 ### Run the generator in a Gradle build without the plugin
 
-The module `bookmap-examples` runs the command line with a `JavaExec` task for each copybook.
+The module `copymapper-examples` runs the command line with a `JavaExec` task for each copybook.
 Use the [Gradle plugin](Copybook-generator-Gradle-plugin) instead, if possible.
 
 ```kotlin
 val copybookGenerator: Configuration by configurations.creating
 
 dependencies {
-    copybookGenerator("pt.dazz.bookmap:bookmap-copybook-cli:<version>")
+    copybookGenerator("pt.dazz.copymapper:copymapper-copybook-cli:<version>")
 }
 
 val generateGetOrder = tasks.register<JavaExec>("generateGetOrder") {
     val outputDir = layout.buildDirectory.dir("generated/sources/copybook/GET-ORDER")
     classpath = copybookGenerator
-    mainClass = "pt.dazz.bookmap.copybook.cli.Main"
+    mainClass = "pt.dazz.copymapper.copybook.cli.Main"
     inputs.file("src/main/copybook/GET-ORDER.cpy")
     outputs.dir(outputDir)
     doFirst { delete(outputDir) }
@@ -325,15 +325,15 @@ val generateGetOrder = tasks.register<JavaExec>("generateGetOrder") {
 sourceSets.main { java.srcDir(generateGetOrder) }
 ```
 
-The full build file is [`bookmap-examples/build.gradle.kts`](https://github.com/ajlima/bookmap/blob/main/bookmap-examples/build.gradle.kts).
+The full build file is [`copymapper-examples/build.gradle.kts`](https://github.com/dazz-pt/copymapper/blob/main/copymapper-examples/build.gradle.kts).
 
 ## Java API
 
-The library `bookmap-copybook` has the same steps as a Java API. The entry point is `pt.dazz.bookmap.copybook.Copybooks`.
+The library `copymapper-copybook` has the same steps as a Java API. The entry point is `pt.dazz.copymapper.copybook.Copybooks`.
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-copybook:<version>")
+    implementation("pt.dazz.copymapper:copymapper-copybook:<version>")
 }
 ```
 

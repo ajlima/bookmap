@@ -239,8 +239,9 @@ A search for `bookmap` without case (`git grep -i bookmap` and `git ls-files | g
 
 - This design document.
 - The migration page `docs/wiki/Migrate-to-CopyMapper.md`.
-- The rows and the commands for `0.27.0` and earlier in the section "Verify an artifact" of the README and of `RELEASING.md`.
-- One sentence in the README that gives the old name and links to the migration page.
+- The rows and the commands for `0.27.0` and earlier in the section "Verify an artifact" of the README.
+- One sentence in `RELEASING.md` that gives the old group of the releases until `0.27.0`.
+- One sentence in the README and in the wiki page `Home` that gives the old name and links to the migration page. The link to the migration page in `Home` also gives the old name.
 - The check of section 5.1, its tests, and the sentence about it in the wiki page `Spring-Boot`.
 
 The folders `build/` are not in git. Ignore them.

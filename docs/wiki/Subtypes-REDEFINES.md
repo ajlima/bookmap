@@ -20,30 +20,30 @@ If no field selects the layout, use [REDEFINES views](REDEFINES-views).
 
 ## Map the layouts
 
-Map each layout to a subclass. Put `@BookSubTypes` on the base class. The base class (or one of its superclasses) declares the common fields and the discriminator:
+Map each layout to a subclass. Put `@SubTypes` on the base class. The base class (or one of its superclasses) declares the common fields and the discriminator:
 
 ```java
-@BookOperation
-@BookSubTypes(discriminator = "accountType", value = {
-    @BookSubTypes.Type(value = "01", type = CheckingAccount.class),
-    @BookSubTypes.Type(value = "02", type = SavingsAccount.class)
+@Operation
+@SubTypes(discriminator = "accountType", value = {
+    @SubTypes.Type(value = "01", type = CheckingAccount.class),
+    @SubTypes.Type(value = "02", type = SavingsAccount.class)
 })
 public class GetAccount implements Continuable {
-    @BookField(order = 10, pic = "X(12)", direction = INPUT) private String accountId;
-    @BookField(order = 20, pic = "X(10)")                    private String restartKey;
-    @BookField(order = 30, pic = "X", direction = OUTPUT)    private String moreData;
-    @BookField(order = 40, pic = "9(2)")                     private int accountType;
+    @Field(order = 10, pic = "X(12)", direction = INPUT) private String accountId;
+    @Field(order = 20, pic = "X(10)")                    private String restartKey;
+    @Field(order = 30, pic = "X", direction = OUTPUT)    private String moreData;
+    @Field(order = 40, pic = "9(2)")                     private int accountType;
 }
 
 public class CheckingAccount extends GetAccount {
-    @BookField(order = 50, pic = "S9(9)V99 COMP-3", direction = OUTPUT) private BigDecimal overdraftLimit;
-    @BookField(order = 60, pic = "9(2)")                                 private int entryCount;
-    @BookCollection(order = 70, maxOccurs = 10)                          private List<StatementEntry> entries;
+    @Field(order = 50, pic = "S9(9)V99 COMP-3", direction = OUTPUT) private BigDecimal overdraftLimit;
+    @Field(order = 60, pic = "9(2)")                                 private int entryCount;
+    @Occurs(order = 70, maxOccurs = 10)                          private List<StatementEntry> entries;
 }
 
 public class SavingsAccount extends GetAccount {
-    @BookField(order = 50, pic = "9V9(4)", direction = OUTPUT) private BigDecimal interestRate;
-    @BookField(order = 60, direction = OUTPUT)                 private LocalDate maturityDate;
+    @Field(order = 50, pic = "9V9(4)", direction = OUTPUT) private BigDecimal interestRate;
+    @Field(order = 60, direction = OUTPUT)                 private LocalDate maturityDate;
 }
 ```
 
@@ -71,17 +71,17 @@ if (result instanceof CheckingAccount checking) {
 The same annotation goes on the item class of a collection. Then each item can have a different subclass:
 
 ```java
-@BookSubTypes(discriminator = "entryType", value = {
-    @BookSubTypes.Type(value = "C", type = CardPayment.class),
-    @BookSubTypes.Type(value = "T", type = Transfer.class)
+@SubTypes(discriminator = "entryType", value = {
+    @SubTypes.Type(value = "C", type = CardPayment.class),
+    @SubTypes.Type(value = "T", type = Transfer.class)
 })
 public abstract class StatementEntry {
-    @BookField(order = 10, pic = "X")                private String entryType;
-    @BookField(order = 20, pic = "S9(13)V99 COMP-3") private BigDecimal amount;
+    @Field(order = 10, pic = "X")                private String entryType;
+    @Field(order = 20, pic = "S9(13)V99 COMP-3") private BigDecimal amount;
 }
 ```
 
-The full example is in `bookmap-examples`, package `pt.dazz.bookmap.examples.accounts`.
+The full example is in `copymapper-examples`, package `pt.dazz.copymapper.examples.accounts`.
 
 ## Test with the simulator
 
@@ -103,7 +103,7 @@ See [Transports and simulator](Transports-and-simulator).
 | Attribute | Meaning |
 |---|---|
 | `discriminator` | The name of the discriminator field. The base class or one of its superclasses declares it. |
-| `value` | The list of `@BookSubTypes.Type`. |
+| `value` | The list of `@SubTypes.Type`. |
 | `Type.value` | The discriminator value of the subclass, as text. |
 | `Type.type` | The subclass. |
 
@@ -114,7 +114,7 @@ See [Transports and simulator](Transports-and-simulator).
 - In an operation class, the discriminator is `OUTPUT` or `INPUT_OUTPUT`. An abstract base class needs an `INPUT_OUTPUT` discriminator.
 - Each member of a subclass must have an `order` greater than all members of the base class. Thus, the redefined area is the end of the layout. Two subclasses can use the same `order` values.
 - A variable collection in a subclass, or a fixed collection with `dependsOn`, needs its count field in the same subclass. A fixed collection without `dependsOn` needs no count field.
-- The subclasses do not have `@BookOperation`. They use the operation name of the base class.
+- The subclasses do not have `@Operation`. They use the operation name of the base class.
 - The base class can be abstract. Then the caller always sends a subclass.
 - The base class can be in the list with its own value.
 
@@ -135,6 +135,6 @@ See [Transports and simulator](Transports-and-simulator).
 - The discriminator does not exist in the base class, has a type or converter that the rules do not permit, has direction `INPUT`, or comes after a variable collection. A discriminator after a fixed collection is permitted.
 - An empty list, a type that is not an instantiable subclass of the base class, or a type in the list two times.
 - A blank value, a value that is used two times, a value that is not a number for a numeric field, or a value that does not fit in the field.
-- `@BookSubTypes` on a subclass (subtypes in a subtype), `@BookOperation` on a subclass, or a subclass that extends another subclass in the list.
+- `@SubTypes` on a subclass (subtypes in a subtype), `@Operation` on a subclass, or a subclass that extends another subclass in the list.
 - A subclass member with an `order` that is not greater than all base members, or a collection in a subclass with a count field in the base class. The message is `dependsOn field '<name>' must be in the subtype layout`.
 - A discriminator in a subclass: `discriminator field '<name>' must be in the base class or its superclasses`.

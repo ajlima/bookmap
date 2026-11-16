@@ -1,4 +1,4 @@
-`bookmap-transport-http` is a transport for an HTTP endpoint that accepts the COBOL bytes of a book.
+`copymapper-transport-http` is a transport for an HTTP endpoint that accepts the COBOL bytes of a book.
 The request bytes go in the body of an HTTP request. The transport returns the body of the response.
 
 The body is binary: `application/octet-stream`. Examples of endpoints are a CICS web service with a binary body, a custom HTTP program in CICS, or an API gateway that accepts a binary body.
@@ -12,16 +12,16 @@ For the other transports and a comparison, see [Transports and simulator](Transp
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-transport-http:<version>")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:<version>")
+    implementation("pt.dazz.copymapper:copymapper-transport-http:<version>")
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:<version>")
 }
 ```
 
 ```xml
 <dependency>
-  <groupId>pt.dazz.bookmap</groupId>
-  <artifactId>bookmap-transport-http</artifactId>
-  <version>${bookmap.version}</version>
+  <groupId>pt.dazz.copymapper</groupId>
+  <artifactId>copymapper-transport-http</artifactId>
+  <version>${copymapper.version}</version>
 </dependency>
 ```
 
@@ -37,7 +37,7 @@ HttpTransport transport = HttpTransport.builder()
     .timeout(Duration.ofSeconds(20))
     .build();
 
-BookmapClient client = BookmapClient.builder()
+CopyMapperClient client = CopyMapperClient.builder()
     .transport(transport)
     .build();
 ```
@@ -55,7 +55,7 @@ A route maps an operation name to a URI, an HTTP method, and headers.
 | `route(String operation, HttpRoute route)` | Adds a route. |
 | `routes(Map<String, HttpRoute> routes)` | Adds all routes of the map. |
 
-- The operation name is the value of `@BookOperation`, or the simple class name.
+- The operation name is the value of `@Operation`, or the simple class name.
 - A route for an operation replaces an earlier route for the same operation.
 - A route URI is an absolute `http` or `https` URI, or a relative reference. `build()` resolves a relative reference against the base URI.
 - End the base URI with `/`. Without it, a relative route replaces the last segment: `https://h/orders` and `invoices` give `https://h/invoices`.
@@ -180,7 +180,7 @@ A request that runs continues until it completes or until its timeout. `close()`
 
 ## Spring Boot
 
-`bookmap-spring-boot` creates the transport from properties. Set `bookmap.transport.type=http` and the `bookmap.transport.http.*` properties.
+`copymapper-spring-boot` creates the transport from properties. Set `copymapper.transport.type=http` and the `copymapper.transport.http.*` properties.
 For TLS, use a Spring Boot SSL bundle. See [Spring Boot](Spring-Boot#http).
 
 ## Test without a mainframe

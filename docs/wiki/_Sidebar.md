@@ -2,6 +2,7 @@
 
 **Start**
 - [Getting started](Getting-started)
+- [Migrate to CopyMapper](Migrate-to-CopyMapper)
 
 **Mapping**
 - [Annotations reference](Annotations-reference)

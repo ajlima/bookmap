@@ -1,20 +1,20 @@
-# BookMap copybook Gradle plugin
+# CopyMapper copybook Gradle plugin
 
-The plugin `pt.dazz.bookmap.copybook` runs the BookMap copybook generator in a Gradle build.
+The plugin `pt.dazz.copymapper.copybook` runs the CopyMapper copybook generator in a Gradle build.
 It reads a directory tree of COBOL copybooks and writes the annotated Java classes before `compileJava`.
 The directories of the tree give the Java subpackages.
 
-The plugin is a thin adapter. The `bookmap-copybook` library does the parse, the mapping, and the generation.
-For the mapping rules, the options, and the limitations, see the page "Copybook generator" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator).
-For Maven builds, use the [Maven plugin](../bookmap-copybook-maven-plugin/README.md). It has the same rules.
+The plugin is a thin adapter. The `copymapper-copybook` library does the parse, the mapping, and the generation.
+For the mapping rules, the options, and the limitations, see the page "Copybook generator" in the [wiki](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator).
+For Maven builds, use the [Maven plugin](../copymapper-copybook-maven-plugin/README.md). It has the same rules.
 
 ## 1. What the plugin does
 
-- It adds the extension `bookmap` and the task `generateCopybookClasses`.
+- It adds the extension `copymapper` and the task `generateCopybookClasses`.
 - The task scans `src/main/copybook` recursively for `.cpy` files.
 - It generates the classes of each copybook into `build/generated/sources/copybook/main`.
 - With the `java` plugin, it adds that directory to the `main` source set. Gradle then runs the task before `compileJava`.
-- The plugin does not add dependencies to your project. Add `bookmap-core` and `bookmap-processor` yourself.
+- The plugin does not add dependencies to your project. Add `copymapper-core` and `copymapper-processor` yourself.
 
 ## 2. Setup
 
@@ -30,12 +30,12 @@ pluginManagement {
 }
 ```
 
-Apply the plugin and add the BookMap libraries in `build.gradle.kts`. Use the same version for all BookMap artifacts.
+Apply the plugin and add the CopyMapper libraries in `build.gradle.kts`. Use the same version for all CopyMapper artifacts.
 
 ```kotlin
 plugins {
     java
-    id("pt.dazz.bookmap.copybook") version "0.27.0"
+    id("pt.dazz.copymapper.copybook") version "0.27.0"
 }
 
 repositories {
@@ -43,11 +43,11 @@ repositories {
 }
 
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-core:0.27.0")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:0.27.0")
+    implementation("pt.dazz.copymapper:copymapper-core:0.27.0")
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.27.0")
 }
 
-bookmap {
+copymapper {
     copybooks {
         packageName = "com.example.mainframe"
         copyDirs.from("src/main/copylib")
@@ -56,12 +56,12 @@ bookmap {
 ```
 
 If your company uses a Maven mirror (for example, Nexus or Artifactory), put the mirror in `pluginManagement.repositories`.
-The plugin marker artifact is `pt.dazz.bookmap.copybook:pt.dazz.bookmap.copybook.gradle.plugin`. The mirror must give it.
+The plugin marker artifact is `pt.dazz.copymapper.copybook:pt.dazz.copymapper.copybook.gradle.plugin`. The mirror must give it.
 
 ## 3. The DSL
 
 ```kotlin
-bookmap {
+copymapper {
     copybooks {
         sourceDir = layout.projectDirectory.dir("src/main/copybook") // the default
         copyDirs.from("src/main/copylib")                            // COPY members, in search order
@@ -93,7 +93,7 @@ The task checks for class name collisions only when no copybook has an error.
 If a copybook has an error, the task writes no file. Thus, after a failure, `outputDir` is empty.
 
 **WARNING:** Do not set `outputDir` to a directory that contains other files, for example `src/main/java`. Each run deletes all files in `outputDir`, and you can lose your source files.
-If `packageName` is necessary and not set, the build fails with this message: `Set bookmap.copybooks.packageName.`
+If `packageName` is necessary and not set, the build fails with this message: `Set copymapper.copybooks.packageName.`
 
 ## 4. Packages from directories
 
@@ -126,7 +126,7 @@ Examples, with `packageName = "com.example.mainframe"`:
 ## 5. Options files
 
 Put the options of one copybook in a file `<NAME>.json` next to `<NAME>.cpy`. The file is optional.
-The file has the format of the `--config` file of the command line. See "Options file" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#options-file).
+The file has the format of the `--config` file of the command line. See "Options file" in the [wiki](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator#options-file).
 
 ```
 src/main/copybook/billing/GET-INVOICE.cpy
@@ -142,7 +142,7 @@ These rules apply:
 - All other options come only from the file. Without a file, the plugin uses the defaults of the generator.
 
 Mapping options such as `stripPrefixes`, `directions`, `subTypes`, and `countFields` name items of one copybook. Thus, the plugin has no property for them. Put them in the options file.
-For example, `countFields` links a count field to a fixed table. See "Count field of a fixed table" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#count-field-of-a-fixed-table).
+For example, `countFields` links a count field to a fixed table. See "Count field of a fixed table" in the [wiki](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator#count-field-of-a-fixed-table).
 
 If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The task logs an error line that starts with the path of the file.
 
@@ -169,7 +169,7 @@ Each copybook gives a class `OrderLine` in the same package. The build fails wit
 ```
 Two copybooks generate the same class:
   class com.example.mainframe.OrderLine comes from CUSTOMER-ORDER.cpy and CUSTOMER-RETURN.cpy
-Set bookmap.copybooks.packagePerCopybook = true, set "package" in an options file, or put the copybooks in different directories.
+Set copymapper.copybooks.packagePerCopybook = true, set "package" in an options file, or put the copybooks in different directories.
 ```
 
 The message lists all collisions of the build, not only the first.
@@ -211,7 +211,7 @@ src/main/copylib/ADDRESS.cpy                 a COPY member: it gives no classes
 ```
 
 ```kotlin
-bookmap {
+copymapper {
     copybooks {
         packageName = "com.example.mainframe"
         copyDirs.from("src/main/copylib")
@@ -222,7 +222,7 @@ bookmap {
 If you must keep the members inside `sourceDir`, exclude them:
 
 ```kotlin
-bookmap {
+copymapper {
     copybooks {
         packageName = "com.example.mainframe"
         copyDirs.from("src/main/copybook/members")
@@ -245,14 +245,14 @@ bookmap {
 
 - Run the Gradle daemon on JDK 21 or later. The plugin is compiled for Java 21.
 - The tests of the plugin use Gradle 9.9.1.
-- The plugin puts these libraries on the build script classpath: `bookmap-copybook`, `bookmap-core`, JavaPoet, and Jackson. They are not isolated from other plugins.
+- The plugin puts these libraries on the build script classpath: `copymapper-copybook`, `copymapper-core`, JavaPoet, and Jackson. They are not isolated from other plugins.
 
 ## 10. Example
 
-The directory [`bookmap-examples-gradle-plugin`](../bookmap-examples-gradle-plugin) is a standalone build that uses the plugin.
+The directory [`copymapper-examples-gradle-plugin`](../copymapper-examples-gradle-plugin) is a standalone build that uses the plugin.
 It has copybooks in two subpackages, an options file, a `COPY` member in `src/main/copylib`, and a test with the simulator transport.
 It takes the plugin and the libraries from the source of this repository. Run it from the repository root:
 
 ```bash
-./gradlew -p bookmap-examples-gradle-plugin build
+./gradlew -p copymapper-examples-gradle-plugin build
 ```

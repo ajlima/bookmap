@@ -1,5 +1,5 @@
 The copybook generator reads a COBOL copybook and writes the annotated Java classes.
-The classes compile with the BookMap processor without a change.
+The classes compile with the CopyMapper processor without a change.
 
 This page gives the concepts, the options file, and the mapping rules. They are the same for all tools.
 Each tool has its own page:
@@ -11,7 +11,7 @@ Each tool has its own page:
 | Maven plugin | [Copybook generator Maven plugin](Copybook-generator-Maven-plugin) | Your project uses Maven, and you generate the classes in each build. |
 | Java API | [Copybook generator CLI](Copybook-generator-CLI#java-api) | You write your own tool. |
 
-All tools use the same code in the library `bookmap-copybook`. Thus, the same copybook and the same options give the same classes in all tools.
+All tools use the same code in the library `copymapper-copybook`. Thus, the same copybook and the same options give the same classes in all tools.
 
 ## Scaffold mode and build mode
 
@@ -36,7 +36,7 @@ copybook ──parse──▶ AST ──map──▶ model (JSON) ──generate
 ```
 
 1. **Parse.** The parser reads the copybook and expands `COPY ... REPLACING`. It gives a tree of COBOL data items.
-2. **Map.** The mapper applies the BookMap rules: names, Java types, `pic`, `order`, collections, directions, and subtypes. It gives the model.
+2. **Map.** The mapper applies the CopyMapper rules: names, Java types, `pic`, `order`, collections, directions, and subtypes. It gives the model.
 3. **Generate.** The generator writes one Java class for each class of the model, with JavaPoet.
 
 The model has a stable JSON form with a format version. The same copybook and options always give the same JSON and the same Java.
@@ -145,7 +145,7 @@ In both formats, lower case is permitted. The generator changes the names and th
 
 ### Levels
 
-- Levels 01 to 49, 66, 77, and 88 are permitted. Each level `01` gives one class with `@BookOperation`.
+- Levels 01 to 49, 66, 77, and 88 are permitted. Each level `01` gives one class with `@Operation`.
 - One copybook can have more than one level `01`. Each one gives its own class.
 - If the first item is not level `01`, the generator adds a record. The record name comes from `recordName`.
 - A level 66 item (`RENAMES`) adds no bytes. The generator ignores it, with an `info` diagnostic: `level 66 item AB is ignored. RENAMES adds no bytes.`
@@ -166,7 +166,7 @@ In both formats, lower case is permitted. The generator changes the names and th
 | `COMP-5`, `COMPUTATIONAL-5` | Accepted as `COMP`, with a warning. See [COMP-5](#comp-5). |
 | `INDEX` | Accepted as `PIC S9(9) COMP`, with an `info` diagnostic. See [INDEX](#index). |
 | `SYNC`, `SYNCHRONIZED`, with `LEFT` or `RIGHT` | Accepted. The generator adds slack bytes. See [SYNC](#sync). |
-| `JUSTIFIED`, `JUST`, with `RIGHT` | Accepted, with a warning: `JUSTIFIED on D is ignored. BookMap writes the text on the left and keeps the spaces on the left when it reads.` |
+| `JUSTIFIED`, `JUST`, with `RIGHT` | Accepted, with a warning: `JUSTIFIED on D is ignored. CopyMapper writes the text on the left and keeps the spaces on the left when it reads.` |
 | `BLANK [WHEN] ZERO`, `ZEROS`, or `ZEROES` | Accepted on an unsigned numeric `DISPLAY` item and on an edited picture without `*`. The generator writes the clause in `pic`, for example `9(5)V99 BLANK WHEN ZERO`. A zero writes as spaces. |
 | `OCCURS n [TIMES]` | Accepted: a fixed collection. |
 | `OCCURS m TO n [TIMES] DEPENDING [ON] name [OF\|IN group]` | Accepted: a variable collection. |
@@ -175,11 +175,11 @@ In both formats, lower case is permitted. The generator changes the names and th
 | `VALUE [IS]` of an item, with one literal | Accepted: the initial value of the field. See [Initial values](#initial-values). Another form, for example `ALL '-'`, gives a warning: `the VALUE clause of NOTE is not supported and is ignored`. |
 | Level 88 with `VALUE [IS]` or `VALUES [ARE]`, values, and `THRU` or `THROUGH` ranges | Accepted. See [Level 88 items](#level-88-items). |
 | `INDEXED BY`, `ASCENDING KEY`, `DESCENDING KEY` | Ignored, with an `info` diagnostic, for example `INDEXED is ignored`. |
-| `COMP-1`, `COMP-2`, `COMPUTATIONAL-1`, `COMPUTATIONAL-2` | Error: `COMP-1 is not supported by BookMap. See issue #46.` |
-| `NATIONAL` | Error: `NATIONAL is not supported by BookMap. See issue #49.` |
+| `COMP-1`, `COMP-2`, `COMPUTATIONAL-1`, `COMPUTATIONAL-2` | Error: `COMP-1 is not supported by CopyMapper. See issue #46.` |
+| `NATIONAL` | Error: `NATIONAL is not supported by CopyMapper. See issue #49.` |
 | `POINTER` | Error. See [POINTER](#pointer). |
 | An incorrect edited picture | Error, for example `edited picture Z*9: Z, *, and a floating string are mutually exclusive`. |
-| Pictures with `P`, `A`, or `N` | Error, for example `picture symbol A is not supported by BookMap`. The message for `N` gives issue #49. |
+| Pictures with `P`, `A`, or `N` | Error, for example `picture symbol A is not supported by CopyMapper`. The message for `N` gives issue #49. |
 | A picture with a character that is not ASCII | Error, for example `picture string 'ſ9(5)' has the character 'ſ' (U+017F), which is not ASCII`. |
 | A picture with an incorrect form, for example `X9` | Error: `picture X9 is not valid`. |
 | Another word | Error, for example `unknown clause FOO`. |
@@ -211,7 +211,7 @@ If the item is not on its boundary, the compiler adds slack bytes before it. The
 - `SYNC` on a group applies to each item in the group.
 - `SYNC` on a `DISPLAY` or `COMP-3` item has no effect and gives no diagnostic.
 - Each alternative of a `REDEFINES` area starts at the offset of the redefined item.
-- In an `OCCURS`, the generator cannot add slack bytes. An item that needs them is an error: `SYNC on B in OCCURS T needs slack bytes. BookMap cannot add them in a table. Align the item by hand.`
+- In an `OCCURS`, the generator cannot add slack bytes. An item that needs them is an error: `SYNC on B in OCCURS T needs slack bytes. CopyMapper cannot add them in a table. Align the item by hand.`
 - An elementary item with `REDEFINES` that needs slack bytes is an error: `SYNC on C needs slack bytes, but C has REDEFINES. Align the item by hand.`
 
 **CAUTION:** If the copybook has no level `01`, the generator does not know the offset of the copybook in the record. It assumes offset 0, with a warning: `the copybook has no level 01. SYNC assumes that ORDER starts on a doubleword boundary.` Make sure that the first item starts on a doubleword boundary. Otherwise, the offsets are incorrect.
@@ -231,7 +231,7 @@ A `COMP-5` item has the same bytes as a `COMP` item. But it can hold all values 
 | 10 to 18 digits, signed | `long` |
 | 10 to 18 digits, unsigned, or decimals | `BigDecimal` |
 
-BookMap reads all values. But it writes only the values with the digits of the picture. A larger value gives a `MappingException`. The generator gives a warning: `COMP-5 on I is mapped as COMP. BookMap reads all binary values, but writes only values with at most 4 digits.`
+CopyMapper reads all values. But it writes only the values with the digits of the picture. A larger value gives a `MappingException`. The generator gives a warning: `COMP-5 on I is mapped as COMP. CopyMapper reads all binary values, but writes only values with at most 4 digits.`
 
 ### INDEX
 
@@ -243,7 +243,7 @@ The generator maps it as `PIC S9(9) COMP`, with the Java type `int`. The `info` 
 ### POINTER
 
 A `POINTER` item is an error. Its size is 4 or 8 bytes, and it depends on the compiler option `LP`. The copybook does not give this option.
-The message is `POINTER is not supported by BookMap: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with the REPLACE statement.`
+The message is `POINTER is not supported by CopyMapper: its size depends on the compiler option LP. Replace it with PIC X(4) or PIC X(8), for example with the REPLACE statement.`
 
 Use the [REPLACE statement](#the-replace-statement) to change the item without a change to the copybook file:
 
@@ -325,14 +325,14 @@ Messages: `REPLACE needs pseudo-text, for example REPLACE ==A== BY ==B==.`, `REP
 
 | COBOL | Java |
 |---|---|
-| Level `01` | A class with `@BookOperation`. |
+| Level `01` | A class with `@Operation`. |
 | A group without `OCCURS` | No class. Its items go into the class of the parent. |
-| `OCCURS n` | `@BookCollection(fixed = true)` and an item class. With the option `countFields`, also `dependsOn`. |
-| `OCCURS m TO n DEPENDING ON X` | `@BookCollection(dependsOn = "x")` and an item class. |
-| `OCCURS m TO n` without `DEPENDING ON` | `@BookCollection(maxOccurs = n, fixed = true)`. |
+| `OCCURS n` | `@Occurs(fixed = true)` and an item class. With the option `countFields`, also `dependsOn`. |
+| `OCCURS m TO n DEPENDING ON X` | `@Occurs(dependsOn = "x")` and an item class. |
+| `OCCURS m TO n` without `DEPENDING ON` | `@Occurs(maxOccurs = n, fixed = true)`. |
 | An elementary item with `OCCURS` | An item class with one field `value`. |
-| `OCCURS n` in an `OCCURS` entry | A fixed `@BookCollection` in the item class. See [A table in a table entry](#a-table-in-a-table-entry). |
-| An elementary item | A `@BookField` with `pic`, for example `pic = "S9(7)V99 COMP-3"`. |
+| `OCCURS n` in an `OCCURS` entry | A fixed `@Occurs` in the item class. See [A table in a table entry](#a-table-in-a-table-entry). |
+| An elementary item | A `@Field` with `pic`, for example `pic = "S9(7)V99 COMP-3"`. |
 | `FILLER` | A field `filler1`, `filler2`, ... See [FILLER](#filler). |
 | `REDEFINES` of an elementary item | The first definition. The other item is skipped, with a warning: `E2 redefines E1 and is skipped. To keep both, add "views": ["E1"].` See [REDEFINES of an elementary item](#redefines-of-an-elementary-item). |
 | `REDEFINES` of a group | A direction split or subtypes. See the next sections. |
@@ -390,7 +390,7 @@ The class names are compared without case. If an item class name is in use, the 
 ### OCCURS DEPENDING ON
 
 - `dependsOn` contains the Java name of the count field, for example `dependsOn = "orderCount"`.
-- The count field stays a normal `@BookField`, with the direction `INPUT_OUTPUT`.
+- The count field stays a normal `@Field`, with the direction `INPUT_OUTPUT`.
 - `maxOccurs` is the maximum. The generator does not keep the minimum.
 - The count item must be an integer in the same class, before the table.
 
@@ -401,7 +401,7 @@ The class names are compared without case. If an item class name is in use, the 
 | `DEPENDING ON item LATER must be in the same class, before the table` | The count item is after the table, or in another class. |
 | `DEPENDING ON item CNTX must be an integer` | The count item is text, or has decimals. |
 | `DEPENDING ON item CNT has 1 digits and cannot hold 20` | The count item is too small for the maximum. |
-| `OCCURS T4B DEPENDING ON N is inside OCCURS T4. BookMap does not support a DEPENDING ON table in a table entry (complex OCCURS DEPENDING ON).` | A `DEPENDING ON` table in a table entry. |
+| `OCCURS T4B DEPENDING ON N is inside OCCURS T4. CopyMapper does not support a DEPENDING ON table in a table entry (complex OCCURS DEPENDING ON).` | A `DEPENDING ON` table in a table entry. |
 
 ### A table in a table entry
 
@@ -424,7 +424,7 @@ A fixed table (`OCCURS n`) in the entry of another table becomes a collection in
 - The inner collection has no `direction`. It uses the direction of the outer collection.
 - The options `countFields`, `emptyItems`, and `emptyKeys` apply to an inner table. Name the table, for example `"LINE-TAX"` or `"LINE-TAX OF ORDER-LINE"`.
 - The count item of an inner table must be in the same entry, before the table. For example, link `TAX-COUNT` with `"countFields": {"LINE-TAX": "TAX-COUNT"}`.
-- An `OCCURS DEPENDING ON` in a table entry is an error. In COBOL, its count item is outside the entry, so all entries have the same number of inner entries (IBM "complex OCCURS DEPENDING ON"). BookMap does not support it.
+- An `OCCURS DEPENDING ON` in a table entry is an error. In COBOL, its count item is outside the entry, so all entries have the same number of inner entries (IBM "complex OCCURS DEPENDING ON"). CopyMapper does not support it.
 - The record length includes the inner tables. The warning about the largest tables names only the top-level tables.
 
 See [Nested collections](Collections-and-fixed-OCCURS#nested-collections) for the behavior of the codec.
@@ -454,10 +454,10 @@ Use the option `countFields` to link the count field to the table:
 On the command line, use `--count-field INVOICE-LINE=INVOICE-LINE-COUNT`. The generator then writes `dependsOn` on the fixed collection:
 
 ```java
-@BookField(order = 20, pic = "9(3)")
+@Field(order = 20, pic = "9(3)")
 private int invoiceLineCount;
 
-@BookCollection(order = 30, maxOccurs = 100, direction = Direction.INPUT_OUTPUT, fixed = true, dependsOn = "invoiceLineCount")
+@Occurs(order = 30, maxOccurs = 100, direction = Direction.INPUT_OUTPUT, fixed = true, dependsOn = "invoiceLineCount")
 private List<InvoiceLine> invoiceLine;
 ```
 
@@ -515,7 +515,7 @@ The copybook does not tell how the program marks an unused entry. Thus, the gene
 On the command line, use `--empty-item INVOICE-LINE=SPACES` and `--empty-key INVOICE-LINE=INVOICE-NUMBER`. The generator then writes `emptyItem` and `emptyKey` on the fixed collection:
 
 ```java
-@BookCollection(order = 10, maxOccurs = 5, direction = Direction.INPUT_OUTPUT, fixed = true, emptyKey = "invoiceNumber", emptyItem = EmptyItem.SPACES)
+@Occurs(order = 10, maxOccurs = 5, direction = Direction.INPUT_OUTPUT, fixed = true, emptyKey = "invoiceNumber", emptyItem = EmptyItem.SPACES)
 private List<InvoiceLine> invoiceLine;
 ```
 
@@ -585,18 +585,18 @@ Rules for the option:
 
 The generator keeps the first definition and skips the other item, with the warning `E2 redefines E1 and is skipped. To keep both, add "views": ["E1"].` To keep both items, use the option [views](#views). Without the option, two cases are errors:
 
-- The redefining item is longer: `E3 redefines E1 and is longer than E1. BookMap keeps E1, so the items after it would move.`
-- An elementary item redefines a group: `... is an elementary item that redefines the group ... BookMap does not support this.`
+- The redefining item is longer: `E3 redefines E1 and is longer than E1. CopyMapper keeps E1, so the items after it would move.`
+- An elementary item redefines a group: `... is an elementary item that redefines the group ... CopyMapper does not support this.`
 
 ### A REDEFINES area in another REDEFINES area
 
-Without a [views](#views) option, BookMap cannot map a group `REDEFINES` area in an alternative of another area (see issue #39). The generator uses the rule of an elementary item: it keeps the redefined group, and it skips each group that redefines it, with a warning:
+Without a [views](#views) option, CopyMapper cannot map a group `REDEFINES` area in an alternative of another area (see issue #39). The generator uses the rule of an elementary item: it keeps the redefined group, and it skips each group that redefines it, with a warning:
 
 ```
-the REDEFINES area LIMITS is inside another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS. To keep both, add "views": ["LIMITS"].
+the REDEFINES area LIMITS is inside another REDEFINES area. CopyMapper keeps LIMITS and skips OTHER-LIMITS. To keep both, add "views": ["LIMITS"].
 ```
 
-The bytes of the skipped group stay in the fields of the kept group. A skipped group that is longer than the kept group is an error: `C redefines A and is longer than A. BookMap keeps A, so the items after it would move.`
+The bytes of the skipped group stay in the fields of the kept group. A skipped group that is longer than the kept group is an error: `C redefines A and is longer than A. CopyMapper keeps A, so the items after it would move.`
 
 ### Example
 
@@ -616,14 +616,14 @@ gives two classes, `GetOrder` and `OrderLine`. This is `GetOrder`, shortened: wi
 
 ```java
 /**
- * Generated by the BookMap copybook generator from {@code GET-ORDER.cpy}.
+ * Generated by the CopyMapper copybook generator from {@code GET-ORDER.cpy}.
  */
-@BookOperation
+@Operation
 public class GetOrder {
     /**
      * {@code 05 ORDER-ID PIC X(10).}
      */
-    @BookField(
+    @Field(
             order = 10,
             pic = "X(10)"
     )
@@ -632,7 +632,7 @@ public class GetOrder {
     /**
      * {@code 05 ORDER-TOTAL PIC S9(7)V99 COMP-3.}
      */
-    @BookField(
+    @Field(
             order = 20,
             pic = "S9(7)V99 COMP-3"
     )
@@ -641,7 +641,7 @@ public class GetOrder {
     /**
      * {@code 05 ORDER-LINE OCCURS 3 TIMES.}
      */
-    @BookCollection(
+    @Occurs(
             order = 30,
             maxOccurs = 3,
             direction = Direction.INPUT_OUTPUT,
@@ -655,9 +655,9 @@ public class GetOrder {
 
 ### The generated classes
 
-- Each class gets the Javadoc `Generated by the BookMap copybook generator from {@code GET-ORDER.cpy}.`
+- Each class gets the Javadoc `Generated by the CopyMapper copybook generator from {@code GET-ORDER.cpy}.`
 - Each field gets a Javadoc with its declaration, after `COPY REPLACING`, with single spaces and without `VALUE`.
-- `@BookCollection` always has `direction`. `@BookField` has `direction` only if it is not `INPUT_OUTPUT`.
+- `@Occurs` always has `direction`. `@Field` has `direction` only if it is not `INPUT_OUTPUT`.
 - A usage on a group shows in the `pic` of each item, for example `pic = "S9(5)V99 COMP-3"`. The Javadoc shows the declaration as written.
 - The item classes have no class annotation.
 - Without Lombok, each class gets a public getter and a public setter for each field.
@@ -722,7 +722,7 @@ The generator writes the enum in the package of the classes. Each constant gets 
 
 ```java
 /**
- * Generated by the BookMap copybook generator from {@code GET-INVOICE.cpy}.
+ * Generated by the CopyMapper copybook generator from {@code GET-INVOICE.cpy}.
  * The level 88 items of {@code PARTY-ROLE}.
  */
 public enum PartyRole {
@@ -736,7 +736,7 @@ public enum PartyRole {
 ```
 
 ```java
-@BookField(order = 20, pic = "X(8)")
+@Field(order = 20, pic = "X(8)")
 private PartyRole partyRole;
 ```
 
@@ -799,7 +799,7 @@ In the enum mode, a value that no level 88 item contains gives a warning: `the V
 
 The copybook does not give the direction of a field. Thus, all fields are `INPUT_OUTPUT`, with one exception: the alternatives of a `REDEFINES` area.
 
-In BookMap, an `INPUT` field does not occupy bytes in the output area.
+In CopyMapper, an `INPUT` field does not occupy bytes in the output area.
 Outside a `REDEFINES` area, a direction would move the offsets of the fields after it. The offsets would not agree with COBOL.
 Inside a `REDEFINES` area, the input alternative and the output alternative share the same bytes. This is a **direction split**:
 
@@ -854,7 +854,7 @@ Rules for a direction split:
 ## Subtypes
 
 A subtype decision maps a `REDEFINES` area to [subtypes](Subtypes-REDEFINES). It gives the discriminator and the value of each alternative.
-The class that holds the area gets `@BookSubTypes`. Each alternative becomes a subclass.
+The class that holds the area gets `@SubTypes`. Each alternative becomes a subclass.
 
 ```json
 {
@@ -879,19 +879,19 @@ Rules for subtypes:
 
 - The discriminator must be an item before the area, in the same class. It must be text or an integer.
 - Give a value for each alternative. Otherwise, the error is `the REDEFINES alternative SAVING-DATA has no discriminator value`.
-- The area must be at the end of the class: `TRAILER comes after the REDEFINES area CARD-DATA. BookMap needs the redefined area at the end of the layout.`
-- `@BookSubTypes(discriminator = ...)` contains the Java field name, for example `accountKind`.
+- The area must be at the end of the class: `TRAILER comes after the REDEFINES area CARD-DATA. CopyMapper needs the redefined area at the end of the layout.`
+- `@SubTypes(discriminator = ...)` contains the Java field name, for example `accountKind`.
 - Each subclass extends the class that holds the area. Its `order` values continue after the base class.
 
-With the example options above, `GET-ACCOUNT-SUMMARY.cpy` (in `bookmap-examples`) gives this base class:
+With the example options above, `GET-ACCOUNT-SUMMARY.cpy` (in `copymapper-examples`) gives this base class:
 
 ```java
-@BookOperation
-@BookSubTypes(
+@Operation
+@SubTypes(
         discriminator = "accountKind",
         value = {
-                @BookSubTypes.Type(value = "C", type = CardAccount.class),
-                @BookSubTypes.Type(value = "L", type = LoanAccount.class)
+                @SubTypes.Type(value = "C", type = CardAccount.class),
+                @SubTypes.Type(value = "L", type = LoanAccount.class)
         }
 )
 public class GetAccountSummary {
@@ -916,9 +916,9 @@ On the command line, use `--view TRACKING-CODE --view RESULT-DETAIL`.
 
 The generator writes these members:
 
-- An elementary alternative gives a `@BookField`. An integer gets `Integer` or `Long`, because a view that is not valid is `null`.
-- A group alternative gives a `@BookGroup` and a group class. The class name comes from the item name, with the rules of an item class name.
-- An alternative with `OCCURS n` gives a fixed `@BookCollection`.
+- An elementary alternative gives a `@Field`. An integer gets `Integer` or `Long`, because a view that is not valid is `null`.
+- A group alternative gives a `@Group` and a group class. The class name comes from the item name, with the rules of an item class name.
+- An alternative with `OCCURS n` gives a fixed `@Occurs`.
 - Each alternative after the first gets `redefines` with the Java name of the first.
 - The members of a view get the direction of the area. Only the first member shows it.
 - An elementary member of the area gets no initial value. Its `VALUE` gives the `info` diagnostic `the VALUE of CODE is ignored, because CODE is in a REDEFINES view`. The fields in a group class keep their initial values.
@@ -939,7 +939,7 @@ The generator writes these members:
 ## Date hints
 
 The copybook does not tell if a `PIC 9(8)` item is a date. Thus, the generator does not guess. Without a hint, the item is an `int`.
-A date hint maps an item to a `DateTimeFormatter` pattern. The field becomes a date or time field, with `pattern` in `@BookField`.
+A date hint maps an item to a `DateTimeFormatter` pattern. The field becomes a date or time field, with `pattern` in `@Field`.
 
 ```json
 {
@@ -959,7 +959,7 @@ The key is an item name or a name pattern:
 - The match is not case-sensitive.
 - An item name has priority over a name pattern.
 
-The pattern gives the Java type. The pattern rules are the same as for `@BookField` (see [Dates and times](PIC-syntax-and-type-mapping#dates-and-times)).
+The pattern gives the Java type. The pattern rules are the same as for `@Field` (see [Dates and times](PIC-syntax-and-type-mapping#dates-and-times)).
 
 | Pattern | Java type |
 |---|---|
@@ -973,7 +973,7 @@ For `"*-DATE": "yyyyMMdd"`, the item `10 SHIP-DATE PIC 9(8).` gives this field:
 /**
  * {@code 10 SHIP-DATE PIC 9(8).}
  */
-@BookField(
+@Field(
         order = 20,
         pic = "9(8)",
         pattern = "yyyyMMdd"
@@ -1028,7 +1028,7 @@ A handler name without a package is a class in the package of the generated clas
 The generated class implements the interfaces. Each method calls a static method of the handler with the same name:
 
 ```java
-@BookOperation
+@Operation
 public class ListShipments implements Continuable, Validatable {
     // fields, getters, and setters
 
@@ -1080,11 +1080,11 @@ public final class ReturnCodes {
 - One handler class can serve more operations. Write one method for each operation class.
 - The compiler checks the handler. A missing class or method is a compile error.
 
-BookMap does not permit an `INPUT_OUTPUT` collection in a `Continuable` class.
+CopyMapper does not permit an `INPUT_OUTPUT` collection in a `Continuable` class.
 For a `Continuable` record, each `INPUT_OUTPUT` collection is an error, with the line of the collection:
 
 ```
-ORDERS.cpy:9:12: error: ORDER-ENTRY is an INPUT_OUTPUT collection. BookMap does not permit it in a Continuable class. Put the table in the output alternative of a REDEFINES area.
+ORDERS.cpy:9:12: error: ORDER-ENTRY is an INPUT_OUTPUT collection. CopyMapper does not permit it in a Continuable class. Put the table in the output alternative of a REDEFINES area.
 ```
 
 Put the table in the output alternative of a [direction split](#directions). The table then gets the direction `OUTPUT`:
@@ -1208,11 +1208,11 @@ The group clause does not change the other items, for example `PIC X`, `PIC 9`, 
 ```
 
 ```java
-@BookField(order = 10, pic = "S9(7)V99 SIGN LEADING SEPARATE")
+@Field(order = 10, pic = "S9(7)V99 SIGN LEADING SEPARATE")
 private BigDecimal netAmount;
-@BookField(order = 20, pic = "S9(5)V99")
+@Field(order = 20, pic = "S9(5)V99")
 private BigDecimal taxAmount;
-@BookField(order = 30, pic = "9(3)")
+@Field(order = 30, pic = "9(3)")
 private int lineCount;
 ```
 
@@ -1231,13 +1231,13 @@ The `pic` of the field is the picture of the copybook. See [Edited pictures](PIC
 ```
 
 ```java
-@BookField(order = 10, pic = "ZZ9")
+@Field(order = 10, pic = "ZZ9")
 private int invLines;
 
-@BookField(order = 20, pic = "$Z,ZZ9.99CR")
+@Field(order = 20, pic = "$Z,ZZ9.99CR")
 private BigDecimal invTotal;
 
-@BookField(order = 30, pic = "9(3)V99 BLANK WHEN ZERO")
+@Field(order = 30, pic = "9(3)V99 BLANK WHEN ZERO")
 private BigDecimal invDiscount;
 ```
 
@@ -1256,7 +1256,7 @@ private BigDecimal invDiscount;
 - These items are errors: `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), alphanumeric edited pictures, `POINTER`, `P`, `A`, and an `OCCURS DEPENDING ON` in a table entry.
 - Without the option `views`, the generator skips the inner alternatives of a `REDEFINES` area in another one (#39).
 - `SYNC` in an `OCCURS` is an error if the item needs slack bytes.
-- BookMap writes a `COMP-5` value only if it has the digits of the picture.
+- CopyMapper writes a `COMP-5` value only if it has the digits of the picture.
 - The generator adds the lengths of a record in `int`. A record longer than 2147483647 bytes gives a wrong length in the diagnostics (#122). The processor rejects the generated class.
 
 The [Roadmap](Roadmap) lists the plan for these limitations.

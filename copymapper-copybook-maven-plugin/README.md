@@ -1,11 +1,11 @@
-# BookMap copybook Maven plugin
+# CopyMapper copybook Maven plugin
 
-The plugin `pt.dazz.bookmap:bookmap-copybook-maven-plugin` runs the BookMap copybook generator in a Maven build.
+The plugin `pt.dazz.copymapper:copymapper-copybook-maven-plugin` runs the CopyMapper copybook generator in a Maven build.
 It reads a directory tree of COBOL copybooks and writes the annotated Java classes in the phase `generate-sources`.
 The directories of the tree give the Java subpackages.
 
-The plugin has the same rules as the [Gradle plugin](../bookmap-copybook-gradle-plugin/README.md). Both plugins use the same code in `bookmap-copybook`.
-For the mapping rules, the options, and the limitations of the generator, see the page "Copybook generator" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator).
+The plugin has the same rules as the [Gradle plugin](../copymapper-copybook-gradle-plugin/README.md). Both plugins use the same code in `copymapper-copybook`.
+For the mapping rules, the options, and the limitations of the generator, see the page "Copybook generator" in the [wiki](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator).
 
 ## 1. What the plugin does
 
@@ -13,7 +13,7 @@ For the mapping rules, the options, and the limitations of the generator, see th
 - It generates the classes of each copybook into `target/generated-sources/copybook`.
 - It adds that directory to the main compile source roots. The compiler then compiles the classes with the other sources of the module. It has no option for test sources.
 - It skips the generation when no input changed (see [section 8](#8-up-to-date-check-and-skip)).
-- The plugin does not add dependencies to your project. Add `bookmap-core` and `bookmap-processor` yourself.
+- The plugin does not add dependencies to your project. Add `copymapper-core` and `copymapper-processor` yourself.
 
 ## 2. Setup
 
@@ -22,13 +22,13 @@ The plugin is on Maven Central. A Maven mirror (for example, Nexus or Artifactor
 Requirements:
 
 - Maven 3.6.3 or later. The tests use Maven 3.6.3 and 3.9.16. Maven 4 is not tested.
-- Run Maven on JDK 21 or later. The plugin and BookMap are compiled for Java 21.
+- Run Maven on JDK 21 or later. The plugin and CopyMapper are compiled for Java 21.
 
 ```xml
 <dependencies>
   <dependency>
-    <groupId>pt.dazz.bookmap</groupId>
-    <artifactId>bookmap-core</artifactId>
+    <groupId>pt.dazz.copymapper</groupId>
+    <artifactId>copymapper-core</artifactId>
     <version>0.27.0</version>
   </dependency>
 </dependencies>
@@ -43,16 +43,16 @@ Requirements:
         <release>21</release>
         <annotationProcessorPaths>
           <path>
-            <groupId>pt.dazz.bookmap</groupId>
-            <artifactId>bookmap-processor</artifactId>
+            <groupId>pt.dazz.copymapper</groupId>
+            <artifactId>copymapper-processor</artifactId>
             <version>0.27.0</version>
           </path>
         </annotationProcessorPaths>
       </configuration>
     </plugin>
     <plugin>
-      <groupId>pt.dazz.bookmap</groupId>
-      <artifactId>bookmap-copybook-maven-plugin</artifactId>
+      <groupId>pt.dazz.copymapper</groupId>
+      <artifactId>copymapper-copybook-maven-plugin</artifactId>
       <version>0.27.0</version>
       <executions>
         <execution>
@@ -75,24 +75,24 @@ Requirements:
 You can also run the goal from the command line with the full coordinates:
 
 ```bash
-mvn pt.dazz.bookmap:bookmap-copybook-maven-plugin:0.27.0:generate
+mvn pt.dazz.copymapper:copymapper-copybook-maven-plugin:0.27.0:generate
 ```
 
-The short form `mvn bookmap-copybook:generate` works only if `pt.dazz.bookmap` is in the `<pluginGroups>` of your `settings.xml`.
+The short form `mvn copymapper-copybook:generate` works only if `pt.dazz.copymapper` is in the `<pluginGroups>` of your `settings.xml`.
 
 ## 3. The parameters
 
 | Parameter | User property | Default | Meaning |
 |---|---|---|---|
-| `sourceDir` | `bookmap.copybook.sourceDir` | `${project.basedir}/src/main/copybook` | The root of the copybook tree. The goal scans it recursively. |
+| `sourceDir` | `copymapper.copybook.sourceDir` | `${project.basedir}/src/main/copybook` | The root of the copybook tree. The goal scans it recursively. |
 | `copyDirs` | none | empty | The directories with the `COPY` members, in search order. See [section 7](#7-copy-members-where-to-put-them). |
-| `packageName` | `bookmap.copybook.packageName` | none | The base package. It is required if a copybook exists and its options file does not set `package`. |
-| `lombok` | `bookmap.copybook.lombok` | `false` | Write Lombok annotations instead of getters and setters. |
-| `packagePerCopybook` | `bookmap.copybook.packagePerCopybook` | `false` | Add one package segment from the copybook name. See [section 6](#6-class-name-collisions-and-packagepercopybook). |
-| `outputDir` | `bookmap.copybook.outputDir` | `${project.build.directory}/generated-sources/copybook` | The directory for the generated Java files. |
+| `packageName` | `copymapper.copybook.packageName` | none | The base package. It is required if a copybook exists and its options file does not set `package`. |
+| `lombok` | `copymapper.copybook.lombok` | `false` | Write Lombok annotations instead of getters and setters. |
+| `packagePerCopybook` | `copymapper.copybook.packagePerCopybook` | `false` | Add one package segment from the copybook name. See [section 6](#6-class-name-collisions-and-packagepercopybook). |
+| `outputDir` | `copymapper.copybook.outputDir` | `${project.build.directory}/generated-sources/copybook` | The directory for the generated Java files. |
 | `includes` | none | `**/*.cpy` | The patterns of the copybook files in `sourceDir`. Your patterns replace the default. An empty list uses the default. |
 | `excludes` | none | none | The patterns of the files in `sourceDir` that are not copybooks. |
-| `skip` | `bookmap.copybook.skip` | `false` | Do not generate the classes. |
+| `skip` | `copymapper.copybook.skip` | `false` | Do not generate the classes. |
 
 Relative paths in `sourceDir`, `copyDirs`, and `outputDir` start at the directory of the module (`${project.basedir}`).
 The patterns use the Ant style, relative to `sourceDir`. For example:
@@ -103,7 +103,7 @@ The patterns use the Ant style, relative to `sourceDir`. For example:
 </excludes>
 ```
 
-If `packageName` is necessary and not set, the build fails with this message: `Set the packageName parameter of bookmap-copybook-maven-plugin.`
+If `packageName` is necessary and not set, the build fails with this message: `Set the packageName parameter of copymapper-copybook-maven-plugin.`
 A user property has an effect only when the POM does not set the parameter.
 
 The goal writes each diagnostic of the generator to the Maven log as `[ERROR]` or `[WARNING]`. An `info:` diagnostic also shows as `[WARNING]`.
@@ -121,7 +121,7 @@ The goal gives each copybook a package in this order:
 3. If `packagePerCopybook` is `true`, it adds one more segment from the copybook name. Rule 1 has priority over this rule.
 
 The goal changes each name to a valid package segment: lower case, `_` for each character that is not an ASCII letter, an ASCII digit, or `_`, `_` before a leading digit, and `_` after a Java keyword, `true`, `false`, or `null`.
-For the full rules and the examples, see "Packages from directories" in the [Gradle plugin README](../bookmap-copybook-gradle-plugin/README.md#4-packages-from-directories). The rules are the same.
+For the full rules and the examples, see "Packages from directories" in the [Gradle plugin README](../copymapper-copybook-gradle-plugin/README.md#4-packages-from-directories). The rules are the same.
 
 | Copybook in `sourceDir` | Package, with `packageName` = `com.example.mainframe` |
 |---|---|
@@ -134,7 +134,7 @@ If the final package is not a valid Java package name, the goal logs an error fo
 ## 5. Options files
 
 Put the options of one copybook in a file `<NAME>.json` next to `<NAME>.cpy`. The file is optional.
-The file has the format of the `--config` file of the command line. See "Options file" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#options-file).
+The file has the format of the `--config` file of the command line. See "Options file" in the [wiki](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator#options-file).
 
 - `package` in the file has priority over the package from the directories.
 - `lombok` in the file has priority over the `lombok` parameter.
@@ -143,7 +143,7 @@ The file has the format of the `--config` file of the command line. See "Options
 - All other options come only from the file.
 
 Mapping options such as `stripPrefixes`, `directions`, `subTypes`, and `countFields` name items of one copybook. Thus, the goal has no parameter for them. Put them in the options file.
-For example, `countFields` links a count field to a fixed table. See "Count field of a fixed table" in the [wiki](https://github.com/ajlima/bookmap/wiki/Copybook-generator#count-field-of-a-fixed-table).
+For example, `countFields` links a count field to a fixed table. See "Count field of a fixed table" in the [wiki](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator#count-field-of-a-fixed-table).
 
 If the file cannot be read, is not valid JSON, has an unknown key, or has a path in `copyDirs` that is not valid, the build fails. The goal logs an error line that starts with the path of the file.
 
@@ -212,17 +212,17 @@ If you must keep the members inside `sourceDir`, exclude them:
 
 Maven has no input and output tracking. The goal does its own check:
 
-- After a successful run, the goal stores a SHA-256 fingerprint of all inputs in `${project.build.directory}/bookmap-copybook/`. Each `outputDir` has its own fingerprint file.
+- After a successful run, the goal stores a SHA-256 fingerprint of all inputs in `${project.build.directory}/copymapper-copybook/`. Each `outputDir` has its own fingerprint file.
 - The inputs are the copybooks and all `.json` files below `sourceDir` (the `excludes` do not apply to the `.json` files), the files directly in each copy directory (not in its subdirectories), the order of the copy directories, the parameters `packageName`, `lombok`, `packagePerCopybook`, `outputDir`, `includes`, and `excludes`, and the plugin version.
 - In the next build, if the fingerprint is the same and `outputDir` exists, the goal logs `The generated classes are up to date.` and does not generate again.
 - A changed, added, or removed file, or a changed parameter, makes the goal generate again. Each run deletes the old files in `outputDir` first, so a removed copybook removes its classes.
 - If the goal fails, it stores no fingerprint. The next build runs the goal again.
 - `mvn clean` removes the fingerprint. It removes the generated files only if `outputDir` is below `target`, as the default is.
-- The goal does not check the files in `outputDir`, only that the directory exists. If you delete a generated file, delete `target/bookmap-copybook/` or run `mvn clean`.
+- The goal does not check the files in `outputDir`, only that the directory exists. If you delete a generated file, delete `target/copymapper-copybook/` or run `mvn clean`.
 
 **WARNING:** Give each execution of the goal in one module its own `outputDir`. Each run deletes all files in its `outputDir`, so two executions with the same `outputDir` remove the classes of each other.
 
-With `skip` (`-Dbookmap.copybook.skip=true`), the goal does not generate, and it logs `Skipped.` It still adds `outputDir` to the source roots, so the classes of an earlier run stay available to the compiler.
+With `skip` (`-Dcopymapper.copybook.skip=true`), the goal does not generate, and it logs `Skipped.` It still adds `outputDir` to the source roots, so the classes of an earlier run stay available to the compiler.
 
 ## 9. Multi-module projects
 
@@ -230,8 +230,8 @@ Put the copybooks in one module. That module runs the plugin and the processor, 
 
 ```
 parent/
-  pom.xml                  pluginManagement for bookmap-copybook-maven-plugin
-  mainframe-model/         the copybooks; runs the plugin and bookmap-processor
+  pom.xml                  pluginManagement for copymapper-copybook-maven-plugin
+  mainframe-model/         the copybooks; runs the plugin and copymapper-processor
     src/main/copybook/...
     src/main/copylib/...
   orders-service/          depends on mainframe-model
@@ -244,8 +244,8 @@ In a corporate parent POM, declare the plugin one time in `<pluginManagement>`:
 <pluginManagement>
   <plugins>
     <plugin>
-      <groupId>pt.dazz.bookmap</groupId>
-      <artifactId>bookmap-copybook-maven-plugin</artifactId>
+      <groupId>pt.dazz.copymapper</groupId>
+      <artifactId>copymapper-copybook-maven-plugin</artifactId>
       <version>0.27.0</version>
       <executions>
         <execution>
@@ -263,8 +263,8 @@ Then the module with the copybooks declares only the plugin and its configuratio
 
 ```xml
 <plugin>
-  <groupId>pt.dazz.bookmap</groupId>
-  <artifactId>bookmap-copybook-maven-plugin</artifactId>
+  <groupId>pt.dazz.copymapper</groupId>
+  <artifactId>copymapper-copybook-maven-plugin</artifactId>
   <configuration>
     <packageName>com.example.mainframe</packageName>
     <copyDirs>
@@ -276,7 +276,7 @@ Then the module with the copybooks declares only the plugin and its configuratio
 
 ## 10. Example
 
-The directory [`bookmap-examples-maven-plugin`](../bookmap-examples-maven-plugin) is a standalone multi-module Maven build that uses the plugin.
+The directory [`copymapper-examples-maven-plugin`](../copymapper-examples-maven-plugin) is a standalone multi-module Maven build that uses the plugin.
 It has the module `mainframe-model` (copybooks in two subpackages, an options file, and a `COPY` member) and the module `orders-service` (a test with the simulator transport).
 It uses the snapshot version of this repository and the Maven Wrapper. Run it from the repository root:
 
@@ -285,5 +285,5 @@ It uses the snapshot version of this repository and the Maven Wrapper. Run it fr
 ```
 
 ```bash
-bookmap-examples-maven-plugin/mvnw -B -f bookmap-examples-maven-plugin/pom.xml verify
+copymapper-examples-maven-plugin/mvnw -B -f copymapper-examples-maven-plugin/pom.xml verify
 ```

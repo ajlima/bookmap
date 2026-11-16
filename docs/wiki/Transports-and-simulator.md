@@ -1,5 +1,5 @@
-The client sends the bytes of each request through a **transport**. The transport is the only part of BookMap that knows the middleware.
-The book classes and the `BookmapClient` calls are the same for all transports. Only the transport object changes.
+The client sends the bytes of each request through a **transport**. The transport is the only part of CopyMapper that knows the middleware.
+The book classes and the `CopyMapperClient` calls are the same for all transports. Only the transport object changes.
 
 This page explains the transport SPI and the simulator for tests. Each real transport has its own page:
 
@@ -11,19 +11,19 @@ This page explains the transport SPI and the simulator for tests. Each real tran
 
 | Transport | Use it when | Add to your application | The mainframe side needs |
 |---|---|---|---|
-| [CICS Transaction Gateway](CICS-Transaction-Gateway) | The program is a CICS program with a COMMAREA, and your site has a CTG. | `bookmap-transport-ctg` and the IBM library `ctgclient.jar`. The IBM library is not on Maven Central: add it yourself. | A CTG Gateway daemon connected to the CICS region. A COMMAREA of 32,500 bytes maximum. |
-| [HTTP transport](HTTP-transport) | The mainframe has an HTTP endpoint that accepts the bytes of the book. | `bookmap-transport-http`. It uses only the JDK HTTP client. | An endpoint with a binary body (`application/octet-stream`), for example a CICS web service or a custom HTTP program in CICS. A standard z/OS Connect API expects JSON, and does not work. |
-| [IBM MQ](IBM-MQ) | The program gets its requests from a queue and puts the replies on a queue. | `bookmap-transport-mq` and the IBM MQ classes for Jakarta Messaging (`com.ibm.mq.jakarta.client`, on Maven Central). | A server program that reads the request queue and puts the reply on the `ReplyToQ` with the correct correlation ID. Messages in the format `MQFMT_NONE`, without an RFH2 header. |
-| [Simulator](#the-simulator) | Unit tests and integration tests without a mainframe. | `bookmap-transport-simulator`, in the test scope. | Nothing. Handlers in the same JVM give the responses. |
+| [CICS Transaction Gateway](CICS-Transaction-Gateway) | The program is a CICS program with a COMMAREA, and your site has a CTG. | `copymapper-transport-ctg` and the IBM library `ctgclient.jar`. The IBM library is not on Maven Central: add it yourself. | A CTG Gateway daemon connected to the CICS region. A COMMAREA of 32,500 bytes maximum. |
+| [HTTP transport](HTTP-transport) | The mainframe has an HTTP endpoint that accepts the bytes of the book. | `copymapper-transport-http`. It uses only the JDK HTTP client. | An endpoint with a binary body (`application/octet-stream`), for example a CICS web service or a custom HTTP program in CICS. A standard z/OS Connect API expects JSON, and does not work. |
+| [IBM MQ](IBM-MQ) | The program gets its requests from a queue and puts the replies on a queue. | `copymapper-transport-mq` and the IBM MQ classes for Jakarta Messaging (`com.ibm.mq.jakarta.client`, on Maven Central). | A server program that reads the request queue and puts the reply on the `ReplyToQ` with the correct correlation ID. Messages in the format `MQFMT_NONE`, without an RFH2 header. |
+| [Simulator](#the-simulator) | Unit tests and integration tests without a mainframe. | `copymapper-transport-simulator`, in the test scope. | Nothing. Handlers in the same JVM give the responses. |
 
-To change the transport, change only the object that you give to `BookmapClient.builder().transport(...)`. The book classes do not change.
-In Spring Boot, the property `bookmap.transport.type` selects the transport. See [Spring Boot](Spring-Boot#select-a-transport).
+To change the transport, change only the object that you give to `CopyMapperClient.builder().transport(...)`. The book classes do not change.
+In Spring Boot, the property `copymapper.transport.type` selects the transport. See [Spring Boot](Spring-Boot#select-a-transport).
 
 If no transport fits your middleware, write your own. See [The transport SPI](#the-transport-spi).
 
 ## The transport SPI
 
-A transport implements one method of `pt.dazz.bookmap.spi.Transport`:
+A transport implements one method of `pt.dazz.copymapper.spi.Transport`:
 
 ```java
 public interface Transport {
@@ -35,12 +35,12 @@ public interface Transport {
 
 | Component | Meaning |
 |---|---|
-| `operation` | The operation name: the value of `@BookOperation`, or the simple class name. |
+| `operation` | The operation name: the value of `@Operation`, or the simple class name. |
 | `payload` | The request bytes. |
 | `maxResponseLength` | The maximum length of the response in bytes. For a book with subtypes, it is the length of the longest layout. |
 | `attributes` | Extra transport attributes, as a `Map<String, String>`. A `null` value becomes an empty map. |
 
-`BookmapClient` does not set attributes. The map is always empty in the current version.
+`CopyMapperClient` does not set attributes. The map is always empty in the current version.
 
 ### Rules for a transport
 
@@ -48,7 +48,7 @@ public interface Transport {
 - Return the response bytes of the remote program. Do not return `null`: the client then throws `MappingException` with the message `<operation>: empty response from transport`.
 - Translate each technical failure to `TransportException` or to one of its subclasses. Do not let a middleware exception go to the caller.
 - If the remote system does not know the operation, throw `OperationNotFoundException`.
-- Make the transport thread-safe. All threads share one `BookmapClient`, and thus one transport.
+- Make the transport thread-safe. All threads share one `CopyMapperClient`, and thus one transport.
 
 | Failure | Exception |
 |---|---|
@@ -62,9 +62,9 @@ public interface Transport {
 
 ```java
 import java.util.Map;
-import pt.dazz.bookmap.exception.OperationNotFoundException;
-import pt.dazz.bookmap.spi.BookRequest;
-import pt.dazz.bookmap.spi.Transport;
+import pt.dazz.copymapper.exception.OperationNotFoundException;
+import pt.dazz.copymapper.spi.BookRequest;
+import pt.dazz.copymapper.spi.Transport;
 
 public final class FixedResponseTransport implements Transport {
 
@@ -89,19 +89,19 @@ See [Getting started](Getting-started#connect-to-the-mainframe) for a transport 
 
 ## The simulator
 
-`SimulatorTransport` is in the module `bookmap-transport-simulator`, package `pt.dazz.bookmap.simulator`. It runs handlers in the same JVM. Use it in tests.
+`SimulatorTransport` is in the module `copymapper-transport-simulator`, package `pt.dazz.copymapper.simulator`. It runs handlers in the same JVM. Use it in tests.
 
 ```kotlin
 dependencies {
-    testImplementation("pt.dazz.bookmap:bookmap-transport-simulator:<version>")
+    testImplementation("pt.dazz.copymapper:copymapper-transport-simulator:<version>")
 }
 ```
 
 ```xml
 <dependency>
-  <groupId>pt.dazz.bookmap</groupId>
-  <artifactId>bookmap-transport-simulator</artifactId>
-  <version>${bookmap.version}</version>
+  <groupId>pt.dazz.copymapper</groupId>
+  <artifactId>copymapper-transport-simulator</artifactId>
+  <version>${copymapper.version}</version>
   <scope>test</scope>
 </dependency>
 ```
@@ -138,7 +138,7 @@ The signatures are:
 SimulatorTransport simulator = SimulatorTransport.builder()
     .timeout(Duration.ofSeconds(1))
     .build();
-BookmapClient client = BookmapClient.builder().transport(simulator).build();
+CopyMapperClient client = CopyMapperClient.builder().transport(simulator).build();
 
 simulator.register(GetCustomerOrders.class, call -> {
     call.setOrders(List.of());
@@ -154,7 +154,7 @@ Rules for the registrations:
 - The call object contains only the fields of the request: the `INPUT` and `INPUT_OUTPUT` fields.
 - A registration replaces an earlier registration with the same operation name.
 - If no codec exists for the class, the registration throws `MappingException`.
-- For a class with `@BookSubTypes`, register the base class. The base class can be abstract. A registration with a subclass throws `IllegalArgumentException` with the message `<Sub> is a subtype of <Base>. Register <Base>.`
+- For a class with `@SubTypes`, register the base class. The base class can be abstract. A registration with a subclass throws `IllegalArgumentException` with the message `<Sub> is a subtype of <Base>. Register <Base>.`
 - If a responder returns `null`, the simulator throws `MappingException` with the message `<operation>: the responder returned null`.
 
 ### Byte-level registration
@@ -176,7 +176,7 @@ simulator.register(codec.operationName(), payload -> {
 });
 ```
 
-`BookCodec` is in `pt.dazz.bookmap.spi`. `CodecContext` is in `pt.dazz.bookmap.convert`.
+`BookCodec` is in `pt.dazz.copymapper.spi`. `CodecContext` is in `pt.dazz.copymapper.convert`.
 
 ### Simulate failures
 
@@ -185,7 +185,7 @@ simulator.register(codec.operationName(), payload -> {
 | `throw new SimulatedAbend("ASRA")` | `RemoteAbendException`. `abendCode()` gives `ASRA`. The message is `Simulated abend ASRA`. |
 | `throw new SimulatedAbend("ASRA", "message")` | `RemoteAbendException` with the code and the message. |
 | A handler that is slower than the timeout | `TransportTimeoutException` with the message `Simulated operation <operation> did not finish in <n> ms`. The simulator interrupts the handler. |
-| `throw` a `BookmapException`, for example `ConnectionException` | The same exception, unchanged. |
+| `throw` a `CopyMapperException`, for example `ConnectionException` | The same exception, unchanged. |
 | `throw` any other exception or error | `TransportException` with the message `Simulated operation <operation> failed`. The cause is the original exception. |
 | No registration for the operation | `OperationNotFoundException` with the message `No simulated operation registered: <operation>`. |
 

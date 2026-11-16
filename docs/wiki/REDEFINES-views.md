@@ -22,44 +22,44 @@ If a field selects the layout (a discriminator), use [subtypes](Subtypes-REDEFIN
 ## Map the views
 
 A **REDEFINES area** is one redefined member and its views. A view is a member with the attribute `redefines`. The value is the Java name of the redefined member.
-Map a group to a field of a group class with `@BookGroup`. A group class has the rules of an item class.
+Map a group to a field of a group class with `@Group`. A group class has the rules of an item class.
 
 ```java
-@BookOperation
+@Operation
 public class GetShipment {
 
-    @BookField(order = 10, pic = "X(10)", direction = Direction.INPUT)
+    @Field(order = 10, pic = "X(10)", direction = Direction.INPUT)
     private String shipmentId;
 
-    @BookField(order = 20, pic = "X(16)", direction = Direction.OUTPUT)
+    @Field(order = 20, pic = "X(16)", direction = Direction.OUTPUT)
     private String trackingCode;
 
-    @BookGroup(order = 30, redefines = "trackingCode")
+    @Group(order = 30, redefines = "trackingCode")
     private TrackingParts trackingParts;
 
-    @BookField(order = 40, pic = "X(2)", direction = Direction.OUTPUT)
+    @Field(order = 40, pic = "X(2)", direction = Direction.OUTPUT)
     private String resultCode;
 
-    @BookGroup(order = 50, direction = Direction.OUTPUT)
+    @Group(order = 50, direction = Direction.OUTPUT)
     private ResultDetail resultDetail;
 
-    @BookGroup(order = 60, redefines = "resultDetail")
+    @Group(order = 60, redefines = "resultDetail")
     private DeliveryData deliveryData;
 
-    @BookField(order = 70, pic = "S9(7)V99 COMP-3", direction = Direction.OUTPUT)
+    @Field(order = 70, pic = "S9(7)V99 COMP-3", direction = Direction.OUTPUT)
     private BigDecimal shippingCharge;
 }
 
 public class TrackingParts {
-    @BookField(order = 10, pic = "X(4)") private String carrierCode;
-    @BookField(order = 20, pic = "9(6)") private int routeNumber;
-    @BookField(order = 30, pic = "9(6)") private int sequenceNumber;
+    @Field(order = 10, pic = "X(4)") private String carrierCode;
+    @Field(order = 20, pic = "9(6)") private int routeNumber;
+    @Field(order = 30, pic = "9(6)") private int sequenceNumber;
 }
 
 public class DeliveryData {
-    @BookField(order = 10, pic = "9(8)") private LocalDate deliveryDate;
-    @BookField(order = 20, pic = "S9(5)V99 COMP-3") private BigDecimal deliveredWeight;
-    @BookField(order = 30, pic = "X(20)") private String signedBy;
+    @Field(order = 10, pic = "9(8)") private LocalDate deliveryDate;
+    @Field(order = 20, pic = "S9(5)V99 COMP-3") private BigDecimal deliveredWeight;
+    @Field(order = 30, pic = "X(20)") private String signedBy;
 }
 ```
 
@@ -81,9 +81,9 @@ if ("00".equals(result.getResultCode())) {
 - A view names the redefined member, never another view. The redefined member is in the same class.
 - A view comes right after the redefined member, or after another view of it. Each view has its own `order`.
 - A view has no `direction`. It uses the direction of the redefined member.
-- A member can be a `@BookField`, a fixed `@BookCollection`, or a `@BookGroup`. A group class can contain fixed collections and another area.
+- A member can be a `@Field`, a fixed `@Occurs`, or a `@Group`. A group class can contain fixed collections and another area.
 - The area has the length of its longest member. A view can be shorter or longer than the redefined member. The members after the area have the offsets of COBOL.
-- A `@BookGroup` must be in an area.
+- A `@Group` must be in an area.
 - A member at the top of an area must not have a primitive type. Use `Integer`, `Long`, or `BigDecimal`. A field in a group class can be primitive.
 - A member at the top of an area must not be a count field (`dependsOn`), a discriminator, or an `emptyKey`. A collection at the top of an area must have `fixed = true`, no `dependsOn`, and no `partial`.
 - An area can be in an operation class, an item class, a subclass, or a group class.

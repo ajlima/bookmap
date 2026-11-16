@@ -21,7 +21,7 @@ The processor parses `pic` at compile time. An incorrect or unsupported `pic` is
 | `COMP`, `COMPUTATIONAL`, `COMP-4`, `COMPUTATIONAL-4`, `BINARY` | `COMP` |
 | `DISPLAY` | `DISPLAY` |
 
-Without a clause, the usage comes from `@BookDefaults`, else `DISPLAY`.
+Without a clause, the usage comes from `@Defaults`, else `DISPLAY`.
 Other usages, for example `COMP-1`, `COMP-2`, or `COMP-5`, are compile errors.
 
 - Sign clause (optional, after the picture): `[SIGN [IS]] LEADING|TRAILING [SEPARATE [CHARACTER]]`. See [Sign formats](#sign-formats).
@@ -30,16 +30,16 @@ Other usages, for example `COMP-1`, `COMP-2`, or `COMP-5`, are compile errors.
 - The sign clause needs a signed picture (`S`) and the usage `DISPLAY`. Otherwise, it is a compile error.
 
 ```java
-@BookField(order = 10, pic = "S9(7)V99 COMP-3")           // BigDecimal, 5 bytes, scale 2
+@Field(order = 10, pic = "S9(7)V99 COMP-3")           // BigDecimal, 5 bytes, scale 2
 private BigDecimal balance;
 
-@BookField(order = 15, pic = "S9(5)V99 SIGN LEADING SEPARATE")  // BigDecimal, 8 bytes
+@Field(order = 15, pic = "S9(5)V99 SIGN LEADING SEPARATE")  // BigDecimal, 8 bytes
 private BigDecimal tax;
 
-@BookField(order = 20, pic = "9(4) COMP")                 // int, 2 bytes, big-endian
+@Field(order = 20, pic = "9(4) COMP")                 // int, 2 bytes, big-endian
 private int lineCount;
 
-@BookField(order = 30, pic = "9(6)", pattern = "HHmmss")  // LocalTime needs a pattern
+@Field(order = 30, pic = "9(6)", pattern = "HHmmss")  // LocalTime needs a pattern
 private LocalTime shippedAt;
 ```
 
@@ -106,7 +106,7 @@ A signed `DISPLAY` number can use one of four sign formats. Set the format with 
 | `LEADING_SEPARATE` | `SIGN LEADING SEPARATE` | `+` or `-` before the digits. | `length + 1` |
 
 ```java
-@BookField(order = 20, length = 5, scale = 2, signed = true, sign = Sign.TRAILING_SEPARATE)
+@Field(order = 20, length = 5, scale = 2, signed = true, sign = Sign.TRAILING_SEPARATE)
 private BigDecimal discount;
 ```
 
@@ -155,13 +155,13 @@ A numeric edited picture gives a printable number, for example `Z,ZZ9.99CR`. The
 The codec writes the edited text and reads it back as a number.
 
 ```java
-@BookField(order = 10, pic = "ZZ9")                    // int, 3 bytes
+@Field(order = 10, pic = "ZZ9")                    // int, 3 bytes
 private int lineCount;
 
-@BookField(order = 20, pic = "$Z,ZZ9.99CR")            // BigDecimal, 11 bytes
+@Field(order = 20, pic = "$Z,ZZ9.99CR")            // BigDecimal, 11 bytes
 private BigDecimal total;
 
-@BookField(order = 30, pic = "9(3)V99 BLANK WHEN ZERO") // BigDecimal, 5 bytes
+@Field(order = 30, pic = "9(3)V99 BLANK WHEN ZERO") // BigDecimal, 5 bytes
 private BigDecimal discount;
 ```
 
@@ -203,7 +203,7 @@ The attributes come from the picture:
 | `$$$,$$9.99` | 7 | 2 | no | 10 |
 | `-9(5)` | 5 | 0 | yes | 6 |
 
-`@BookDefaults(usage = ...)` does not apply to an edited field.
+`@Defaults(usage = ...)` does not apply to an edited field.
 
 ### Write an edited number
 
@@ -273,13 +273,13 @@ Remove the extra precision before you set the value, for example with `truncated
 A date or time field can have the usage `COMP3`. Then the digits of the packed number are the text of the pattern.
 
 ```java
-@BookField(order = 10, pic = "S9(8) COMP-3", pattern = "yyyyMMdd")
+@Field(order = 10, pic = "S9(8) COMP-3", pattern = "yyyyMMdd")
 private LocalDate orderDate;
 
-@BookField(order = 20, pic = "S9(7) COMP-3", pattern = "'0'HHmmss")
+@Field(order = 20, pic = "S9(7) COMP-3", pattern = "'0'HHmmss")
 private LocalTime shipTime;
 
-@BookField(order = 30, usage = Usage.COMP3, pattern = "yyyyMMddHHmmss")
+@Field(order = 30, usage = Usage.COMP3, pattern = "yyyyMMddHHmmss")
 private LocalDateTime lastUpdate;
 ```
 
@@ -287,7 +287,7 @@ private LocalDateTime lastUpdate;
 - The number of digits must be equal to the length of the pattern text. Use a quoted literal for a constant digit.
 - A packed date can be signed: `S` in the `pic`, or `signed = true`. A `V` in the `pic` is a compile error.
 - Without `pic`, the length is the length of the pattern text. `lastUpdate` above has 14 digits, thus 8 bytes.
-- `@BookDefaults(usage = Usage.COMP3)` does not apply to a date or time field. Set the usage on the field.
+- `@Defaults(usage = Usage.COMP3)` does not apply to a date or time field. Set the usage on the field.
 - `COMP` is not permitted for a date or time field.
 
 | Picture | Pattern | Java type | Example value | Bytes |
