@@ -1,3 +1,4 @@
+pt.dazz.copymapper.spring.OldPropertiesAutoConfiguration
 pt.dazz.copymapper.spring.CopyMapperAutoConfiguration
 pt.dazz.copymapper.spring.ctg.CtgTransportAutoConfiguration
 pt.dazz.copymapper.spring.http.HttpTransportAutoConfiguration
