@@ -44,9 +44,20 @@ on:
     branches: [main]
   # A manual run on main is the only event that publishes a release.
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Publish also when the month already has the maximum number of releases (for an urgent fix)."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+env:
+  # The build job stops a manual release when the calendar month (UTC) already has this number of
+  # releases. Each release has about 232 files, and Maven Central limits the file count of the
+  # organization per month. See "Maven Central limits" in RELEASING.md.
+  MAX_RELEASES_PER_MONTH: 4
 
 concurrency:
   group: release-${{ github.ref }}
@@ -131,6 +142,15 @@ jobs:
         run: |
           echo "::notice::The next release is $NEW_VERSION. To publish it, run this workflow on main" \
             "(Actions > Build and release > Run workflow). See RELEASING.md."
+
+      # The check runs before the build, so a refused release fails fast. The force input skips it.
+      - name: Check the monthly release budget
+        if: >-
+          github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+          && steps.version.outputs.new_tag != '' && !inputs.force
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/check-release-budget.sh "$GITHUB_REPOSITORY" "$MAX_RELEASES_PER_MONTH"
 
       - name: Build and test
         if: steps.changes.outputs.docs_only != 'true'
