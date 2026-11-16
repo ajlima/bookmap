@@ -179,6 +179,8 @@ To run the release again (for example, after you add a missing secret), do step 
 
 Maven Central limits the publishing volume of each organization in each calendar month.
 It counts three values: the file count, the release size, and the release count.
+In November 2026, the limits of the organization were 1,000 files, 80 MB, and 7 releases.
+One run of the release workflow is one release.
 The Usage page of the Central Portal shows the values: <https://central.sonatype.com/publishing/usage>.
 For the rules, see [Maven Central Publishing Limits](https://central.sonatype.org/publish/maven-central-publishing-limits/).
 
