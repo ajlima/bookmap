@@ -55,13 +55,15 @@ permissions:
 
 env:
   # The build job stops a manual release when the calendar month (UTC) already has this number of
-  # releases. Each release has about 232 files, and Maven Central limits the file count of the
+  # releases. Each release has about 230 files, and Maven Central limits the file count of the
   # organization per month. See "Maven Central limits" in RELEASING.md.
   MAX_RELEASES_PER_MONTH: 4
 
 concurrency:
-  group: release-${{ github.ref }}
-  # A new push to a pull request cancels its old run. Runs on main never cancel each other.
+  # A manual run has its own group. Thus, a push to main cannot cancel a manual release that waits.
+  group: release-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' && 'manual' || 'build' }}
+  # A new push to a pull request cancels its old run. A running run on main is never cancelled,
+  # but a newer run of the same group replaces a run that waits in the queue.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
