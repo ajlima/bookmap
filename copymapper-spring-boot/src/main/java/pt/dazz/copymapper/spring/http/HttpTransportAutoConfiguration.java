@@ -23,19 +23,19 @@ import pt.dazz.copymapper.spi.Transport;
 import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 /**
- * Creates an {@link HttpTransport} bean from the {@code bookmap.transport.http.*} properties, when
- * {@code bookmap.transport.type=http}.
+ * Creates an {@link HttpTransport} bean from the {@code copymapper.transport.http.*} properties, when
+ * {@code copymapper.transport.type=http}.
  *
- * <p>With {@code bookmap.transport.http.ssl.bundle}, the transport uses an HTTP client with the
+ * <p>With {@code copymapper.transport.http.ssl.bundle}, the transport uses an HTTP client with the
  * {@code SSLContext} of that Spring Boot SSL bundle.
  */
 @AutoConfiguration(before = CopyMapperAutoConfiguration.class)
 @ConditionalOnClass(HttpTransport.class)
-@ConditionalOnProperty(name = "bookmap.transport.type", havingValue = "http")
+@ConditionalOnProperty(name = "copymapper.transport.type", havingValue = "http")
 @EnableConfigurationProperties(HttpTransportProperties.class)
 public class HttpTransportAutoConfiguration {
 
-    private static final String PREFIX = "bookmap.transport.http.";
+    private static final String PREFIX = "copymapper.transport.http.";
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
 
     /**
@@ -49,7 +49,7 @@ public class HttpTransportAutoConfiguration {
      * Creates the HTTP client of the SSL bundle. The transport does not close a client that it
      * gets. Thus, this bean calls {@code shutdown()} of the client when the context closes.
      *
-     * @param properties the {@code bookmap.transport.http.*} settings
+     * @param properties the {@code copymapper.transport.http.*} settings
      * @param sslBundles the SSL bundles of Spring Boot
      * @return the holder of the client
      */
@@ -82,7 +82,7 @@ public class HttpTransportAutoConfiguration {
      * Builds the transport. Spring Boot calls {@code close()} of the transport when the context
      * closes.
      *
-     * @param properties the {@code bookmap.transport.http.*} settings
+     * @param properties the {@code copymapper.transport.http.*} settings
      * @param sslClient the HTTP client of the SSL bundle, if it exists
      * @param customizers the customizer beans
      * @return the transport

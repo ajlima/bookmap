@@ -43,7 +43,7 @@ import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 class MqTransportAutoConfigurationTest {
 
-    private static final String P = "bookmap.transport.mq.";
+    private static final String P = "copymapper.transport.mq.";
     private static final String ROUTE = P + "routes[GetInvoice].request-queue=INVOICE.REQUEST";
     private static final byte[] REPLY = {7, 7};
 
@@ -113,7 +113,7 @@ class MqTransportAutoConfigurationTest {
 
     private ApplicationContextRunner withConnector(RecordingConnector connector) {
         return runner.withBean(MqConnector.class, () -> connector)
-            .withPropertyValues("bookmap.transport.type=mq");
+            .withPropertyValues("copymapper.transport.type=mq");
     }
 
     @Test
@@ -133,14 +133,14 @@ class MqTransportAutoConfigurationTest {
     @ValueSource(strings = {"MQ", "Mq"})
     void typeIsNotCaseSensitive(String type) {
         runner.withBean(MqConnector.class, RecordingConnector::new)
-            .withPropertyValues("bookmap.transport.type=" + type, ROUTE)
+            .withPropertyValues("copymapper.transport.type=" + type, ROUTE)
             .run(context -> assertThat(context).hasSingleBean(MqTransport.class));
     }
 
     @Test
     void applicationTransportWins() {
         runner.withBean(Transport.class, () -> request -> new byte[0])
-            .withPropertyValues("bookmap.transport.type=mq")
+            .withPropertyValues("copymapper.transport.type=mq")
             .run(context -> assertThat(context).hasNotFailed()
                 .doesNotHaveBean(MqTransport.class)
                 .doesNotHaveBean(MqConnector.class));
@@ -149,9 +149,9 @@ class MqTransportAutoConfigurationTest {
     @Test
     void transportModuleAbsentFailsWithMessage() {
         runner.withClassLoader(new FilteredClassLoader(MqTransport.class))
-            .withPropertyValues("bookmap.transport.type=mq", ROUTE)
+            .withPropertyValues("copymapper.transport.type=mq", ROUTE)
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.type=mq, but no Transport bean exists. Add "
+                .hasMessage("copymapper.transport.type=mq, but no Transport bean exists. Add "
                     + "copymapper-transport-mq to the class path."));
     }
 
@@ -229,7 +229,7 @@ class MqTransportAutoConfigurationTest {
         withConnector(new RecordingConnector())
             .withPropertyValues(P + "routes[GetInvoice].reply-queue=INVOICE.REPLY")
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.mq.routes[GetInvoice].request-queue is not set."));
+                .hasMessage("copymapper.transport.mq.routes[GetInvoice].request-queue is not set."));
     }
 
     @Test
@@ -242,9 +242,9 @@ class MqTransportAutoConfigurationTest {
     @Test
     void passwordWithoutUserFails() {
         runner.withBean(ConnectionFactory.class, broker::connectionFactory)
-            .withPropertyValues("bookmap.transport.type=mq", ROUTE, P + "password=secret")
+            .withPropertyValues("copymapper.transport.type=mq", ROUTE, P + "password=secret")
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.mq.password is set, but bookmap.transport.mq.user is not set.")
+                .hasMessage("copymapper.transport.mq.password is set, but copymapper.transport.mq.user is not set.")
                 .message().doesNotContain("secret"));
     }
 
@@ -294,7 +294,7 @@ class MqTransportAutoConfigurationTest {
 
     @Test
     void noConnectionFactoryFailsWithMessage() {
-        runner.withPropertyValues("bookmap.transport.type=mq", ROUTE)
+        runner.withPropertyValues("copymapper.transport.type=mq", ROUTE)
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
                 .hasMessage("No MqConnector bean. Declare one jakarta.jms.ConnectionFactory bean, for "
                     + "example with mq-jms-spring-boot-starter, or declare an MqConnector bean."));
@@ -304,7 +304,7 @@ class MqTransportAutoConfigurationTest {
     void twoConnectionFactoriesWithoutPrimaryFail() {
         runner.withBean("first", ConnectionFactory.class, broker::connectionFactory)
             .withBean("second", ConnectionFactory.class, broker::connectionFactory)
-            .withPropertyValues("bookmap.transport.type=mq", ROUTE)
+            .withPropertyValues("copymapper.transport.type=mq", ROUTE)
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
                 .hasMessageStartingWith("No MqConnector bean."));
     }
@@ -312,7 +312,7 @@ class MqTransportAutoConfigurationTest {
     @Test
     void primaryConnectionFactoryIsUsed() {
         runner.withUserConfiguration(TwoFactories.class)
-            .withPropertyValues("bookmap.transport.type=mq", ROUTE)
+            .withPropertyValues("copymapper.transport.type=mq", ROUTE)
             .run(context -> assertThat(context).getBean(MqConnector.class).isInstanceOf(JmsConnector.class));
     }
 
@@ -356,7 +356,7 @@ class MqTransportAutoConfigurationTest {
     @Test
     void jmsConnectorWithCredentialsExchangesThroughTheBroker() {
         runner.withBean(ConnectionFactory.class, broker::connectionFactory)
-            .withPropertyValues("bookmap.transport.type=mq", P + "routes[GetInvoice].request-queue=Q.CRED",
+            .withPropertyValues("copymapper.transport.type=mq", P + "routes[GetInvoice].request-queue=Q.CRED",
                 P + "user=" + EmbeddedBroker.USER, P + "password=" + EmbeddedBroker.PASSWORD,
                 P + "mq-native-messages=false")
             .run(context -> {
@@ -369,7 +369,7 @@ class MqTransportAutoConfigurationTest {
     @Test
     void jmsConnectorWithoutCredentialsExchangesThroughTheBroker() {
         runner.withBean(ConnectionFactory.class, broker::connectionFactory)
-            .withPropertyValues("bookmap.transport.type=mq", P + "routes[GetInvoice].request-queue=Q.ANON",
+            .withPropertyValues("copymapper.transport.type=mq", P + "routes[GetInvoice].request-queue=Q.ANON",
                 P + "mq-native-messages=false")
             .run(context -> {
                 serveOne("Q.ANON");
@@ -380,7 +380,7 @@ class MqTransportAutoConfigurationTest {
     @Test
     void wrongPasswordReachesTheBroker() {
         runner.withBean(ConnectionFactory.class, broker::connectionFactory)
-            .withPropertyValues("bookmap.transport.type=mq", ROUTE, P + "user=" + EmbeddedBroker.USER,
+            .withPropertyValues("copymapper.transport.type=mq", ROUTE, P + "user=" + EmbeddedBroker.USER,
                 P + "password=wrong", P + "mq-native-messages=false")
             .run(context -> assertThatThrownBy(() -> exchange(context.getBean(MqTransport.class)))
                 .isInstanceOf(TransportException.class));
@@ -389,7 +389,7 @@ class MqTransportAutoConfigurationTest {
     @Test
     void mqNativeMessagesIsOnByDefault() {
         runner.withBean(ConnectionFactory.class, broker::connectionFactory)
-            .withPropertyValues("bookmap.transport.type=mq", P + "routes[GetInvoice].request-queue=Q.NATIVE",
+            .withPropertyValues("copymapper.transport.type=mq", P + "routes[GetInvoice].request-queue=Q.NATIVE",
                 P + "timeout=1s")
             .run(context -> {
                 Future<byte[]> request = serveOne("Q.NATIVE");

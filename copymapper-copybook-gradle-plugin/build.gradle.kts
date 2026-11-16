@@ -21,5 +21,5 @@ gradlePlugin {
 val coreJar = project(":copymapper-core").tasks.named<Jar>("jar")
 tasks.test {
     dependsOn(coreJar)
-    systemProperty("bookmap.core.jar", coreJar.get().archiveFile.get().asFile.absolutePath)
+    systemProperty("copymapper.core.jar", coreJar.get().archiveFile.get().asFile.absolutePath)
 }

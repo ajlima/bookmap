@@ -99,7 +99,7 @@ class CopyMapperAutoConfigurationTest {
     void propertiesAreApplied() {
         StatementCodec codec = new StatementCodec();
         CountingTransport transport = new CountingTransport();
-        withBeans(codec, transport).withPropertyValues("bookmap.max-calls=2")
+        withBeans(codec, transport).withPropertyValues("copymapper.max-calls=2")
             .run(context -> {
                 CopyMapperClient client = context.getBean(CopyMapperClient.class);
                 Statement statement = new Statement();
@@ -112,7 +112,7 @@ class CopyMapperAutoConfigurationTest {
     @Test
     void defaultsAreApplied() {
         StatementCodec codec = new StatementCodec();
-        withBeans(codec, new CountingTransport()).withPropertyValues("bookmap.max-calls=1")
+        withBeans(codec, new CountingTransport()).withPropertyValues("copymapper.max-calls=1")
             .run(context -> {
                 CopyMapperClient client = context.getBean(CopyMapperClient.class);
                 assertThatThrownBy(() -> client.execute(new Statement()))
@@ -125,7 +125,7 @@ class CopyMapperAutoConfigurationTest {
     void charsetPropertyIsApplied() {
         StatementCodec codec = new StatementCodec();
         withBeans(codec, new CountingTransport())
-            .withPropertyValues("bookmap.charset=IBM500", "bookmap.max-calls=1")
+            .withPropertyValues("copymapper.charset=IBM500", "copymapper.max-calls=1")
             .run(context -> {
                 CopyMapperClient client = context.getBean(CopyMapperClient.class);
                 assertThatThrownBy(() -> client.execute(new Statement()))
@@ -137,7 +137,7 @@ class CopyMapperAutoConfigurationTest {
     @Test
     void invalidCharsetPropertyFails() {
         runner.withBean(Transport.class, CountingTransport::new)
-            .withPropertyValues("bookmap.charset=UTF-8")
+            .withPropertyValues("copymapper.charset=UTF-8")
             .run(context -> assertThat(context).hasFailed().getFailure()
                 .rootCause().isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("single-byte"));
@@ -146,7 +146,7 @@ class CopyMapperAutoConfigurationTest {
     @Test
     void unknownCharsetPropertyFails() {
         runner.withBean(Transport.class, CountingTransport::new)
-            .withPropertyValues("bookmap.charset=NO-SUCH-CHARSET")
+            .withPropertyValues("copymapper.charset=NO-SUCH-CHARSET")
             .run(context -> assertThat(context).hasFailed().getFailure()
                 .rootCause().isInstanceOf(UnsupportedCharsetException.class));
     }
@@ -158,11 +158,11 @@ class CopyMapperAutoConfigurationTest {
         "mq|copymapper-transport-mq",
         })
     void missingTransportStopsTheApplication(String type, String requirement) {
-        runner.withPropertyValues("bookmap.transport.type=" + type)
+        runner.withPropertyValues("copymapper.transport.type=" + type)
             .run(context -> assertThat(context).hasFailed().getFailure()
                 .rootCause()
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("bookmap.transport.type=" + type + ", but no Transport bean exists. Add "
+                .hasMessage("copymapper.transport.type=" + type + ", but no Transport bean exists. Add "
                     + requirement + " to the class path."));
     }
 
@@ -170,21 +170,21 @@ class CopyMapperAutoConfigurationTest {
     void missingTransportFailsAlsoWithLazyInitialization() {
         runner.withInitializer(context ->
                 context.addBeanFactoryPostProcessor(new LazyInitializationBeanFactoryPostProcessor()))
-            .withPropertyValues("bookmap.transport.type=ctg")
+            .withPropertyValues("copymapper.transport.type=ctg")
             .run(context -> assertThat(context).hasFailed());
     }
 
     @Test
     void typeWithApplicationTransportStarts() {
         runner.withBean(Transport.class, CountingTransport::new)
-            .withPropertyValues("bookmap.transport.type=http")
+            .withPropertyValues("copymapper.transport.type=http")
             .run(context -> assertThat(context).hasSingleBean(CopyMapperClient.class));
     }
 
     @Test
     void invalidTypeFails() {
         runner.withBean(Transport.class, CountingTransport::new)
-            .withPropertyValues("bookmap.transport.type=ctgg")
+            .withPropertyValues("copymapper.transport.type=ctgg")
             .run(context -> assertThat(context).hasFailed());
     }
 }

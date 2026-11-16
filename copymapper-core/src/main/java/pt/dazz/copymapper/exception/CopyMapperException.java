@@ -1,7 +1,7 @@
 package pt.dazz.copymapper.exception;
 
 /**
- * Base class of all bookmap exceptions. It is unchecked.
+ * Base class of all CopyMapper exceptions. It is unchecked.
  */
 public class CopyMapperException extends RuntimeException {
 

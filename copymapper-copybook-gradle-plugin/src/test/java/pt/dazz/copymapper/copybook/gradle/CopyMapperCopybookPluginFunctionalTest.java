@@ -31,14 +31,14 @@ class CopyMapperCopybookPluginFunctionalTest {
     }
 
     private void buildScript(String plugins, String copybooks) throws IOException {
-        String core = System.getProperty("bookmap.core.jar").replace("\\", "/");
+        String core = System.getProperty("copymapper.core.jar").replace("\\", "/");
         Files.writeString(dir.resolve("build.gradle.kts"), """
             plugins {
             %s
                 id("pt.dazz.copymapper.copybook")
             }
             %s
-            bookmap {
+            copymapper {
                 copybooks {
             %s
                 }
@@ -343,7 +343,7 @@ class CopyMapperCopybookPluginFunctionalTest {
                     sourceDir = layout.projectDirectory.dir("tree")
                     exclude("billing/**")
             """);
-        assertThat(fail("build").getOutput()).contains("Set bookmap.copybooks.packageName.");
+        assertThat(fail("build").getOutput()).contains("Set copymapper.copybooks.packageName.");
     }
 
     @Test

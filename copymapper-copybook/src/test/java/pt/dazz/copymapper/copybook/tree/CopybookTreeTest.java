@@ -39,8 +39,8 @@ class CopybookTreeTest {
                                                  String base, boolean lombok,
                                                  boolean perCopybook, Integer maxRecordLength) {
         return new CopybookTree.Settings(sourceDir, copyDirs, base, lombok, perCopybook,
-            "Set bookmap.copybooks.packageName.",
-            "bookmap.copybooks.packagePerCopybook = true", maxRecordLength);
+            "Set copymapper.copybooks.packageName.",
+            "copymapper.copybooks.packagePerCopybook = true", maxRecordLength);
     }
 
     private void run(String name, List<Path> copyDirs, String base, boolean lombok,
@@ -89,7 +89,7 @@ class CopybookTreeTest {
             settings(source, List.of(copylib), null, false, false),
             List.of(source.resolve("orders/ORDER.cpy")), output, log))
             .isInstanceOf(CopybookTreeException.class)
-            .hasMessage("Set bookmap.copybooks.packageName.");
+            .hasMessage("Set copymapper.copybooks.packageName.");
         assertThat(output).isEmptyDirectory();
     }
 

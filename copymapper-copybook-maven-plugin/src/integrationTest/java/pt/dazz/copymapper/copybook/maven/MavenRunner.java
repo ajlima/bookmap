@@ -26,9 +26,9 @@ final class MavenRunner {
     private static final Path DISTRIBUTIONS = Path.of(System.getProperty("maven.distributions"));
     private static final Path LOCAL_REPOSITORY =
         Path.of(System.getProperty("maven.localRepository"));
-    static final String COPYMAPPER_VERSION = System.getProperty("bookmap.version");
+    static final String COPYMAPPER_VERSION = System.getProperty("copymapper.version");
     private static final Path COPYMAPPER_REPOSITORY =
-        Path.of(System.getProperty("bookmap.repository"));
+        Path.of(System.getProperty("copymapper.repository"));
 
     private final Path mvn;
 
@@ -38,9 +38,9 @@ final class MavenRunner {
 
     /** Removes the CopyMapper artifacts from the shared local repository, once for each class. */
     static void forgetCopyMapperArtifacts() throws IOException {
-        Path bookmap = LOCAL_REPOSITORY.resolve("pt/dazz/copymapper");
-        if (Files.exists(bookmap)) {
-            try (Stream<Path> files = Files.walk(bookmap)) {
+        Path copymapper = LOCAL_REPOSITORY.resolve("pt/dazz/copymapper");
+        if (Files.exists(copymapper)) {
+            try (Stream<Path> files = Files.walk(copymapper)) {
                 for (Path file : files.sorted(Comparator.reverseOrder()).toList()) {
                     Files.delete(file);
                 }
@@ -53,7 +53,7 @@ final class MavenRunner {
         Files.writeString(settings, settings());
         List<String> command = new ArrayList<>(List.of(mvn.toString(), "-B", "-e",
             "-s", settings.toString(), "-Dmaven.repo.local=" + LOCAL_REPOSITORY,
-            "-Dbookmap.version=" + COPYMAPPER_VERSION));
+            "-Dcopymapper.version=" + COPYMAPPER_VERSION));
         command.addAll(List.of(arguments));
         ProcessBuilder builder = new ProcessBuilder(command).directory(project.toFile())
             .redirectErrorStream(true);
@@ -73,7 +73,7 @@ final class MavenRunner {
     private static String settings() {
         String url = COPYMAPPER_REPOSITORY.toUri().toString();
         String repository = """
-                    <id>bookmap-integration-test</id>
+                    <id>copymapper-integration-test</id>
                     <url>%s</url>
                     <releases><enabled>true</enabled></releases>
                     <snapshots><enabled>true</enabled><updatePolicy>always</updatePolicy></snapshots>
@@ -82,7 +82,7 @@ final class MavenRunner {
             <settings>
               <profiles>
                 <profile>
-                  <id>bookmap</id>
+                  <id>copymapper</id>
                   <repositories>
                     <repository>
             %s        </repository>
@@ -94,7 +94,7 @@ final class MavenRunner {
                 </profile>
               </profiles>
               <activeProfiles>
-                <activeProfile>bookmap</activeProfile>
+                <activeProfile>copymapper</activeProfile>
               </activeProfiles>
             </settings>
             """.formatted(repository, repository);

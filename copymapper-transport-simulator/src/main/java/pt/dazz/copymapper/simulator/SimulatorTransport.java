@@ -180,8 +180,8 @@ public final class SimulatorTransport implements Transport {
         if (failure instanceof SimulatedAbend abend) {
             return new RemoteAbendException(abend.abendCode(), abend.getMessage(), abend);
         }
-        if (failure instanceof CopyMapperException bookmap) {
-            return bookmap;
+        if (failure instanceof CopyMapperException copymapper) {
+            return copymapper;
         }
         return new TransportException("Simulated operation " + operation + " failed", failure);
     }

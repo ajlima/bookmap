@@ -4,10 +4,10 @@ import org.gradle.api.Action;
 import org.gradle.api.tasks.Nested;
 
 /**
- * The {@code bookmap} extension of the CopyMapper copybook plugin.
+ * The {@code copymapper} extension of the CopyMapper copybook plugin.
  *
  * <pre>
- * bookmap {
+ * copymapper {
  *     copybooks {
  *         packageName = "com.example.mainframe"
  *     }

@@ -35,7 +35,7 @@ import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 class HttpTransportAutoConfigurationTest {
 
-    private static final String P = "bookmap.transport.http.";
+    private static final String P = "copymapper.transport.http.";
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(HttpTransportAutoConfiguration.class,
@@ -58,7 +58,7 @@ class HttpTransportAutoConfigurationTest {
     }
 
     private ApplicationContextRunner http() {
-        return runner.withPropertyValues("bookmap.transport.type=http");
+        return runner.withPropertyValues("copymapper.transport.type=http");
     }
 
     private static byte[] exchange(Transport transport) {
@@ -81,7 +81,7 @@ class HttpTransportAutoConfigurationTest {
     @ParameterizedTest
     @ValueSource(strings = {"HTTP", "Http"})
     void typeIsNotCaseSensitive(String type) {
-        runner.withPropertyValues("bookmap.transport.type=" + type, route())
+        runner.withPropertyValues("copymapper.transport.type=" + type, route())
             .run(context -> assertThat(context).hasSingleBean(HttpTransport.class));
     }
 
@@ -97,9 +97,9 @@ class HttpTransportAutoConfigurationTest {
     @Test
     void transportModuleAbsentFailsWithMessage() {
         runner.withClassLoader(new FilteredClassLoader(HttpTransport.class))
-            .withPropertyValues("bookmap.transport.type=http", route())
+            .withPropertyValues("copymapper.transport.type=http", route())
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.type=http, but no Transport bean exists. Add "
+                .hasMessage("copymapper.transport.type=http, but no Transport bean exists. Add "
                     + "copymapper-transport-http to the class path."));
     }
 
@@ -173,16 +173,16 @@ class HttpTransportAutoConfigurationTest {
     void usernameWithoutPasswordFails() {
         http().withPropertyValues(route(), P + "username=ORDUSER")
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.http.password is not set, but "
-                    + "bookmap.transport.http.username is set."));
+                .hasMessage("copymapper.transport.http.password is not set, but "
+                    + "copymapper.transport.http.username is set."));
     }
 
     @Test
     void passwordWithoutUsernameFails() {
         http().withPropertyValues(route(), P + "password=secret")
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.http.password is set, but "
-                    + "bookmap.transport.http.username is not set.")
+                .hasMessage("copymapper.transport.http.password is set, but "
+                    + "copymapper.transport.http.username is not set.")
                 .message().doesNotContain("secret"));
     }
 
@@ -190,7 +190,7 @@ class HttpTransportAutoConfigurationTest {
     void routeWithoutUriFails() {
         http().withPropertyValues(P + "routes[GetInvoice].method=PUT")
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.http.routes[GetInvoice].uri is not set."));
+                .hasMessage("copymapper.transport.http.routes[GetInvoice].uri is not set."));
     }
 
     @Test

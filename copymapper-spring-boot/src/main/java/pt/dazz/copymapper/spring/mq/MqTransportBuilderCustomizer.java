@@ -6,7 +6,7 @@ import pt.dazz.copymapper.mq.MqTransport;
  * Changes the builder of the MQ transport before the auto-configuration builds it.
  *
  * <p>The auto-configuration calls each customizer bean after it applies the
- * {@code bookmap.transport.mq.*} properties. The order is the {@code @Order} of the beans.
+ * {@code copymapper.transport.mq.*} properties. The order is the {@code @Order} of the beans.
  */
 @FunctionalInterface
 public interface MqTransportBuilderCustomizer {

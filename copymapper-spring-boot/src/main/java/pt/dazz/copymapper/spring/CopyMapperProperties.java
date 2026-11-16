@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Settings for the {@code CopyMapperClient} bean, with the prefix {@code bookmap}.
+ * Settings for the {@code CopyMapperClient} bean, with the prefix {@code copymapper}.
  *
  * <p>The Spring Boot configuration processor copies the text of each {@code @param} tag into
  * {@code META-INF/spring-configuration-metadata.json}. Thus, the IDE shows this text.
@@ -15,7 +15,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param maxCalls The maximum number of calls for one execution of a book with continuation.
  *     The value must be 1 or more.
  */
-@ConfigurationProperties("bookmap")
+@ConfigurationProperties("copymapper")
 public record CopyMapperProperties(
         @DefaultValue("IBM037") String charset,
         @DefaultValue("1000") int maxCalls) {

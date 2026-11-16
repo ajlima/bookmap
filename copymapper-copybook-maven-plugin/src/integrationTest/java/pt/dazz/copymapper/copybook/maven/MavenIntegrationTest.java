@@ -39,7 +39,7 @@ class MavenIntegrationTest {
                 <dependency>
                   <groupId>pt.dazz.copymapper</groupId>
                   <artifactId>copymapper-core</artifactId>
-                  <version>${bookmap.version}</version>
+                  <version>${copymapper.version}</version>
                 </dependency>
               </dependencies>
               <build>
@@ -53,7 +53,7 @@ class MavenIntegrationTest {
                         <path>
                           <groupId>pt.dazz.copymapper</groupId>
                           <artifactId>copymapper-processor</artifactId>
-                          <version>${bookmap.version}</version>
+                          <version>${copymapper.version}</version>
                         </path>
                       </annotationProcessorPaths>
                     </configuration>
@@ -61,7 +61,7 @@ class MavenIntegrationTest {
                   <plugin>
                     <groupId>pt.dazz.copymapper</groupId>
                     <artifactId>copymapper-copybook-maven-plugin</artifactId>
-                    <version>${bookmap.version}</version>
+                    <version>${copymapper.version}</version>
                     <executions>
                       <execution>
                         <goals>
@@ -160,7 +160,7 @@ class MavenIntegrationTest {
         assertThat(failed.exitCode()).isNotZero();
         assertThat(failed.output()).contains("<packagePerCopybook>true</packagePerCopybook>");
         MavenRunner.Result fixed = maven.run(dir, "compile",
-            "-Dbookmap.copybook.packagePerCopybook=true");
+            "-Dcopymapper.copybook.packagePerCopybook=true");
         assertThat(fixed.exitCode()).as(fixed.output()).isZero();
     }
 

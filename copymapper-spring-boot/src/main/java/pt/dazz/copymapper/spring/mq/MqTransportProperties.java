@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 import pt.dazz.copymapper.mq.MqCorrelation;
 
 /**
- * Settings of the MQ transport, with the prefix {@code bookmap.transport.mq}.
+ * Settings of the MQ transport, with the prefix {@code copymapper.transport.mq}.
  *
  * <p>The connection to the queue manager comes from a {@code jakarta.jms.ConnectionFactory} bean,
  * for example from mq-jms-spring-boot-starter and its {@code ibm.mq.*} properties.
@@ -36,7 +36,7 @@ import pt.dazz.copymapper.mq.MqCorrelation;
  *     routes[GetInvoice].request-queue. An environment variable cannot give a route. At least one
  *     route.
  */
-@ConfigurationProperties("bookmap.transport.mq")
+@ConfigurationProperties("copymapper.transport.mq")
 public record MqTransportProperties(
         String user,
         String password,

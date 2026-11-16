@@ -1,7 +1,7 @@
 {
   "hints": [
     {
-      "name": "bookmap.charset",
+      "name": "copymapper.charset",
       "values": [
         {
           "value": "IBM037",
@@ -31,7 +31,7 @@
       ]
     },
     {
-      "name": "bookmap.transport.type",
+      "name": "copymapper.transport.type",
       "values": [
         {
           "value": "ctg",

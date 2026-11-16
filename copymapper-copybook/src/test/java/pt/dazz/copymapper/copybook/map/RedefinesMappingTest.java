@@ -392,7 +392,7 @@ class RedefinesMappingTest {
     }
 
     @Test
-    void lengthsFollowTheBookMapRules() {
+    void lengthsFollowTheCopyMapperRules() {
         MapResult parsed = map("01 ORDER.", "05 A PIC X.");
         assertThat(parsed.hasErrors()).isFalse();
         pt.dazz.copymapper.copybook.ast.DataItem group = pt.dazz.copymapper.copybook.parse

@@ -16,7 +16,7 @@ import javax.lang.model.element.TypeElement;
 import javax.tools.JavaFileObject;
 
 /**
- * Compiles test sources with the bookmap processor and collects the model snapshots.
+ * Compiles test sources with the CopyMapper processor and collects the model snapshots.
  */
 final class TestCompiler {
 

@@ -18,8 +18,8 @@ import pt.dazz.copymapper.spi.Transport;
 import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 /**
- * Creates an {@link MqTransport} bean from the {@code bookmap.transport.mq.*} properties, when
- * {@code bookmap.transport.type=mq}.
+ * Creates an {@link MqTransport} bean from the {@code copymapper.transport.mq.*} properties, when
+ * {@code copymapper.transport.type=mq}.
  *
  * <p>The connector is an {@link MqConnector} bean. Without one, this class creates a
  * {@link JmsConnector} with the {@code jakarta.jms.ConnectionFactory} bean of the context. The
@@ -28,11 +28,11 @@ import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
  */
 @AutoConfiguration(before = CopyMapperAutoConfiguration.class)
 @ConditionalOnClass(MqTransport.class)
-@ConditionalOnProperty(name = "bookmap.transport.type", havingValue = "mq")
+@ConditionalOnProperty(name = "copymapper.transport.type", havingValue = "mq")
 @EnableConfigurationProperties(MqTransportProperties.class)
 public class MqTransportAutoConfiguration {
 
-    private static final String PREFIX = "bookmap.transport.mq.";
+    private static final String PREFIX = "copymapper.transport.mq.";
 
     /**
      * Creates the auto-configuration. Spring Boot calls this constructor.
@@ -44,7 +44,7 @@ public class MqTransportAutoConfiguration {
     /**
      * Creates the connector for Jakarta Messaging.
      *
-     * @param properties the {@code bookmap.transport.mq.*} settings
+     * @param properties the {@code copymapper.transport.mq.*} settings
      * @param connectionFactories the connection factory beans
      * @return the connector
      * @throws IllegalStateException if no single connection factory exists, or if a password has no
@@ -74,7 +74,7 @@ public class MqTransportAutoConfiguration {
      * Builds the transport. Spring Boot calls {@code close()} of the transport when the context
      * closes.
      *
-     * @param properties the {@code bookmap.transport.mq.*} settings
+     * @param properties the {@code copymapper.transport.mq.*} settings
      * @param connector the connector bean
      * @param customizers the customizer beans
      * @return the transport

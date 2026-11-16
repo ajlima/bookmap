@@ -124,13 +124,13 @@
       </parameters>
       <configuration>
         <project implementation="org.apache.maven.project.MavenProject">${project}</project>
-        <sourceDir implementation="java.io.File" default-value="${project.basedir}/src/main/copybook">${bookmap.copybook.sourceDir}</sourceDir>
-        <packageName implementation="java.lang.String">${bookmap.copybook.packageName}</packageName>
-        <lombok implementation="boolean" default-value="false">${bookmap.copybook.lombok}</lombok>
-        <packagePerCopybook implementation="boolean" default-value="false">${bookmap.copybook.packagePerCopybook}</packagePerCopybook>
-        <maxRecordLength implementation="java.lang.Integer">${bookmap.copybook.maxRecordLength}</maxRecordLength>
-        <outputDir implementation="java.io.File" default-value="${project.build.directory}/generated-sources/copybook">${bookmap.copybook.outputDir}</outputDir>
-        <skip implementation="boolean" default-value="false">${bookmap.copybook.skip}</skip>
+        <sourceDir implementation="java.io.File" default-value="${project.basedir}/src/main/copybook">${copymapper.copybook.sourceDir}</sourceDir>
+        <packageName implementation="java.lang.String">${copymapper.copybook.packageName}</packageName>
+        <lombok implementation="boolean" default-value="false">${copymapper.copybook.lombok}</lombok>
+        <packagePerCopybook implementation="boolean" default-value="false">${copymapper.copybook.packagePerCopybook}</packagePerCopybook>
+        <maxRecordLength implementation="java.lang.Integer">${copymapper.copybook.maxRecordLength}</maxRecordLength>
+        <outputDir implementation="java.io.File" default-value="${project.build.directory}/generated-sources/copybook">${copymapper.copybook.outputDir}</outputDir>
+        <skip implementation="boolean" default-value="false">${copymapper.copybook.skip}</skip>
         <buildDirectory implementation="java.io.File">${project.build.directory}</buildDirectory>
         <pluginVersion implementation="java.lang.String">${plugin.version}</pluginVersion>
       </configuration>

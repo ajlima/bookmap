@@ -13,14 +13,14 @@ import pt.dazz.copymapper.codec.BookCodecRegistry;
 import pt.dazz.copymapper.spi.Transport;
 
 /**
- * Creates a {@link CopyMapperClient} bean from a {@link Transport} bean and the {@code bookmap.*} settings.
+ * Creates a {@link CopyMapperClient} bean from a {@link Transport} bean and the {@code copymapper.*} settings.
  *
  * <p>The {@code CopyMapperClient} bean exists only when a {@code Transport} bean exists.
  * A transport auto-configuration must declare
  * {@code @AutoConfiguration(before = CopyMapperAutoConfiguration.class)}.
  * Then the {@code Transport} bean is known when this class runs.
  *
- * <p>If {@code bookmap.transport.type} is set and no {@code Transport} bean exists, the
+ * <p>If {@code copymapper.transport.type} is set and no {@code Transport} bean exists, the
  * application does not start.
  */
 @AutoConfiguration
@@ -50,7 +50,7 @@ public class CopyMapperAutoConfiguration {
      *
      * @param transport the transport bean
      * @param registry the codec registry bean
-     * @param properties the {@code bookmap.*} settings
+     * @param properties the {@code copymapper.*} settings
      * @return the client
      */
     @Bean
@@ -67,17 +67,17 @@ public class CopyMapperAutoConfiguration {
     }
 
     /**
-     * Stops the application when {@code bookmap.transport.type} is set and no transport
+     * Stops the application when {@code copymapper.transport.type} is set and no transport
      * auto-configuration created a {@code Transport} bean. The bean is not lazy. Thus, the check
      * also runs with lazy initialization.
      *
-     * @param properties the {@code bookmap.transport.*} settings
+     * @param properties the {@code copymapper.transport.*} settings
      * @return never
      * @throws IllegalStateException always
      */
     @Bean
     @Lazy(false)
-    @ConditionalOnProperty("bookmap.transport.type")
+    @ConditionalOnProperty("copymapper.transport.type")
     @ConditionalOnMissingBean(Transport.class)
     MissingTransport copyMapperMissingTransport(CopyMapperTransportProperties properties) {
         throw new IllegalStateException(properties.type().missingTransportMessage());

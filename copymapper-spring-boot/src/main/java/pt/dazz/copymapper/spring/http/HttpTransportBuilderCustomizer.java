@@ -7,7 +7,7 @@ import pt.dazz.copymapper.http.HttpTransport;
  * to set a header supplier with a bearer token, or an {@code HttpClient} with a proxy.
  *
  * <p>The auto-configuration calls each customizer bean after it applies the
- * {@code bookmap.transport.http.*} properties. The order is the {@code @Order} of the beans.
+ * {@code copymapper.transport.http.*} properties. The order is the {@code @Order} of the beans.
  */
 @FunctionalInterface
 public interface HttpTransportBuilderCustomizer {

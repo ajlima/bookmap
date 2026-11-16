@@ -8,7 +8,7 @@ import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
 
 /**
- * The CopyMapper copybook plugin ({@code pt.dazz.copymapper.copybook}). It adds the {@code bookmap}
+ * The CopyMapper copybook plugin ({@code pt.dazz.copymapper.copybook}). It adds the {@code copymapper}
  * extension and the task {@code generateCopybookClasses}. With the {@code java} plugin, it
  * adds the generated classes to the {@code main} source set.
  */
@@ -27,7 +27,7 @@ public class CopyMapperCopybookPlugin implements Plugin<Project> {
     public void apply(Project project) {
         ProjectLayout layout = project.getLayout();
         CopybooksSpec spec = project.getExtensions()
-            .create("bookmap", CopyMapperExtension.class).getCopybooks();
+            .create("copymapper", CopyMapperExtension.class).getCopybooks();
         spec.getSourceDir().convention(layout.getProjectDirectory().dir("src/main/copybook"));
         spec.getOutputDir().convention(
             layout.getBuildDirectory().dir("generated/sources/copybook/main"));

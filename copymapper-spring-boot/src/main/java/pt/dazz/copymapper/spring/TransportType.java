@@ -4,7 +4,7 @@ import java.util.Locale;
 
 /**
  * The transport that the Spring Boot auto-configuration creates. The property
- * {@code bookmap.transport.type} selects it.
+ * {@code copymapper.transport.type} selects it.
  */
 public enum TransportType {
 
@@ -32,7 +32,7 @@ public enum TransportType {
      */
     String missingTransportMessage() {
         String name = name().toLowerCase(Locale.ROOT);
-        String start = "bookmap.transport.type=" + name + ", but no Transport bean exists. ";
+        String start = "copymapper.transport.type=" + name + ", but no Transport bean exists. ";
         return start + "Add " + requirement + " to the class path.";
     }
 }

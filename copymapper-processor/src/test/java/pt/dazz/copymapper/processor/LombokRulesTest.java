@@ -14,8 +14,8 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Checks the Lombok constructor rules and the Lombok access levels across packages, with Lombok
- * before and after bookmap. The result must be the same in both orders, and a problem must be a
- * bookmap error, never a javac error in the generated codec.
+ * before and after CopyMapper. The result must be the same in both orders, and a problem must be a
+ * CopyMapper error, never a javac error in the generated codec.
  */
 class LombokRulesTest {
 

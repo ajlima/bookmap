@@ -7,7 +7,7 @@ import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 
 /**
- * The {@code copybooks} block of the {@code bookmap} extension.
+ * The {@code copybooks} block of the {@code copymapper} extension.
  */
 public abstract class CopybooksSpec {
 

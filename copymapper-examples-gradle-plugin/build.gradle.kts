@@ -26,7 +26,7 @@ dependencies {
 
 // Generate the classes of each copybook in src/main/copybook. The directory of a copybook
 // gives its subpackage: orders/ORDER.cpy goes to pt.dazz.copymapper.examples.plugin.orders.
-bookmap {
+copymapper {
     copybooks {
         packageName = "pt.dazz.copymapper.examples.plugin"
         copyDirs.from("src/main/copylib")

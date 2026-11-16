@@ -19,19 +19,19 @@ import pt.dazz.copymapper.spi.Transport;
 import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 /**
- * Creates a {@link CtgTransport} bean from the {@code bookmap.transport.ctg.*} properties, when
- * {@code bookmap.transport.type=ctg}.
+ * Creates a {@link CtgTransport} bean from the {@code copymapper.transport.ctg.*} properties, when
+ * {@code copymapper.transport.type=ctg}.
  *
  * <p>The connector is an {@link EciConnector} bean. Without one, and with the IBM library
  * {@code ctgclient.jar} on the class path, this class creates a {@link JavaGatewayConnector}.
  */
 @AutoConfiguration(before = CopyMapperAutoConfiguration.class)
 @ConditionalOnClass(CtgTransport.class)
-@ConditionalOnProperty(name = "bookmap.transport.type", havingValue = "ctg")
+@ConditionalOnProperty(name = "copymapper.transport.type", havingValue = "ctg")
 @EnableConfigurationProperties(CtgTransportProperties.class)
 public class CtgTransportAutoConfiguration {
 
-    private static final String PREFIX = "bookmap.transport.ctg.";
+    private static final String PREFIX = "copymapper.transport.ctg.";
 
     /**
      * Creates the auto-configuration. Spring Boot calls this constructor.
@@ -44,7 +44,7 @@ public class CtgTransportAutoConfiguration {
      * Builds the transport. Spring Boot calls {@code close()} of the transport when the context
      * closes.
      *
-     * @param properties the {@code bookmap.transport.ctg.*} settings
+     * @param properties the {@code copymapper.transport.ctg.*} settings
      * @param connector the connector bean
      * @param customizers the customizer beans
      * @return the transport
@@ -95,7 +95,7 @@ public class CtgTransportAutoConfiguration {
         /**
          * Builds the connector.
          *
-         * @param properties the {@code bookmap.transport.ctg.*} settings
+         * @param properties the {@code copymapper.transport.ctg.*} settings
          * @return the connector
          * @throws IllegalStateException if the URL is not set
          */

@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Settings of the CTG transport, with the prefix {@code bookmap.transport.ctg}.
+ * Settings of the CTG transport, with the prefix {@code copymapper.transport.ctg}.
  *
  * <p>The Spring Boot configuration processor copies the text of each {@code @param} tag into the
  * configuration metadata. Do not use inline Javadoc tags in the {@code @param} tags.
@@ -33,7 +33,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param routes The route of each operation. The key is the operation name, for example
  *     routes[GetInvoice].program. An environment variable cannot give a route. At least one route.
  */
-@ConfigurationProperties("bookmap.transport.ctg")
+@ConfigurationProperties("copymapper.transport.ctg")
 public record CtgTransportProperties(
         String url,
         @DefaultValue("2006") int port,

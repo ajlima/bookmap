@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Settings of the HTTP transport, with the prefix {@code bookmap.transport.http}.
+ * Settings of the HTTP transport, with the prefix {@code copymapper.transport.http}.
  *
  * <p>The Spring Boot configuration processor copies the text of each {@code @param} tag into the
  * configuration metadata. Do not use inline Javadoc tags in the {@code @param} tags.
@@ -30,7 +30,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param routes The route of each operation. The key is the operation name, for example
  *     routes[GetInvoice].uri. An environment variable cannot give a route. At least one route.
  */
-@ConfigurationProperties("bookmap.transport.http")
+@ConfigurationProperties("copymapper.transport.http")
 public record HttpTransportProperties(
         URI baseUri,
         Map<String, String> headers,

@@ -31,7 +31,7 @@ import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 class CtgTransportAutoConfigurationTest {
 
-    private static final String ROUTE = "bookmap.transport.ctg.routes[GetInvoice].program=PGMINV01";
+    private static final String ROUTE = "copymapper.transport.ctg.routes[GetInvoice].program=PGMINV01";
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CtgTransportAutoConfiguration.class,
@@ -74,7 +74,7 @@ class CtgTransportAutoConfigurationTest {
 
     private ApplicationContextRunner withConnector(RecordingConnector connector) {
         return runner.withBean(EciConnector.class, () -> connector)
-            .withPropertyValues("bookmap.transport.type=ctg");
+            .withPropertyValues("copymapper.transport.type=ctg");
     }
 
     @AfterEach
@@ -94,7 +94,7 @@ class CtgTransportAutoConfigurationTest {
     @Test
     void otherTypeNoCtgTransport() {
         runner.withBean(Transport.class, () -> request -> new byte[0])
-            .withPropertyValues("bookmap.transport.type=http", ROUTE)
+            .withPropertyValues("copymapper.transport.type=http", ROUTE)
             .run(context -> assertThat(context).hasNotFailed()
                 .doesNotHaveBean(CtgTransport.class)
                 .hasSingleBean(CopyMapperClient.class));
@@ -111,7 +111,7 @@ class CtgTransportAutoConfigurationTest {
     @ValueSource(strings = {"CTG", "Ctg"})
     void typeIsNotCaseSensitive(String type) {
         runner.withBean(EciConnector.class, RecordingConnector::new)
-            .withPropertyValues("bookmap.transport.type=" + type, ROUTE)
+            .withPropertyValues("copymapper.transport.type=" + type, ROUTE)
             .run(context -> assertThat(context).hasSingleBean(CtgTransport.class));
     }
 
@@ -127,9 +127,9 @@ class CtgTransportAutoConfigurationTest {
     @Test
     void transportModuleAbsentFailsWithMessage() {
         runner.withClassLoader(new FilteredClassLoader(CtgTransport.class))
-            .withPropertyValues("bookmap.transport.type=ctg", ROUTE)
+            .withPropertyValues("copymapper.transport.type=ctg", ROUTE)
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.type=ctg, but no Transport bean exists. Add "
+                .hasMessage("copymapper.transport.type=ctg, but no Transport bean exists. Add "
                     + "copymapper-transport-ctg and the IBM library ctgclient.jar to the class path."));
     }
 
@@ -137,14 +137,14 @@ class CtgTransportAutoConfigurationTest {
     void propertiesReachTheCall() {
         RecordingConnector connector = new RecordingConnector();
         withConnector(connector).withPropertyValues(
-                "bookmap.transport.ctg.server=CICSPROD",
-                "bookmap.transport.ctg.default-transaction=TX00",
-                "bookmap.transport.ctg.userid=ORDUSER",
-                "bookmap.transport.ctg.password=secret",
-                "bookmap.transport.ctg.timeout=20s",
+                "copymapper.transport.ctg.server=CICSPROD",
+                "copymapper.transport.ctg.default-transaction=TX00",
+                "copymapper.transport.ctg.userid=ORDUSER",
+                "copymapper.transport.ctg.password=secret",
+                "copymapper.transport.ctg.timeout=20s",
                 ROUTE,
-                "bookmap.transport.ctg.routes[GetCustomerOrders].program=PGMORD01",
-                "bookmap.transport.ctg.routes[GetCustomerOrders].transaction=TX01")
+                "copymapper.transport.ctg.routes[GetCustomerOrders].program=PGMORD01",
+                "copymapper.transport.ctg.routes[GetCustomerOrders].transaction=TX01")
             .run(context -> {
                 CtgTransport transport = context.getBean(CtgTransport.class);
                 exchange(transport, "GetInvoice");
@@ -180,7 +180,7 @@ class CtgTransportAutoConfigurationTest {
     @Test
     void useridWithoutPasswordIsApplied() {
         RecordingConnector connector = new RecordingConnector();
-        withConnector(connector).withPropertyValues(ROUTE, "bookmap.transport.ctg.userid=ORDUSER")
+        withConnector(connector).withPropertyValues(ROUTE, "copymapper.transport.ctg.userid=ORDUSER")
             .run(context -> {
                 exchange(context.getBean(CtgTransport.class), "GetInvoice");
                 assertThat(connector.calls.get(0).userid()).isEqualTo("ORDUSER");
@@ -194,8 +194,8 @@ class CtgTransportAutoConfigurationTest {
         connector.entered = new CountDownLatch(1);
         connector.release = new CountDownLatch(1);
         withConnector(connector).withPropertyValues(ROUTE,
-                "bookmap.transport.ctg.max-connections=1",
-                "bookmap.transport.ctg.connection-wait-timeout=0s")
+                "copymapper.transport.ctg.max-connections=1",
+                "copymapper.transport.ctg.connection-wait-timeout=0s")
             .run(context -> {
                 CtgTransport transport = context.getBean(CtgTransport.class);
                 Thread holder = new Thread(() -> exchange(transport, "GetInvoice"));
@@ -215,7 +215,7 @@ class CtgTransportAutoConfigurationTest {
     void routeKeyKeepsCaseWithoutBrackets() {
         RecordingConnector connector = new RecordingConnector();
         withConnector(connector)
-            .withPropertyValues("bookmap.transport.ctg.routes.GetInvoice.program=PGMINV01")
+            .withPropertyValues("copymapper.transport.ctg.routes.GetInvoice.program=PGMINV01")
             .run(context -> {
                 exchange(context.getBean(CtgTransport.class), "GetInvoice");
                 assertThat(connector.calls).hasSize(1);
@@ -225,9 +225,9 @@ class CtgTransportAutoConfigurationTest {
     @Test
     void routeWithoutProgramFails() {
         withConnector(new RecordingConnector())
-            .withPropertyValues("bookmap.transport.ctg.routes[GetInvoice].transaction=TX01")
+            .withPropertyValues("copymapper.transport.ctg.routes[GetInvoice].transaction=TX01")
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.ctg.routes[GetInvoice].program is not set."));
+                .hasMessage("copymapper.transport.ctg.routes[GetInvoice].program is not set."));
     }
 
     @Test
@@ -240,17 +240,17 @@ class CtgTransportAutoConfigurationTest {
     @Test
     void passwordWithoutUseridFails() {
         withConnector(new RecordingConnector())
-            .withPropertyValues(ROUTE, "bookmap.transport.ctg.password=secret")
+            .withPropertyValues(ROUTE, "copymapper.transport.ctg.password=secret")
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
-                .hasMessage("bookmap.transport.ctg.password is set, but "
-                    + "bookmap.transport.ctg.userid is not set.")
+                .hasMessage("copymapper.transport.ctg.password is set, but "
+                    + "copymapper.transport.ctg.userid is not set.")
                 .message().doesNotContain("secret"));
     }
 
     @Test
     void invalidTimeoutFails() {
         withConnector(new RecordingConnector())
-            .withPropertyValues(ROUTE, "bookmap.transport.ctg.timeout=1500ms")
+            .withPropertyValues(ROUTE, "copymapper.transport.ctg.timeout=1500ms")
             .run(context -> assertThat(context).hasFailed());
     }
 
@@ -293,11 +293,11 @@ class CtgTransportAutoConfigurationTest {
 
     @Test
     void javaGatewayConnectorFromProperties() {
-        runner.withPropertyValues("bookmap.transport.type=ctg", ROUTE,
-                "bookmap.transport.ctg.url=tcp://ctg.example.com",
-                "bookmap.transport.ctg.port=2007",
-                "bookmap.transport.ctg.socket-connect-timeout=5s",
-                "bookmap.transport.ctg.protocol-properties[ssl.keyring]=/keys/ring.kdb")
+        runner.withPropertyValues("copymapper.transport.type=ctg", ROUTE,
+                "copymapper.transport.ctg.url=tcp://ctg.example.com",
+                "copymapper.transport.ctg.port=2007",
+                "copymapper.transport.ctg.socket-connect-timeout=5s",
+                "copymapper.transport.ctg.protocol-properties[ssl.keyring]=/keys/ring.kdb")
             .run(context -> {
                 context.getBean(EciConnector.class).open().close();
                 JavaGateway gateway = JavaGateway.last;
@@ -311,8 +311,8 @@ class CtgTransportAutoConfigurationTest {
 
     @Test
     void javaGatewayConnectorDefaults() {
-        runner.withPropertyValues("bookmap.transport.type=ctg", ROUTE,
-                "bookmap.transport.ctg.url=tcp://ctg.example.com")
+        runner.withPropertyValues("copymapper.transport.type=ctg", ROUTE,
+                "copymapper.transport.ctg.url=tcp://ctg.example.com")
             .run(context -> {
                 assertThat(context.getBean(EciConnector.class)).isInstanceOf(JavaGatewayConnector.class);
                 context.getBean(EciConnector.class).open().close();
@@ -324,7 +324,7 @@ class CtgTransportAutoConfigurationTest {
 
     @Test
     void missingUrlFails() {
-        runner.withPropertyValues("bookmap.transport.type=ctg", ROUTE)
+        runner.withPropertyValues("copymapper.transport.type=ctg", ROUTE)
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
                 .hasMessage("Set the url of the gateway"));
     }
@@ -332,8 +332,8 @@ class CtgTransportAutoConfigurationTest {
     @Test
     void ibmLibraryAbsentFailsWithMessage() {
         runner.withClassLoader(new FilteredClassLoader(JavaGateway.class))
-            .withPropertyValues("bookmap.transport.type=ctg", ROUTE,
-                "bookmap.transport.ctg.url=tcp://ctg.example.com")
+            .withPropertyValues("copymapper.transport.type=ctg", ROUTE,
+                "copymapper.transport.ctg.url=tcp://ctg.example.com")
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
                 .hasMessage("No EciConnector bean. Add the IBM library ctgclient.jar, "
                     + "or declare an EciConnector bean."));
@@ -343,14 +343,14 @@ class CtgTransportAutoConfigurationTest {
     void applicationConnectorWins() {
         RecordingConnector connector = new RecordingConnector();
         withConnector(connector).withPropertyValues(ROUTE,
-                "bookmap.transport.ctg.url=tcp://ctg.example.com")
+                "copymapper.transport.ctg.url=tcp://ctg.example.com")
             .run(context -> assertThat(context).getBean(EciConnector.class).isSameAs(connector));
     }
 
     @Test
     void applicationTransportStopsTheConnectorToo() {
         runner.withBean(Transport.class, () -> request -> new byte[0])
-            .withPropertyValues("bookmap.transport.type=ctg")
+            .withPropertyValues("copymapper.transport.type=ctg")
             .run(context -> assertThat(context).hasNotFailed()
                 .doesNotHaveBean(EciConnector.class)
                 .doesNotHaveBean(CtgTransport.class));

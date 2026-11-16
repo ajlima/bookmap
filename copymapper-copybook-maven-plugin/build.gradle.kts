@@ -43,8 +43,8 @@ val integrationTestTask = tasks.register<Test>("integrationTest") {
     integrationTestModules.forEach {
         dependsOn(":$it:publishAllPublicationsToIntegrationTestRepository")
     }
-    systemProperty("bookmap.version", project.version.toString())
-    systemProperty("bookmap.repository", integrationTestRepository.get().asFile.absolutePath)
+    systemProperty("copymapper.version", project.version.toString())
+    systemProperty("copymapper.repository", integrationTestRepository.get().asFile.absolutePath)
     systemProperty("maven.distributions",
         layout.buildDirectory.dir("maven-distributions").get().asFile.absolutePath)
     systemProperty("maven.localRepository",

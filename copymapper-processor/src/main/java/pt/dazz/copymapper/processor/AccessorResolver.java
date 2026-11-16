@@ -184,7 +184,7 @@ public final class AccessorResolver {
     }
 
     // The resolver has only Elements, not Types. It compares the qualified names without type
-    // annotations and type arguments, which is sufficient for the field types that bookmap supports.
+    // annotations and type arguments, which is sufficient for the field types that CopyMapper supports.
     private static boolean same(TypeMirror a, TypeMirror b) {
         return Mirrors.typeName(a).equals(Mirrors.typeName(b));
     }

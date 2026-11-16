@@ -88,14 +88,14 @@ class PluginDescriptorTest {
         Map<String, String> expected = new LinkedHashMap<>();
         expected.put("project", "${project}");
         expected.put("sourceDir",
-            "${bookmap.copybook.sourceDir}|${project.basedir}/src/main/copybook");
-        expected.put("packageName", "${bookmap.copybook.packageName}|");
-        expected.put("lombok", "${bookmap.copybook.lombok}|false");
-        expected.put("packagePerCopybook", "${bookmap.copybook.packagePerCopybook}|false");
-        expected.put("maxRecordLength", "${bookmap.copybook.maxRecordLength}");
-        expected.put("outputDir", "${bookmap.copybook.outputDir}|"
+            "${copymapper.copybook.sourceDir}|${project.basedir}/src/main/copybook");
+        expected.put("packageName", "${copymapper.copybook.packageName}|");
+        expected.put("lombok", "${copymapper.copybook.lombok}|false");
+        expected.put("packagePerCopybook", "${copymapper.copybook.packagePerCopybook}|false");
+        expected.put("maxRecordLength", "${copymapper.copybook.maxRecordLength}");
+        expected.put("outputDir", "${copymapper.copybook.outputDir}|"
             + "${project.build.directory}/generated-sources/copybook");
-        expected.put("skip", "${bookmap.copybook.skip}|false");
+        expected.put("skip", "${copymapper.copybook.skip}|false");
         expected.put("buildDirectory", "${project.build.directory}");
         expected.put("pluginVersion", "${plugin.version}");
         Map<String, String> actual = new LinkedHashMap<>();

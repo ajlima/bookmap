@@ -188,7 +188,7 @@ public abstract class GenerateCopybookClasses extends DefaultTask {
         CopybookTree.Settings settings = new CopybookTree.Settings(
             getSourceDir().get().getAsFile().toPath(), paths(getCopyDirs()),
             getPackageName().getOrNull(), getLombok().get(), getPackagePerCopybook().get(),
-            "Set bookmap.copybooks.packageName.", "bookmap.copybooks.packagePerCopybook = true",
+            "Set copymapper.copybooks.packageName.", "copymapper.copybooks.packagePerCopybook = true",
             getMaxRecordLength().getOrNull());
         Logger logger = getLogger();
         try {

@@ -30,7 +30,7 @@
             <path>
               <groupId>pt.dazz.copymapper</groupId>
               <artifactId>copymapper-processor</artifactId>
-              <version>${bookmap.version}</version>
+              <version>${copymapper.version}</version>
             </path>
           </annotationProcessorPaths>
         </configuration>

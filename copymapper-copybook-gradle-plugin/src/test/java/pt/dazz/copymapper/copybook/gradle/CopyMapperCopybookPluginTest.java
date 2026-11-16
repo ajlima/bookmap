@@ -54,7 +54,7 @@ class CopyMapperCopybookPluginTest {
     @Test
     void registersTheExtensionAndTheTask() {
         GenerateCopybookClasses task = task();
-        assertThat(project.getExtensions().findByName("bookmap"))
+        assertThat(project.getExtensions().findByName("copymapper"))
             .isInstanceOf(CopyMapperExtension.class);
         assertThat(task.getGroup()).isEqualTo("build");
         assertThat(task.getDescription())
@@ -177,7 +177,7 @@ class CopyMapperCopybookPluginTest {
         spec().getSourceDir().set(TestCopybooks.copy("tree", dir).toFile());
         spec().exclude("billing/**");
         assertThatThrownBy(task::generate).isExactlyInstanceOf(GradleException.class)
-            .hasMessage("Set bookmap.copybooks.packageName.");
+            .hasMessage("Set copymapper.copybooks.packageName.");
     }
 
     @Test

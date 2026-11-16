@@ -2,7 +2,7 @@ package pt.dazz.copymapper.spi;
 
 /**
  * Sends one request to the remote system and returns the response bytes.
- * An implementation translates technical failures into bookmap exceptions.
+ * An implementation translates technical failures into CopyMapper exceptions.
  * It must not throw middleware exceptions.
  */
 public interface Transport {
