@@ -20,6 +20,7 @@ import pt.dazz.bookmap.convert.CodecContext;
 import pt.dazz.bookmap.convert.FieldContext;
 import pt.dazz.bookmap.convert.FieldConverter;
 import pt.dazz.bookmap.exception.BookmapException;
+import pt.dazz.bookmap.exception.InvalidValueException;
 import pt.dazz.bookmap.exception.MappingException;
 
 /**
@@ -70,8 +71,10 @@ public final class BookReader {
     }
 
     /**
-     * Gives a reader at the start of a {@code REDEFINES} area, and moves this reader after the
-     * area. A codec reads each member of the area from {@code peek(0)} of the returned reader.
+     * Gives a reader on the bytes of a {@code REDEFINES} area, and moves this reader after the
+     * area. The returned reader holds only the bytes of the area, at positions from 0: a read
+     * past the end of the area fails. A codec reads each member of the area from
+     * {@code peek(0)} of the returned reader.
      *
      * @param field the descriptor of the redefined member, for error messages
      * @param length the number of bytes of the area: the length of its longest member
@@ -79,21 +82,23 @@ public final class BookReader {
      * @throws MappingException if the data ends before the end of the area
      */
     public BookReader area(String field, int length) {
-        return new BookReader(data, ctx, take(field, length));
+        int from = take(field, length);
+        return new BookReader(Arrays.copyOfRange(data, from, from + length), ctx);
     }
 
     /**
-     * Reads one member of a {@code REDEFINES} area. If the bytes are not valid for the member,
-     * the method gives {@code null}. Other exceptions go to the caller.
+     * Reads one member of a {@code REDEFINES} area. If the bytes are not a valid value of the
+     * type of the member, the method gives {@code null}. Other exceptions go to the caller, for
+     * example a failure of a converter or a read past the end of the data.
      *
      * @param read the read of the member
      * @param <J> the Java type of the member
-     * @return the value, or {@code null} if the read throws {@link MappingException}
+     * @return the value, or {@code null} if the read throws {@link InvalidValueException}
      */
     public static <J> J orNull(Supplier<J> read) {
         try {
             return read.get();
-        } catch (MappingException e) {
+        } catch (InvalidValueException e) {
             return null;
         }
     }
