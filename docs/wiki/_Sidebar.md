@@ -9,6 +9,7 @@
 - [PIC syntax and type mapping](PIC-syntax-and-type-mapping)
 - [Collections and fixed OCCURS](Collections-and-fixed-OCCURS)
 - [Subtypes (REDEFINES)](Subtypes-REDEFINES)
+- [REDEFINES views](REDEFINES-views)
 - [Error handling](Error-handling)
 
 **Runtime**

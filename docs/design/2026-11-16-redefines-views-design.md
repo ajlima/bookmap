@@ -192,7 +192,7 @@ The members inside a view (in a group class, or in the item class of a collectio
 
 1. The codec checks that the data holds the full area (the longest member). If not, it throws the usual short-data `MappingException` with the descriptor of the redefined member.
 2. The codec decodes each member of the area from the start of the area, in order. Each member uses its own length.
-3. If the decode of a member throws `MappingException`, the codec sets the member to `null`. It does not throw. Then it decodes the next member.
+3. If the bytes of a member are not a valid value of its type, the codec sets the member to `null`. It does not throw. Then it decodes the next member. The decoders signal this case with `InvalidValueException`, a subclass of `MappingException`: a byte that is not valid in a packed, zoned, or edited number, a text that is not a date or time, a negative packed date, a byte that the charset cannot decode, and an unknown enum value. A failure of a converter and a short response are not invalid values: they stop the read.
 4. After the area, the reader continues at the start of the area plus the area length.
 
 All members of an area are equal. The redefined member is not stricter than a view.
@@ -263,7 +263,6 @@ Each message starts with the descriptor `<Owner>.<name> (order <n>): ` of the an
 | `group class X must have at least one @BookField` | 4.2. |
 | `group class X must not have @BookSubTypes` | 5.8. |
 | `group class X contains itself: A > B > A` | A group class that contains itself, directly or through an item class. |
-| `the REDEFINES area has <n> bytes, more than the maximum of 2147483647 bytes` | The longest member is too long. |
 
 A field with `@BookField(redefines = ...)` and `@BookCollection` gives the existing error `a field must not have both @BookField and @BookCollection`. The same rule applies to `@BookGroup`: `a field must have only one of @BookField, @BookCollection, and @BookGroup`.
 
@@ -282,8 +281,9 @@ A member that is not valid on read gives `null` and no message (5.5).
 ## 8. Runtime API in `bookmap-core`
 
 - `@BookGroup` (new) and the attribute `redefines` on `@BookField` and `@BookCollection`.
-- `BookReader.area(String field, int length)` (new). It checks that `length` bytes remain, with the message of `take`. It gives a reader at the start of the area, and it moves this reader after the area.
-- `BookReader.orNull(Supplier<J> read)` (new, static). It calls `read`, and it gives `null` if `read` throws `MappingException`. A generated codec calls it once for each member of an area. A lambda is not reflection.
+- `BookReader.area(String field, int length)` (new). It checks that `length` bytes remain, with the message of `take`. It gives a reader on a copy of the bytes of the area, and it moves this reader after the area. Thus, a member cannot read past the end of the area.
+- `BookReader.orNull(Supplier<J> read)` (new, static). It calls `read`, and it gives `null` if `read` throws `InvalidValueException`. Other exceptions go to the caller. A generated codec calls it once for each member of an area. A lambda is not reflection.
+- `InvalidValueException` (new, in `pt.dazz.bookmap.exception`), a subclass of `MappingException`. The messages do not change.
 - `BookWriter`: no change. The generated code selects the member before it writes, and it calls `writeFiller` for the remaining bytes.
 
 The method names are a builder call.

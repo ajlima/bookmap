@@ -46,7 +46,7 @@ The processor generates all dispatch code at compile time. The framework uses no
 
 ### 2.2 Non-goals
 
-- A `REDEFINES` without a discriminator, where all layouts of the same bytes are available at the same time.
+- A `REDEFINES` without a discriminator, where all layouts of the same bytes are available at the same time. See `2026-11-16-redefines-views-design.md`.
 - Subtypes in a subtype (a subclass that declares its own `@BookSubTypes`).
 - A change of subclass between two pages of one execution.
 - Base fields after the redefined area (a trailer after the `REDEFINES`). See 4.4.

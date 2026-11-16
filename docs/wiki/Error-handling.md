@@ -3,6 +3,7 @@ All exceptions are unchecked. They are in the package `pt.dazz.bookmap.exception
 ```
 BookmapException
 ├── MappingException              (layout, conversion, missing codec)
+│   └── InvalidValueException     (bytes that are not a valid value of the type)
 ├── ContinuationLimitException
 ├── BusinessException             (base class for your exceptions in validate())
 └── TransportException

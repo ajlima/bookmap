@@ -35,11 +35,12 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 | Page | Content |
 |---|---|
 | [Getting started](Getting-started) | Installation, the first book, and the first call. |
-| [Annotations reference](Annotations-reference) | `@BookOperation`, `@BookField`, `@BookCollection`, `@BookDefaults`, `@BookSubTypes`, and Lombok. |
+| [Annotations reference](Annotations-reference) | `@BookOperation`, `@BookField`, `@BookCollection`, `@BookGroup`, `@BookDefaults`, `@BookSubTypes`, and Lombok. |
 | [Conventions](Conventions) | The six conventions, and the convention style and the explicit style. |
 | [PIC syntax and type mapping](PIC-syntax-and-type-mapping) | The `pic` string, the byte sizes, the Java types, and the conversion rules. |
 | [Collections and fixed OCCURS](Collections-and-fixed-OCCURS) | Variable collections, pagination, and fixed tables. |
-| [Subtypes (REDEFINES)](Subtypes-REDEFINES) | One area with more than one layout. |
+| [Subtypes (REDEFINES)](Subtypes-REDEFINES) | One area with more than one layout, and a field that selects the layout. |
+| [REDEFINES views](REDEFINES-views) | One area with more than one layout, and no field that selects the layout. |
 | [Error handling](Error-handling) | The exception hierarchy and the business errors. |
 | [Transports and simulator](Transports-and-simulator) | The comparison of the transports, the transport SPI, and the simulator for tests. |
 | &nbsp;&nbsp;↳ [CICS Transaction Gateway](CICS-Transaction-Gateway) | The transport for CICS programs through CTG (ECI). |
@@ -75,7 +76,6 @@ The base package is `pt.dazz.bookmap`. The license is MIT.
 
 ## Known limitations
 
-- No `REDEFINES` without a discriminator. See [Subtypes (REDEFINES)](Subtypes-REDEFINES).
 - No subtypes in a subtype, and no base fields after the redefined area.
 - No `OCCURS DEPENDING ON` in a table entry. A nested collection must be fixed.
 - No `COMP-1` or `COMP-2`.
