@@ -7,14 +7,19 @@
 # (copymapper-examples-gradle-plugin) and of the Maven plugin (copymapper-examples-maven-plugin).
 # The ruleset on main requires this check before a merge.
 #
-# On each push to main:
+# On each push to main: only the build job runs. If the commits since the last tag give a new
+# version, the build job shows it in a notice. A push to main never publishes.
+#
+# On a manual run on main ("Run workflow", workflow_dispatch), the workflow makes a release.
+# Maven Central limits the publishing volume of each organization per calendar month, so the
+# releases are grouped (see "Maven Central limits" in RELEASING.md).
 #   1. The build job calculates the next version from the Conventional Commits since the last tag
 #      (feat -> minor, fix -> patch, BREAKING CHANGE -> major; other types -> no release),
 #      then builds and tests with that version (the build fails if coverage is below 100%).
 #      This job has read-only access and keeps no credential in the checkout.
 #   2. The publish job signs the modules and publishes them to Maven Central. It runs only for
-#      refs/heads/main and only when a new version exists. It has read-only repository access;
-#      the Sonatype token and the signing key come from secrets (see RELEASING.md).
+#      a manual run on refs/heads/main, and only when a new version exists. It has read-only
+#      repository access; the Sonatype token and the signing key come from secrets (see RELEASING.md).
 #   3. The attest job runs after a successful publish. It makes a SLSA build provenance
 #      attestation for each JAR, POM, and Gradle module file that went to Maven Central. It takes
 #      the files from the staging directory of the publish plugin, so the attested bytes are the
@@ -37,6 +42,7 @@ on:
   # Pull requests run only the build job. The ruleset on main requires it to pass.
   pull_request:
     branches: [main]
+  # A manual run on main is the only event that publishes a release.
   workflow_dispatch:
 
 permissions:
@@ -117,6 +123,15 @@ jobs:
           default_bump: false
           dry_run: true
 
+      # A push to main does not publish. The notice tells which version the next manual run makes.
+      - name: Show the next release
+        if: github.event_name == 'push' && steps.version.outputs.new_tag != ''
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          echo "::notice::The next release is $NEW_VERSION. To publish it, run this workflow on main" \
+            "(Actions > Build and release > Run workflow). See RELEASING.md."
+
       - name: Build and test
         if: steps.changes.outputs.docs_only != 'true'
         env:
@@ -142,7 +157,7 @@ jobs:
 
   publish:
     needs: build
-    if: github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
     runs-on: ubuntu-latest
     # The secrets of this job are environment secrets. Add required reviewers to the
     # "maven-central" environment to approve each publication by hand (see RELEASING.md).
@@ -203,7 +218,7 @@ jobs:
   # OIDC token. The release job does not wait for it, so a failure here does not stop the tag.
   attest:
     needs: [build, publish]
-    if: github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
     runs-on: ubuntu-latest
     permissions:
       # The OIDC token gets the short-lived Sigstore signing certificate.
@@ -227,7 +242,7 @@ jobs:
 
   release:
     needs: [build, publish]
-    if: github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && needs.build.outputs.new_tag != ''
     runs-on: ubuntu-latest
     # The secret of the release app is an environment secret. Only this job can read it.
     environment: readme-update
