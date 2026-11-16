@@ -68,7 +68,7 @@ final class CodecGenerator {
         FieldCode fields = new FieldCode(members, helpers);
         CollectionCode collections = new CollectionCode(members, helpers);
         this.items = new ItemMethodsGenerator(members, fields, collections);
-        this.code = new LayoutCode(fields, collections);
+        this.code = new LayoutCode(collections, items);
     }
 
     /**
@@ -102,17 +102,8 @@ final class CodecGenerator {
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addOriginatingElement(model.type())
             .addSuperinterface(ParameterizedTypeName.get(BOOK_CODEC, type));
-        Set<MemberModel> added = new HashSet<>();
         for (Layout layout : layouts) {
-            for (MemberModel member : layout.members()) {
-                if (added.add(member)) {
-                    switch (member) {
-                        case FieldModel field -> members.addField(builder, field);
-                        case CollectionModel collection ->
-                            items.addCollection(builder, collection);
-                    }
-                }
-            }
+            layout.members().forEach(member -> items.addMember(builder, member));
         }
         builder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC)
             .addJavadoc("Makes the codec. The {@code ServiceLoader} calls this constructor.\n")

@@ -1,8 +1,10 @@
 package pt.dazz.bookmap.processor;
 
 import java.util.List;
+import pt.dazz.bookmap.processor.model.AreaModel;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
+import pt.dazz.bookmap.processor.model.GroupModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 import pt.dazz.bookmap.processor.model.OperationModel;
 import pt.dazz.bookmap.processor.model.SubTypesModel;
@@ -45,15 +47,17 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
      * @param signed the sign setting
      * @param usage the usage name, or {@code ""}
      * @param pattern the pattern, or {@code ""}
-     * @param byteLength the number of bytes of a field, or of one entry of a collection
-     * @param javaKind the Java kind name, or {@code ""}
+     * @param byteLength the number of bytes of a field, of one entry of a collection, of a
+     *     group, or of an area
+     * @param javaKind the Java kind name, {@code "GROUP"} for a group, {@code "AREA"} for a
+     *     {@code REDEFINES} area, or {@code ""} for a collection
      * @param getter the getter name
      * @param setter the setter name
      * @param converter the qualified converter class name, or {@code ""}
      * @param countField the name of the count field, or {@code ""}
      * @param maxOccurs the maximum number of entries, or 0
      * @param fixed {@code true} for a fixed collection
-     * @param itemMembers the members of one entry: fields, and inner collections
+     * @param itemMembers the members of one entry, of a group, or of an area
      * @param edited the edited picture, with {@code BLANK WHEN ZERO}, or {@code ""}
      */
     record Member(String owner, String name, int order, String direction, int length, int scale,
@@ -89,6 +93,13 @@ record ModelSnapshot(String operationName, String charsetName, boolean continuab
                 collection.countField() == null ? "" : collection.countField().name(),
                 collection.maxOccurs(), collection.fixed(),
                 collection.item().members().stream().map(ModelSnapshot::member).toList(), "");
+            case GroupModel group -> new Member(group.ownerSimpleName(), group.name(),
+                group.order(), group.direction().name(), 0, 0, false, "", "", group.byteLength(),
+                "GROUP", group.getter(), group.setter(), "", "", 0, false,
+                group.members().stream().map(ModelSnapshot::member).toList(), "");
+            case AreaModel area -> new Member(area.ownerSimpleName(), area.name(), area.order(),
+                area.direction().name(), 0, 0, false, "", "", area.areaLength(), "AREA", "", "",
+                "", "", 0, false, area.members().stream().map(ModelSnapshot::member).toList(), "");
         };
     }
 

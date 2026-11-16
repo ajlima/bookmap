@@ -14,7 +14,6 @@ import java.util.function.Predicate;
 import javax.lang.model.element.Modifier;
 import pt.dazz.bookmap.annotation.Direction;
 import pt.dazz.bookmap.processor.model.CollectionModel;
-import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 
 /**
@@ -23,12 +22,12 @@ import pt.dazz.bookmap.processor.model.MemberModel;
  */
 final class LayoutCode {
 
-    private final FieldCode fields;
     private final CollectionCode collections;
+    private final ItemMethodsGenerator items;
 
-    LayoutCode(FieldCode fields, CollectionCode collections) {
-        this.fields = fields;
+    LayoutCode(CollectionCode collections, ItemMethodsGenerator items) {
         this.collections = collections;
+        this.items = items;
     }
 
     /** Starts a public method that overrides a method of {@code BookCodec}. */
@@ -53,11 +52,7 @@ final class LayoutCode {
         }
         method.addStatement("$T writer = new $T(ctx)", BOOK_WRITER, BOOK_WRITER);
         for (MemberModel member : members) {
-            switch (member) {
-                case FieldModel field -> method.addStatement(fields.write(field));
-                case CollectionModel collection ->
-                    method.addCode(collections.writeItems(collection));
-            }
+            method.addCode(items.writeMember(member));
         }
         return method.addStatement("return writer.toByteArray()").build();
     }
@@ -75,13 +70,10 @@ final class LayoutCode {
             .addStatement("$T reader = new $T(data, ctx)", BOOK_READER, BOOK_READER);
         for (MemberModel member : layout) {
             if (direction.test(member.direction())) {
-                switch (member) {
-                    case FieldModel field ->
-                        code.addStatement("target.$N($L)", field.setter(), fields.read(field));
-                    case CollectionModel collection -> code.add(collections.readItems(collection,
-                        response && collection.direction() == Direction.OUTPUT,
-                        response && collection.partial()));
-                }
+                boolean collection = member instanceof CollectionModel;
+                code.add(items.readMember(member,
+                    response && collection && member.direction() == Direction.OUTPUT,
+                    response && collection && ((CollectionModel) member).partial()));
             }
         }
         return code.build();

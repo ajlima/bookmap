@@ -34,6 +34,7 @@ import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
+import pt.dazz.bookmap.processor.model.GroupModel;
 import pt.dazz.bookmap.processor.model.ItemModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 import pt.dazz.bookmap.processor.model.OperationModel;
@@ -54,6 +55,7 @@ public final class ModelBuilder {
     static final String BOOK_OPERATION = "pt.dazz.bookmap.annotation.BookOperation";
     private static final String BOOK_FIELD = "pt.dazz.bookmap.annotation.BookField";
     private static final String BOOK_COLLECTION = "pt.dazz.bookmap.annotation.BookCollection";
+    private static final String BOOK_GROUP = "pt.dazz.bookmap.annotation.BookGroup";
     private static final String CONTINUABLE = "pt.dazz.bookmap.Continuable";
     private static final String VALIDATABLE = "pt.dazz.bookmap.Validatable";
 
@@ -156,6 +158,9 @@ public final class ModelBuilder {
         private final Set<TypeElement> declaringClasses = new LinkedHashSet<>();
         /** The item classes of the collections that the builder builds now, outer first. */
         private final Deque<TypeElement> itemPath = new ArrayDeque<>();
+        /** The group classes of the groups that the builder builds now, outer first. */
+        private final Deque<TypeElement> groupPath = new ArrayDeque<>();
+        private final AreaBuilder areas = new AreaBuilder(problems);
         /**
          * {@code true} if an annotated field has a value that javac could not resolve. The
          * builder does not know that field. Thus, it does not report that a field is missing:
@@ -180,31 +185,9 @@ public final class ModelBuilder {
                 classError("operation class must have at least one @BookField or @BookCollection");
             }
             checkDuplicateOrders(annotated);
-            Map<String, AnnotatedMember> byName = new HashMap<>();
-            Map<String, FieldModel> fields = new HashMap<>();
-            List<MemberModel> members = new ArrayList<>();
-            for (AnnotatedMember member : annotated) {
-                byName.put(member.name(), member);
-                if (!member.collection()) {
-                    FieldModel field = fieldResolver.resolve(type, member, null, codecPackage,
-                        problems);
-                    if (field != null) {
-                        fields.put(member.name(), field);
-                        members.add(field);
-                    }
-                }
-            }
-            Map<String, String> countUsers = new HashMap<>();
-            for (AnnotatedMember member : annotated) {
-                if (member.collection()) {
-                    CollectionModel collection = collection(type, continuable, member, annotated,
-                        byName, Set.of(), fields, members, countUsers, null);
-                    if (collection != null) {
-                        members.add(collection);
-                    }
-                }
-            }
-            members.sort(Comparator.comparingInt(MemberModel::order));
+            List<MemberModel> members = areas.fold(type, annotated,
+                resolveLayout(type, annotated, Set.of(), continuable, null), true, continuable,
+                unresolvedMember);
             long length = length(members);
             if (length > Problems.MAX_LENGTH) {
                 classError("the record " + Problems.tooLong(length));
@@ -356,21 +339,29 @@ public final class ModelBuilder {
                     Optional<AnnotationMirror> bookField = Mirrors.find(field, BOOK_FIELD);
                     Optional<AnnotationMirror> bookCollection = Mirrors.find(field,
                         BOOK_COLLECTION);
-                    if (bookField.isEmpty() && bookCollection.isEmpty()) {
+                    Optional<AnnotationMirror> bookGroup = Mirrors.find(field, BOOK_GROUP);
+                    Optional<AnnotationMirror> annotation = bookField.or(() -> bookCollection)
+                        .or(() -> bookGroup);
+                    if (annotation.isEmpty()) {
                         continue;
                     }
-                    Map<String, Object> values =
-                        Mirrors.explicitValues(bookField.or(() -> bookCollection).orElseThrow());
+                    Map<String, Object> values = Mirrors.explicitValues(annotation.get());
                     if (values.containsValue(Mirrors.UNRESOLVED)) {
                         // javac reports the unresolved value. Wait for a generator, or stop.
                         problems.unresolved = true;
                         unresolvedMember = true;
                         continue;
                     }
-                    AnnotatedMember member = new AnnotatedMember(field, bookField.isEmpty(),
+                    AnnotatedMember member = new AnnotatedMember(field,
+                        bookField.isEmpty() && bookCollection.isPresent(),
+                        bookField.isEmpty() && bookCollection.isEmpty(),
                         (Integer) values.get("order"), values);
                     if (field.getModifiers().contains(Modifier.STATIC)) {
                         problems.error(member, "an annotated field must not be static");
+                    } else if (bookGroup.isPresent()
+                        && (bookField.isPresent() || bookCollection.isPresent())) {
+                        problems.error(member, "a field must have only one of @BookField,"
+                            + " @BookCollection, and @BookGroup");
                     } else if (bookField.isPresent() && bookCollection.isPresent()) {
                         problems.error(member,
                             "a field must not have both @BookField and @BookCollection");
@@ -574,20 +565,6 @@ public final class ModelBuilder {
             checkDuplicateOrders(own);
             Set<String> baseNames = new HashSet<>();
             baseAnnotated.forEach(member -> baseNames.add(member.name()));
-            Map<String, AnnotatedMember> byName = new HashMap<>();
-            Map<String, FieldModel> fields = new HashMap<>();
-            List<MemberModel> members = new ArrayList<>();
-            for (AnnotatedMember member : own) {
-                byName.put(member.name(), member);
-                if (!member.collection()) {
-                    FieldModel field = fieldResolver.resolve(subtype, member, itemDirection,
-                        codecPackage, problems);
-                    if (field != null) {
-                        fields.put(member.name(), field);
-                        members.add(field);
-                    }
-                }
-            }
             boolean subtypeContinuable = implementsInterface(subtype, CONTINUABLE);
             if (itemDirection == null && subtypeContinuable && !continuable) {
                 // The base collections were checked without Continuable.
@@ -602,16 +579,9 @@ public final class ModelBuilder {
                     }
                 }
             }
-            Map<String, String> countUsers = new HashMap<>();
-            for (AnnotatedMember member : own) {
-                if (member.collection()) {
-                    CollectionModel collection = collection(subtype, subtypeContinuable, member,
-                        own, byName, baseNames, fields, members, countUsers, itemDirection);
-                    if (collection != null) {
-                        members.add(collection);
-                    }
-                }
-            }
+            List<MemberModel> members = areas.fold(subtype, own,
+                resolveLayout(subtype, own, baseNames, subtypeContinuable, itemDirection),
+                itemDirection == null, subtypeContinuable, unresolvedMember);
             List<MemberModel> layout = new ArrayList<>(baseMembers);
             layout.addAll(members);
             layout.sort(Comparator.comparingInt(MemberModel::order));
@@ -650,6 +620,10 @@ public final class ModelBuilder {
                 .filter(FieldModel.class::isInstance).map(FieldModel.class::cast).findFirst();
             if (member.collection()) {
                 problems.error(member, "discriminator must be String, int, Integer, long, or Long");
+                return null;
+            }
+            if (AreaBuilder.inArea(baseMembers, member.name())) {
+                problems.error(member, "discriminator must not be in a REDEFINES area");
                 return null;
             }
             if (resolved.isEmpty()) {
@@ -752,18 +726,7 @@ public final class ModelBuilder {
                     }
                     emptyKeyOffset += candidate.areaLength();
                 }
-                if (emptyKey == null) {
-                    if (!unresolvedMember) {
-                        problems.error(member, "emptyKey field '" + keyName
-                            + "' is not a field of item class " + item.type().getQualifiedName());
-                    }
-                } else if (!KEY_KINDS.contains(emptyKey.kind())) {
-                    problems.error(member, "emptyKey field '" + keyName
-                        + "' must be String or a number without a converter");
-                } else if (emptyKey.edited() != null) {
-                    problems.error(member, "emptyKey field '" + keyName
-                        + "' must not have an edited pic");
-                }
+                checkEmptyKey(member, keyName, emptyKey, item);
             }
             Optional<String> getter = fieldResolver.getter(owner, member, codecPackage, problems);
             Optional<String> setter = fieldResolver.setter(owner, member, codecPackage, problems);
@@ -779,6 +742,24 @@ public final class ModelBuilder {
                 partials.put(collection, member);
             }
             return collection;
+        }
+
+        /** Checks the key field of a collection with {@code emptyKey}. */
+        private void checkEmptyKey(AnnotatedMember member, String keyName, FieldModel emptyKey,
+                                   ItemModel item) {
+            String prefix = "emptyKey field '" + keyName + "' ";
+            if (emptyKey == null && AreaBuilder.inArea(item.members(), keyName)) {
+                problems.error(member, prefix + "must not be in a REDEFINES area");
+            } else if (emptyKey == null) {
+                if (!unresolvedMember) {
+                    problems.error(member, prefix + "is not a field of item class "
+                        + item.type().getQualifiedName());
+                }
+            } else if (!KEY_KINDS.contains(emptyKey.kind())) {
+                problems.error(member, prefix + "must be String or a number without a converter");
+            } else if (emptyKey.edited() != null) {
+                problems.error(member, prefix + "must not have an edited pic");
+            }
         }
 
         /** Checks the rules of a collection with {@code partial = true}. */
@@ -873,34 +854,12 @@ public final class ModelBuilder {
                 return null;
             }
             checkDuplicateOrders(annotated);
-            Map<String, AnnotatedMember> byName = new HashMap<>();
-            Map<String, FieldModel> fields = new HashMap<>();
-            List<MemberModel> members = new ArrayList<>();
-            for (AnnotatedMember member : annotated) {
-                byName.put(member.name(), member);
-                if (!member.collection()) {
-                    FieldModel field = fieldResolver.resolve(itemType, member, direction,
-                        codecPackage, problems);
-                    if (field != null) {
-                        fields.put(member.name(), field);
-                        members.add(field);
-                    }
-                }
-            }
-            Map<String, String> countUsers = new HashMap<>();
-            for (AnnotatedMember member : annotated) {
-                if (member.collection()) {
-                    CollectionModel inner = collection(itemType, false, member, annotated,
-                        byName, Set.of(), fields, members, countUsers, direction);
-                    if (inner != null) {
-                        members.add(inner);
-                    }
-                }
-            }
+            List<MemberModel> members = resolveLayout(itemType, annotated, Set.of(), false,
+                direction);
             if (problems.count() != before || members.size() != annotated.size()) {
                 return null;
             }
-            members.sort(Comparator.comparingInt(MemberModel::order));
+            members = areas.fold(itemType, annotated, members, false, false, unresolvedMember);
             long byteLength = length(members);
             if (byteLength > Problems.MAX_LENGTH) {
                 problems.error(collection, "item class " + itemType.getSimpleName() + " "
@@ -980,6 +939,10 @@ public final class ModelBuilder {
             }
             AnnotatedMember target = byName.get(name);
             String prefix = "dependsOn field '" + name + "' ";
+            if (AreaBuilder.names(annotated).contains(name)) {
+                problems.error(collection, prefix + "must not be in a REDEFINES area");
+                return null;
+            }
             if (target == null && outside.contains(name)) {
                 problems.error(collection, prefix + "must be in the subtype layout");
                 return null;
@@ -1017,7 +980,7 @@ public final class ModelBuilder {
             }
             if (!target.values().containsKey("direction")) {
                 FieldModel old = count;
-                count = withDirection(old, direction);
+                count = AreaBuilder.withDirection(old, direction);
                 FieldModel inherited = count;
                 fields.put(name, inherited);
                 members.replaceAll(member -> member == old ? inherited : member);
@@ -1034,6 +997,148 @@ public final class ModelBuilder {
             return problems.count() == before ? count : null;
         }
 
+        // ---- layouts and groups ----
+
+        /**
+         * Resolves the members of one class: the fields, the groups, then the collections. The
+         * method does not put the members of an area together.
+         *
+         * @param owner the class that the generated code uses for the accessors
+         * @param annotated the annotated members of the class
+         * @param outside the names of members that the layout cannot use as a count field
+         * @param continuable {@code true} if the owner implements {@code Continuable}
+         * @param itemDirection the direction of the outer collection or group, or null for a
+         *     member of an operation class or a subtype
+         * @return the members, sorted by order
+         */
+        private List<MemberModel> resolveLayout(TypeElement owner,
+                                                List<AnnotatedMember> annotated,
+                                                Set<String> outside, boolean continuable,
+                                                Direction itemDirection) {
+            Map<String, AnnotatedMember> byName = new HashMap<>();
+            Map<String, FieldModel> fields = new HashMap<>();
+            List<MemberModel> members = new ArrayList<>();
+            annotated.forEach(member -> byName.put(member.name(), member));
+            for (AnnotatedMember member : annotated) {
+                if (member.group()) {
+                    Optional.ofNullable(group(owner, member, byName, itemDirection))
+                        .ifPresent(members::add);
+                } else if (!member.collection()) {
+                    FieldModel field = fieldResolver.resolve(owner, member, itemDirection,
+                        codecPackage, problems);
+                    if (field != null) {
+                        fields.put(member.name(), field);
+                        members.add(field);
+                    }
+                }
+            }
+            Map<String, String> countUsers = new HashMap<>();
+            for (AnnotatedMember member : annotated) {
+                if (member.collection()) {
+                    CollectionModel collection = collection(owner, continuable, member, annotated,
+                        byName, outside, fields, members, countUsers, itemDirection);
+                    if (collection != null) {
+                        members.add(collection);
+                    }
+                }
+            }
+            members.sort(Comparator.comparingInt(MemberModel::order));
+            return members;
+        }
+
+        /**
+         * Gives the direction of a group. In an item class or a group class, it is the outer
+         * direction. Else, a view uses the direction of the member that it redefines.
+         */
+        private Direction groupDirection(AnnotatedMember member,
+                                         Map<String, AnnotatedMember> byName,
+                                         Direction itemDirection) {
+            if (itemDirection != null) {
+                if (member.values().containsKey("direction")) {
+                    problems.error(member, "direction must not be set on an item field");
+                }
+                return itemDirection;
+            }
+            AnnotatedMember target = byName.getOrDefault(member.redefines(), member);
+            String fallback = target.collection() ? Direction.OUTPUT.name()
+                : Direction.INPUT_OUTPUT.name();
+            return Direction.valueOf((String) target.values().getOrDefault("direction",
+                fallback));
+        }
+
+        /** Builds a group model, or gives null after an error. */
+        private GroupModel group(TypeElement owner, AnnotatedMember member,
+                                 Map<String, AnnotatedMember> byName, Direction itemDirection) {
+            Direction direction = groupDirection(member, byName, itemDirection);
+            TypeMirror fieldType = member.field().asType();
+            TypeElement groupType = fieldType.getKind() == TypeKind.DECLARED
+                ? (TypeElement) types.asElement(fieldType) : null;
+            if (groupType == null || !Classes.instantiable(groupType, elements)) {
+                problems.error(member, "group class " + fieldType
+                    + " must be a public class with a public no-argument constructor");
+                return null;
+            }
+            if (!groupType.getTypeParameters().isEmpty()) {
+                problems.error(member, "group class " + groupType.getQualifiedName()
+                    + " must not have type parameters");
+                return null;
+            }
+            if (SubTypesResolver.present(groupType)) {
+                problems.error(member, "group class " + groupType.getQualifiedName()
+                    + " must not have @BookSubTypes");
+                return null;
+            }
+            if (groupPath.contains(groupType)) {
+                List<String> path = new ArrayList<>();
+                boolean inCycle = false;
+                for (TypeElement outer : groupPath) {
+                    inCycle |= outer.equals(groupType);
+                    if (inCycle) {
+                        path.add(outer.getSimpleName().toString());
+                    }
+                }
+                path.add(groupType.getSimpleName().toString());
+                problems.error(member, "group class " + groupType.getSimpleName()
+                    + " contains itself: " + String.join(" > ", path));
+                return null;
+            }
+            groupPath.addLast(groupType);
+            try {
+                return groupLayout(owner, member, groupType, direction);
+            } finally {
+                groupPath.removeLast();
+            }
+        }
+
+        private GroupModel groupLayout(TypeElement owner, AnnotatedMember member,
+                                       TypeElement groupType, Direction direction) {
+            int before = problems.count();
+            List<AnnotatedMember> annotated = annotatedFields(groupType);
+            if (noMembers(annotated, before)) {
+                problems.error(member, "group class " + groupType.getQualifiedName()
+                    + " must have at least one @BookField");
+                return null;
+            }
+            checkDuplicateOrders(annotated);
+            List<MemberModel> members = resolveLayout(groupType, annotated, Set.of(), false,
+                direction);
+            Optional<String> getter = fieldResolver.getter(owner, member, codecPackage, problems);
+            Optional<String> setter = fieldResolver.setter(owner, member, codecPackage, problems);
+            if (problems.count() != before || members.size() != annotated.size()
+                || getter.isEmpty() || setter.isEmpty()) {
+                return null;
+            }
+            members = areas.fold(groupType, annotated, members, false, false, unresolvedMember);
+            long byteLength = length(members);
+            if (byteLength > Problems.MAX_LENGTH) {
+                problems.error(member, "group class " + groupType.getSimpleName() + " "
+                    + Problems.tooLong(byteLength));
+                return null;
+            }
+            return new GroupModel(member.owner(), member.name(), member.order(), direction,
+                groupType, List.copyOf(members), (int) byteLength, getter.get(), setter.get());
+        }
+
         // ---- helpers ----
 
         /**
@@ -1043,13 +1148,6 @@ public final class ModelBuilder {
         private boolean noMembers(List<AnnotatedMember> annotated, int errorsBefore) {
             return annotated.isEmpty() && !problems.unresolved
                 && problems.count() == errorsBefore;
-        }
-
-        private static FieldModel withDirection(FieldModel field, Direction direction) {
-            return new FieldModel(field.ownerSimpleName(), field.name(), field.order(),
-                field.length(), direction, field.usage(), field.scale(), field.signed(),
-                field.sign(), field.pattern(), field.kind(), field.type(), field.getter(), field.setter(),
-                field.converter(), field.byteLength(), field.enumModel(), field.edited());
         }
 
         private boolean implementsInterface(TypeElement element, String interfaceName) {

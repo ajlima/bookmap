@@ -19,9 +19,11 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.annotation.EmptyItem;
 import pt.dazz.bookmap.processor.EnumMethodsGenerator.EnumMethods;
+import pt.dazz.bookmap.processor.model.AreaModel;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.FieldModel.JavaKind;
+import pt.dazz.bookmap.processor.model.GroupModel;
 import pt.dazz.bookmap.processor.model.ItemModel;
 
 /**
@@ -47,8 +49,17 @@ final class CodecMembers {
                            String present) {
     }
 
-    /** The names of the methods that write and read one item class. */
+    /** The names of the methods that write and read one item class, group, or area. */
     record ItemMethods(String write, String read) {
+    }
+
+    /**
+     * The names of the generated members of one {@code REDEFINES} area.
+     *
+     * @param descriptor the constant with the descriptor of the redefined member
+     * @param methods the methods that write and read the area
+     */
+    record AreaNames(String descriptor, ItemMethods methods) {
     }
 
     private final NameAllocator allocator = new NameAllocator();
@@ -58,12 +69,15 @@ final class CodecMembers {
     private final Map<String, String> converters = new HashMap<>();
     /** The item methods of each item class, by qualified class name. */
     private final Map<String, ItemMethods> items = new HashMap<>();
+    /** The methods of each group class, by qualified class name. */
+    private final Map<String, ItemMethods> groups = new HashMap<>();
+    private final Map<AreaModel, AreaNames> areas = new HashMap<>();
     private final EnumMethodsGenerator enums = new EnumMethodsGenerator(allocator);
 
     CodecMembers() {
         // The local variables of the generated methods.
         List.of("value", "target", "data", "ctx", "writer", "reader", "item", "i", "start",
-                "key", "selected", "copy", "e")
+                "key", "selected", "copy", "e", "outer", "area", "areaStart")
             .forEach(allocator::newName);
     }
 
@@ -95,6 +109,36 @@ final class CodecMembers {
 
     void putItemMethods(ItemModel item, ItemMethods methods) {
         items.put(item.type().getQualifiedName().toString(), methods);
+    }
+
+    /** Gives the methods of a group class, or null before they are made. */
+    ItemMethods groupMethods(GroupModel group) {
+        return groups.get(group.type().getQualifiedName().toString());
+    }
+
+    void putGroupMethods(GroupModel group, ItemMethods methods) {
+        groups.put(group.type().getQualifiedName().toString(), methods);
+    }
+
+    /** Gives the names of an area, or null before they are made. */
+    AreaNames areaNames(AreaModel area) {
+        return areas.get(area);
+    }
+
+    void putAreaNames(AreaModel area, AreaNames names) {
+        areas.put(area, names);
+    }
+
+    /**
+     * Adds the constant with the descriptor of an area.
+     *
+     * @return the name of the constant
+     */
+    String addAreaDescriptor(TypeSpec.Builder builder, AreaModel area) {
+        String descriptor = allocator.newName(upperSnake(area.name()) + "_AREA");
+        builder.addField(FieldSpec.builder(String.class, descriptor, Modifier.PRIVATE,
+            Modifier.STATIC, Modifier.FINAL).initializer("$S", area.descriptor()).build());
+        return descriptor;
     }
 
     /** Gives the methods that read and write the enum types. */

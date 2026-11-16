@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.function.Predicate;
 import javax.lang.model.element.Modifier;
 import pt.dazz.bookmap.annotation.Direction;
-import pt.dazz.bookmap.processor.model.CollectionModel;
+import pt.dazz.bookmap.processor.model.AreaModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 import pt.dazz.bookmap.processor.model.OperationModel;
@@ -191,7 +191,12 @@ final class SubTypesGenerator {
             method.beginControlFlow("if (target.getClass() == $T.class)", type)
                 .addStatement("$T copy = $N(selected)", type, newSubtype);
             for (MemberModel member : model.members()) {
-                method.addStatement("copy.$N(target.$N())", setter(member), getter(member));
+                List<MemberModel> copied = member instanceof AreaModel area ? area.members()
+                    : List.of(member);
+                for (MemberModel one : copied) {
+                    method.addStatement("copy.$N(target.$N())", ItemMethodsGenerator.setter(one),
+                        ItemMethodsGenerator.getter(one));
+                }
             }
             method.addStatement("$N(data, copy, ctx)", decodeInto)
                 .addStatement("return copy")
@@ -200,20 +205,6 @@ final class SubTypesGenerator {
         return method.addStatement("throw new $T($S + selected.getSimpleName() + $S"
                 + " + target.getClass().getSimpleName())", MAPPING_EXCEPTION,
             prefix + "the response has type ", ", which is not a ").build();
-    }
-
-    private static String setter(MemberModel member) {
-        return switch (member) {
-            case FieldModel field -> field.setter();
-            case CollectionModel collection -> collection.setter();
-        };
-    }
-
-    private static String getter(MemberModel member) {
-        return switch (member) {
-            case FieldModel field -> field.getter();
-            case CollectionModel collection -> collection.getter();
-        };
     }
 
     private MethodSpec decodeResponse() {

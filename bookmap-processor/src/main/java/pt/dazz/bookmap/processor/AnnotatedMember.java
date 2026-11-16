@@ -5,15 +5,16 @@ import javax.lang.model.element.VariableElement;
 import pt.dazz.bookmap.processor.model.MemberModel;
 
 /**
- * Gives one field with {@code @BookField} or {@code @BookCollection}, before the processor
- * resolves the conventions.
+ * Gives one field with {@code @BookField}, {@code @BookCollection}, or {@code @BookGroup},
+ * before the processor resolves the conventions.
  *
  * @param field the field
  * @param collection {@code true} for {@code @BookCollection}
+ * @param group {@code true} for {@code @BookGroup}
  * @param order the order
  * @param values the explicit attribute values, from {@link Mirrors#explicitValues}
  */
-record AnnotatedMember(VariableElement field, boolean collection, int order,
+record AnnotatedMember(VariableElement field, boolean collection, boolean group, int order,
                        Map<String, Object> values) {
 
     /**
@@ -32,6 +33,15 @@ record AnnotatedMember(VariableElement field, boolean collection, int order,
      */
     String name() {
         return field.getSimpleName().toString();
+    }
+
+    /**
+     * Gives the name of the member that this member redefines.
+     *
+     * @return the {@code redefines} value, or an empty value for a member that is not a view
+     */
+    String redefines() {
+        return (String) values.getOrDefault("redefines", "");
     }
 
     /**
