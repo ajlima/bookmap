@@ -141,23 +141,25 @@ final class AreaBuilder {
         last.add(withDirection(member, redefined.direction()));
     }
 
-    /** Checks the members of one area. */
+    /**
+     * Checks the members of one area. The Continuable rule repeats the error of the redefined
+     * member: the report shows a message only one time.
+     */
     private void checkArea(List<MemberModel> slot, Map<String, AnnotatedMember> byName,
                            boolean continuable) {
-        for (int i = 0; i < slot.size(); i++) {
-            MemberModel member = slot.get(i);
+        for (MemberModel member : slot) {
             AnnotatedMember declared = byName.get(member.name());
             if (member instanceof FieldModel field && field.type().getKind().isPrimitive()) {
                 problems.error(declared, "a member of a REDEFINES area must not have a primitive"
                     + " type. Use Integer, Long, or BigDecimal");
             } else if (member instanceof CollectionModel collection) {
-                checkCollection(collection, declared, continuable && i > 0);
+                checkCollection(collection, declared, continuable);
             }
         }
     }
 
     private void checkCollection(CollectionModel collection, AnnotatedMember declared,
-                                 boolean continuableView) {
+                                 boolean continuable) {
         if (!collection.fixed() || collection.countField() != null) {
             problems.error(declared, "a collection in a REDEFINES area must have fixed = true"
                 + " and no dependsOn");
@@ -165,7 +167,7 @@ final class AreaBuilder {
         if (collection.partial()) {
             problems.error(declared, "partial is not permitted in a REDEFINES area");
         }
-        if (continuableView && collection.direction() == Direction.INPUT_OUTPUT) {
+        if (continuable && collection.direction() == Direction.INPUT_OUTPUT) {
             problems.error(declared,
                 "an INPUT_OUTPUT collection is not permitted in a Continuable class");
         }

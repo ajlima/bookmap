@@ -786,4 +786,56 @@ class RedefinesViewTest {
                 field("@BookField(order = 1, length = 1500000000)", "String", "first"),
                 field("@BookField(order = 2, length = 1500000000)", "String", "second"), "}"));
     }
+
+    @Test
+    void theFieldsOfAGroupHaveTheDirectionOfTheArea() {
+        compiler.compile(operation("GetParts",
+                field("@BookCollection(order = 10, maxOccurs = 1, fixed = true)", "List<Part>",
+                    "parts"),
+                field("@BookGroup(order = 20, redefines = \"parts\")", "Detail", "detail")),
+            part(),
+            source("Detail", "public class Detail {",
+                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
+        ModelSnapshot.Member group = compiler.only().members().get(0).itemMembers().get(1);
+        assertThat(group.itemMembers().get(0).direction()).isEqualTo("OUTPUT");
+    }
+
+    @Test
+    void aGroupInAnItemClassHasTheDirectionOfTheCollection() {
+        compiler.compile(operation("GetStops",
+                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true,"
+                    + " direction = Direction.INPUT)", "List<Stop>", "stops")),
+            source("Stop", "public class Stop {",
+                field("@BookField(order = 1, pic = \"X(2)\")", "String", "code"),
+                field("@BookGroup(order = 2, redefines = \"code\")", "Detail", "detail"), "}"),
+            source("Detail", "public class Detail {",
+                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
+        ModelSnapshot.Member area = compiler.only().members().get(0).itemMembers().get(0);
+        ModelSnapshot.Member group = area.itemMembers().get(1);
+        assertThat(group.direction()).isEqualTo("INPUT");
+        assertThat(group.itemMembers().get(0).direction()).isEqualTo("INPUT");
+    }
+
+    @Test
+    void aGroupClassMustNotHaveADuplicateOrder() {
+        assertError("Detail.second (order 1): duplicate order, also used by Detail.first",
+            operation("GetCode",
+                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+            source("Detail", "public class Detail {",
+                field("@BookField(order = 1, pic = \"X(1)\")", "String", "first"),
+                field("@BookField(order = 1, pic = \"X(1)\")", "String", "second"), "}"));
+    }
+
+    @Test
+    void aGroupClassCanHaveTheMaximumLength() {
+        Compilation compilation = compiler.compile(operation("GetCode",
+                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+            source("Detail", "public class Detail {",
+                field("@BookField(order = 1, length = 1073741824)", "String", "first"),
+                field("@BookField(order = 2, length = 1073741823)", "String", "second"), "}"));
+        CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
+        assertThat(compiler.only().members().get(0).byteLength()).isEqualTo(Integer.MAX_VALUE);
+    }
 }
