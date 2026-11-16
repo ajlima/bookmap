@@ -22,7 +22,7 @@ import javax.tools.Diagnostic;
 import pt.dazz.copymapper.processor.model.OperationModel;
 
 /**
- * Processes the classes with {@code @BookOperation}.
+ * Processes the classes with {@code @Operation}.
  *
  * <p>The processor builds the model of each class, reports the mapping errors, and generates
  * the codec of each valid class. In the last round, it writes the service file
@@ -57,7 +57,7 @@ public final class CopyMapperProcessor extends AbstractProcessor {
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        return Set.of(ModelBuilder.BOOK_OPERATION);
+        return Set.of(ModelBuilder.OPERATION);
     }
 
     @Override
@@ -86,7 +86,7 @@ public final class CopyMapperProcessor extends AbstractProcessor {
             return false;
         }
         types.addAll(ElementFilter.typesIn(round.getElementsAnnotatedWith(
-            elements.getTypeElement(ModelBuilder.BOOK_OPERATION))));
+            elements.getTypeElement(ModelBuilder.OPERATION))));
         for (TypeElement type : types) {
             Optional<OperationModel> model = builder.build(type, false);
             if (model.isPresent()) {

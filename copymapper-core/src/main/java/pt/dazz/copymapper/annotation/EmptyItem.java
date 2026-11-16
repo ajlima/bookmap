@@ -2,7 +2,7 @@ package pt.dazz.copymapper.annotation;
 
 /**
  * Gives the bytes of an unused slot of a fixed collection. See
- * {@link BookCollection#emptyItem()}.
+ * {@link Occurs#emptyItem()}.
  */
 public enum EmptyItem {
     /** An unused slot has only LOW-VALUES (bytes {@code 0x00}). */

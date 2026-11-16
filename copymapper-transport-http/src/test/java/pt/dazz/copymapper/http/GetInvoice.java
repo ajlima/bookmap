@@ -4,20 +4,20 @@ import static pt.dazz.copymapper.annotation.Direction.INPUT;
 import static pt.dazz.copymapper.annotation.Direction.OUTPUT;
 
 import java.math.BigDecimal;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookOperation;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Operation;
 
 /** Reads the total of an invoice. The response layout ends with binary and packed fields. */
-@BookOperation("GetInvoice")
+@Operation("GetInvoice")
 public class GetInvoice {
 
-    @BookField(order = 10, pic = "X(10)", direction = INPUT)
+    @Field(order = 10, pic = "X(10)", direction = INPUT)
     private String invoiceId;
 
-    @BookField(order = 20, pic = "S9(7)V99 COMP-3", direction = OUTPUT)
+    @Field(order = 20, pic = "S9(7)V99 COMP-3", direction = OUTPUT)
     private BigDecimal amount;
 
-    @BookField(order = 30, pic = "9(4) COMP", direction = OUTPUT)
+    @Field(order = 30, pic = "9(4) COMP", direction = OUTPUT)
     private int lineCount;
 
     public String getInvoiceId() {

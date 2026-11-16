@@ -15,7 +15,7 @@ import pt.dazz.copymapper.convert.NoConverter;
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.CLASS)
-public @interface BookField {
+public @interface Field {
 
     /**
      * Gives the position of the field in the book. Lower values come first.
@@ -111,7 +111,7 @@ public @interface BookField {
      * {@code '0'HHmmss} in {@code S9(7) COMP-3}. A packed date can be signed. The write uses
      * the sign {@code C} for a signed field and {@code F} for an unsigned field. On read, a
      * negative sign causes a {@link pt.dazz.copymapper.exception.MappingException}. The
-     * {@code usage} of {@code @BookDefaults} does not apply to a date or time field.
+     * {@code usage} of {@code @Defaults} does not apply to a date or time field.
      *
      * @return the pattern
      */
@@ -128,7 +128,7 @@ public @interface BookField {
      * Gives the Java field name of the member that this member redefines (COBOL
      * {@code REDEFINES}). The member is in the same class and comes right before this member,
      * or before other members that redefine it. The two members read and write the same bytes:
-     * a view. See {@link BookGroup} for the rules of a {@code REDEFINES} area.
+     * a view. See {@link Group} for the rules of a {@code REDEFINES} area.
      *
      * @return the field name, or an empty value for a member that is not a view
      */

@@ -5,7 +5,7 @@ import pt.dazz.copymapper.annotation.Direction;
 import pt.dazz.copymapper.annotation.EmptyItem;
 
 /**
- * Describes a generated {@code @BookCollection} field.
+ * Describes a generated {@code @Occurs} field.
  *
  * @param name the Java field name
  * @param order the position in the book

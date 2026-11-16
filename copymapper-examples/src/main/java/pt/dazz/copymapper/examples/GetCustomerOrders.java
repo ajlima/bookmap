@@ -6,40 +6,40 @@ import static pt.dazz.copymapper.annotation.Direction.OUTPUT;
 import java.util.List;
 import pt.dazz.copymapper.Continuable;
 import pt.dazz.copymapper.Validatable;
-import pt.dazz.copymapper.annotation.BookCollection;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookOperation;
+import pt.dazz.copymapper.annotation.Occurs;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Operation;
 
 /**
  * Lists the orders of a customer. The class uses the convention style and handwritten
  * accessors.
  */
-@BookOperation
+@Operation
 public class GetCustomerOrders implements Continuable, Validatable {
 
-    @BookField(order = 10, pic = "X(10)", direction = INPUT)
+    @Field(order = 10, pic = "X(10)", direction = INPUT)
     private String customerId;
 
     // INPUT_OUTPUT: the next request sends back the key of the last response.
-    @BookField(order = 20, pic = "X(12)")
+    @Field(order = 20, pic = "X(12)")
     private String restartKey;
 
-    @BookField(order = 30, pic = "X(4)", direction = OUTPUT)
+    @Field(order = 30, pic = "X(4)", direction = OUTPUT)
     private String returnCode;
 
-    @BookField(order = 40, pic = "X(60)", direction = OUTPUT)
+    @Field(order = 40, pic = "X(60)", direction = OUTPUT)
     private String returnMessage;
 
     // 'Y' or 'N'.
-    @BookField(order = 50, pic = "X", direction = OUTPUT)
+    @Field(order = 50, pic = "X", direction = OUTPUT)
     private String moreData;
 
     // OUTPUT, as the collection: the number of orders in the response.
-    @BookField(order = 60, pic = "9(3)")
+    @Field(order = 60, pic = "9(3)")
     private int orderCount;
 
     // OUTPUT. The count field is the previous member, orderCount.
-    @BookCollection(order = 70, maxOccurs = 50)
+    @Occurs(order = 70, maxOccurs = 50)
     private List<Order> orders;
 
     @Override

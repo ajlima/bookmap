@@ -3,7 +3,7 @@ package pt.dazz.copymapper.copybook.model;
 import pt.dazz.copymapper.annotation.Direction;
 
 /**
- * Describes a generated {@code @BookGroup} field: a group in a {@code REDEFINES} view area.
+ * Describes a generated {@code @Group} field: a group in a {@code REDEFINES} view area.
  *
  * @param name the Java field name
  * @param order the position in the book

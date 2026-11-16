@@ -70,7 +70,7 @@ final class TestCompiler {
     static JavaFileObject packageInfo(String packageName, String annotation) {
         return JavaFileObjects.forSourceString(packageName + ".package-info",
             annotation + " package " + packageName + ";\n"
-                + "import pt.dazz.copymapper.annotation.BookDefaults;\n"
+                + "import pt.dazz.copymapper.annotation.Defaults;\n"
                 + "import pt.dazz.copymapper.cobol.Usage;");
     }
 
@@ -78,7 +78,7 @@ final class TestCompiler {
      * Gives one text field with its accessors. A test uses it when the members of an operation
      * class do not matter, because an operation class needs at least one member.
      */
-    static final String ID_FIELD = "@BookField(order = 1, length = 1) private String id; "
+    static final String ID_FIELD = "@Field(order = 1, length = 1) private String id; "
         + accessors("String", "id");
 
     /**

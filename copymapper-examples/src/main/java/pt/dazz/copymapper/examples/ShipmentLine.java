@@ -1,7 +1,7 @@
 package pt.dazz.copymapper.examples;
 
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * One line of {@link UpdateShipment}.
@@ -9,9 +9,9 @@ import pt.dazz.copymapper.annotation.BookField;
 @Data
 public class ShipmentLine {
 
-    @BookField(order = 10, pic = "X(10)")
+    @Field(order = 10, pic = "X(10)")
     private String sku;
 
-    @BookField(order = 20, pic = "9(4)")
+    @Field(order = 20, pic = "9(4)")
     private int quantity;
 }

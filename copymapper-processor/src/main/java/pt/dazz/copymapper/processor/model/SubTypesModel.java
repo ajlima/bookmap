@@ -3,7 +3,7 @@ package pt.dazz.copymapper.processor.model;
 import java.util.List;
 
 /**
- * Describes the subtypes of a base class with {@code @BookSubTypes}.
+ * Describes the subtypes of a base class with {@code @SubTypes}.
  *
  * @param discriminator the discriminator field of the base class
  * @param variants the layouts, in the order of the annotation

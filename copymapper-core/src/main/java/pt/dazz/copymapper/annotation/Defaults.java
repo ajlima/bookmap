@@ -12,7 +12,7 @@ import pt.dazz.copymapper.cobol.Usage;
  */
 @Target({ElementType.TYPE, ElementType.PACKAGE})
 @Retention(RetentionPolicy.CLASS)
-public @interface BookDefaults {
+public @interface Defaults {
 
     /**
      * Gives the default charset name. An empty value means no default.

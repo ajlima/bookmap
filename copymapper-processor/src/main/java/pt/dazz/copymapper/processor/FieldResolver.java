@@ -36,7 +36,7 @@ import pt.dazz.copymapper.processor.pic.PicSpec.Category;
 import pt.dazz.copymapper.processor.pic.PicSyntaxException;
 
 /**
- * Resolves the attributes of one {@code @BookField} and checks them against the Java type.
+ * Resolves the attributes of one {@code @Field} and checks them against the Java type.
  */
 final class FieldResolver {
 
@@ -103,7 +103,7 @@ final class FieldResolver {
      *
      * @param elements the element utilities
      * @param types the type utilities
-     * @param defaultsResolver the resolver of the {@code @BookDefaults} values
+     * @param defaultsResolver the resolver of the {@code @Defaults} values
      */
     FieldResolver(Elements elements, Types types, DefaultsResolver defaultsResolver) {
         this.elements = elements;
@@ -114,7 +114,7 @@ final class FieldResolver {
 
     /**
      * Builds a field model. Each attribute comes from the explicit value, then from {@code pic},
-     * then from the {@code @BookDefaults} of the declaring class, then from the built-in default.
+     * then from the {@code @Defaults} of the declaring class, then from the built-in default.
      * The {@code usage} and {@code signed} defaults apply only to numeric types. The
      * {@code pattern} default applies only to date and time types.
      *
@@ -361,7 +361,7 @@ final class FieldResolver {
     /**
      * Checks the sign. An explicit {@code sign} needs a signed field. Each sign other than the
      * default needs the usage {@code DISPLAY}, also when the usage comes from
-     * {@code @BookDefaults}. A text-only field gets the error of the numeric attributes.
+     * {@code @Defaults}. A text-only field gets the error of the numeric attributes.
      */
     private static void checkSign(AnnotatedMember member, JavaKind kind, boolean textOnly,
                                   boolean signed, Usage usage, Sign sign, Problems problems) {

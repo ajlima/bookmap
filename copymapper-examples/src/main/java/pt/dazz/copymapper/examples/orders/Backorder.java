@@ -2,7 +2,7 @@ package pt.dazz.copymapper.examples.orders;
 
 import java.math.BigDecimal;
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * One backorder in a list: 17 bytes. An order number of zero marks an unused entry.
@@ -10,12 +10,12 @@ import pt.dazz.copymapper.annotation.BookField;
 @Data
 public class Backorder {
 
-    @BookField(order = 10, pic = "9(8)")
+    @Field(order = 10, pic = "9(8)")
     private long orderNumber;
 
-    @BookField(order = 20, pic = "X(3)")
+    @Field(order = 20, pic = "X(3)")
     private String currency;
 
-    @BookField(order = 30, pic = "S9(9)V99 COMP-3")
+    @Field(order = 30, pic = "S9(9)V99 COMP-3")
     private BigDecimal amount;
 }

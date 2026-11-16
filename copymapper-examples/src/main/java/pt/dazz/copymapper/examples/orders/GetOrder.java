@@ -7,9 +7,9 @@ import java.math.BigDecimal;
 import java.util.List;
 import lombok.Data;
 import pt.dazz.copymapper.Continuable;
-import pt.dazz.copymapper.annotation.BookCollection;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookOperation;
+import pt.dazz.copymapper.annotation.Occurs;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Operation;
 
 /**
  * Reads the lines of an order. The book has a fixed table without a count field: the unused
@@ -28,22 +28,22 @@ import pt.dazz.copymapper.annotation.BookOperation;
  * </pre>
  */
 @Data
-@BookOperation
+@Operation
 public class GetOrder implements Continuable {
 
-    @BookField(order = 10, pic = "X(10)", direction = INPUT)
+    @Field(order = 10, pic = "X(10)", direction = INPUT)
     private String orderId;
 
-    @BookField(order = 20, pic = "X(4)")
+    @Field(order = 20, pic = "X(4)")
     private String restartKey;
 
-    @BookField(order = 30, pic = "X", direction = OUTPUT)
+    @Field(order = 30, pic = "X", direction = OUTPUT)
     private String moreData;
 
-    @BookCollection(order = 40, maxOccurs = 3, fixed = true)
+    @Occurs(order = 40, maxOccurs = 3, fixed = true)
     private List<OrderLine> lines;
 
-    @BookField(order = 50, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
+    @Field(order = 50, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
     private BigDecimal orderTotal;
 
     @Override

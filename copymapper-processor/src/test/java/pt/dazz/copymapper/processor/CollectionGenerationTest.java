@@ -54,14 +54,14 @@ class CollectionGenerationTest {
     private static JavaFileObject listInvoices() {
         return source("ListInvoices",
             "import test.billing.Invoice;",
-            "@BookOperation public class ListInvoices {",
-            field("@BookField(order = 10, length = 10, direction = Direction.INPUT)", "String",
+            "@Operation public class ListInvoices {",
+            field("@Field(order = 10, length = 10, direction = Direction.INPUT)", "String",
                 "accountId"),
-            field("@BookField(order = 20, length = 3, direction = Direction.OUTPUT)", "int",
+            field("@Field(order = 20, length = 3, direction = Direction.OUTPUT)", "int",
                 "invoiceCount"),
-            field("@BookCollection(order = 30, direction = Direction.OUTPUT,"
+            field("@Occurs(order = 30, direction = Direction.OUTPUT,"
                 + " dependsOn = \"invoiceCount\", maxOccurs = 5)", "List<Invoice>", "invoices"),
-            field("@BookField(order = 40, length = 4, direction = Direction.OUTPUT)", "String",
+            field("@Field(order = 40, length = 4, direction = Direction.OUTPUT)", "String",
                 "trailer"),
             "}");
     }
@@ -70,8 +70,8 @@ class CollectionGenerationTest {
     private static JavaFileObject invoice() {
         return sourceIn("test.billing", "Invoice",
             "public class Invoice {",
-            field("@BookField(order = 10, length = 8)", "String", "invoiceNumber"),
-            field("@BookField(order = 20, length = 9, scale = 2, signed = true,"
+            field("@Field(order = 10, length = 8)", "String", "invoiceNumber"),
+            field("@Field(order = 20, length = 9, scale = 2, signed = true,"
                 + " usage = Usage.COMP3)", "BigDecimal", "amount"),
             "}");
     }
@@ -95,14 +95,14 @@ class CollectionGenerationTest {
      */
     private static JavaFileObject updateShipment() {
         return source("UpdateShipment",
-            "@BookOperation public class UpdateShipment {",
-            field("@BookField(order = 1, length = 8, direction = Direction.INPUT)", "String",
+            "@Operation public class UpdateShipment {",
+            field("@Field(order = 1, length = 8, direction = Direction.INPUT)", "String",
                 "shipmentId"),
-            field("@BookField(order = 2, length = 3, direction = Direction.INPUT)", "Integer",
+            field("@Field(order = 2, length = 3, direction = Direction.INPUT)", "Integer",
                 "lineCount"),
-            field("@BookCollection(order = 3, direction = Direction.INPUT, maxOccurs = 3)",
+            field("@Occurs(order = 3, direction = Direction.INPUT, maxOccurs = 3)",
                 "List<ShipmentLine>", "lines"),
-            field("@BookField(order = 4, length = 1, converter = FlagConverter.class)", "Boolean",
+            field("@Field(order = 4, length = 1, converter = FlagConverter.class)", "Boolean",
                 "priority"),
             "}");
     }
@@ -111,10 +111,10 @@ class CollectionGenerationTest {
     private static JavaFileObject shipmentLine() {
         return source("ShipmentLine",
             "public class ShipmentLine {",
-            field("@BookField(order = 1, length = 6)", "String", "sku"),
-            field("@BookField(order = 2, length = 3)", "int", "quantity"),
-            field("@BookField(order = 3)", "LocalDate", "shipDate"),
-            field("@BookField(order = 4, length = 1, converter = FlagConverter.class)", "Boolean",
+            field("@Field(order = 1, length = 6)", "String", "sku"),
+            field("@Field(order = 2, length = 3)", "int", "quantity"),
+            field("@Field(order = 3)", "LocalDate", "shipDate"),
+            field("@Field(order = 4, length = 1, converter = FlagConverter.class)", "Boolean",
                 "fragile"),
             "}");
     }
@@ -122,10 +122,10 @@ class CollectionGenerationTest {
     /** baseCurrency (3), rateCount (long, 2), rates (INPUT_OUTPUT, maxOccurs 4). */
     private static JavaFileObject exchangeRates() {
         return source("ExchangeRates",
-            "@BookOperation public class ExchangeRates {",
-            field("@BookField(order = 1, length = 3)", "String", "baseCurrency"),
-            field("@BookField(order = 2, length = 2)", "long", "rateCount"),
-            field("@BookCollection(order = 3, direction = Direction.INPUT_OUTPUT, maxOccurs = 4)",
+            "@Operation public class ExchangeRates {",
+            field("@Field(order = 1, length = 3)", "String", "baseCurrency"),
+            field("@Field(order = 2, length = 2)", "long", "rateCount"),
+            field("@Occurs(order = 3, direction = Direction.INPUT_OUTPUT, maxOccurs = 4)",
                 "List<Rate>", "rates"),
             "}");
     }
@@ -134,8 +134,8 @@ class CollectionGenerationTest {
     private static JavaFileObject rate() {
         return source("Rate",
             "public class Rate {",
-            field("@BookField(order = 1, length = 3)", "String", "currency"),
-            field("@BookField(order = 2, length = 7, scale = 4)", "BigDecimal", "rate"),
+            field("@Field(order = 1, length = 3)", "String", "currency"),
+            field("@Field(order = 2, length = 7, scale = 4)", "BigDecimal", "rate"),
             "}");
     }
 
@@ -143,10 +143,10 @@ class CollectionGenerationTest {
     private static JavaFileObject listRefunds() {
         return source("ListRefunds",
             "import test.billing.Invoice;",
-            "@BookOperation public class ListRefunds {",
-            field("@BookField(order = 1, length = 3, signed = true, direction = Direction.OUTPUT)",
+            "@Operation public class ListRefunds {",
+            field("@Field(order = 1, length = 3, signed = true, direction = Direction.OUTPUT)",
                 "Long", "refundCount"),
-            field("@BookCollection(order = 2, maxOccurs = 4)", "List<Invoice>", "refunds"),
+            field("@Occurs(order = 2, maxOccurs = 4)", "List<Invoice>", "refunds"),
             "}");
     }
 
@@ -280,9 +280,9 @@ class CollectionGenerationTest {
     private static JavaFileObject listCopiedInvoices() {
         return source("ListCopiedInvoices",
             "import test.billing.Invoice;",
-            "@BookOperation public class ListCopiedInvoices {",
-            "@BookField(order = 1, length = 1) private int invoiceCount;",
-            "@BookCollection(order = 2, maxOccurs = 2) private List<Invoice> invoices;",
+            "@Operation public class ListCopiedInvoices {",
+            "@Field(order = 1, length = 1) private int invoiceCount;",
+            "@Occurs(order = 2, maxOccurs = 2) private List<Invoice> invoices;",
             accessors("int", "invoiceCount"),
             "public List<Invoice> getInvoices() {",
             "  return invoices == null ? null : new java.util.ArrayList<>(invoices);",
@@ -559,19 +559,19 @@ class CollectionGenerationTest {
     /** Two collections in one class, with the same item class and with names of locals. */
     private static JavaFileObject catalog() {
         return source("Catalog",
-            "@BookOperation public class Catalog {",
-            field("@BookField(order = 1, length = 1)", "int", "first"),
-            field("@BookCollection(order = 2, maxOccurs = 2)", "List<Tag>", "value"),
-            field("@BookField(order = 3, length = 1)", "int", "second"),
-            field("@BookCollection(order = 4, maxOccurs = 2)", "List<Tag>", "data"),
-            field("@BookField(order = 5, length = 1)", "String", "item"),
+            "@Operation public class Catalog {",
+            field("@Field(order = 1, length = 1)", "int", "first"),
+            field("@Occurs(order = 2, maxOccurs = 2)", "List<Tag>", "value"),
+            field("@Field(order = 3, length = 1)", "int", "second"),
+            field("@Occurs(order = 4, maxOccurs = 2)", "List<Tag>", "data"),
+            field("@Field(order = 5, length = 1)", "String", "item"),
             "}");
     }
 
     private static JavaFileObject tag() {
         return source("Tag",
             "public class Tag {",
-            field("@BookField(order = 1, length = 2)", "String", "code"),
+            field("@Field(order = 1, length = 2)", "String", "code"),
             "}");
     }
 
@@ -620,17 +620,17 @@ class CollectionGenerationTest {
 
     private static JavaFileObject parcels() {
         return source("Parcels",
-            "@lombok.Data @BookOperation public class Parcels {",
-            "@BookField(order = 1, length = 1) private int parcelCount;",
-            "@BookCollection(order = 2, maxOccurs = 3) private List<Parcel> parcels;",
+            "@lombok.Data @Operation public class Parcels {",
+            "@Field(order = 1, length = 1) private int parcelCount;",
+            "@Occurs(order = 2, maxOccurs = 3) private List<Parcel> parcels;",
             "}");
     }
 
     private static JavaFileObject parcel() {
         return source("Parcel",
             "@lombok.Getter @lombok.Setter public class Parcel {",
-            "@BookField(order = 1, length = 4) private String code;",
-            "@BookField(order = 2, length = 3) private Integer weight;",
+            "@Field(order = 1, length = 4) private String code;",
+            "@Field(order = 2, length = 3) private Integer weight;",
             "}");
     }
 
@@ -674,11 +674,11 @@ class CollectionGenerationTest {
     @Test
     void nestedItemClass() {
         Compilation compilation = compile(source("Warehouse",
-            "@BookOperation public class Warehouse {",
-            field("@BookField(order = 1, length = 1)", "int", "binCount"),
-            field("@BookCollection(order = 2, maxOccurs = 2)", "List<Warehouse.Bin>", "bins"),
+            "@Operation public class Warehouse {",
+            field("@Field(order = 1, length = 1)", "int", "binCount"),
+            field("@Occurs(order = 2, maxOccurs = 2)", "List<Warehouse.Bin>", "bins"),
             "public static class Bin {",
-            field("@BookField(order = 1, length = 3)", "String", "code"),
+            field("@Field(order = 1, length = 3)", "String", "code"),
             "}",
             "}"));
         BookCodec<Object> codec = CompiledCodec.load(compilation, "test.Warehouse");

@@ -22,9 +22,9 @@ import pt.dazz.copymapper.spi.BookCodec;
 class ItemSubTypesTest {
 
     private static final CodecContext LATIN = new CodecContext(StandardCharsets.ISO_8859_1);
-    private static final String ENTRY_TYPES = "@BookSubTypes(discriminator = \"entryType\","
-        + " value = {@BookSubTypes.Type(value = \"C\", type = CardPayment.class),"
-        + " @BookSubTypes.Type(value = \"T\", type = Transfer.class)})";
+    private static final String ENTRY_TYPES = "@SubTypes(discriminator = \"entryType\","
+        + " value = {@SubTypes.Type(value = \"C\", type = CardPayment.class),"
+        + " @SubTypes.Type(value = \"T\", type = Transfer.class)})";
     /** Card payment of 12.50 at a merchant: 1 + 8 + 20 bytes, then 14 spaces of padding. */
     private static final String CARD = "C" + hexText("000000000001250C")
         + "GRAND HOTEL LISBON  " + " ".repeat(14);
@@ -45,12 +45,12 @@ class ItemSubTypesTest {
     }
 
     private static JavaFileObject getStatement(String... extraMembers) {
-        return source("GetStatement", "@BookOperation public class GetStatement {",
-            field("@BookField(order = 10, length = 12, direction = Direction.INPUT)", "String",
+        return source("GetStatement", "@Operation public class GetStatement {",
+            field("@Field(order = 10, length = 12, direction = Direction.INPUT)", "String",
                 "accountId"),
-            field("@BookField(order = 20, length = 2, direction = Direction.OUTPUT)", "int",
+            field("@Field(order = 20, length = 2, direction = Direction.OUTPUT)", "int",
                 "entryCount"),
-            field("@BookCollection(order = 30, maxOccurs = 5)", "List<StatementEntry>",
+            field("@Occurs(order = 30, maxOccurs = 5)", "List<StatementEntry>",
                 "entries"),
             String.join("\n", extraMembers),
             "}");
@@ -61,27 +61,27 @@ class ItemSubTypesTest {
         return source("StatementEntry", annotation,
             "public " + modifiers + "class StatementEntry {",
             discriminator,
-            field("@BookField(order = 20, length = 15, scale = 2, signed = true,"
+            field("@Field(order = 20, length = 15, scale = 2, signed = true,"
                 + " usage = Usage.COMP3)", "BigDecimal", "amount"),
             "}");
     }
 
     private static JavaFileObject abstractEntry() {
         return statementEntry("abstract ", ENTRY_TYPES,
-            field("@BookField(order = 10, length = 1)", "String", "entryType"));
+            field("@Field(order = 10, length = 1)", "String", "entryType"));
     }
 
     private static JavaFileObject cardPayment(String... members) {
         return source("CardPayment", "public class CardPayment extends StatementEntry {",
             members.length == 0
-                ? field("@BookField(order = 30, length = 20)", "String", "merchant")
+                ? field("@Field(order = 30, length = 20)", "String", "merchant")
                 : String.join("\n", members),
             "}");
     }
 
     private static JavaFileObject transfer() {
         return source("Transfer", "public class Transfer extends StatementEntry {",
-            field("@BookField(order = 30, length = 34)", "String", "counterpartyIban"), "}");
+            field("@Field(order = 30, length = 34)", "String", "counterpartyIban"), "}");
     }
 
     private static JavaFileObject refund() {
@@ -199,7 +199,7 @@ class ItemSubTypesTest {
     @Test
     void fieldsAfterAPolymorphicCollection() {
         BookCodec<Object> codec = codec(
-            getStatement(field("@BookField(order = 40, length = 4, direction = Direction.OUTPUT)",
+            getStatement(field("@Field(order = 40, length = 4, direction = Direction.OUTPUT)",
                 "String", "trailer")),
             abstractEntry(), cardPayment(), transfer());
         Object decoded = codec.newInstance();
@@ -218,7 +218,7 @@ class ItemSubTypesTest {
     void concreteItemBaseIsWrittenAndPadded() {
         BookCodec<Object> codec = codec(getStatement(),
             statementEntry("", ENTRY_TYPES,
-                field("@BookField(order = 10, length = 1)", "String", "entryType")),
+                field("@Field(order = 10, length = 1)", "String", "entryType")),
             cardPayment(), transfer());
         Object base = create(codec, "StatementEntry");
         set(base, "entryType", "N");
@@ -231,9 +231,9 @@ class ItemSubTypesTest {
     @Test
     void numericItemDiscriminator() {
         BookCodec<Object> codec = codec(getStatement(),
-            statementEntry("abstract ", "@BookSubTypes(discriminator = \"entryType\","
-                    + " value = {@BookSubTypes.Type(value = \"01\", type = CardPayment.class)})",
-                field("@BookField(order = 10, length = 2)", "int", "entryType")),
+            statementEntry("abstract ", "@SubTypes(discriminator = \"entryType\","
+                    + " value = {@SubTypes.Type(value = \"01\", type = CardPayment.class)})",
+                field("@Field(order = 10, length = 2)", "int", "entryType")),
             cardPayment());
         Object decoded = codec.newInstance();
         String card = "01" + CARD.substring(1, 29);
@@ -248,8 +248,8 @@ class ItemSubTypesTest {
     void itemDiscriminatorAfterABaseField() {
         BookCodec<Object> codec = codec(getStatement(),
             statementEntry("abstract ", ENTRY_TYPES,
-                field("@BookField(order = 5, length = 4)", "String", "reference")
-                    + field("@BookField(order = 10, length = 1)", "String", "entryType")),
+                field("@Field(order = 5, length = 4)", "String", "reference")
+                    + field("@Field(order = 10, length = 1)", "String", "entryType")),
             cardPayment(), transfer());
         Object decoded = codec.newInstance();
         codec.decodeResponse(bytes("01REF1" + TRANSFER), decoded, LATIN);
@@ -269,7 +269,7 @@ class ItemSubTypesTest {
     void itemDiscriminatorDoesNotExist() {
         assertError(compile(getStatement(), statementEntry("abstract ",
                 ENTRY_TYPES.replace("\"entryType\"", "\"kind\""),
-                field("@BookField(order = 10, length = 1)", "String", "entryType")),
+                field("@Field(order = 10, length = 1)", "String", "entryType")),
             cardPayment(), transfer()),
             "StatementEntry: discriminator field 'kind' does not exist");
     }
@@ -277,8 +277,8 @@ class ItemSubTypesTest {
     @Test
     void itemSubtypeWithVariableCollection() {
         assertError(compile(getStatement(), abstractEntry(),
-                cardPayment(field("@BookField(order = 30, length = 1)", "int", "count"),
-                    field("@BookCollection(order = 40, maxOccurs = 2)", "List<Transfer>",
+                cardPayment(field("@Field(order = 30, length = 1)", "int", "count"),
+                    field("@Occurs(order = 40, maxOccurs = 2)", "List<Transfer>",
                         "parts")),
                 transfer()),
             "CardPayment.parts (order 40): a collection in an item class must have fixed = true"
@@ -289,7 +289,7 @@ class ItemSubTypesTest {
     void itemDuplicateValue() {
         assertError(compile(getStatement(), statementEntry("abstract ",
                 ENTRY_TYPES.replace("\"T\"", "\"C\""),
-                field("@BookField(order = 10, length = 1)", "String", "entryType")),
+                field("@Field(order = 10, length = 1)", "String", "entryType")),
             cardPayment(), transfer()),
             "StatementEntry.entryType (order 10): discriminator value 'C' is used by CardPayment"
                 + " and Transfer");
@@ -298,7 +298,7 @@ class ItemSubTypesTest {
     @Test
     void itemSubtypeOrderNotAfterBase() {
         assertError(compile(getStatement(), abstractEntry(),
-                cardPayment(field("@BookField(order = 15, length = 20)", "String", "merchant")),
+                cardPayment(field("@Field(order = 15, length = 20)", "String", "merchant")),
                 transfer()),
             "CardPayment.merchant (order 15): a subtype member must come after all base members");
     }
@@ -306,7 +306,7 @@ class ItemSubTypesTest {
     @Test
     void abstractItemWithoutSubTypes() {
         assertError(compile(getStatement(), statementEntry("abstract ", "",
-                field("@BookField(order = 10, length = 1)", "String", "entryType"))),
+                field("@Field(order = 10, length = 1)", "String", "entryType"))),
             "GetStatement.entries (order 30): item class test.StatementEntry must be a public"
                 + " class with a public no-argument constructor");
     }
@@ -315,7 +315,7 @@ class ItemSubTypesTest {
     void nonPublicAbstractItemBase() {
         assertError(compile(getStatement(), source("StatementEntry", ENTRY_TYPES,
                 "abstract class StatementEntry {",
-                field("@BookField(order = 10, length = 1)", "String", "entryType"), "}"),
+                field("@Field(order = 10, length = 1)", "String", "entryType"), "}"),
             cardPayment(), transfer()),
             "GetStatement.entries (order 30): item class test.StatementEntry must be a public"
                 + " class with a public no-argument constructor");

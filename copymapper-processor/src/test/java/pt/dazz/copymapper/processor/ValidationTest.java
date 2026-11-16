@@ -40,7 +40,7 @@ class ValidationTest {
     /** One operation class with the given members and their accessors. */
     private static JavaFileObject order(String... members) {
         return source("Order",
-            "@BookOperation public class Order {",
+            "@Operation public class Order {",
             String.join("\n", members),
             "}");
     }
@@ -53,34 +53,34 @@ class ValidationTest {
     void validClassCompiles() {
         Compilation compilation = compile(
             source("Order",
-                "@BookOperation public class Order implements Continuable, Validatable {",
-                field("@BookField(order = 1, length = 10)", "String", "customerId"),
-                field("@BookField(order = 2, length = 9, usage = Usage.COMP)", "int", "a"),
-                field("@BookField(order = 3, length = 9, signed = true)", "Integer", "b"),
-                field("@BookField(order = 4, length = 18, usage = Usage.COMP3)", "long", "c"),
-                field("@BookField(order = 5, length = 18)", "Long", "d"),
-                field("@BookField(order = 6, length = 15, scale = 2, usage = Usage.COMP3)",
+                "@Operation public class Order implements Continuable, Validatable {",
+                field("@Field(order = 1, length = 10)", "String", "customerId"),
+                field("@Field(order = 2, length = 9, usage = Usage.COMP)", "int", "a"),
+                field("@Field(order = 3, length = 9, signed = true)", "Integer", "b"),
+                field("@Field(order = 4, length = 18, usage = Usage.COMP3)", "long", "c"),
+                field("@Field(order = 5, length = 18)", "Long", "d"),
+                field("@Field(order = 6, length = 15, scale = 2, usage = Usage.COMP3)",
                     "BigDecimal", "total"),
-                field("@BookField(order = 7, length = 8)", "LocalDate", "orderDate"),
-                field("@BookField(order = 8, length = 6, pattern = \"HHmmss\")", "LocalTime",
+                field("@Field(order = 7, length = 8)", "LocalDate", "orderDate"),
+                field("@Field(order = 8, length = 6, pattern = \"HHmmss\")", "LocalTime",
                     "orderTime"),
-                field("@BookField(order = 9, length = 14, pattern = \"yyyyMMddHHmmss\")",
+                field("@Field(order = 9, length = 14, pattern = \"yyyyMMddHHmmss\")",
                     "LocalDateTime", "created"),
-                field("@BookField(order = 10, length = 1, converter = FlagConverter.class)",
+                field("@Field(order = 10, length = 1, converter = FlagConverter.class)",
                     "boolean", "express"),
-                field("@BookField(order = 11, length = 4, converter = NoConverter.class)",
+                field("@Field(order = 11, length = 4, converter = NoConverter.class)",
                     "String", "region"),
-                field("@BookField(order = 12, length = 3, direction = Direction.OUTPUT)", "int",
+                field("@Field(order = 12, length = 3, direction = Direction.OUTPUT)", "int",
                     "lineCount"),
-                field("@BookCollection(order = 13, maxOccurs = 5, dependsOn = \"lineCount\")",
+                field("@Occurs(order = 13, maxOccurs = 5, dependsOn = \"lineCount\")",
                     "List<Line>", "lines"),
                 "public boolean hasContinuation() { return false; }",
                 "public void validate() { }",
                 "}"),
             source("Line",
                 "public class Line {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"),
-                field("@BookField(order = 2, length = 3, usage = Usage.COMP3)", "int", "quantity"),
+                field("@Field(order = 1, length = 5)", "String", "sku"),
+                field("@Field(order = 2, length = 3, usage = Usage.COMP3)", "int", "quantity"),
                 "}"),
             source("FlagConverter",
                 "public class FlagConverter implements FieldConverter<Boolean> {",
@@ -124,8 +124,8 @@ class ValidationTest {
     @Test
     void duplicateOrder() {
         assertError(compile(order(
-                field("@BookField(order = 10, length = 1)", "String", "a"),
-                field("@BookField(order = 10, length = 1)", "String", "b"))),
+                field("@Field(order = 10, length = 1)", "String", "a"),
+                field("@Field(order = 10, length = 1)", "String", "b"))),
             "Order.b (order 10)", "duplicate order, also used by Order.a");
     }
 
@@ -133,21 +133,21 @@ class ValidationTest {
     void duplicateOrderAcrossSuperclass() {
         Compilation compilation = compile(
             source("Base", "public class Base {",
-                field("@BookField(order = 1, length = 1)", "String", "a"), "}"),
-            source("Order", "@BookOperation public class Order extends Base {",
-                field("@BookField(order = 1, length = 1)", "String", "b"), "}"));
+                field("@Field(order = 1, length = 1)", "String", "a"), "}"),
+            source("Order", "@Operation public class Order extends Base {",
+                field("@Field(order = 1, length = 1)", "String", "b"), "}"));
         assertError(compilation, "Order.b (order 1)", "duplicate order, also used by Base.a");
     }
 
     @Test
     void duplicateOrderInItemClass() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            order(field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines")),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 1)", "String", "a"),
-                field("@BookField(order = 1, length = 1)", "String", "b"), "}"));
+                field("@Field(order = 1, length = 1)", "String", "a"),
+                field("@Field(order = 1, length = 1)", "String", "b"), "}"));
         assertError(compilation, "Line.b (order 1)", "duplicate order, also used by Line.a");
     }
 
@@ -156,49 +156,49 @@ class ValidationTest {
     @Test
     void stringWithComp3() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 5, usage = Usage.COMP3)", "String", "id"))),
+                field("@Field(order = 1, length = 5, usage = Usage.COMP3)", "String", "id"))),
             "Order.id (order 1)", "COMP3 is not permitted for String");
     }
 
     @Test
     void temporalWithComp() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 8, usage = Usage.COMP)", "LocalDate", "day"))),
+                field("@Field(order = 1, length = 8, usage = Usage.COMP)", "LocalDate", "day"))),
             "Order.day (order 1)", "COMP is not permitted for LocalDate");
     }
 
     @Test
     void intWithScale() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 5, scale = 2)", "int", "qty"))),
+                field("@Field(order = 1, length = 5, scale = 2)", "int", "qty"))),
             "Order.qty (order 1)", "scale must be 0 for int");
     }
 
     @Test
     void longBoxedWithScale() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 5, scale = 1)", "Long", "qty"))),
+                field("@Field(order = 1, length = 5, scale = 1)", "Long", "qty"))),
             "Order.qty (order 1)", "scale must be 0 for Long");
     }
 
     @Test
     void intLongerThanNineDigits() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 10)", "Integer", "qty"))),
+                field("@Field(order = 1, length = 10)", "Integer", "qty"))),
             "Order.qty (order 1)", "length 10 is more than 9 digits for Integer");
     }
 
     @Test
     void longLongerThanEighteenDigits() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 19, usage = Usage.COMP3)", "long", "qty"))),
+                field("@Field(order = 1, length = 19, usage = Usage.COMP3)", "long", "qty"))),
             "Order.qty (order 1)", "length 19 is more than 18 digits for long");
     }
 
     @Test
     void compLongerThanEighteenDigits() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 19, usage = Usage.COMP)", "BigDecimal",
+                field("@Field(order = 1, length = 19, usage = Usage.COMP)", "BigDecimal",
                     "amount"))),
             "Order.amount (order 1)", "COMP length must not be more than 18");
     }
@@ -206,38 +206,38 @@ class ValidationTest {
     @Test
     void bigDecimalScaleMoreThanLength() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 3, scale = 4)", "BigDecimal", "rate"))),
+                field("@Field(order = 1, length = 3, scale = 4)", "BigDecimal", "rate"))),
             "Order.rate (order 1)", "scale must not be more than length");
     }
 
     @Test
     void lengthBelowOne() {
-        assertError(compile(order(field("@BookField(order = 1, length = 0)", "String", "id"))),
+        assertError(compile(order(field("@Field(order = 1, length = 0)", "String", "id"))),
             "Order.id (order 1)", "length must be at least 1");
     }
 
     @Test
     void negativeScale() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 5, scale = -1)", "BigDecimal", "rate"))),
+                field("@Field(order = 1, length = 5, scale = -1)", "BigDecimal", "rate"))),
             "Order.rate (order 1)", "scale must not be negative");
     }
 
     @Test
     void missingLengthAndPic() {
-        assertError(compile(order(field("@BookField(order = 1)", "String", "id"))),
+        assertError(compile(order(field("@Field(order = 1)", "String", "id"))),
             "Order.id (order 1)", "pic or length is missing");
     }
 
     @Test
     void unsupportedTypeWithoutConverter() {
-        assertError(compile(order(field("@BookField(order = 1, length = 1)", "boolean", "flag"))),
+        assertError(compile(order(field("@Field(order = 1, length = 1)", "boolean", "flag"))),
             "Order.flag (order 1)", "type boolean is not supported without a converter");
     }
 
     @Test
     void unsupportedDeclaredTypeWithoutConverter() {
-        assertError(compile(order(field("@BookField(order = 1, length = 1)", "Object", "any"))),
+        assertError(compile(order(field("@Field(order = 1, length = 1)", "Object", "any"))),
             "Order.any (order 1)", "type java.lang.Object is not supported without a converter");
     }
 
@@ -254,7 +254,7 @@ class ValidationTest {
     @Test
     void converterWithoutNoArgConstructor() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "Boolean", "flag")),
             source("FlagConverter",
                 "public class FlagConverter implements FieldConverter<Boolean> {",
@@ -270,7 +270,7 @@ class ValidationTest {
     @Test
     void converterNotPublic() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "Boolean", "flag")),
             converter("FlagConverter", "class FlagConverter implements FieldConverter<Boolean>",
                 "Boolean"));
@@ -281,7 +281,7 @@ class ValidationTest {
     @Test
     void converterAbstract() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "Boolean", "flag")),
             converter("FlagConverter",
                 "public abstract class FlagConverter implements FieldConverter<Boolean>",
@@ -293,7 +293,7 @@ class ValidationTest {
     @Test
     void converterTypeMismatch() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "String", "flag")),
             converter("FlagConverter",
                 "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
@@ -304,11 +304,11 @@ class ValidationTest {
     @Test
     void genericItemClassIsRejected() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1)", "int", "boxCount"),
-                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Box<String>>", "boxes")),
+            order(field("@Field(order = 1, length = 1)", "int", "boxCount"),
+                field("@Occurs(order = 2, maxOccurs = 2)", "List<Box<String>>", "boxes")),
             source("Box",
                 "public class Box<T> {",
-                field("@BookField(order = 1, length = 3)", "String", "code"),
+                field("@Field(order = 1, length = 3)", "String", "code"),
                 "}"));
         assertError(compilation, "Order.boxes (order 2)",
             "item class test.Box must not have type parameters");
@@ -317,7 +317,7 @@ class ValidationTest {
     @Test
     void rawConverterIsRejected() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = RawConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = RawConverter.class)",
                 "String", "flag")),
             converter("RawConverter", "public class RawConverter implements FieldConverter",
                 "Object"));
@@ -328,7 +328,7 @@ class ValidationTest {
     @Test
     void rawConverterOnObjectFieldIsRejected() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = RawConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = RawConverter.class)",
                 "Object", "any")),
             converter("RawConverter", "public class RawConverter implements FieldConverter",
                 "Object"));
@@ -339,7 +339,7 @@ class ValidationTest {
     @Test
     void converterThroughRawSuperclassIsRejected() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = CodeConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = CodeConverter.class)",
                 "Object", "any")),
             source("BaseConverter",
                 "public abstract class BaseConverter<T> implements FieldConverter<T> {",
@@ -353,7 +353,7 @@ class ValidationTest {
     @Test
     void genericConverterIsRejected() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "Boolean", "flag")),
             converter("FlagConverter",
                 "public class FlagConverter<T> implements FieldConverter<Boolean>", "Boolean"));
@@ -364,7 +364,7 @@ class ValidationTest {
     @Test
     void objectFieldWithObjectConverterIsAccepted() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, converter = AnyConverter.class)",
+            order(field("@Field(order = 1, length = 1, converter = AnyConverter.class)",
                 "Object", "any")),
             converter("AnyConverter", "public class AnyConverter implements FieldConverter<Object>",
                 "Object"));
@@ -374,7 +374,7 @@ class ValidationTest {
     @Test
     void converterThroughSuperclassAgrees() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 3, converter = CodeConverter.class)",
+            order(field("@Field(order = 1, length = 3, converter = CodeConverter.class)",
                 "int", "code")),
             source("BaseConverter",
                 "public abstract class BaseConverter<T> implements Runnable, FieldConverter<T> {",
@@ -392,7 +392,7 @@ class ValidationTest {
     @Test
     void converterWithoutLength() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, converter = FlagConverter.class)", "Boolean",
+            order(field("@Field(order = 1, converter = FlagConverter.class)", "Boolean",
                 "flag")),
             converter("FlagConverter",
                 "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
@@ -404,7 +404,7 @@ class ValidationTest {
     @Test
     void missingSetterWithoutLombok() {
         Compilation compilation = compile(order(
-            "@BookField(order = 1, length = 5) private String id;",
+            "@Field(order = 1, length = 5) private String id;",
             "public String getId() { return id; }"));
         assertError(compilation, "Order.id (order 1)", "missing setter setId");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -413,7 +413,7 @@ class ValidationTest {
     @Test
     void missingGetterWithoutLombok() {
         Compilation compilation = compile(order(
-            "@BookField(order = 1, length = 5) private String id;",
+            "@Field(order = 1, length = 5) private String id;",
             "public void setId(String v) { id = v; }"));
         assertError(compilation, "Order.id (order 1)", "missing getter getId");
     }
@@ -421,15 +421,15 @@ class ValidationTest {
     @Test
     void accessorsMustBePublicInstanceMethodsWithTheFieldType() {
         Compilation compilation = compile(order(
-            "@BookField(order = 1, length = 5) private String id;",
+            "@Field(order = 1, length = 5) private String id;",
             "String getId() { return id; }",
             "public static void setId(String v) { }",
-            "@BookField(order = 2, length = 5) private String code;",
+            "@Field(order = 2, length = 5) private String code;",
             "public Object getCode() { return code; }",
             "public void setCode(Object v) { }",
             "public void setCode() { }",
             "public String getCode(int x) { return code; }",
-            "@BookField(order = 3, length = 5) private String other;",
+            "@Field(order = 3, length = 5) private String other;",
             "public static String getOther() { return null; }",
             "public void setOther(String a, String b) { }"));
         assertError(compilation, "Order.id (order 1)", "missing getter getId");
@@ -447,8 +447,8 @@ class ValidationTest {
                 "public String getId() { return null; }",
                 "public Base setId(String v) { return this; }",
                 "}"),
-            source("Order", "@BookOperation public class Order extends Base {",
-                "@BookField(order = 1, length = 5) private String id;",
+            source("Order", "@Operation public class Order extends Base {",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members().get(0).setter()).isEqualTo("setId");
@@ -459,8 +459,8 @@ class ValidationTest {
         // The first round reports the other error. A generator can still add the accessors
         // later, so the processor reports them only in the last round.
         Compilation compilation = compile(order(
-            "@BookField(order = 1, length = 5) private String id;",
-            field("@BookField(order = 2)", "String", "code")));
+            "@Field(order = 1, length = 5) private String id;",
+            field("@Field(order = 2)", "String", "code")));
         assertError(compilation, "Order.code (order 2)", "pic or length is missing");
         assertError(compilation, "Order.id (order 1)", "missing getter getId");
         assertError(compilation, "Order.id (order 1)", "missing setter setId");
@@ -472,21 +472,21 @@ class ValidationTest {
     @Test
     void fixedCollectionWithMissingDependsOn() {
         Compilation compilation = compile(order(
-            field("@BookCollection(order = 2, maxOccurs = 5, fixed = true, dependsOn = \"nothing\")",
+            field("@Occurs(order = 2, maxOccurs = 5, fixed = true, dependsOn = \"nothing\")",
                 "List<Line>", "lines")),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+                field("@Field(order = 1, length = 5)", "String", "sku"), "}"));
         assertError(compilation, "Order.lines (order 2)", "dependsOn field 'nothing' does not exist");
     }
 
     @Test
     void fixedCollectionCountFieldTooSmall() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 1)", "int", "lineCount"),
-            field("@BookCollection(order = 2, maxOccurs = 50, fixed = true, dependsOn = \"lineCount\")",
+            field("@Field(order = 1, length = 1)", "int", "lineCount"),
+            field("@Occurs(order = 2, maxOccurs = 50, fixed = true, dependsOn = \"lineCount\")",
                 "List<Line>", "lines")),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+                field("@Field(order = 1, length = 5)", "String", "sku"), "}"));
         assertError(compilation, "Order.lines (order 2)",
             "dependsOn field 'lineCount' has 1 digits and cannot hold maxOccurs 50");
     }
@@ -494,10 +494,10 @@ class ValidationTest {
     @Test
     void countFieldTooSmallForMaxOccurs() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 1)", "int", "lineCount"),
-            field("@BookCollection(order = 2, maxOccurs = 50)", "List<Line>", "lines")),
+            field("@Field(order = 1, length = 1)", "int", "lineCount"),
+            field("@Occurs(order = 2, maxOccurs = 50)", "List<Line>", "lines")),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+                field("@Field(order = 1, length = 5)", "String", "sku"), "}"));
         assertError(compilation, "Order.lines (order 2)",
             "dependsOn field 'lineCount' has 1 digits and cannot hold maxOccurs 50");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -506,42 +506,42 @@ class ValidationTest {
     @Test
     void countFieldDigitsThatHoldMaxOccursExactly() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 1, usage = Usage.COMP3)", "int", "lineCount"),
-            field("@BookCollection(order = 2, maxOccurs = 9)", "List<Line>", "lines")),
+            field("@Field(order = 1, length = 1, usage = Usage.COMP3)", "int", "lineCount"),
+            field("@Occurs(order = 2, maxOccurs = 9)", "List<Line>", "lines")),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+                field("@Field(order = 1, length = 5)", "String", "sku"), "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
     }
 
     @Test
     void operationClassWithoutMembers() {
         Compilation compilation = compile(source("Order",
-            "@BookOperation public class Order {",
+            "@Operation public class Order {",
             "private String id;",
             "}"));
         assertError(compilation, "Order",
-            "operation class must have at least one @BookField or @BookCollection");
+            "operation class must have at least one @Field or @Occurs");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
 
     @Test
     void itemClassWithoutFields() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 1)", "int", "lineCount"),
-            field("@BookCollection(order = 2, maxOccurs = 5)", "List<Line>", "lines")),
+            field("@Field(order = 1, length = 1)", "int", "lineCount"),
+            field("@Occurs(order = 2, maxOccurs = 5)", "List<Line>", "lines")),
             source("Line", "public class Line {", "private String sku;", "}"));
         assertError(compilation, "Order.lines (order 2)",
-            "item class test.Line must have at least one @BookField");
+            "item class test.Line must have at least one @Field");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
 
     @Test
     void signedOrScaleOnTextOrDateField() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 5, signed = true)", "String", "code"),
-            field("@BookField(order = 2, length = 5, scale = 0)", "String", "region"),
-            field("@BookField(order = 3, scale = 2)", "LocalDate", "shipDate"),
-            field("@BookField(order = 4, signed = false, pattern = \"HHmmss\")", "LocalTime",
+            field("@Field(order = 1, length = 5, signed = true)", "String", "code"),
+            field("@Field(order = 2, length = 5, scale = 0)", "String", "region"),
+            field("@Field(order = 3, scale = 2)", "LocalDate", "shipDate"),
+            field("@Field(order = 4, signed = false, pattern = \"HHmmss\")", "LocalTime",
                 "shipTime")));
         assertError(compilation, "Order.code (order 1)", "signed is not permitted for String");
         assertError(compilation, "Order.region (order 2)", "scale is not permitted for String");
@@ -565,13 +565,13 @@ class ValidationTest {
     @EnumSource(ProcessorOrder.class)
     void lombokDataSatisfiesAccessors(ProcessorOrder order) {
         Compilation compilation = compileWithLombok(order,
-            source("Order", "@lombok.Data @BookOperation public class Order {",
-                "@BookField(order = 1, length = 3) private int count;",
-                "@BookCollection(order = 2, maxOccurs = 4, dependsOn = \"count\")",
+            source("Order", "@lombok.Data @Operation public class Order {",
+                "@Field(order = 1, length = 3) private int count;",
+                "@Occurs(order = 2, maxOccurs = 4, dependsOn = \"count\")",
                 "private List<Line> lines;",
                 "}"),
             source("Line", "@lombok.Data public class Line {",
-                "@BookField(order = 1, length = 5) private String sku;",
+                "@Field(order = 1, length = 5) private String sku;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         ModelSnapshot model = compiler.only();
@@ -584,10 +584,10 @@ class ValidationTest {
     @EnumSource(ProcessorOrder.class)
     void lombokGetterSetterOnSomeFields(ProcessorOrder order) {
         Compilation compilation = compileWithLombok(order,
-            source("Order", "@BookOperation public class Order {",
-                "@lombok.Getter @lombok.Setter @BookField(order = 1, length = 5) private String id;",
-                field("@BookField(order = 2, length = 5)", "String", "code"),
-                "@lombok.Getter @BookField(order = 3, length = 5) private String region;",
+            source("Order", "@Operation public class Order {",
+                "@lombok.Getter @lombok.Setter @Field(order = 1, length = 5) private String id;",
+                field("@Field(order = 2, length = 5)", "String", "code"),
+                "@lombok.Getter @Field(order = 3, length = 5) private String region;",
                 "public void setRegion(String v) { region = v; }",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -598,8 +598,8 @@ class ValidationTest {
     @Test
     void lombokClassGetterAndSetter() {
         Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
-            source("Order", "@lombok.Getter @lombok.Setter @BookOperation public class Order {",
-                "@BookField(order = 1, length = 5) private String id;",
+            source("Order", "@lombok.Getter @lombok.Setter @Operation public class Order {",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members().get(0).getter()).isEqualTo("getId");
@@ -608,8 +608,8 @@ class ValidationTest {
     @Test
     void lombokDataFinalFieldHasNoSetter() {
         Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
-            source("Order", "@lombok.Data @BookOperation public class Order {",
-                "@BookField(order = 1, length = 5) private final String id = \"A\";",
+            source("Order", "@lombok.Data @Operation public class Order {",
+                "@Field(order = 1, length = 5) private final String id = \"A\";",
                 "}"));
         assertError(compilation, "Order.id (order 1)", "missing setter setId");
     }
@@ -617,8 +617,8 @@ class ValidationTest {
     @Test
     void lombokSetterOnFinalFieldHasNoSetter() {
         Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
-            source("Order", "@lombok.Getter @lombok.Setter @BookOperation public class Order {",
-                "@lombok.Setter @BookField(order = 1, length = 5) private final String id = \"A\";",
+            source("Order", "@lombok.Getter @lombok.Setter @Operation public class Order {",
+                "@lombok.Setter @Field(order = 1, length = 5) private final String id = \"A\";",
                 "}"));
         assertError(compilation, "Order.id (order 1)", "missing setter setId");
     }
@@ -626,14 +626,14 @@ class ValidationTest {
     @Test
     void lombokAccessLevelNoneGivesNoAccessor() {
         Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
-            source("Order", "@lombok.Data @BookOperation public class Order {",
-                "@lombok.Getter(lombok.AccessLevel.NONE) @BookField(order = 1, length = 5)",
+            source("Order", "@lombok.Data @Operation public class Order {",
+                "@lombok.Getter(lombok.AccessLevel.NONE) @Field(order = 1, length = 5)",
                 "private String id;",
                 "}"),
             source("Invoice",
-                "@lombok.Data @lombok.Setter(lombok.AccessLevel.NONE) @BookOperation",
+                "@lombok.Data @lombok.Setter(lombok.AccessLevel.NONE) @Operation",
                 "public class Invoice {",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"));
         assertError(compilation, "Order.id (order 1)", "missing getter getId");
         assertError(compilation, "Invoice.id (order 1)", "missing setter setId");
@@ -643,14 +643,14 @@ class ValidationTest {
     @Test
     void lombokCallableAccessLevelsGiveAccessors() {
         Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
-            source("Order", "@BookOperation public class Order {",
+            source("Order", "@Operation public class Order {",
                 "@lombok.Getter(lombok.AccessLevel.PUBLIC) @lombok.Setter",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "@lombok.Getter(lombok.AccessLevel.PACKAGE)",
                 "@lombok.Setter(lombok.AccessLevel.PROTECTED)",
-                "@BookField(order = 2, length = 5) private String code;",
+                "@Field(order = 2, length = 5) private String code;",
                 "@SuppressWarnings(\"deprecation\") @lombok.Getter(lombok.AccessLevel.MODULE) @lombok.Setter",
-                "@BookField(order = 3, length = 5) private String region;",
+                "@Field(order = 3, length = 5) private String region;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members()).extracting(ModelSnapshot.Member::getter,
@@ -662,11 +662,11 @@ class ValidationTest {
     @Test
     void lombokPrivateAccessLevelGivesNoAccessor() {
         Compilation compilation = compileWithLombok(ProcessorOrder.LOMBOK_FIRST,
-            source("Order", "@BookOperation public class Order {",
+            source("Order", "@Operation public class Order {",
                 "@lombok.Getter(lombok.AccessLevel.PRIVATE) @lombok.Setter",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "@lombok.Getter @lombok.Setter(lombok.AccessLevel.PRIVATE)",
-                "@BookField(order = 2, length = 5) private String code;",
+                "@Field(order = 2, length = 5) private String code;",
                 "}"));
         assertError(compilation, "Order.id (order 1)", "missing getter getId");
         assertError(compilation, "Order.code (order 2)", "missing setter setCode");
@@ -677,10 +677,10 @@ class ValidationTest {
     @EnumSource(ProcessorOrder.class)
     void lombokGetterOfPrimitiveBooleanIsIsName(ProcessorOrder order) {
         Compilation compilation = compileWithLombok(order,
-            source("Order", "@lombok.Data @BookOperation public class Order {",
-                "@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            source("Order", "@lombok.Data @Operation public class Order {",
+                "@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "private boolean express;",
-                "@BookField(order = 2, length = 1, converter = FlagConverter.class)",
+                "@Field(order = 2, length = 1, converter = FlagConverter.class)",
                 "private Boolean gift;",
                 "}"),
             converter("FlagConverter",
@@ -694,7 +694,7 @@ class ValidationTest {
     @Test
     void missingGetterOfPrimitiveBooleanNamesTheIsName() {
         Compilation compilation = compile(
-            order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "private boolean gift;",
                 "public void setGift(boolean v) { gift = v; }"),
             converter("FlagConverter",
@@ -706,19 +706,19 @@ class ValidationTest {
     @Test
     void isPrefixOfPrimitiveBooleanIsRemovedAsLombokDoes() {
         Compilation compilation = compile(
-            order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "private boolean isActive;",
                 "public boolean isActive() { return isActive; }",
                 "public void setActive(boolean v) { isActive = v; }",
-                "@BookField(order = 2, length = 1, converter = FlagConverter.class)",
+                "@Field(order = 2, length = 1, converter = FlagConverter.class)",
                 "private boolean island;",
                 "public boolean isIsland() { return island; }",
                 "public void setIsland(boolean v) { island = v; }",
-                "@BookField(order = 3, length = 1, converter = FlagConverter.class)",
+                "@Field(order = 3, length = 1, converter = FlagConverter.class)",
                 "private boolean is;",
                 "public boolean isIs() { return is; }",
                 "public void setIs(boolean v) { is = v; }",
-                "@BookField(order = 4, length = 1, converter = FlagConverter.class)",
+                "@Field(order = 4, length = 1, converter = FlagConverter.class)",
                 "private boolean isOpen;",
                 "public boolean getOpen() { return isOpen; }",
                 "public void setOpen(boolean v) { isOpen = v; }"),
@@ -734,11 +734,11 @@ class ValidationTest {
     @Test
     void isPrefixIsRemovedWhenTheThirdCharacterIsNotLowercase() {
         Compilation compilation = compile(
-            order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "private boolean is_open;",
                 "public boolean is_open() { return is_open; }",
                 "public void set_open(boolean v) { is_open = v; }",
-                "@BookField(order = 2, length = 1, converter = FlagConverter.class)",
+                "@Field(order = 2, length = 1, converter = FlagConverter.class)",
                 "private boolean is2fa;",
                 "public boolean is2fa() { return is2fa; }",
                 "public void set2fa(boolean v) { is2fa = v; }"),
@@ -753,7 +753,7 @@ class ValidationTest {
     @Test
     void missingSetterOfIsPrefixedBooleanNamesTheLombokName() {
         Compilation compilation = compile(
-            order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "private boolean isActive;",
                 "public boolean isActive() { return isActive; }",
                 "public void setIsActive(boolean v) { isActive = v; }"),
@@ -766,7 +766,7 @@ class ValidationTest {
     @Test
     void handwrittenIsGetterOfPrimitiveBooleanIsFound() {
         Compilation compilation = compile(
-            order("@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            order("@Field(order = 1, length = 1, converter = FlagConverter.class)",
                 "private boolean express;",
                 "public boolean isExpress() { return express; }",
                 "public void setExpress(boolean v) { express = v; }"),
@@ -780,10 +780,10 @@ class ValidationTest {
     void lombokOnSuperclassDoesNotApplyToSubclassFields() {
         Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Base", "@lombok.Data public class Base {",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"),
-            source("Order", "@BookOperation public class Order extends Base {",
-                "@BookField(order = 2, length = 5) private String code;",
+            source("Order", "@Operation public class Order extends Base {",
+                "@Field(order = 2, length = 5) private String code;",
                 "}"));
         assertError(compilation, "Order.code (order 2)", "missing getter getCode");
         assertError(compilation, "Order.code (order 2)", "missing setter setCode");
@@ -793,14 +793,14 @@ class ValidationTest {
     @Test
     void lombokAccessorsAnnotationNeedsVisibleMethods() {
         Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
-            source("Order", "@lombok.Data @BookOperation public class Order {",
+            source("Order", "@lombok.Data @Operation public class Order {",
                 "@lombok.experimental.Accessors(fluent = true)",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"),
             source("Invoice",
-                "@lombok.Data @lombok.experimental.Accessors(fluent = true) @BookOperation",
+                "@lombok.Data @lombok.experimental.Accessors(fluent = true) @Operation",
                 "public class Invoice {",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"));
         assertError(compilation, "Order.id (order 1)", "missing getter getId");
         assertError(compilation, "Invoice.id (order 1)", "missing setter setId");
@@ -810,20 +810,20 @@ class ValidationTest {
 
     private static JavaFileObject line() {
         return source("Line", "public class Line {",
-            field("@BookField(order = 1, length = 5)", "String", "sku"), "}");
+            field("@Field(order = 1, length = 5)", "String", "sku"), "}");
     }
 
     @Test
     void collectionTypeNotList() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 3)", "int", "count"),
-            field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            field("@Field(order = 1, length = 3)", "int", "count"),
+            field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                 "Set<Line>", "lines"),
-            field("@BookCollection(order = 3, maxOccurs = 2, dependsOn = \"count\")", "String",
+            field("@Occurs(order = 3, maxOccurs = 2, dependsOn = \"count\")", "String",
                 "text"),
-            field("@BookCollection(order = 4, maxOccurs = 2, dependsOn = \"count\")", "List",
+            field("@Occurs(order = 4, maxOccurs = 2, dependsOn = \"count\")", "List",
                 "raw"),
-            field("@BookCollection(order = 5, maxOccurs = 2, dependsOn = \"count\")",
+            field("@Occurs(order = 5, maxOccurs = 2, dependsOn = \"count\")",
                 "List<? extends Line>", "wild")), line());
         assertError(compilation, "Order.lines (order 2)", "a collection must have the type List<X>");
         assertError(compilation, "Order.text (order 3)", "a collection must have the type List<X>");
@@ -834,7 +834,7 @@ class ValidationTest {
     @Test
     void collectionDependsOnMissingField() {
         assertError(compile(order(
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines")), line()),
             "Order.lines (order 2)", "dependsOn field 'count' does not exist");
     }
@@ -842,8 +842,8 @@ class ValidationTest {
     @Test
     void collectionWithoutDependsOnAndWithoutPreviousMember() {
         assertError(compile(order(
-                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
-                field("@BookField(order = 3, length = 3)", "int", "count")), line()),
+                field("@Occurs(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+                field("@Field(order = 3, length = 3)", "int", "count")), line()),
             "Order.lines (order 2)", "dependsOn is missing and no member comes before the"
                 + " collection");
     }
@@ -851,9 +851,9 @@ class ValidationTest {
     @Test
     void previousMemberIsACollection() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "first"),
-                field("@BookCollection(order = 3, maxOccurs = 2)", "List<Line>", "second")),
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2)", "List<Line>", "first"),
+                field("@Occurs(order = 3, maxOccurs = 2)", "List<Line>", "second")),
                 line()),
             "Order.second (order 3)", "dependsOn field 'first' must be int, Integer, long, or Long");
     }
@@ -861,18 +861,18 @@ class ValidationTest {
     @Test
     void collectionDependsOnAfterCollection() {
         assertError(compile(order(
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines"),
-                field("@BookField(order = 3, length = 3)", "int", "count")), line()),
+                field("@Field(order = 3, length = 3)", "int", "count")), line()),
             "Order.lines (order 2)", "dependsOn field 'count' must come before the collection");
     }
 
     @Test
     void collectionDependsOnWrongDirection() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 3, direction = Direction.INPUT)", "int",
+                field("@Field(order = 1, length = 3, direction = Direction.INPUT)", "int",
                     "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines")), line()),
             "Order.lines (order 2)",
             "dependsOn field 'count' has direction INPUT, which does not include OUTPUT");
@@ -881,9 +881,9 @@ class ValidationTest {
     @Test
     void inputCollectionDependsOnOutputCount() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 3, direction = Direction.OUTPUT)", "long",
+                field("@Field(order = 1, length = 3, direction = Direction.OUTPUT)", "long",
                     "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\","
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\","
                     + " direction = Direction.INPUT)", "List<Line>", "lines")), line()),
             "Order.lines (order 2)",
             "dependsOn field 'count' has direction OUTPUT, which does not include INPUT");
@@ -892,12 +892,12 @@ class ValidationTest {
     @Test
     void inputOutputCollectionNeedsInputOutputCount() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 3, direction = Direction.INPUT)", "Long", "a"),
-            field("@BookField(order = 2, length = 3, direction = Direction.OUTPUT)", "Integer",
+            field("@Field(order = 1, length = 3, direction = Direction.INPUT)", "Long", "a"),
+            field("@Field(order = 2, length = 3, direction = Direction.OUTPUT)", "Integer",
                 "b"),
-            field("@BookCollection(order = 3, maxOccurs = 2, dependsOn = \"a\","
+            field("@Occurs(order = 3, maxOccurs = 2, dependsOn = \"a\","
                 + " direction = Direction.INPUT_OUTPUT)", "List<Line>", "x"),
-            field("@BookCollection(order = 4, maxOccurs = 2, dependsOn = \"b\","
+            field("@Occurs(order = 4, maxOccurs = 2, dependsOn = \"b\","
                 + " direction = Direction.INPUT_OUTPUT)", "List<Line>", "y")), line());
         assertError(compilation, "Order.x (order 3)",
             "dependsOn field 'a' has direction INPUT, which does not include INPUT_OUTPUT");
@@ -908,8 +908,8 @@ class ValidationTest {
     @Test
     void collectionDependsOnNonInteger() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 3)", "BigDecimal", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Field(order = 1, length = 3)", "BigDecimal", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines")), line()),
             "Order.lines (order 2)", "dependsOn field 'count' must be int, Integer, long, or Long");
     }
@@ -917,10 +917,10 @@ class ValidationTest {
     @Test
     void collectionDependsOnAnotherCollection() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "first"),
-                field("@BookCollection(order = 3, maxOccurs = 2, dependsOn = \"first\")",
+                field("@Occurs(order = 3, maxOccurs = 2, dependsOn = \"first\")",
                     "List<Line>", "second")), line()),
             "Order.second (order 3)", "dependsOn field 'first' must be int, Integer, long, or Long");
     }
@@ -928,8 +928,8 @@ class ValidationTest {
     @Test
     void collectionDependsOnInvalidFieldReportsOnlyTheFieldError() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1)", "int", "count"),
-            field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            field("@Field(order = 1)", "int", "count"),
+            field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                 "List<Line>", "lines")), line());
         assertError(compilation, "Order.count (order 1)", "pic or length is missing");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -938,9 +938,9 @@ class ValidationTest {
     @Test
     void inputCollectionWithInputOutputCount() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 3, direction = Direction.INPUT_OUTPUT)", "int",
+            field("@Field(order = 1, length = 3, direction = Direction.INPUT_OUTPUT)", "int",
                 "count"),
-            field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\","
+            field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\","
                 + " direction = Direction.INPUT)", "List<Line>", "lines")), line());
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members().get(1).direction()).isEqualTo("INPUT");
@@ -949,20 +949,20 @@ class ValidationTest {
     @Test
     void missingAccessorsOfCollectionsAndItems() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 3)", "int", "a"),
-                field("@BookField(order = 2, length = 3)", "int", "b"),
-                field("@BookField(order = 3, length = 3)", "int", "c"),
-                field("@BookCollection(order = 4, maxOccurs = 2, dependsOn = \"a\")",
+            order(field("@Field(order = 1, length = 3)", "int", "a"),
+                field("@Field(order = 2, length = 3)", "int", "b"),
+                field("@Field(order = 3, length = 3)", "int", "c"),
+                field("@Occurs(order = 4, maxOccurs = 2, dependsOn = \"a\")",
                     "List<Part>", "parts"),
-                "@BookCollection(order = 5, maxOccurs = 2, dependsOn = \"b\")",
+                "@Occurs(order = 5, maxOccurs = 2, dependsOn = \"b\")",
                 "private List<Line> noGetter;",
                 "public void setNoGetter(List<Line> v) { }",
-                "@BookCollection(order = 6, maxOccurs = 2, dependsOn = \"c\")",
+                "@Occurs(order = 6, maxOccurs = 2, dependsOn = \"c\")",
                 "private List<Line> noSetter;",
                 "public List<Line> getNoSetter() { return noSetter; }"),
             line(),
             source("Part", "public class Part {",
-                "@BookField(order = 1, length = 5) private String sku;",
+                "@Field(order = 1, length = 5) private String sku;",
                 "public String getSku() { return sku; }",
                 "}"));
         assertError(compilation, "Part.sku (order 1)", "missing setter setSku");
@@ -974,10 +974,10 @@ class ValidationTest {
     @Test
     void countFieldSharedByTwoCollections() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines"),
-                field("@BookCollection(order = 3, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Occurs(order = 3, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "others")), line()),
             "Order.others (order 3)", "dependsOn field 'count' is already used by collection 'lines'");
     }
@@ -985,12 +985,12 @@ class ValidationTest {
     @Test
     void nestedVariableCollection() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            order(field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines")),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "parts"),
                 "}"));
         assertError(compilation, "Line.parts (order 2)",
@@ -1001,8 +1001,8 @@ class ValidationTest {
     @Test
     void maxOccursBelowOne() {
         assertError(compile(order(
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 0, dependsOn = \"count\")",
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 0, dependsOn = \"count\")",
                     "List<Line>", "lines")), line()),
             "Order.lines (order 2)", "maxOccurs must be at least 1");
     }
@@ -1010,12 +1010,12 @@ class ValidationTest {
     @Test
     void itemWithoutNoArgConstructor() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            order(field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines")),
             source("Line", "public class Line {",
                 "public Line(String sku) { this.sku = sku; }",
-                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+                field("@Field(order = 1, length = 5)", "String", "sku"), "}"));
         assertError(compilation, "Order.lines (order 2)",
             "item class test.Line must be a public class with a public no-argument constructor");
     }
@@ -1023,13 +1023,13 @@ class ValidationTest {
     @Test
     void itemNotInstantiable() {
         Compilation compilation = compile(
-            source("Order", "@BookOperation public class Order {",
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            source("Order", "@Operation public class Order {",
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Inner>", "inner"),
-                field("@BookCollection(order = 3, maxOccurs = 2, dependsOn = \"count2\")",
+                field("@Occurs(order = 3, maxOccurs = 2, dependsOn = \"count2\")",
                     "List<Iface>", "iface"),
-                field("@BookField(order = 0, length = 3)", "int", "count2"),
+                field("@Field(order = 0, length = 3)", "int", "count2"),
                 "public class Inner { }",
                 "public interface Iface { }",
                 "}"));
@@ -1044,12 +1044,12 @@ class ValidationTest {
     @Test
     void staticNestedItemIsAccepted() {
         Compilation compilation = compile(
-            source("Order", "@BookOperation public class Order {",
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            source("Order", "@Operation public class Order {",
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Entry>", "entries"),
                 "public static class Entry {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"),
+                field("@Field(order = 1, length = 5)", "String", "sku"),
                 "}",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -1060,11 +1060,11 @@ class ValidationTest {
     @Test
     void itemFieldWithDirection() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            order(field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines")),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 5, direction = Direction.OUTPUT)", "String",
+                field("@Field(order = 1, length = 5, direction = Direction.OUTPUT)", "String",
                     "sku"), "}"));
         assertError(compilation, "Line.sku (order 1)",
             "direction must not be set on an item field");
@@ -1073,12 +1073,12 @@ class ValidationTest {
     @Test
     void itemFieldErrorsAreReported() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            order(field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines")),
             source("Line", "public class Line {",
-                field("@BookField(order = 1)", "String", "sku"),
-                "@BookField(order = 2, length = 2) private static String code;",
+                field("@Field(order = 1)", "String", "sku"),
+                "@Field(order = 2, length = 2) private static String code;",
                 "}"));
         assertError(compilation, "Line.sku (order 1)", "pic or length is missing");
         assertError(compilation, "Line.code (order 2)", "an annotated field must not be static");
@@ -1087,9 +1087,9 @@ class ValidationTest {
     @Test
     void inputOutputCollectionInContinuable() {
         Compilation compilation = compile(source("Order",
-            "@BookOperation public class Order implements Continuable {",
-            field("@BookField(order = 1, length = 3)", "int", "count"),
-            field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\","
+            "@Operation public class Order implements Continuable {",
+            field("@Field(order = 1, length = 3)", "int", "count"),
+            field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\","
                 + " direction = Direction.INPUT_OUTPUT)", "List<Line>", "lines"),
             "public boolean hasContinuation() { return false; }",
             "}"), line());
@@ -1102,14 +1102,14 @@ class ValidationTest {
     @Test
     void staticAnnotatedField() {
         assertError(compile(order(
-                "@BookField(order = 1, length = 5) private static String id;")),
+                "@Field(order = 1, length = 5) private static String id;")),
             "Order.id (order 1)", "an annotated field must not be static");
     }
 
     @Test
     void staticAnnotatedCollection() {
         assertError(compile(order(
-                "@BookCollection(order = 1, maxOccurs = 2, dependsOn = \"x\")",
+                "@Occurs(order = 1, maxOccurs = 2, dependsOn = \"x\")",
                 "private static List<Line> lines;"), line()),
             "Order.lines (order 1)", "an annotated field must not be static");
     }
@@ -1117,10 +1117,10 @@ class ValidationTest {
     @Test
     void fieldWithBothAnnotations() {
         assertError(compile(order(
-                "@BookField(order = 1, length = 5) @BookCollection(order = 1, maxOccurs = 2)",
+                "@Field(order = 1, length = 5) @Occurs(order = 1, maxOccurs = 2)",
                 "private List<Line> lines;"), line()),
             "Order.lines (order 1)",
-            "a field must not have both @BookField and @BookCollection");
+            "a field must not have both @Field and @Occurs");
     }
 
     // ---- operation class ----
@@ -1128,35 +1128,35 @@ class ValidationTest {
     @Test
     void blankOperationName() {
         assertError(compile(source("Order",
-                "@BookOperation(\"  \") public class Order { }")),
+                "@Operation(\"  \") public class Order { }")),
             "Order", "operation name must not be blank");
     }
 
     @Test
     void operationClassNotPublic() {
-        assertError(compile(source("Order", "@BookOperation class Order { }")),
+        assertError(compile(source("Order", "@Operation class Order { }")),
             "Order", "operation class must be public");
     }
 
     @Test
     void operationOnEnumOrInterface() {
         Compilation compilation = compile(
-            source("Status", "@BookOperation public enum Status { OPEN }"),
-            source("Api", "@BookOperation public interface Api { }"));
-        assertError(compilation, "Status", "@BookOperation must be on a class");
-        assertError(compilation, "Api", "@BookOperation must be on a class");
+            source("Status", "@Operation public enum Status { OPEN }"),
+            source("Api", "@Operation public interface Api { }"));
+        assertError(compilation, "Status", "@Operation must be on a class");
+        assertError(compilation, "Api", "@Operation must be on a class");
     }
 
     @Test
     void operationClassAbstract() {
-        assertError(compile(source("Order", "@BookOperation public abstract class Order { }")),
+        assertError(compile(source("Order", "@Operation public abstract class Order { }")),
             "Order", "operation class must not be abstract");
     }
 
     @Test
     void operationClassWithoutNoArgConstructor() {
         Compilation compilation = compile(source("Order",
-            "@BookOperation public class Order {",
+            "@Operation public class Order {",
             "public Order(String id) { }",
             "Order() { }",
             "}"));
@@ -1166,29 +1166,29 @@ class ValidationTest {
     @Test
     void operationClassNonStaticInner() {
         assertError(compile(source("Outer", "public class Outer {",
-                "@BookOperation public class Inner { }",
+                "@Operation public class Inner { }",
                 "}")),
             "Inner", "operation class must be top-level or static");
     }
 
     @Test
     void operationClassGeneric() {
-        assertError(compile(source("Order", "@BookOperation public class Order<T> { }")),
+        assertError(compile(source("Order", "@Operation public class Order<T> { }")),
             "Order", "operation class must not be generic");
     }
 
     @Test
     void operationRecord() {
-        assertError(compile(source("Order", "@BookOperation public record Order(String id) { }")),
+        assertError(compile(source("Order", "@Operation public record Order(String id) { }")),
             "Order", "operation class must not be a record");
     }
 
     @Test
     void duplicateOperationName() {
         JavaFileObject findOrder = source("FindOrder",
-            "@BookOperation(\"GetOrder\") public class FindOrder { " + TestCompiler.ID_FIELD + " }");
+            "@Operation(\"GetOrder\") public class FindOrder { " + TestCompiler.ID_FIELD + " }");
         Compilation compilation = compile(
-            source("GetOrder", "@BookOperation public class GetOrder { " + TestCompiler.ID_FIELD + " }"),
+            source("GetOrder", "@Operation public class GetOrder { " + TestCompiler.ID_FIELD + " }"),
             findOrder);
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
@@ -1206,13 +1206,13 @@ class ValidationTest {
             Map.of(
                 "test.Shipment", "public class Shipment { }",
                 "test.ShipmentLine", String.join("\n", "public class ShipmentLine {",
-                    field("@BookField(order = 1, length = 5)", "String", "sku"), "}")));
+                    field("@Field(order = 1, length = 5)", "String", "sku"), "}")));
         Compilation compilation = compiler.compile(List.of(generator),
-            source("Order", "@BookOperation public class Order {",
-                field("@BookField(order = 1, length = 5, converter = ShipmentConverter.class)",
+            source("Order", "@Operation public class Order {",
+                field("@Field(order = 1, length = 5, converter = ShipmentConverter.class)",
                     "Shipment", "shipment"),
-                field("@BookField(order = 2, length = 3)", "int", "count"),
-                field("@BookCollection(order = 3, maxOccurs = 2, dependsOn = \"count\")",
+                field("@Field(order = 2, length = 3)", "int", "count"),
+                field("@Occurs(order = 3, maxOccurs = 2, dependsOn = \"count\")",
                     "List<ShipmentLine>", "lines"),
                 "}"),
             source("ShipmentConverter",
@@ -1229,10 +1229,10 @@ class ValidationTest {
     void superclassFromAnotherGeneratorDefersTheClass() {
         TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
             Map.of("test.Base", String.join("\n", "public class Base {",
-                field("@BookField(order = 1, length = 5)", "String", "id"), "}")));
+                field("@Field(order = 1, length = 5)", "String", "id"), "}")));
         Compilation compilation = compiler.compile(List.of(generator),
-            source("Order", "@BookOperation public class Order extends Base {",
-                field("@BookField(order = 2, length = 5)", "String", "code"),
+            source("Order", "@Operation public class Order extends Base {",
+                field("@Field(order = 2, length = 5)", "String", "code"),
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members()).extracting(ModelSnapshot.Member::owner)
@@ -1242,7 +1242,7 @@ class ValidationTest {
     @Test
     void unresolvedConverterIsLeftToJavac() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 5, converter = Missing.class)", "String", "id")));
+            field("@Field(order = 1, length = 5, converter = Missing.class)", "String", "id")));
         CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
@@ -1250,7 +1250,7 @@ class ValidationTest {
     @Test
     void unresolvedLengthConstantIsLeftToJavac() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = MISSING)", "String", "id")));
+            field("@Field(order = 1, length = MISSING)", "String", "id")));
         CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
@@ -1258,7 +1258,7 @@ class ValidationTest {
     @Test
     void unresolvedOperationNameConstantIsLeftToJavac() {
         Compilation compilation = compile(source("Order",
-            "@BookOperation(MISSING) public class Order { }"));
+            "@Operation(MISSING) public class Order { }"));
         CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
         assertThat(compiler.snapshots).isEmpty();
@@ -1273,7 +1273,7 @@ class ValidationTest {
                 "public byte[] encode(String v, FieldContext c) { return null; }",
                 "}")));
         Compilation compilation = compiler.compile(List.of(generator), order(
-            field("@BookField(order = 1, length = 5, converter = CodeConverter.class)", "String",
+            field("@Field(order = 1, length = 5, converter = CodeConverter.class)", "String",
                 "code")));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members().get(0).converter()).isEqualTo("test.CodeConverter");
@@ -1286,11 +1286,11 @@ class ValidationTest {
                 "@java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE_USE)",
                 "public @interface Nullable { }"),
             order(
-                field("@BookField(order = 1, length = 5)", "@Nullable Integer", "qty"),
-                "@BookField(order = 2, length = 5) private @Nullable String id;",
+                field("@Field(order = 1, length = 5)", "@Nullable Integer", "qty"),
+                "@Field(order = 2, length = 5) private @Nullable String id;",
                 "public String getId() { return id; }",
                 "public void setId(String v) { id = v; }",
-                field("@BookField(order = 3, length = 1, converter = FlagConverter.class)",
+                field("@Field(order = 3, length = 1, converter = FlagConverter.class)",
                     "@Nullable Boolean", "flag")),
             converter("FlagConverter",
                 "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
@@ -1301,7 +1301,7 @@ class ValidationTest {
 
     @Test
     void arrayTypeWithoutConverter() {
-        assertError(compile(order(field("@BookField(order = 1, length = 4)", "byte[]", "data"))),
+        assertError(compile(order(field("@Field(order = 1, length = 4)", "byte[]", "data"))),
             "Order.data (order 1)", "type byte[] is not supported without a converter");
     }
 
@@ -1321,7 +1321,7 @@ class ValidationTest {
 
         @Override
         public Set<String> getSupportedAnnotationTypes() {
-            return Set.of(ModelBuilder.BOOK_OPERATION);
+            return Set.of(ModelBuilder.OPERATION);
         }
 
         @Override
@@ -1344,7 +1344,7 @@ class ValidationTest {
     @Test
     void unresolvedFieldTypeIsReportedInTheLastRound() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 5)", "Missing", "missing")));
+            field("@Field(order = 1, length = 5)", "Missing", "missing")));
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
             .hadErrorContaining("Order.missing (order 1): type Missing is not supported");
@@ -1357,10 +1357,10 @@ class ValidationTest {
     void classResolvedInALaterRoundReportsItsErrorOneTime() {
         TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
             Map.of("test.Base", String.join("\n", "public class Base {",
-                field("@BookField(order = 1, length = 5)", "String", "id"), "}")));
+                field("@Field(order = 1, length = 5)", "String", "id"), "}")));
         Compilation compilation = compiler.compile(List.of(generator),
-            source("Order", "@BookOperation public class Order extends Base {",
-                field("@BookField(order = 2, length = 5, usage = Usage.COMP3)", "String", "code"),
+            source("Order", "@Operation public class Order extends Base {",
+                field("@Field(order = 2, length = 5, usage = Usage.COMP3)", "String", "code"),
                 "}"));
         assertError(compilation, "Order.code (order 2)", "COMP3 is not permitted for String");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -1372,8 +1372,8 @@ class ValidationTest {
         // round defers the class. Lombok starts one more round, in which its methods are visible.
         Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Order", "@lombok.Data @lombok.experimental.Accessors(chain = true)",
-                "@BookOperation public class Order {",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Operation public class Order {",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members().get(0).getter()).isEqualTo("getId");
@@ -1383,15 +1383,15 @@ class ValidationTest {
 
     @Test
     void invalidPic() {
-        assertError(compile(order(field("@BookField(order = 1, pic = \"9(3)P\")", "int", "qty"))),
+        assertError(compile(order(field("@Field(order = 1, pic = \"9(3)P\")", "int", "qty"))),
             "Order.qty (order 1)", "Invalid PIC string \"9(3)P\"");
     }
 
     @Test
     void picTogetherWithLength() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, pic = \"X(5)\", length = 5)", "String", "id"),
-            field("@BookField(order = 2, pic = \"S9(5)V99\", scale = 2, signed = false,"
+            field("@Field(order = 1, pic = \"X(5)\", length = 5)", "String", "id"),
+            field("@Field(order = 2, pic = \"S9(5)V99\", scale = 2, signed = false,"
                 + " usage = Usage.DISPLAY)", "BigDecimal", "rate")));
         assertError(compilation, "Order.id (order 1)", "pic must not be combined with length");
         assertError(compilation, "Order.rate (order 2)",
@@ -1400,29 +1400,29 @@ class ValidationTest {
 
     @Test
     void textPicOnInt() {
-        assertError(compile(order(field("@BookField(order = 1, pic = \"X(3)\")", "int", "qty"))),
+        assertError(compile(order(field("@Field(order = 1, pic = \"X(3)\")", "int", "qty"))),
             "Order.qty (order 1)", "a text pic is not permitted for int");
     }
 
     @Test
     void textPicOnBigDecimal() {
         assertError(compile(order(
-                field("@BookField(order = 1, pic = \"XXX\")", "BigDecimal", "rate"))),
+                field("@Field(order = 1, pic = \"XXX\")", "BigDecimal", "rate"))),
             "Order.rate (order 1)", "a text pic is not permitted for BigDecimal");
     }
 
     @Test
     void numericPicOnString() {
         assertError(compile(order(
-                field("@BookField(order = 1, pic = \"9(3)\")", "String", "code"))),
+                field("@Field(order = 1, pic = \"9(3)\")", "String", "code"))),
             "Order.code (order 1)", "a numeric pic is not permitted for String");
     }
 
     @Test
     void signedOrDecimalPicOnTemporal() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, pic = \"S9(8)\")", "LocalDate", "shipped"),
-            field("@BookField(order = 2, pic = \"9(6)V99\")", "LocalDate", "delivered")));
+            field("@Field(order = 1, pic = \"S9(8)\")", "LocalDate", "shipped"),
+            field("@Field(order = 2, pic = \"9(6)V99\")", "LocalDate", "delivered")));
         assertError(compilation, "Order.shipped (order 1)",
             "a signed pic is permitted only with COMP-3 for LocalDate");
         assertError(compilation, "Order.delivered (order 2)",
@@ -1432,20 +1432,20 @@ class ValidationTest {
     @Test
     void picUsageIsCheckedAgainstTheType() {
         assertError(compile(order(
-                field("@BookField(order = 1, pic = \"9(8) COMP\")", "LocalDate", "shipped"))),
+                field("@Field(order = 1, pic = \"9(8) COMP\")", "LocalDate", "shipped"))),
             "Order.shipped (order 1)", "COMP is not permitted for LocalDate");
     }
 
     @Test
     void emptyPicIsNotSet() {
-        assertError(compile(order(field("@BookField(order = 1, pic = \"\")", "String", "id"))),
+        assertError(compile(order(field("@Field(order = 1, pic = \"\")", "String", "id"))),
             "Order.id (order 1)", "pic or length is missing");
     }
 
     @Test
     void picOnConverterField() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, pic = \"S9(3) COMP-3\","
+            order(field("@Field(order = 1, pic = \"S9(3) COMP-3\","
                 + " converter = FlagConverter.class)", "Boolean", "flag")),
             converter("FlagConverter",
                 "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
@@ -1460,8 +1460,8 @@ class ValidationTest {
     @Test
     void literalErrorTextIsAValue() {
         Compilation compilation = compile(source("Order",
-            "@BookOperation(\"<error>\") public class Order {",
-            field("@BookField(order = 1, pic = \"<error>\")", "String", "id"),
+            "@Operation(\"<error>\") public class Order {",
+            field("@Field(order = 1, pic = \"<error>\")", "String", "id"),
             "}"));
         assertError(compilation, "Order.id (order 1)", "Invalid PIC string \"<error>\"");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -1470,7 +1470,7 @@ class ValidationTest {
     @Test
     void literalErrorTextAsOperationName() {
         Compilation compilation = compile(source("Order",
-            "@BookOperation(\"<error>\") public class Order { " + TestCompiler.ID_FIELD + " }"));
+            "@Operation(\"<error>\") public class Order { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().operationName()).isEqualTo("<error>");
     }
@@ -1480,8 +1480,8 @@ class ValidationTest {
     @Test
     void datePatternLengthMismatch() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 6)", "LocalDate", "shipped"),
-            field("@BookField(order = 2, pic = \"X(10)\", pattern = \"yyyyMMdd\")", "LocalDate",
+            field("@Field(order = 1, length = 6)", "LocalDate", "shipped"),
+            field("@Field(order = 2, pic = \"X(10)\", pattern = \"yyyyMMdd\")", "LocalDate",
                 "delivered")));
         assertError(compilation, "Order.shipped (order 1)",
             "length 6 does not agree with pattern 'yyyyMMdd' (8 characters)");
@@ -1492,8 +1492,8 @@ class ValidationTest {
     @Test
     void invalidDatePattern() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, pattern = \"yyyyMMdd{\")", "LocalDate", "shipped"),
-            field("@BookField(order = 2, length = 6, pattern = \"bb\")", "LocalTime", "time")));
+            field("@Field(order = 1, pattern = \"yyyyMMdd{\")", "LocalDate", "shipped"),
+            field("@Field(order = 2, length = 6, pattern = \"bb\")", "LocalTime", "time")));
         assertError(compilation, "Order.shipped (order 1)", "pattern 'yyyyMMdd{' is not valid");
         assertError(compilation, "Order.time (order 2)", "pattern 'bb' is not valid");
         CompilationSubject.assertThat(compilation).hadErrorCount(2);
@@ -1502,14 +1502,14 @@ class ValidationTest {
     @Test
     void datePatternWithVariableLength() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, pattern = \"yyyy-M-d\")", "LocalDate", "shipped"),
-            field("@BookField(order = 3, pattern = \"Hmmss\")", "LocalTime", "time"),
-            field("@BookField(order = 5, pattern = \"yyyyMMddhhmmssa\")", "LocalDateTime",
+            field("@Field(order = 1, pattern = \"yyyy-M-d\")", "LocalDate", "shipped"),
+            field("@Field(order = 3, pattern = \"Hmmss\")", "LocalTime", "time"),
+            field("@Field(order = 5, pattern = \"yyyyMMddhhmmssa\")", "LocalDateTime",
                 "created"),
-            field("@BookField(order = 6, pattern = \"yyyy-MM-dd H:mm:ss\")", "LocalDateTime",
+            field("@Field(order = 6, pattern = \"yyyy-MM-dd H:mm:ss\")", "LocalDateTime",
                 "changed"),
-            field("@BookField(order = 7, pattern = \"HHmmssn\")", "LocalTime", "stamp"),
-            field("@BookField(order = 8, pattern = \"HHmmssSSS\")", "LocalTime", "precise")));
+            field("@Field(order = 7, pattern = \"HHmmssn\")", "LocalTime", "stamp"),
+            field("@Field(order = 8, pattern = \"HHmmssSSS\")", "LocalTime", "precise")));
         assertError(compilation, "Order.shipped (order 1)",
             "pattern 'yyyy-M-d' gives text of variable length for LocalDate");
         assertError(compilation, "Order.time (order 3)",
@@ -1525,8 +1525,8 @@ class ValidationTest {
     void monthAndDayNamesHaveAFixedLengthInTheRootLocale() {
         // Locale.ROOT gives "Dec", "Jan", "Thu", "Wed" also for MMMM and EEEE.
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, pattern = \"yyyyMMMMdd\")", "LocalDate", "billed"),
-            field("@BookField(order = 2, pattern = \"yyyyMMddEEEE\")", "LocalDate", "due")));
+            field("@Field(order = 1, pattern = \"yyyyMMMMdd\")", "LocalDate", "billed"),
+            field("@Field(order = 2, pattern = \"yyyyMMddEEEE\")", "LocalDate", "due")));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members()).extracting(ModelSnapshot.Member::length)
             .containsExactly(9, 11);
@@ -1535,10 +1535,10 @@ class ValidationTest {
     @Test
     void datePatternThatDoesNotFitTheType() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, pattern = \"HHmmss\")", "LocalDate", "shipped"),
-            field("@BookField(order = 2, pattern = \"yyyyQQQQ-x\")", "LocalDate", "quarter"),
-            field("@BookField(order = 3, pattern = \"yyyyMMdd\")", "LocalDateTime", "created"),
-            field("@BookField(order = 4, pattern = \"hhmmss\")", "LocalTime", "time")));
+            field("@Field(order = 1, pattern = \"HHmmss\")", "LocalDate", "shipped"),
+            field("@Field(order = 2, pattern = \"yyyyQQQQ-x\")", "LocalDate", "quarter"),
+            field("@Field(order = 3, pattern = \"yyyyMMdd\")", "LocalDateTime", "created"),
+            field("@Field(order = 4, pattern = \"hhmmss\")", "LocalTime", "time")));
         assertError(compilation, "Order.shipped (order 1)",
             "pattern 'HHmmss' does not fit LocalDate");
         assertError(compilation, "Order.quarter (order 2)",
@@ -1552,7 +1552,7 @@ class ValidationTest {
     @Test
     void temporalLengthBelowOne() {
         Compilation compilation = compile(order(
-            field("@BookField(order = 1, length = 0)", "LocalDate", "shipped")));
+            field("@Field(order = 1, length = 0)", "LocalDate", "shipped")));
         assertError(compilation, "Order.shipped (order 1)", "length must be at least 1");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
@@ -1560,7 +1560,7 @@ class ValidationTest {
     @Test
     void patternOnConverterFieldIsNotChecked() {
         Compilation compilation = compile(
-            order(field("@BookField(order = 1, length = 1, pattern = \"{\","
+            order(field("@Field(order = 1, length = 1, pattern = \"{\","
                 + " converter = FlagConverter.class)", "Boolean", "flag")),
             converter("FlagConverter",
                 "public class FlagConverter implements FieldConverter<Boolean>", "Boolean"));
@@ -1573,9 +1573,9 @@ class ValidationTest {
     @Test
     void unknownCharsetInDefaults() {
         Compilation compilation = compile(
-            source("Order", "@BookDefaults(charset = \"NOPE\") @BookOperation",
+            source("Order", "@Defaults(charset = \"NOPE\") @Operation",
                 "public class Order { }"),
-            source("Invoice", "@BookDefaults(charset = \"bad name!\") @BookOperation",
+            source("Invoice", "@Defaults(charset = \"bad name!\") @Operation",
                 "public class Invoice { }"));
         assertError(compilation, "Order", "charset 'NOPE' is not supported");
         assertError(compilation, "Invoice", "charset 'bad name!' is not supported");
@@ -1583,7 +1583,7 @@ class ValidationTest {
 
     @Test
     void multiByteCharsetInDefaults() {
-        assertError(compile(source("Order", "@BookDefaults(charset = \"UTF-8\") @BookOperation",
+        assertError(compile(source("Order", "@Defaults(charset = \"UTF-8\") @Operation",
                 "public class Order { }")),
             "Order", "charset 'UTF-8' is not a single-byte charset");
     }
@@ -1591,7 +1591,7 @@ class ValidationTest {
     @Test
     void charsetThatCannotEncode() {
         assertError(compile(source("Order",
-                "@BookDefaults(charset = \"ISO-2022-CN\") @BookOperation",
+                "@Defaults(charset = \"ISO-2022-CN\") @Operation",
                 "public class Order { }")),
             "Order", "charset 'ISO-2022-CN' cannot encode text");
     }
@@ -1599,21 +1599,21 @@ class ValidationTest {
     @Test
     void unknownCharsetInPackageDefaults() {
         assertError(compile(
-                TestCompiler.packageInfo("test", "@BookDefaults(charset = \"NOPE\")"),
-                source("Order", "@BookOperation public class Order { }")),
+                TestCompiler.packageInfo("test", "@Defaults(charset = \"NOPE\")"),
+                source("Order", "@Operation public class Order { }")),
             "Order", "charset 'NOPE' is not supported");
     }
 
     @Test
     void differentCharsetOnItemClass() {
         Compilation compilation = compile(
-            source("Order", "@BookDefaults(charset = \"IBM037\") @BookOperation",
+            source("Order", "@Defaults(charset = \"IBM037\") @Operation",
                 "public class Order {",
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
                 "}"),
-            source("Line", "@BookDefaults(charset = \"IBM500\") public class Line {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"), "}"));
+            source("Line", "@Defaults(charset = \"IBM500\") public class Line {",
+                field("@Field(order = 1, length = 5)", "String", "sku"), "}"));
         assertError(compilation, "Order",
             "charset 'IBM500' of test.Line is different from the operation charset 'IBM037'");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -1622,10 +1622,10 @@ class ValidationTest {
     @Test
     void charsetOnSuperclassPackageWithoutOperationCharset() {
         Compilation compilation = compile(
-            TestCompiler.packageInfo("base", "@BookDefaults(charset = \"IBM500\")"),
+            TestCompiler.packageInfo("base", "@Defaults(charset = \"IBM500\")"),
             TestCompiler.sourceIn("base", "Base", "public class Base {",
-                field("@BookField(order = 1, length = 5)", "String", "id"), "}"),
-            source("Order", "@BookOperation public class Order extends base.Base { }"));
+                field("@Field(order = 1, length = 5)", "String", "id"), "}"),
+            source("Order", "@Operation public class Order extends base.Base { }"));
         assertError(compilation, "Order",
             "charset 'IBM500' of base.Base is different from the operation charset (none)");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -1634,11 +1634,11 @@ class ValidationTest {
     @Test
     void sameCharsetOnSuperclassAndItemClassIsAccepted() {
         Compilation compilation = compile(
-            TestCompiler.packageInfo("test", "@BookDefaults(charset = \"IBM500\")"),
-            source("Base", "@BookDefaults(charset = \"IBM500\") public class Base {",
-                field("@BookField(order = 1, length = 3)", "int", "count"), "}"),
-            source("Order", "@BookOperation public class Order extends Base {",
-                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+            TestCompiler.packageInfo("test", "@Defaults(charset = \"IBM500\")"),
+            source("Base", "@Defaults(charset = \"IBM500\") public class Base {",
+                field("@Field(order = 1, length = 3)", "int", "count"), "}"),
+            source("Order", "@Operation public class Order extends Base {",
+                field("@Occurs(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
                 "}"),
             line());
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -1648,11 +1648,11 @@ class ValidationTest {
     @Test
     void operationClassCharsetOverridesThePackageForItsPackage() {
         Compilation compilation = compile(
-            TestCompiler.packageInfo("test", "@BookDefaults(charset = \"IBM500\")"),
-            source("Order", "@BookDefaults(charset = \"IBM037\") @BookOperation",
+            TestCompiler.packageInfo("test", "@Defaults(charset = \"IBM500\")"),
+            source("Order", "@Defaults(charset = \"IBM037\") @Operation",
                 "public class Order {",
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
                 "}"),
             line());
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -1662,8 +1662,8 @@ class ValidationTest {
     @Test
     void unresolvedDefaultsValueIsLeftToJavac() {
         Compilation compilation = compile(source("Order",
-            "@BookDefaults(charset = MISSING) @BookOperation public class Order {",
-            field("@BookField(order = 1, length = 5)", "String", "id"),
+            "@Defaults(charset = MISSING) @Operation public class Order {",
+            field("@Field(order = 1, length = 5)", "String", "id"),
             "}"));
         CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);

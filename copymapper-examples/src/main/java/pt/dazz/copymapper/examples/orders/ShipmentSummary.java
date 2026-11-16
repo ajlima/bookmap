@@ -1,7 +1,7 @@
 package pt.dazz.copymapper.examples.orders;
 
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * One shipment in a list: 14 bytes.
@@ -9,9 +9,9 @@ import pt.dazz.copymapper.annotation.BookField;
 @Data
 public class ShipmentSummary {
 
-    @BookField(order = 10, pic = "X(12)")
+    @Field(order = 10, pic = "X(12)")
     private String shipmentId;
 
-    @BookField(order = 20, pic = "X(2)")
+    @Field(order = 20, pic = "X(2)")
     private String status;
 }

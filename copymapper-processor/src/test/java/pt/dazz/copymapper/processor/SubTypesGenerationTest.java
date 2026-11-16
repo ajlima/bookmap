@@ -43,33 +43,33 @@ class SubTypesGenerationTest {
     private static JavaFileObject getAccount(String modifiers, String discriminatorDirection,
                                              String... extraTypes) {
         return source("GetAccount",
-            "@BookOperation @BookSubTypes(discriminator = \"accountType\", value = {",
-            "  @BookSubTypes.Type(value = \"01\", type = CheckingAccount.class),",
-            "  @BookSubTypes.Type(value = \"02\", type = SavingsAccount.class)"
+            "@Operation @SubTypes(discriminator = \"accountType\", value = {",
+            "  @SubTypes.Type(value = \"01\", type = CheckingAccount.class),",
+            "  @SubTypes.Type(value = \"02\", type = SavingsAccount.class)"
                 + String.join("", extraTypes) + "})",
             "public " + modifiers + "class GetAccount {",
-            field("@BookField(order = 10, length = 12, direction = Direction.INPUT)", "String",
+            field("@Field(order = 10, length = 12, direction = Direction.INPUT)", "String",
                 "accountId"),
-            field("@BookField(order = 20, length = 2, direction = Direction."
+            field("@Field(order = 20, length = 2, direction = Direction."
                 + discriminatorDirection + ")", "int", "accountType"),
             "}");
     }
 
     private static JavaFileObject checking() {
         return source("CheckingAccount", "public class CheckingAccount extends GetAccount {",
-            field("@BookField(order = 30, length = 11, scale = 2, signed = true,"
+            field("@Field(order = 30, length = 11, scale = 2, signed = true,"
                 + " usage = Usage.COMP3, direction = Direction.OUTPUT)", "BigDecimal",
                 "overdraftLimit"),
-            field("@BookField(order = 40, length = 19, direction = Direction.OUTPUT)", "String",
+            field("@Field(order = 40, length = 19, direction = Direction.OUTPUT)", "String",
                 "cardNumberMask"),
             "}");
     }
 
     private static JavaFileObject savings() {
         return source("SavingsAccount", "public class SavingsAccount extends GetAccount {",
-            field("@BookField(order = 30, length = 5, scale = 4, direction = Direction.OUTPUT)",
+            field("@Field(order = 30, length = 5, scale = 4, direction = Direction.OUTPUT)",
                 "BigDecimal", "interestRate"),
-            field("@BookField(order = 40, direction = Direction.OUTPUT)", "LocalDate",
+            field("@Field(order = 40, direction = Direction.OUTPUT)", "LocalDate",
                 "maturityDate"),
             "}");
     }
@@ -295,13 +295,13 @@ class SubTypesGenerationTest {
     void textDiscriminatorIgnoresTrailingSpaces() {
         BookCodec<Object> codec = codec(
             source("Ledger",
-                "@BookOperation @BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"C\", type = CardEntry.class)})",
+                "@Operation @SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"C\", type = CardEntry.class)})",
                 "public abstract class Ledger {",
-                field("@BookField(order = 1, length = 3)", "String", "kind"),
+                field("@Field(order = 1, length = 3)", "String", "kind"),
                 "}"),
             source("CardEntry", "public class CardEntry extends Ledger {",
-                field("@BookField(order = 2, length = 2, direction = Direction.OUTPUT)",
+                field("@Field(order = 2, length = 2, direction = Direction.OUTPUT)",
                     "String", "code"),
                 "}"));
         Object card = codec.decodeRequest(bytes("C  "), LATIN);
@@ -317,13 +317,13 @@ class SubTypesGenerationTest {
     void numericValueNormalization() {
         BookCodec<Object> codec = codec(
             source("Numbered",
-                "@BookOperation @BookSubTypes(discriminator = \"code\", value = {",
-                "  @BookSubTypes.Type(value = \"001\", type = First.class)})",
+                "@Operation @SubTypes(discriminator = \"code\", value = {",
+                "  @SubTypes.Type(value = \"001\", type = First.class)})",
                 "public class Numbered {",
-                field("@BookField(order = 1, length = 3)", "Long", "code"),
+                field("@Field(order = 1, length = 3)", "Long", "code"),
                 "}"),
             source("First", "public class First extends Numbered {",
-                field("@BookField(order = 2, length = 1, direction = Direction.OUTPUT)",
+                field("@Field(order = 2, length = 1, direction = Direction.OUTPUT)",
                     "String", "flag"),
                 "}"));
         Object result = codec.readResponse(bytes("001Y"), codec.newInstance(), LATIN);
@@ -367,7 +367,7 @@ class SubTypesGenerationTest {
     @Test
     void listedBaseClassHasItsOwnValue() {
         BookCodec<Object> codec = codec(getAccount("", "INPUT_OUTPUT",
-            ", @BookSubTypes.Type(value = \"00\", type = GetAccount.class)"), checking(),
+            ", @SubTypes.Type(value = \"00\", type = GetAccount.class)"), checking(),
             savings());
         assertThat(codec.types()).extracting(Class::getSimpleName)
             .containsExactly("CheckingAccount", "SavingsAccount", "GetAccount");
@@ -382,18 +382,18 @@ class SubTypesGenerationTest {
     private BookCodec<Object> statements() {
         return codec(
             source("GetStatement",
-                "@BookOperation @BookSubTypes(discriminator = \"format\", value = {",
-                "  @BookSubTypes.Type(value = \"L\", type = LongStatement.class)})",
+                "@Operation @SubTypes(discriminator = \"format\", value = {",
+                "  @SubTypes.Type(value = \"L\", type = LongStatement.class)})",
                 "public class GetStatement {",
-                field("@BookField(order = 1, length = 1)", "String", "format"),
+                field("@Field(order = 1, length = 1)", "String", "format"),
                 "}"),
             source("LongStatement", "public class LongStatement extends GetStatement {",
-                field("@BookField(order = 2, length = 2, direction = Direction.OUTPUT)", "int",
+                field("@Field(order = 2, length = 2, direction = Direction.OUTPUT)", "int",
                     "lineCount"),
-                field("@BookCollection(order = 3, maxOccurs = 3)", "List<Line>", "lines"),
+                field("@Occurs(order = 3, maxOccurs = 3)", "List<Line>", "lines"),
                 "}"),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 4)", "String", "text"), "}"));
+                field("@Field(order = 1, length = 4)", "String", "text"), "}"));
     }
 
     @Test
@@ -420,21 +420,21 @@ class SubTypesGenerationTest {
     void copyIncludesBaseCollections() {
         BookCodec<Object> codec = codec(
             source("GetBatch",
-                "@BookOperation @BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"P\", type = PaidBatch.class)})",
+                "@Operation @SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"P\", type = PaidBatch.class)})",
                 "public class GetBatch {",
-                field("@BookField(order = 1, length = 1)", "String", "kind"),
-                field("@BookField(order = 2, length = 1, direction = Direction.INPUT)", "int",
+                field("@Field(order = 1, length = 1)", "String", "kind"),
+                field("@Field(order = 2, length = 1, direction = Direction.INPUT)", "int",
                     "lineCount"),
-                field("@BookCollection(order = 3, direction = Direction.INPUT, maxOccurs = 3)",
+                field("@Occurs(order = 3, direction = Direction.INPUT, maxOccurs = 3)",
                     "List<Line>", "lines"),
                 "}"),
             source("PaidBatch", "public class PaidBatch extends GetBatch {",
-                field("@BookField(order = 4, length = 2, direction = Direction.OUTPUT)",
+                field("@Field(order = 4, length = 2, direction = Direction.OUTPUT)",
                     "String", "status"),
                 "}"),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = 4)", "String", "text"), "}"));
+                field("@Field(order = 1, length = 4)", "String", "text"), "}"));
         Object batch = codec.newInstance();
         List<Object> lines = List.of(create(codec, "Line"));
         set(batch, "lines", lines);

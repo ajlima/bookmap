@@ -4,7 +4,7 @@ import java.util.List;
 import pt.dazz.copymapper.annotation.Direction;
 
 /**
- * Describes a generated {@code @BookField} field.
+ * Describes a generated {@code @Field} field.
  *
  * @param name the Java field name
  * @param javaType the Java type

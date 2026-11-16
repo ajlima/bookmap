@@ -9,15 +9,15 @@ import java.lang.annotation.Target;
  * Gives more than one layout to the end of a book (COBOL {@code REDEFINES}). A discriminator
  * field selects the layout. Each layout is a subtype of the annotated base class.
  *
- * <p>Put this annotation on an operation class (with {@code @BookOperation}) or on the item
- * class of a collection. The discriminator is a {@code @BookField} of the base class or of one of
+ * <p>Put this annotation on an operation class (with {@code @Operation}) or on the item
+ * class of a collection. The discriminator is a {@code @Field} of the base class or of one of
  * its superclasses. Each subtype member must come after all members of the base class.
  *
  * <pre>{@code
- * @BookOperation
- * @BookSubTypes(discriminator = "accountType", value = {
- *     @BookSubTypes.Type(value = "01", type = CheckingAccount.class),
- *     @BookSubTypes.Type(value = "02", type = SavingsAccount.class)
+ * @Operation
+ * @SubTypes(discriminator = "accountType", value = {
+ *     @SubTypes.Type(value = "01", type = CheckingAccount.class),
+ *     @SubTypes.Type(value = "02", type = SavingsAccount.class)
  * })
  * public class GetAccount { ... }
  * }</pre>
@@ -28,7 +28,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
-public @interface BookSubTypes {
+public @interface SubTypes {
 
     /**
      * Gives the name of the discriminator field.

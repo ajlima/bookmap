@@ -11,7 +11,7 @@ import javax.lang.model.element.TypeElement;
  *     nested collection. With subtypes, these are the members of the base class
  * @param byteLength the number of bytes of one entry. With subtypes, this is the length of the
  *     longest layout
- * @param subTypes the subtypes, or {@code null} if the class has no {@code @BookSubTypes}.
+ * @param subTypes the subtypes, or {@code null} if the class has no {@code @SubTypes}.
  *     The members of each variant are {@link FieldModel} instances
  */
 public record ItemModel(TypeElement type, List<MemberModel> members, int byteLength,

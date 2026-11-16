@@ -52,11 +52,11 @@ class GenerationTest {
     /** customerId (INPUT, 10, order 20), region (INPUT_OUTPUT, 2, order 10), name (OUTPUT, 30, order 30). */
     private static JavaFileObject customerProfile() {
         return source("CustomerProfile",
-            "@BookOperation public class CustomerProfile {",
-            field("@BookField(order = 20, length = 10, direction = Direction.INPUT)", "String",
+            "@Operation public class CustomerProfile {",
+            field("@Field(order = 20, length = 10, direction = Direction.INPUT)", "String",
                 "customerId"),
-            field("@BookField(order = 10, length = 2)", "String", "region"),
-            field("@BookField(order = 30, length = 30, direction = Direction.OUTPUT)", "String",
+            field("@Field(order = 10, length = 2)", "String", "region"),
+            field("@Field(order = 30, length = 30, direction = Direction.OUTPUT)", "String",
                 "name"),
             "}");
     }
@@ -174,24 +174,24 @@ class GenerationTest {
 
     private static JavaFileObject allTypes() {
         return source("AllTypes",
-            "@BookOperation public class AllTypes {",
-            field("@BookField(order = 1, length = 5)", "String", "text"),
-            field("@BookField(order = 2, length = 5)", "int", "count"),
-            field("@BookField(order = 3, length = 5, signed = true)", "Integer", "boxedCount"),
-            field("@BookField(order = 4, length = 12, usage = Usage.COMP)", "long", "total"),
-            field("@BookField(order = 5, length = 12, signed = true, usage = Usage.COMP3)",
+            "@Operation public class AllTypes {",
+            field("@Field(order = 1, length = 5)", "String", "text"),
+            field("@Field(order = 2, length = 5)", "int", "count"),
+            field("@Field(order = 3, length = 5, signed = true)", "Integer", "boxedCount"),
+            field("@Field(order = 4, length = 12, usage = Usage.COMP)", "long", "total"),
+            field("@Field(order = 5, length = 12, signed = true, usage = Usage.COMP3)",
                 "Long", "boxedTotal"),
-            field("@BookField(order = 6, length = 15, scale = 2, signed = true,"
+            field("@Field(order = 6, length = 15, scale = 2, signed = true,"
                 + " usage = Usage.COMP3)", "BigDecimal", "amount"),
-            field("@BookField(order = 7, length = 9, scale = 4, usage = Usage.COMP)",
+            field("@Field(order = 7, length = 9, scale = 4, usage = Usage.COMP)",
                 "BigDecimal", "rate"),
-            field("@BookField(order = 8)", "LocalDate", "day"),
-            field("@BookField(order = 9, pattern = \"HHmmss\")", "LocalTime", "time"),
-            field("@BookField(order = 10, pattern = \"yyyyMMddHHmmss\")", "LocalDateTime",
+            field("@Field(order = 8)", "LocalDate", "day"),
+            field("@Field(order = 9, pattern = \"HHmmss\")", "LocalTime", "time"),
+            field("@Field(order = 10, pattern = \"yyyyMMddHHmmss\")", "LocalDateTime",
                 "stamp"),
-            field("@BookField(order = 11, length = 1, converter = FlagConverter.class)",
+            field("@Field(order = 11, length = 1, converter = FlagConverter.class)",
                 "Boolean", "express"),
-            field("@BookField(order = 12, length = 1, converter = DigitConverter.class)", "int",
+            field("@Field(order = 12, length = 1, converter = DigitConverter.class)", "int",
                 "level"),
             "}");
     }
@@ -273,19 +273,19 @@ class GenerationTest {
 
     private static JavaFileObject counts() {
         return source("Counts",
-            "@BookOperation public class Counts {",
-            field("@BookField(order = 1, length = 3, direction = Direction.OUTPUT)", "int", "a"),
-            field("@BookField(order = 2, length = 5, direction = Direction.OUTPUT)", "long", "b"),
-            field("@BookField(order = 3, length = 3, direction = Direction.OUTPUT)", "Integer",
+            "@Operation public class Counts {",
+            field("@Field(order = 1, length = 3, direction = Direction.OUTPUT)", "int", "a"),
+            field("@Field(order = 2, length = 5, direction = Direction.OUTPUT)", "long", "b"),
+            field("@Field(order = 3, length = 3, direction = Direction.OUTPUT)", "Integer",
                 "c"),
-            field("@BookField(order = 4, length = 3, direction = Direction.OUTPUT)", "Long", "d"),
-            field("@BookField(order = 5, length = 9, usage = Usage.COMP,"
+            field("@Field(order = 4, length = 3, direction = Direction.OUTPUT)", "Long", "d"),
+            field("@Field(order = 5, length = 9, usage = Usage.COMP,"
                 + " direction = Direction.OUTPUT)", "int", "e"),
-            field("@BookField(order = 6, length = 9, usage = Usage.COMP,"
+            field("@Field(order = 6, length = 9, usage = Usage.COMP,"
                 + " direction = Direction.OUTPUT)", "Integer", "f"),
-            field("@BookField(order = 7, length = 18, usage = Usage.COMP,"
+            field("@Field(order = 7, length = 18, usage = Usage.COMP,"
                 + " direction = Direction.OUTPUT)", "long", "g"),
-            field("@BookField(order = 8, length = 18, usage = Usage.COMP,"
+            field("@Field(order = 8, length = 18, usage = Usage.COMP,"
                 + " direction = Direction.OUTPUT)", "Long", "h"),
             "}");
     }
@@ -388,16 +388,16 @@ class GenerationTest {
     void conventionAndExplicitFormsGiveSameBytes() {
         Compilation compilation = compiler.compile(
             source("Picked",
-                "@BookOperation public class Picked {",
-                field("@BookField(order = 1, pic = \"S9(13)V99 COMP-3\")", "BigDecimal",
+                "@Operation public class Picked {",
+                field("@Field(order = 1, pic = \"S9(13)V99 COMP-3\")", "BigDecimal",
                     "amount"),
-                field("@BookField(order = 2)", "LocalDate", "day"),
+                field("@Field(order = 2)", "LocalDate", "day"),
                 "}"),
             source("Explicit",
-                "@BookOperation public class Explicit {",
-                field("@BookField(order = 1, length = 15, scale = 2, signed = true,"
+                "@Operation public class Explicit {",
+                field("@Field(order = 1, length = 15, scale = 2, signed = true,"
                     + " usage = Usage.COMP3)", "BigDecimal", "amount"),
-                field("@BookField(order = 2, length = 8)", "LocalDate", "day"),
+                field("@Field(order = 2, length = 8)", "LocalDate", "day"),
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         BookCodec<Object> picked = CompiledCodec.load(compilation, "test.Picked");
@@ -418,12 +418,12 @@ class GenerationTest {
     void generatedOperationNameAndCharset() {
         Compilation compilation = compiler.compile(
             source("Shipment",
-                "@BookDefaults(charset = \"IBM500\") @BookOperation public class Shipment {",
-                field("@BookField(order = 1, length = 4)", "String", "id"),
+                "@Defaults(charset = \"IBM500\") @Operation public class Shipment {",
+                field("@Field(order = 1, length = 4)", "String", "id"),
                 "}"),
             source("Invoice",
-                "@BookOperation(\"INVQ\") public class Invoice {",
-                field("@BookField(order = 1, length = 4)", "String", "id"),
+                "@Operation(\"INVQ\") public class Invoice {",
+                field("@Field(order = 1, length = 4)", "String", "id"),
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
 
@@ -451,8 +451,8 @@ class GenerationTest {
     void nestedClassCodecName() {
         Compilation compilation = compiler.compile(source("Outer",
             "public class Outer {",
-            "@BookOperation public static class Inner {",
-            field("@BookField(order = 1, length = 4)", "String", "id"),
+            "@Operation public static class Inner {",
+            field("@Field(order = 1, length = 4)", "String", "id"),
             "}",
             "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -472,8 +472,8 @@ class GenerationTest {
     void converterNullIntoPrimitiveFails() {
         Compilation compilation = compiler.compile(
             source("Stock",
-                "@BookOperation public class Stock {",
-                field("@BookField(order = 4, length = 1, converter = DigitConverter.class)", "int",
+                "@Operation public class Stock {",
+                field("@Field(order = 4, length = 1, converter = DigitConverter.class)", "int",
                     "level"),
                 "}"),
             digitConverter());
@@ -508,8 +508,8 @@ class GenerationTest {
     private static String operation(String name) {
         return "package test;\n"
             + "import pt.dazz.copymapper.annotation.*;\n"
-            + "@BookOperation public class " + name + " {\n"
-            + field("@BookField(order = 1, length = 4)", "String", "id") + "\n"
+            + "@Operation public class " + name + " {\n"
+            + field("@Field(order = 1, length = 4)", "String", "id") + "\n"
             + "}\n";
     }
 
@@ -545,13 +545,13 @@ class GenerationTest {
         Compilation compilation = compiler.compile(
             source("Outer",
                 "public class Outer {",
-                "@BookOperation public static class Inner {",
-                field("@BookField(order = 1, length = 4)", "String", "id"),
+                "@Operation public static class Inner {",
+                field("@Field(order = 1, length = 4)", "String", "id"),
                 "}",
                 "}"),
             source("Outer_Inner",
-                "@BookOperation public class Outer_Inner {",
-                field("@BookField(order = 1, length = 4)", "String", "id"),
+                "@Operation public class Outer_Inner {",
+                field("@Field(order = 1, length = 4)", "String", "id"),
                 "}"));
 
         CompilationSubject.assertThat(compilation).failed();
@@ -562,18 +562,18 @@ class GenerationTest {
     @Test
     void namesOfGeneratedMembersDoNotCollide() {
         Compilation compilation = compiler.compile(source("Clash",
-            "@BookOperation public class Clash {",
-            field("@BookField(order = 1, length = 2)", "String", "orderId"),
-            field("@BookField(order = 2, length = 2)", "String", "order_id"),
-            field("@BookField(order = 3, length = 2)", "String", "ORDER_ID"),
-            field("@BookField(order = 4, length = 2)", "String", "data"),
-            field("@BookField(order = 5, length = 2)", "String", "ctx"),
-            field("@BookField(order = 6, length = 1, converter = FlagConverter.class)", "Boolean",
+            "@Operation public class Clash {",
+            field("@Field(order = 1, length = 2)", "String", "orderId"),
+            field("@Field(order = 2, length = 2)", "String", "order_id"),
+            field("@Field(order = 3, length = 2)", "String", "ORDER_ID"),
+            field("@Field(order = 4, length = 2)", "String", "data"),
+            field("@Field(order = 5, length = 2)", "String", "ctx"),
+            field("@Field(order = 6, length = 1, converter = FlagConverter.class)", "Boolean",
                 "flag"),
-            field("@BookField(order = 7, length = 1, converter = FlagConverter.class)", "Boolean",
+            field("@Field(order = 7, length = 1, converter = FlagConverter.class)", "Boolean",
                 "flagConverter"),
-            field("@BookField(order = 8)", "LocalDate", "day"),
-            field("@BookField(order = 9)", "LocalDate", "dayFormat"),
+            field("@Field(order = 8)", "LocalDate", "day"),
+            field("@Field(order = 9)", "LocalDate", "dayFormat"),
             "}"),
             flagConverter());
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -594,14 +594,14 @@ class GenerationTest {
     void collectionWithTheDefaultDirectionIsOnlyInTheResponse() {
         Compilation compilation = compiler.compile(
             source("Basket",
-                "@BookOperation public class Basket {",
-                field("@BookField(order = 1, length = 2)", "int", "lineCount"),
-                field("@BookCollection(order = 2, maxOccurs = 3)", "List<Line>", "lines"),
-                field("@BookField(order = 3, length = 4)", "String", "note"),
+                "@Operation public class Basket {",
+                field("@Field(order = 1, length = 2)", "int", "lineCount"),
+                field("@Occurs(order = 2, maxOccurs = 3)", "List<Line>", "lines"),
+                field("@Field(order = 3, length = 4)", "String", "note"),
                 "}"),
             source("Line",
                 "public class Line {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"),
+                field("@Field(order = 1, length = 5)", "String", "sku"),
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         BookCodec<Object> codec = CompiledCodec.load(compilation, "test.Basket");
@@ -620,14 +620,14 @@ class GenerationTest {
 
     private static JavaFileObject flags(String classAnnotations) {
         return source("Flags",
-            classAnnotations + " @BookOperation public class Flags {",
-            "@BookField(order = 1, length = 1, converter = FlagConverter.class)",
+            classAnnotations + " @Operation public class Flags {",
+            "@Field(order = 1, length = 1, converter = FlagConverter.class)",
             "private boolean isActive;",
-            "@BookField(order = 2, length = 1, converter = FlagConverter.class)",
+            "@Field(order = 2, length = 1, converter = FlagConverter.class)",
             "private Boolean isGift;",
-            "@BookField(order = 3, length = 1, converter = FlagConverter.class)",
+            "@Field(order = 3, length = 1, converter = FlagConverter.class)",
             "private boolean is_open;",
-            "@BookField(order = 4, length = 1, converter = FlagConverter.class)",
+            "@Field(order = 4, length = 1, converter = FlagConverter.class)",
             "private boolean is2fa;",
             "}");
     }

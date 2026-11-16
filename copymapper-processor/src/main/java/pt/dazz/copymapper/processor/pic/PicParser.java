@@ -11,7 +11,7 @@ import pt.dazz.copymapper.processor.pic.PicSpec.Category;
 
 /**
  * Parses a COBOL {@code PIC} string at compile time.
- * The syntax is in the Javadoc of {@link pt.dazz.copymapper.annotation.BookField#pic()}.
+ * The syntax is in the Javadoc of {@link pt.dazz.copymapper.annotation.Field#pic()}.
  * The parser uses a small hand-written scanner.
  */
 public final class PicParser {

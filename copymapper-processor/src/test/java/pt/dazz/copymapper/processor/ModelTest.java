@@ -35,7 +35,7 @@ class ModelTest {
     @Test
     void publicConstructorBuildsModels() {
         Compilation compilation = Compiler.javac().withProcessors(new CopyMapperProcessor())
-            .compile(TestCompiler.source("Order", "@BookOperation public class Order { " + TestCompiler.ID_FIELD + " }"));
+            .compile(TestCompiler.source("Order", "@Operation public class Order { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
     }
 

@@ -6,9 +6,9 @@ import static pt.dazz.copymapper.annotation.Direction.OUTPUT;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookCollection;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookOperation;
+import pt.dazz.copymapper.annotation.Occurs;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Operation;
 
 /**
  * Gives the lines of an order and the taxes of each line. The book has a table in a table
@@ -29,18 +29,18 @@ import pt.dazz.copymapper.annotation.BookOperation;
  * </pre>
  */
 @Data
-@BookOperation
+@Operation
 public class GetOrderTaxes {
 
-    @BookField(order = 10, pic = "X(10)", direction = INPUT)
+    @Field(order = 10, pic = "X(10)", direction = INPUT)
     private String orderId;
 
-    @BookField(order = 20, pic = "9(2)")
+    @Field(order = 20, pic = "9(2)")
     private int lineCount;
 
-    @BookCollection(order = 30, maxOccurs = 20)
+    @Occurs(order = 30, maxOccurs = 20)
     private List<TaxedOrderLine> lines;
 
-    @BookField(order = 40, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
+    @Field(order = 40, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
     private BigDecimal orderTotal;
 }

@@ -39,35 +39,35 @@ class RedefinesViewTest {
      */
     private static JavaFileObject[] shipment() {
         return new JavaFileObject[] {
-            source("GetShipment", "@BookOperation public class GetShipment {",
-                field("@BookField(order = 10, pic = \"X(10)\", direction = Direction.INPUT)",
+            source("GetShipment", "@Operation public class GetShipment {",
+                field("@Field(order = 10, pic = \"X(10)\", direction = Direction.INPUT)",
                     "String", "shipmentId"),
-                field("@BookField(order = 20, pic = \"X(16)\", direction = Direction.OUTPUT)",
+                field("@Field(order = 20, pic = \"X(16)\", direction = Direction.OUTPUT)",
                     "String", "trackingCode"),
-                field("@BookGroup(order = 30, redefines = \"trackingCode\")", "TrackingParts",
+                field("@Group(order = 30, redefines = \"trackingCode\")", "TrackingParts",
                     "trackingParts"),
-                field("@BookField(order = 40, pic = \"X(2)\", direction = Direction.OUTPUT)",
+                field("@Field(order = 40, pic = \"X(2)\", direction = Direction.OUTPUT)",
                     "String", "resultCode"),
-                field("@BookGroup(order = 50, direction = Direction.OUTPUT)", "ResultDetail",
+                field("@Group(order = 50, direction = Direction.OUTPUT)", "ResultDetail",
                     "resultDetail"),
-                field("@BookGroup(order = 60, redefines = \"resultDetail\")", "DeliveryData",
+                field("@Group(order = 60, redefines = \"resultDetail\")", "DeliveryData",
                     "deliveryData"),
-                field("@BookField(order = 70, pic = \"S9(7)V99 COMP-3\","
+                field("@Field(order = 70, pic = \"S9(7)V99 COMP-3\","
                     + " direction = Direction.OUTPUT)", "BigDecimal", "shippingCharge"),
                 "}"),
             source("TrackingParts", "public class TrackingParts {",
-                field("@BookField(order = 10, pic = \"X(4)\")", "String", "carrierCode"),
-                field("@BookField(order = 20, pic = \"9(6)\")", "int", "routeNumber"),
-                field("@BookField(order = 30, pic = \"9(6)\")", "int", "sequenceNumber"),
+                field("@Field(order = 10, pic = \"X(4)\")", "String", "carrierCode"),
+                field("@Field(order = 20, pic = \"9(6)\")", "int", "routeNumber"),
+                field("@Field(order = 30, pic = \"9(6)\")", "int", "sequenceNumber"),
                 "}"),
             source("ResultDetail", "public class ResultDetail {",
-                field("@BookField(order = 10, pic = \"X(40)\")", "String", "errorText"),
+                field("@Field(order = 10, pic = \"X(40)\")", "String", "errorText"),
                 "}"),
             source("DeliveryData", "public class DeliveryData {",
-                field("@BookField(order = 10, pic = \"9(8)\")", "LocalDate", "deliveryDate"),
-                field("@BookField(order = 20, pic = \"S9(5)V99 COMP-3\")", "BigDecimal",
+                field("@Field(order = 10, pic = \"9(8)\")", "LocalDate", "deliveryDate"),
+                field("@Field(order = 20, pic = \"S9(5)V99 COMP-3\")", "BigDecimal",
                     "deliveredWeight"),
-                field("@BookField(order = 30, pic = \"X(20)\")", "String", "signedBy"),
+                field("@Field(order = 30, pic = \"X(20)\")", "String", "signedBy"),
                 "}")};
     }
 
@@ -86,7 +86,7 @@ class RedefinesViewTest {
     /** An operation class with the given members. */
     private static JavaFileObject operation(String name, String... members) {
         List<String> lines = new ArrayList<>();
-        lines.add("@BookOperation public class " + name + " {");
+        lines.add("@Operation public class " + name + " {");
         lines.addAll(List.of(members));
         lines.add("}");
         return source(name, lines.toArray(String[]::new));
@@ -94,7 +94,7 @@ class RedefinesViewTest {
 
     private static JavaFileObject part() {
         return source("Part", "public class Part {",
-            field("@BookField(order = 1, pic = \"X(2)\")", "String", "code"), "}");
+            field("@Field(order = 1, pic = \"X(2)\")", "String", "code"), "}");
     }
 
     // ---- helpers ----
@@ -222,10 +222,10 @@ class RedefinesViewTest {
     @Test
     void aViewOfAnElementaryItemReadsAndWritesTheSameBytes() {
         BookCodec<Object> codec = codec("GetCode", operation("GetCode",
-            field("@BookField(order = 10, pic = \"X(4)\")", "String", "code"),
-            field("@BookField(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
+            field("@Field(order = 10, pic = \"X(4)\")", "String", "code"),
+            field("@Field(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
                 "number"),
-            field("@BookField(order = 30, pic = \"X(1)\")", "String", "trailer")));
+            field("@Field(order = 30, pic = \"X(1)\")", "String", "trailer")));
         Object target = read(codec, bytes("0042Z"));
         assertThat(get(target, "code")).isEqualTo("0042");
         assertThat(get(target, "number")).isEqualTo(42);
@@ -243,8 +243,8 @@ class RedefinesViewTest {
     @Test
     void aShorterViewIsFollowedBySpaces() {
         BookCodec<Object> codec = codec("GetCode", operation("GetCode",
-            field("@BookField(order = 10, pic = \"X(6)\")", "String", "code"),
-            field("@BookField(order = 20, pic = \"9(2)\", redefines = \"code\")", "Integer",
+            field("@Field(order = 10, pic = \"X(6)\")", "String", "code"),
+            field("@Field(order = 20, pic = \"9(2)\", redefines = \"code\")", "Integer",
                 "prefix")));
         Object value = codec.newInstance();
         CompiledCodec.set(value, "prefix", 12);
@@ -255,11 +255,11 @@ class RedefinesViewTest {
     @Test
     void aLongerViewGivesTheLengthOfTheArea() {
         BookCodec<Object> codec = codec("GetCode", operation("GetCode",
-            field("@BookField(order = 10, pic = \"X(2)\", direction = Direction.OUTPUT)",
+            field("@Field(order = 10, pic = \"X(2)\", direction = Direction.OUTPUT)",
                 "String", "code"),
-            field("@BookField(order = 20, pic = \"X(5)\", redefines = \"code\")", "String",
+            field("@Field(order = 20, pic = \"X(5)\", redefines = \"code\")", "String",
                 "longCode"),
-            field("@BookField(order = 30, pic = \"X(1)\", direction = Direction.OUTPUT)",
+            field("@Field(order = 30, pic = \"X(1)\", direction = Direction.OUTPUT)",
                 "String", "trailer")));
         assertThat(codec.maxResponseLength()).isEqualTo(6);
         Object target = read(codec, bytes("ABCDEZ"));
@@ -273,9 +273,9 @@ class RedefinesViewTest {
     @Test
     void aCollectionViewReadsAndWritesTheItems() {
         BookCodec<Object> codec = codec("GetParts", operation("GetParts",
-            field("@BookField(order = 10, pic = \"X(6)\", direction = Direction.OUTPUT)",
+            field("@Field(order = 10, pic = \"X(6)\", direction = Direction.OUTPUT)",
                 "String", "raw"),
-            field("@BookCollection(order = 20, maxOccurs = 3, fixed = true,"
+            field("@Occurs(order = 20, maxOccurs = 3, fixed = true,"
                 + " redefines = \"raw\")", "List<Part>", "parts")), part());
         Object target = read(codec, bytes("AABBCC"));
         assertThat((List<?>) get(target, "parts")).hasSize(3);
@@ -294,12 +294,12 @@ class RedefinesViewTest {
     @Test
     void anAreaInAnItemGivesTheItemPrefix() {
         BookCodec<Object> codec = codec("GetRoute", operation("GetRoute",
-                field("@BookField(order = 10, pic = \"9(2)\", direction = Direction.OUTPUT)",
+                field("@Field(order = 10, pic = \"9(2)\", direction = Direction.OUTPUT)",
                     "int", "stopCount"),
-                field("@BookCollection(order = 20, maxOccurs = 5)", "List<Stop>", "stops")),
+                field("@Occurs(order = 20, maxOccurs = 5)", "List<Stop>", "stops")),
             source("Stop", "public class Stop {",
-                field("@BookField(order = 1, pic = \"X(4)\")", "String", "code"),
-                field("@BookField(order = 2, pic = \"9(4)\", redefines = \"code\")", "Long",
+                field("@Field(order = 1, pic = \"X(4)\")", "String", "code"),
+                field("@Field(order = 2, pic = \"9(4)\", redefines = \"code\")", "Long",
                     "number"),
                 "}"));
         Object target = read(codec, bytes("021234ABCD"));
@@ -322,12 +322,12 @@ class RedefinesViewTest {
     @Test
     void aGroupViewCanHoldAnotherArea() {
         BookCodec<Object> codec = codec("GetLimits", operation("GetLimits",
-                field("@BookField(order = 10, pic = \"X(6)\")", "String", "raw"),
-                field("@BookGroup(order = 20, redefines = \"raw\")", "Limits", "limits")),
+                field("@Field(order = 10, pic = \"X(6)\")", "String", "raw"),
+                field("@Group(order = 20, redefines = \"raw\")", "Limits", "limits")),
             source("Limits", "public class Limits {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "kind"),
-                field("@BookField(order = 2, pic = \"X(4)\")", "String", "text"),
-                field("@BookField(order = 3, pic = \"9(4)\", redefines = \"text\")", "Integer",
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "kind"),
+                field("@Field(order = 2, pic = \"X(4)\")", "String", "text"),
+                field("@Field(order = 3, pic = \"9(4)\", redefines = \"text\")", "Integer",
                     "amount"),
                 "}"));
         Object target = read(codec, bytes("CR0500"));
@@ -344,18 +344,18 @@ class RedefinesViewTest {
     void aSubtypeCopiesTheMembersOfABaseArea() {
         BookCodec<Object> codec = codec("GetAccount",
             source("GetAccount",
-                "@BookOperation",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"S\", type = Savings.class)})",
+                "@Operation",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"S\", type = Savings.class)})",
                 "public class GetAccount {",
-                field("@BookField(order = 10, pic = \"X(4)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
+                field("@Field(order = 10, pic = \"X(4)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
                     "number"),
-                field("@BookField(order = 30, pic = \"X\")", "String", "kind"),
+                field("@Field(order = 30, pic = \"X\")", "String", "kind"),
                 "}"),
             source("Savings", "public class Savings extends GetAccount {",
-                field("@BookField(order = 40, pic = \"X(2)\")", "String", "rate"),
-                field("@BookField(order = 50, pic = \"9(2)\", redefines = \"rate\")", "Integer",
+                field("@Field(order = 40, pic = \"X(2)\")", "String", "rate"),
+                field("@Field(order = 50, pic = \"9(2)\", redefines = \"rate\")", "Integer",
                     "rateNumber"),
                 "}"));
         Object request = codec.newInstance();
@@ -369,8 +369,8 @@ class RedefinesViewTest {
     @Test
     void aFailureOfAConverterIsNotAnInvalidValue() {
         BookCodec<Object> codec = codec("GetFlag", operation("GetFlag",
-                field("@BookField(order = 10, pic = \"X(1)\")", "String", "code"),
-                field("@BookField(order = 20, length = 1, redefines = \"code\","
+                field("@Field(order = 10, pic = \"X(1)\")", "String", "code"),
+                field("@Field(order = 20, length = 1, redefines = \"code\","
                     + " converter = FailingConverter.class)", "String", "flag")),
             source("FailingConverter",
                 "public class FailingConverter implements FieldConverter<String> {",
@@ -387,8 +387,8 @@ class RedefinesViewTest {
     @Test
     void anUnknownEnumValueInAnAreaIsNull() {
         BookCodec<Object> codec = codec("GetStatus", operation("GetStatus",
-                field("@BookField(order = 10, pic = \"X(1)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"X(1)\", redefines = \"code\")", "Status",
+                field("@Field(order = 10, pic = \"X(1)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"X(1)\", redefines = \"code\")", "Status",
                     "status")),
             source("Status", "public enum Status {",
                 "  @CobolValue(\"A\") ACTIVE, @CobolValue(\"C\") CLOSED }"));
@@ -423,8 +423,8 @@ class RedefinesViewTest {
     void aViewMustNameAMemberOfTheClass() {
         assertError("GetCode.number (order 20): redefines member 'kode' does not exist in"
             + " GetCode", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(4)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"9(4)\", redefines = \"kode\")", "Integer",
+                field("@Field(order = 10, pic = \"X(4)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"9(4)\", redefines = \"kode\")", "Integer",
                     "number")));
     }
 
@@ -432,10 +432,10 @@ class RedefinesViewTest {
     void aViewMustNameTheRedefinedMember() {
         assertError("GetCode.text (order 30): redefines member 'number' is a view. Name the"
             + " redefined member 'code'", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(4)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
+                field("@Field(order = 10, pic = \"X(4)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
                     "number"),
-                field("@BookField(order = 30, pic = \"X(4)\", redefines = \"number\")", "String",
+                field("@Field(order = 30, pic = \"X(4)\", redefines = \"number\")", "String",
                     "text")));
     }
 
@@ -443,8 +443,8 @@ class RedefinesViewTest {
     void theRedefinedMemberMustComeFirst() {
         assertError("GetCode.number (order 10): redefines member 'code' must come before the"
             + " view", operation("GetCode",
-                field("@BookField(order = 20, pic = \"X(4)\")", "String", "code"),
-                field("@BookField(order = 10, pic = \"9(4)\", redefines = \"code\")", "Integer",
+                field("@Field(order = 20, pic = \"X(4)\")", "String", "code"),
+                field("@Field(order = 10, pic = \"9(4)\", redefines = \"code\")", "Integer",
                     "number")));
     }
 
@@ -452,9 +452,9 @@ class RedefinesViewTest {
     void aViewMustComeRightAfterTheRedefinedMember() {
         assertError("GetCode.number (order 30): a view must come right after the member it"
             + " redefines: GetCode.status (order 20) is between them", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(4)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"X(1)\")", "String", "status"),
-                field("@BookField(order = 30, pic = \"9(4)\", redefines = \"code\")", "Integer",
+                field("@Field(order = 10, pic = \"X(4)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"X(1)\")", "String", "status"),
+                field("@Field(order = 30, pic = \"9(4)\", redefines = \"code\")", "Integer",
                     "number")));
     }
 
@@ -462,8 +462,8 @@ class RedefinesViewTest {
     void aViewMustNotSetDirection() {
         assertError("GetCode.number (order 20): a view must not set direction. It uses the"
             + " direction of GetCode.code (order 10)", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(4)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"9(4)\", redefines = \"code\","
+                field("@Field(order = 10, pic = \"X(4)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"9(4)\", redefines = \"code\","
                     + " direction = Direction.OUTPUT)", "Integer", "number")));
     }
 
@@ -471,8 +471,8 @@ class RedefinesViewTest {
     void aMemberOfAnAreaMustNotBePrimitive() {
         assertError("GetCode.number (order 20): a member of a REDEFINES area must not have a"
             + " primitive type. Use Integer, Long, or BigDecimal", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(4)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"9(4)\", redefines = \"code\")", "int",
+                field("@Field(order = 10, pic = \"X(4)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"9(4)\", redefines = \"code\")", "int",
                     "number")));
     }
 
@@ -480,9 +480,9 @@ class RedefinesViewTest {
     void aCollectionInAnAreaMustBeFixedWithoutCount() {
         assertError("GetParts.parts (order 20): a collection in a REDEFINES area must have"
             + " fixed = true and no dependsOn", operation("GetParts",
-                field("@BookField(order = 5, pic = \"9\")", "int", "count"),
-                field("@BookField(order = 10, pic = \"X(6)\")", "String", "raw"),
-                field("@BookCollection(order = 20, maxOccurs = 3, fixed = true,"
+                field("@Field(order = 5, pic = \"9\")", "int", "count"),
+                field("@Field(order = 10, pic = \"X(6)\")", "String", "raw"),
+                field("@Occurs(order = 20, maxOccurs = 3, fixed = true,"
                     + " dependsOn = \"count\", redefines = \"raw\")", "List<Part>", "parts")),
             part());
     }
@@ -491,9 +491,9 @@ class RedefinesViewTest {
     void aCollectionInAnAreaMustNotBePartial() {
         assertError("GetParts.parts (order 20): partial is not permitted in a REDEFINES area",
             operation("GetParts",
-                field("@BookField(order = 10, pic = \"X(6)\", direction = Direction.OUTPUT)",
+                field("@Field(order = 10, pic = \"X(6)\", direction = Direction.OUTPUT)",
                     "String", "raw"),
-                field("@BookCollection(order = 20, maxOccurs = 3, fixed = true, partial = true,"
+                field("@Occurs(order = 20, maxOccurs = 3, fixed = true, partial = true,"
                     + " redefines = \"raw\")", "List<Part>", "parts")),
             part());
     }
@@ -502,9 +502,9 @@ class RedefinesViewTest {
     void aViewCollectionInAContinuableClassMustNotBeInputOutput() {
         assertError("GetParts.parts (order 20): an INPUT_OUTPUT collection is not permitted in"
             + " a Continuable class", source("GetParts",
-                "@BookOperation public class GetParts implements Continuable {",
-                field("@BookField(order = 10, pic = \"X(6)\")", "String", "raw"),
-                field("@BookCollection(order = 20, maxOccurs = 3, fixed = true,"
+                "@Operation public class GetParts implements Continuable {",
+                field("@Field(order = 10, pic = \"X(6)\")", "String", "raw"),
+                field("@Occurs(order = 20, maxOccurs = 3, fixed = true,"
                     + " redefines = \"raw\")", "List<Part>", "parts"),
                 "public boolean hasContinuation() { return false; }",
                 "}"),
@@ -515,10 +515,10 @@ class RedefinesViewTest {
     void aCountFieldMustNotBeInAnArea() {
         assertError("GetParts.parts (order 30): dependsOn field 'number' must not be in a"
             + " REDEFINES area", operation("GetParts",
-                field("@BookField(order = 10, pic = \"X(1)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"9\", redefines = \"code\")", "Integer",
+                field("@Field(order = 10, pic = \"X(1)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"9\", redefines = \"code\")", "Integer",
                     "number"),
-                field("@BookCollection(order = 30, maxOccurs = 3)", "List<Part>", "parts")),
+                field("@Occurs(order = 30, maxOccurs = 3)", "List<Part>", "parts")),
             part());
     }
 
@@ -526,47 +526,47 @@ class RedefinesViewTest {
     void aDiscriminatorMustNotBeInAnArea() {
         assertError("GetAccount.kind (order 20): discriminator must not be in a REDEFINES area",
             source("GetAccount",
-                "@BookOperation",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"S\", type = Savings.class)})",
+                "@Operation",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"S\", type = Savings.class)})",
                 "public class GetAccount {",
-                field("@BookField(order = 10, pic = \"X(1)\")", "String", "code"),
-                field("@BookField(order = 20, pic = \"X(1)\", redefines = \"code\")", "String",
+                field("@Field(order = 10, pic = \"X(1)\")", "String", "code"),
+                field("@Field(order = 20, pic = \"X(1)\", redefines = \"code\")", "String",
                     "kind"),
                 "}"),
             source("Savings", "public class Savings extends GetAccount {",
-                field("@BookField(order = 40, pic = \"X(2)\")", "String", "rate"), "}"));
+                field("@Field(order = 40, pic = \"X(2)\")", "String", "rate"), "}"));
     }
 
     @Test
     void anEmptyKeyMustNotBeInAnArea() {
         assertError("GetParts.parts (order 10): emptyKey field 'number' must not be in a"
             + " REDEFINES area", operation("GetParts",
-                field("@BookCollection(order = 10, maxOccurs = 3, fixed = true,"
+                field("@Occurs(order = 10, maxOccurs = 3, fixed = true,"
                     + " emptyKey = \"number\")", "List<Item>", "parts")),
             source("Item", "public class Item {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "code"),
-                field("@BookField(order = 2, pic = \"9(2)\", redefines = \"code\")", "Integer",
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "code"),
+                field("@Field(order = 2, pic = \"9(2)\", redefines = \"code\")", "Integer",
                     "number"),
                 "}"));
     }
 
     @Test
     void aGroupMustBeInAnArea() {
-        assertError("GetCode.detail (order 10): a @BookGroup must be in a REDEFINES area",
+        assertError("GetCode.detail (order 10): a @Group must be in a REDEFINES area",
             operation("GetCode",
-                field("@BookGroup(order = 10)", "Detail", "detail")),
+                field("@Group(order = 10)", "Detail", "detail")),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "code"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "code"), "}"));
     }
 
     @Test
     void aFieldMustHaveOnlyOneAnnotation() {
-        assertError("GetCode.detail (order 10): a field must have only one of @BookField,"
-            + " @BookCollection, and @BookGroup", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\") @BookGroup(order = 10)", "String",
+        assertError("GetCode.detail (order 10): a field must have only one of @Field,"
+            + " @Occurs, and @Group", operation("GetCode",
+                field("@Field(order = 10, pic = \"X(2)\") @Group(order = 10)", "String",
                     "detail"),
-                field("@BookField(order = 20, pic = \"X(2)\")", "String", "other")));
+                field("@Field(order = 20, pic = \"X(2)\")", "String", "other")));
     }
 
     @Test
@@ -574,80 +574,80 @@ class RedefinesViewTest {
         assertError("GetCode.detail (order 20): group class java.util.List<java.lang.String>"
             + " must be a public class with a public no-argument constructor",
             operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "List<String>",
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "List<String>",
                     "detail")));
         assertError("GetCode.detail (order 20): group class int must be a public class",
             operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "int", "detail")));
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "int", "detail")));
     }
 
     @Test
     void aGroupClassMustNotBeGeneric() {
         assertError("GetCode.detail (order 20): group class test.Detail must not have type"
             + " parameters", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail<String>",
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail<String>",
                     "detail")),
             source("Detail", "public class Detail<T> {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "code"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "code"), "}"));
     }
 
     @Test
     void aGroupClassMustHaveAField() {
         assertError("GetCode.detail (order 20): group class test.Detail must have at least one"
-            + " @BookField", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+            + " @Field", operation("GetCode",
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail", "detail")),
             source("Detail", "public class Detail { }"));
     }
 
     @Test
     void aGroupClassMustNotHaveSubtypes() {
         assertError("GetCode.detail (order 20): group class test.Detail must not have"
-            + " @BookSubTypes", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+            + " @SubTypes", operation("GetCode",
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail", "detail")),
             source("Detail",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"A\", type = Detail.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"A\", type = Detail.class)})",
                 "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "kind"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "kind"), "}"));
     }
 
     @Test
     void aGroupClassMustNotContainItself() {
         assertError("Detail.inner (order 2): group class Detail contains itself: Detail > Detail",
             operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail", "detail")),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"),
-                field("@BookGroup(order = 2, redefines = \"text\")", "Detail", "inner"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"),
+                field("@Group(order = 2, redefines = \"text\")", "Detail", "inner"), "}"));
     }
 
     @Test
     void aGroupInAGroupClassMustNotSetDirection() {
         assertError("Detail.inner (order 2): direction must not be set on an item field",
             operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail", "detail")),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"),
-                field("@BookGroup(order = 2, redefines = \"text\", direction = Direction.INPUT)",
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"),
+                field("@Group(order = 2, redefines = \"text\", direction = Direction.INPUT)",
                     "Inner", "inner"), "}"),
             source("Inner", "public class Inner {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "value"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "value"), "}"));
     }
 
     @Test
     void aGroupNeedsAccessors() {
         assertError("GetCode.detail (order 20): missing getter getDetail", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                "@BookGroup(order = 20, redefines = \"code\") private Detail detail;"),
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                "@Group(order = 20, redefines = \"code\") private Detail detail;"),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
     }
 
     // ---- more rules ----
@@ -655,8 +655,8 @@ class RedefinesViewTest {
     @Test
     void aViewOfAnUnresolvedMemberIsLeftToJavac() {
         Compilation compilation = compiler.compile(operation("GetCode",
-            field("@BookField(order = 10, length = MISSING)", "String", "code"),
-            field("@BookField(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
+            field("@Field(order = 10, length = MISSING)", "String", "code"),
+            field("@Field(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
                 "number")));
         CompilationSubject.assertThat(compilation).hadErrorContaining("cannot find symbol");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -665,8 +665,8 @@ class RedefinesViewTest {
     @Test
     void aViewOfAMemberWithErrorsGetsNoOtherError() {
         Compilation compilation = compiler.compile(operation("GetCode",
-            field("@BookField(order = 10, pic = \"Q(4)\")", "String", "code"),
-            field("@BookField(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
+            field("@Field(order = 10, pic = \"Q(4)\")", "String", "code"),
+            field("@Field(order = 20, pic = \"9(4)\", redefines = \"code\")", "Integer",
                 "number")));
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
@@ -674,21 +674,21 @@ class RedefinesViewTest {
 
     @Test
     void aFieldMustNotHaveBothBookCollectionAndBookGroup() {
-        assertError("GetCode.detail (order 10): a field must have only one of @BookField,"
-            + " @BookCollection, and @BookGroup", operation("GetCode",
-                field("@BookCollection(order = 10, maxOccurs = 2) @BookGroup(order = 10)",
+        assertError("GetCode.detail (order 10): a field must have only one of @Field,"
+            + " @Occurs, and @Group", operation("GetCode",
+                field("@Occurs(order = 10, maxOccurs = 2) @Group(order = 10)",
                     "List<Part>", "detail"),
-                field("@BookField(order = 20, pic = \"X(2)\")", "String", "other")), part());
+                field("@Field(order = 20, pic = \"X(2)\")", "String", "other")), part());
     }
 
     @Test
     void aVariableCollectionMustNotBeInAnArea() {
         assertError("GetParts.parts (order 20): a collection in a REDEFINES area must have"
             + " fixed = true and no dependsOn", operation("GetParts",
-                field("@BookField(order = 10, pic = \"9\")", "int", "count"),
-                field("@BookCollection(order = 20, maxOccurs = 3, dependsOn = \"count\")",
+                field("@Field(order = 10, pic = \"9\")", "int", "count"),
+                field("@Occurs(order = 20, maxOccurs = 3, dependsOn = \"count\")",
                     "List<Part>", "parts"),
-                field("@BookField(order = 30, pic = \"X(6)\", redefines = \"parts\")", "String",
+                field("@Field(order = 30, pic = \"X(6)\", redefines = \"parts\")", "String",
                     "raw")),
             part());
     }
@@ -696,16 +696,16 @@ class RedefinesViewTest {
     @Test
     void aContinuableClassAcceptsAnOutputCollectionInAnArea() {
         BookCodec<Object> codec = codec("GetParts", source("GetParts",
-                "@BookOperation public class GetParts implements Continuable {",
-                field("@BookCollection(order = 10, maxOccurs = 3, fixed = true)", "List<Part>",
+                "@Operation public class GetParts implements Continuable {",
+                field("@Occurs(order = 10, maxOccurs = 3, fixed = true)", "List<Part>",
                     "parts"),
-                field("@BookField(order = 20, pic = \"X(6)\", redefines = \"parts\")", "String",
+                field("@Field(order = 20, pic = \"X(6)\", redefines = \"parts\")", "String",
                     "raw"),
-                field("@BookField(order = 30, pic = \"X(6)\", direction = Direction.OUTPUT)",
+                field("@Field(order = 30, pic = \"X(6)\", direction = Direction.OUTPUT)",
                     "String", "next"),
-                field("@BookCollection(order = 40, maxOccurs = 3, fixed = true)", "List<Part>",
+                field("@Occurs(order = 40, maxOccurs = 3, fixed = true)", "List<Part>",
                     "more"),
-                field("@BookCollection(order = 50, maxOccurs = 3, fixed = true,"
+                field("@Occurs(order = 50, maxOccurs = 3, fixed = true,"
                     + " redefines = \"more\")", "List<Part>", "moreParts"),
                 "public boolean hasContinuation() { return false; }",
                 "}"),
@@ -718,12 +718,12 @@ class RedefinesViewTest {
     @Test
     void aGroupViewOfACollectionHasTheDirectionOfTheCollection() {
         compiler.compile(operation("GetParts",
-                field("@BookCollection(order = 10, maxOccurs = 1, fixed = true)", "List<Part>",
+                field("@Occurs(order = 10, maxOccurs = 1, fixed = true)", "List<Part>",
                     "parts"),
-                field("@BookGroup(order = 20, redefines = \"parts\")", "Detail", "detail")),
+                field("@Group(order = 20, redefines = \"parts\")", "Detail", "detail")),
             part(),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
         ModelSnapshot.Member area = compiler.only().members().get(0);
         assertThat(area.itemMembers()).extracting(ModelSnapshot.Member::direction)
             .containsExactly("OUTPUT", "OUTPUT");
@@ -732,13 +732,13 @@ class RedefinesViewTest {
     @Test
     void twoGroupsOfOneClassShareTheMethods() {
         BookCodec<Object> codec = codec("GetCodes", operation("GetCodes",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "first"),
-                field("@BookGroup(order = 20, redefines = \"first\")", "Detail", "firstDetail"),
-                field("@BookField(order = 30, pic = \"X(2)\")", "String", "second"),
-                field("@BookGroup(order = 40, redefines = \"second\")", "Detail",
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "first"),
+                field("@Group(order = 20, redefines = \"first\")", "Detail", "firstDetail"),
+                field("@Field(order = 30, pic = \"X(2)\")", "String", "second"),
+                field("@Group(order = 40, redefines = \"second\")", "Detail",
                     "secondDetail")),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
         Object target = read(codec, bytes("ABCD"));
         assertThat(get(target, "secondDetail", "text")).isEqualTo("CD");
     }
@@ -747,55 +747,55 @@ class RedefinesViewTest {
     void aGroupCycleNamesOnlyTheClassesInTheCycle() {
         assertError("Detail.inner (order 2): group class Detail contains itself: Detail > Detail",
             operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Outer", "outer")),
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Outer", "outer")),
             source("Outer", "public class Outer {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"),
-                field("@BookGroup(order = 2, redefines = \"text\")", "Detail", "detail"), "}"),
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"),
+                field("@Group(order = 2, redefines = \"text\")", "Detail", "detail"), "}"),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"),
-                field("@BookGroup(order = 2, redefines = \"text\")", "Detail", "inner"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"),
+                field("@Group(order = 2, redefines = \"text\")", "Detail", "inner"), "}"));
     }
 
     @Test
     void aGroupNeedsASetter() {
         assertError("GetCode.detail (order 20): missing setter setDetail", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                "@BookGroup(order = 20, redefines = \"code\") private Detail detail;"
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                "@Group(order = 20, redefines = \"code\") private Detail detail;"
                     + " public Detail getDetail() { return detail; }"),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
     }
 
     @Test
     void aFieldOfAGroupClassNeedsAccessors() {
         assertError("Detail.text (order 1): missing getter getText", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail", "detail")),
             source("Detail", "public class Detail {",
-                "@BookField(order = 1, pic = \"X(2)\") private String text;", "}"));
+                "@Field(order = 1, pic = \"X(2)\") private String text;", "}"));
     }
 
     @Test
     void aGroupClassMustNotBeTooLong() {
         assertError("GetCode.detail (order 20): group class Detail has 3000000000 bytes, more"
             + " than the maximum of 2147483647 bytes", operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail", "detail")),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, length = 1500000000)", "String", "first"),
-                field("@BookField(order = 2, length = 1500000000)", "String", "second"), "}"));
+                field("@Field(order = 1, length = 1500000000)", "String", "first"),
+                field("@Field(order = 2, length = 1500000000)", "String", "second"), "}"));
     }
 
     @Test
     void theFieldsOfAGroupHaveTheDirectionOfTheArea() {
         compiler.compile(operation("GetParts",
-                field("@BookCollection(order = 10, maxOccurs = 1, fixed = true)", "List<Part>",
+                field("@Occurs(order = 10, maxOccurs = 1, fixed = true)", "List<Part>",
                     "parts"),
-                field("@BookGroup(order = 20, redefines = \"parts\")", "Detail", "detail")),
+                field("@Group(order = 20, redefines = \"parts\")", "Detail", "detail")),
             part(),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
         ModelSnapshot.Member group = compiler.only().members().get(0).itemMembers().get(1);
         assertThat(group.itemMembers().get(0).direction()).isEqualTo("OUTPUT");
     }
@@ -803,13 +803,13 @@ class RedefinesViewTest {
     @Test
     void aGroupInAnItemClassHasTheDirectionOfTheCollection() {
         compiler.compile(operation("GetStops",
-                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true,"
+                field("@Occurs(order = 10, maxOccurs = 2, fixed = true,"
                     + " direction = Direction.INPUT)", "List<Stop>", "stops")),
             source("Stop", "public class Stop {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 2, redefines = \"code\")", "Detail", "detail"), "}"),
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 2, redefines = \"code\")", "Detail", "detail"), "}"),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "text"), "}"));
         ModelSnapshot.Member area = compiler.only().members().get(0).itemMembers().get(0);
         ModelSnapshot.Member group = area.itemMembers().get(1);
         assertThat(group.direction()).isEqualTo("INPUT");
@@ -820,21 +820,21 @@ class RedefinesViewTest {
     void aGroupClassMustNotHaveADuplicateOrder() {
         assertError("Detail.second (order 1): duplicate order, also used by Detail.first",
             operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail", "detail")),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, pic = \"X(1)\")", "String", "first"),
-                field("@BookField(order = 1, pic = \"X(1)\")", "String", "second"), "}"));
+                field("@Field(order = 1, pic = \"X(1)\")", "String", "first"),
+                field("@Field(order = 1, pic = \"X(1)\")", "String", "second"), "}"));
     }
 
     @Test
     void aGroupClassCanHaveTheMaximumLength() {
         Compilation compilation = compiler.compile(operation("GetCode",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "code"),
-                field("@BookGroup(order = 20, redefines = \"code\")", "Detail", "detail")),
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "code"),
+                field("@Group(order = 20, redefines = \"code\")", "Detail", "detail")),
             source("Detail", "public class Detail {",
-                field("@BookField(order = 1, length = 1073741824)", "String", "first"),
-                field("@BookField(order = 2, length = 1073741823)", "String", "second"), "}"));
+                field("@Field(order = 1, length = 1073741824)", "String", "first"),
+                field("@Field(order = 2, length = 1073741823)", "String", "second"), "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members().get(0).byteLength()).isEqualTo(Integer.MAX_VALUE);
     }

@@ -74,7 +74,7 @@ class JavaClassGeneratorTest {
         String operation = files.get(0).toString();
         assertThat(operation).contains("direction = Direction.OUTPUT", "private String code;",
             "redefines = \"code\"", "private Integer number;", "private Long total;",
-            "@BookGroup(", "private Detail detail;", "private List<Parts> parts;",
+            "@Group(", "private Detail detail;", "private List<Parts> parts;",
             "public static final Integer ZERO_NUM = 0;",
             "return number != null && (number == 0);",
             "return total != null && (total.compareTo(1L) >= 0 && total.compareTo(9L) <= 0);")

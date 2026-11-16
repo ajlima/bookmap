@@ -27,7 +27,7 @@ class ErrorReportingTest {
     /** An item class with one text field. */
     private static JavaFileObject line() {
         return source("Line", "public class Line {",
-            field("@BookField(order = 1, length = 5)", "String", "sku"), "}");
+            field("@Field(order = 1, length = 5)", "String", "sku"), "}");
     }
 
     /** A converter class for {@code String} values. */
@@ -51,11 +51,11 @@ class ErrorReportingTest {
     void errorOfASharedSuperclassIsReportedOneTime() {
         Compilation compilation = compiler.compile(
             source("Base", "public class Base {",
-                field("@BookField(order = 1)", "String", "code"), "}"),
-            source("GetOrder", "@BookOperation public class GetOrder extends Base {",
-                field("@BookField(order = 2, length = 5)", "String", "id"), "}"),
-            source("CancelOrder", "@BookOperation public class CancelOrder extends Base {",
-                field("@BookField(order = 2, length = 5)", "String", "id"), "}"));
+                field("@Field(order = 1)", "String", "code"), "}"),
+            source("GetOrder", "@Operation public class GetOrder extends Base {",
+                field("@Field(order = 2, length = 5)", "String", "id"), "}"),
+            source("CancelOrder", "@Operation public class CancelOrder extends Base {",
+                field("@Field(order = 2, length = 5)", "String", "id"), "}"));
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
             .hadErrorContaining("Base.code (order 1): pic or length is missing");
@@ -70,11 +70,11 @@ class ErrorReportingTest {
             Map.of("test.CodeConverter", codeConverter()));
         Compilation compilation = compiler.compile(List.of(generator),
             source("Base", "public class Base {",
-                field("@BookField(order = 1)", "String", "code"), "}"),
-            source("GetOrder", "@BookOperation public class GetOrder extends Base {",
-                field("@BookField(order = 2, length = 5)", "String", "id"), "}"),
-            source("CancelOrder", "@BookOperation public class CancelOrder extends Base {",
-                field("@BookField(order = 2, length = 5, converter = CodeConverter.class)",
+                field("@Field(order = 1)", "String", "code"), "}"),
+            source("GetOrder", "@Operation public class GetOrder extends Base {",
+                field("@Field(order = 2, length = 5)", "String", "id"), "}"),
+            source("CancelOrder", "@Operation public class CancelOrder extends Base {",
+                field("@Field(order = 2, length = 5, converter = CodeConverter.class)",
                     "String", "id"), "}"));
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
@@ -85,14 +85,14 @@ class ErrorReportingTest {
     @Test
     void errorOfASharedItemClassIsReportedOneTime() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                field("@BookField(order = 1, length = 3)", "int", "lineCount"),
-                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
-                field("@BookField(order = 3, length = 3)", "int", "backorderCount"),
-                field("@BookCollection(order = 4, maxOccurs = 2)", "List<Line>", "backorders"),
+            source("Order", "@Operation public class Order {",
+                field("@Field(order = 1, length = 3)", "int", "lineCount"),
+                field("@Occurs(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+                field("@Field(order = 3, length = 3)", "int", "backorderCount"),
+                field("@Occurs(order = 4, maxOccurs = 2)", "List<Line>", "backorders"),
                 "}"),
             source("Line", "public class Line {",
-                field("@BookField(order = 1)", "String", "sku"), "}"));
+                field("@Field(order = 1)", "String", "sku"), "}"));
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
             .hadErrorContaining("Line.sku (order 1): pic or length is missing");
@@ -102,10 +102,10 @@ class ErrorReportingTest {
     @Test
     void sameMessageOnTwoFieldsIsReportedForEachField() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                field("@BookField(order = 1)", "String", "code"), "}"),
-            source("Invoice", "@BookOperation public class Invoice {",
-                field("@BookField(order = 1)", "String", "code"), "}"));
+            source("Order", "@Operation public class Order {",
+                field("@Field(order = 1)", "String", "code"), "}"),
+            source("Invoice", "@Operation public class Invoice {",
+                field("@Field(order = 1)", "String", "code"), "}"));
         CompilationSubject.assertThat(compilation)
             .hadErrorContaining("Order.code (order 1): pic or length is missing");
         CompilationSubject.assertThat(compilation)
@@ -120,7 +120,7 @@ class ErrorReportingTest {
         TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
             Map.of("test.Paged", "public interface Paged extends Continuable { }"));
         Compilation compilation = compiler.compile(List.of(generator),
-            source("Order", "@BookOperation public class Order implements Paged {",
+            source("Order", "@Operation public class Order implements Paged {",
                 TestCompiler.ID_FIELD,
                 "public boolean hasContinuation() { return false; }",
                 "}"));
@@ -134,7 +134,7 @@ class ErrorReportingTest {
             Map.of("test.Checked", "public interface Checked extends Validatable { }"));
         Compilation compilation = compiler.compile(List.of(generator),
             source("Audited", "public interface Audited extends Checked { }"),
-            source("Order", "@BookOperation public class Order implements Audited {",
+            source("Order", "@Operation public class Order implements Audited {",
                 TestCompiler.ID_FIELD,
                 "public void validate() { }",
                 "}"));
@@ -147,9 +147,9 @@ class ErrorReportingTest {
         TestCompiler.GeneratingProcessor generator = new TestCompiler.GeneratingProcessor(
             Map.of("test.Paged", "public interface Paged extends Continuable { }"));
         Compilation compilation = compiler.compile(List.of(generator),
-            source("Order", "@BookOperation public class Order implements Paged {",
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2,"
+            source("Order", "@Operation public class Order implements Paged {",
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2,"
                     + " direction = Direction.INPUT_OUTPUT)", "List<Line>", "lines"),
                 "public boolean hasContinuation() { return false; }",
                 "}"),
@@ -163,7 +163,7 @@ class ErrorReportingTest {
     @Test
     void missingInterfaceIsLeftToJavac() {
         assertOnlyJavacError(compiler.compile(
-            source("Order", "@BookOperation public class Order implements Missing {",
+            source("Order", "@Operation public class Order implements Missing {",
                 TestCompiler.ID_FIELD, "}")));
         assertThat(compiler.snapshots).isEmpty();
     }
@@ -177,9 +177,9 @@ class ErrorReportingTest {
         Compilation compilation = compiler.compileWithProcessors(
             List.of(compiler.processor(), lombok()),
             source("Order", "@lombok.Data @lombok.experimental.Accessors(chain = true)",
-                "@BookOperation public class Order {",
-                "@BookField(order = 1, length = 5) private String id;",
-                "@BookField(order = 2) private String code;",
+                "@Operation public class Order {",
+                "@Field(order = 1, length = 5) private String id;",
+                "@Field(order = 2) private String code;",
                 "}"));
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation)
@@ -192,10 +192,10 @@ class ErrorReportingTest {
     @Test
     void unresolvedCountFieldDoesNotGiveAnotherCountField() {
         assertOnlyJavacError(compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                field("@BookField(order = 1, length = 5)", "String", "id"),
-                field("@BookField(order = 2, length = MISSING)", "int", "count"),
-                field("@BookCollection(order = 3, maxOccurs = 2)", "List<Line>", "lines"),
+            source("Order", "@Operation public class Order {",
+                field("@Field(order = 1, length = 5)", "String", "id"),
+                field("@Field(order = 2, length = MISSING)", "int", "count"),
+                field("@Occurs(order = 3, maxOccurs = 2)", "List<Line>", "lines"),
                 "}"),
             line()));
     }
@@ -203,9 +203,9 @@ class ErrorReportingTest {
     @Test
     void unresolvedDependsOnFieldIsNotReportedAsMissing() {
         assertOnlyJavacError(compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                field("@BookField(order = 1, length = MISSING)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2, dependsOn = \"count\")",
+            source("Order", "@Operation public class Order {",
+                field("@Field(order = 1, length = MISSING)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2, dependsOn = \"count\")",
                     "List<Line>", "lines"),
                 "}"),
             line()));
@@ -214,36 +214,36 @@ class ErrorReportingTest {
     @Test
     void unresolvedDiscriminatorIsNotReportedAsMissing() {
         assertOnlyJavacError(compiler.compile(
-            source("GetAccount", "@BookOperation @BookSubTypes(discriminator = \"kind\","
-                    + " value = @BookSubTypes.Type(value = \"01\", type = Checking.class))",
+            source("GetAccount", "@Operation @SubTypes(discriminator = \"kind\","
+                    + " value = @SubTypes.Type(value = \"01\", type = Checking.class))",
                 "public class GetAccount {",
-                field("@BookField(order = 1, length = MISSING)", "int", "kind"),
+                field("@Field(order = 1, length = MISSING)", "int", "kind"),
                 "}"),
             source("Checking", "public class Checking extends GetAccount {",
-                field("@BookField(order = 2, length = 5)", "String", "card"), "}")));
+                field("@Field(order = 2, length = 5)", "String", "card"), "}")));
     }
 
     @Test
     void unresolvedEmptyKeyIsNotReportedAsMissing() {
         assertOnlyJavacError(compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                field("@BookCollection(order = 1, maxOccurs = 2, fixed = true,"
+            source("Order", "@Operation public class Order {",
+                field("@Occurs(order = 1, maxOccurs = 2, fixed = true,"
                     + " emptyKey = \"sku\")", "List<Line>", "lines"),
                 "}"),
             source("Line", "public class Line {",
-                field("@BookField(order = 1, length = MISSING)", "String", "sku"),
-                field("@BookField(order = 2, length = 3)", "int", "qty"), "}")));
+                field("@Field(order = 1, length = MISSING)", "String", "sku"),
+                field("@Field(order = 2, length = 3)", "int", "qty"), "}")));
     }
 
     @Test
     void unresolvedOperationCharsetIsNotComparedWithOtherCharsets() {
         assertOnlyJavacError(compiler.compile(
-            source("Order", "@BookDefaults(charset = MISSING) @BookOperation",
+            source("Order", "@Defaults(charset = MISSING) @Operation",
                 "public class Order {",
-                field("@BookField(order = 1, length = 3)", "int", "count"),
-                field("@BookCollection(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
+                field("@Field(order = 1, length = 3)", "int", "count"),
+                field("@Occurs(order = 2, maxOccurs = 2)", "List<Line>", "lines"),
                 "}"),
-            source("Line", "@BookDefaults(charset = \"IBM500\") public class Line {",
-                field("@BookField(order = 1, length = 5)", "String", "sku"), "}")));
+            source("Line", "@Defaults(charset = \"IBM500\") public class Line {",
+                field("@Field(order = 1, length = 5)", "String", "sku"), "}")));
     }
 }

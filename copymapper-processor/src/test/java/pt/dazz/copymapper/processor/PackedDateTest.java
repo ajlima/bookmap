@@ -29,7 +29,7 @@ class PackedDateTest {
     }
 
     private static JavaFileObject order(String... members) {
-        return source("Order", "@BookOperation public class Order {",
+        return source("Order", "@Operation public class Order {",
             String.join("\n", members), "}");
     }
 
@@ -51,16 +51,16 @@ class PackedDateTest {
     @Test
     void eachTypeWritesPackedDigitsAndReadsThemBack() {
         BookCodec<Object> codec = codec("test.Order", order(
-            field("@BookField(order = 1, pic = \"S9(8) COMP-3\")", "LocalDate", "orderDate"),
-            field("@BookField(order = 2, pic = \"9(7) COMP-3\", pattern = \"yyyyDDD\")",
+            field("@Field(order = 1, pic = \"S9(8) COMP-3\")", "LocalDate", "orderDate"),
+            field("@Field(order = 2, pic = \"9(7) COMP-3\", pattern = \"yyyyDDD\")",
                 "LocalDate", "shipDate"),
-            field("@BookField(order = 3, pic = \"S9(7) COMP-3\", pattern = \"'0'HHmmss\")",
+            field("@Field(order = 3, pic = \"S9(7) COMP-3\", pattern = \"'0'HHmmss\")",
                 "LocalTime", "shipTime"),
-            field("@BookField(order = 4, usage = Usage.COMP3, signed = true,"
+            field("@Field(order = 4, usage = Usage.COMP3, signed = true,"
                 + " pattern = \"yyyyMMddHHmmss\")", "LocalDateTime", "lastUpdate"),
-            field("@BookField(order = 5, usage = Usage.COMP3, pattern = \"HHmm\")", "LocalTime",
+            field("@Field(order = 5, usage = Usage.COMP3, pattern = \"HHmm\")", "LocalTime",
                 "cutOff"),
-            field("@BookField(order = 6, pic = \"9(8) COMP-3\")", "LocalDate", "noDate")));
+            field("@Field(order = 6, pic = \"9(8) COMP-3\")", "LocalDate", "noDate")));
         Object value = codec.newInstance();
         CompiledCodec.set(value, "orderDate", LocalDate.of(2026, 11, 13));
         CompiledCodec.set(value, "shipDate", LocalDate.of(2026, 11, 13));
@@ -86,12 +86,12 @@ class PackedDateTest {
     @Test
     void packedDateInACollectionItem() {
         BookCodec<Object> codec = codec("test.Shipment",
-            source("Shipment", "@BookOperation public class Shipment {",
-                field("@BookCollection(order = 1, maxOccurs = 2, fixed = true)",
+            source("Shipment", "@Operation public class Shipment {",
+                field("@Occurs(order = 1, maxOccurs = 2, fixed = true)",
                     "List<Stop>", "stops"),
                 "}"),
             source("Stop", "public class Stop {",
-                field("@BookField(order = 1, pic = \"S9(8) COMP-3\")", "LocalDate", "arrival"),
+                field("@Field(order = 1, pic = \"S9(8) COMP-3\")", "LocalDate", "arrival"),
                 "}"));
         Object shipment = codec.newInstance();
         Object stop;
@@ -117,11 +117,11 @@ class PackedDateTest {
     @Test
     void patternMustGiveDigitsOnly() {
         Compilation compilation = compiler.compile(order(
-            field("@BookField(order = 1, pic = \"S9(10) COMP-3\", pattern = \"yyyy-MM-dd\")",
+            field("@Field(order = 1, pic = \"S9(10) COMP-3\", pattern = \"yyyy-MM-dd\")",
                 "LocalDate", "shipped"),
-            field("@BookField(order = 2, usage = Usage.COMP3, pattern = \"HH:mm\")",
+            field("@Field(order = 2, usage = Usage.COMP3, pattern = \"HH:mm\")",
                 "LocalTime", "cutOff"),
-            field("@BookField(order = 3, pic = \"X(10)\", pattern = \"yyyy-MM-dd\")",
+            field("@Field(order = 3, pic = \"X(10)\", pattern = \"yyyy-MM-dd\")",
                 "LocalDate", "textDate")));
         assertError(compilation, "Order.shipped (order 1)", "pattern 'yyyy-MM-dd' gives"
             + " characters that are not digits, but a COMP3 field holds only digits");
@@ -133,7 +133,7 @@ class PackedDateTest {
     @Test
     void lengthMustAgreeWithThePattern() {
         assertError(compiler.compile(order(
-                field("@BookField(order = 1, pic = \"S9(7) COMP-3\")", "LocalDate", "shipped"))),
+                field("@Field(order = 1, pic = \"S9(7) COMP-3\")", "LocalDate", "shipped"))),
             "Order.shipped (order 1)",
             "length 7 does not agree with pattern 'yyyyMMdd' (8 characters)");
     }
@@ -141,14 +141,14 @@ class PackedDateTest {
     @Test
     void signAndScaleRules() {
         Compilation compilation = compiler.compile(order(
-            field("@BookField(order = 1, pic = \"S9(6)V99 COMP-3\")", "LocalDate", "decimal"),
-            field("@BookField(order = 2, pic = \"S9(8)\")", "LocalDate", "zoned"),
-            field("@BookField(order = 3, signed = true)", "LocalDate", "signedText"),
-            field("@BookField(order = 4, usage = Usage.COMP3, scale = 0)", "LocalDate",
+            field("@Field(order = 1, pic = \"S9(6)V99 COMP-3\")", "LocalDate", "decimal"),
+            field("@Field(order = 2, pic = \"S9(8)\")", "LocalDate", "zoned"),
+            field("@Field(order = 3, signed = true)", "LocalDate", "signedText"),
+            field("@Field(order = 4, usage = Usage.COMP3, scale = 0)", "LocalDate",
                 "scaled"),
-            field("@BookField(order = 5, usage = Usage.COMP3, signed = true,"
+            field("@Field(order = 5, usage = Usage.COMP3, signed = true,"
                 + " sign = Sign.LEADING)", "LocalDate", "leading"),
-            field("@BookField(order = 6, pic = \"9(8) COMP\")", "LocalDate", "binary")));
+            field("@Field(order = 6, pic = \"9(8) COMP\")", "LocalDate", "binary")));
         assertError(compilation, "Order.decimal (order 1)",
             "a decimal pic is not permitted for LocalDate");
         assertError(compilation, "Order.zoned (order 2)",
@@ -164,8 +164,8 @@ class PackedDateTest {
     @Test
     void defaultUsageDoesNotApplyToDates() {
         BookCodec<Object> codec = codec("test.Order", source("Order",
-            "@BookOperation @BookDefaults(usage = Usage.COMP3) public class Order {",
-            field("@BookField(order = 1)", "LocalDate", "orderDate"),
+            "@Operation @Defaults(usage = Usage.COMP3) public class Order {",
+            field("@Field(order = 1)", "LocalDate", "orderDate"),
             "}"));
         Object value = codec.newInstance();
         CompiledCodec.set(value, "orderDate", LocalDate.of(2026, 11, 13));

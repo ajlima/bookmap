@@ -36,34 +36,34 @@ class EmptyItemMarkerTest {
     /** lines (fixed, maxOccurs 3, with the given attributes), trailer (2). */
     private static JavaFileObject listLines(String itemType, String attributes) {
         return source("ListLines",
-            "@BookOperation public class ListLines {",
-            field("@BookField(order = 5, pic = \"9(1)\")", "int", "lineCount"),
-            field("@BookCollection(order = 10, maxOccurs = 3, fixed = true" + attributes + ")",
+            "@Operation public class ListLines {",
+            field("@Field(order = 5, pic = \"9(1)\")", "int", "lineCount"),
+            field("@Occurs(order = 10, maxOccurs = 3, fixed = true" + attributes + ")",
                 "List<" + itemType + ">", "lines"),
-            field("@BookField(order = 20, pic = \"X(2)\")", "String", "trailer"),
+            field("@Field(order = 20, pic = \"X(2)\")", "String", "trailer"),
             "}");
     }
 
     /** productCode (4), quantity (3): 7 bytes. */
     private static JavaFileObject orderLine() {
         return source("OrderLine", "public class OrderLine {",
-            field("@BookField(order = 1, pic = \"X(4)\")", "String", "productCode"),
-            field("@BookField(order = 2, pic = \"9(3)\")", "int", "quantity"),
+            field("@Field(order = 1, pic = \"X(4)\")", "String", "productCode"),
+            field("@Field(order = 2, pic = \"9(3)\")", "int", "quantity"),
             "}");
     }
 
     /** note (3): text only. */
     private static JavaFileObject noteLine() {
         return source("NoteLine", "public class NoteLine {",
-            field("@BookField(order = 1, pic = \"X(3)\")", "String", "note"), "}");
+            field("@Field(order = 1, pic = \"X(3)\")", "String", "note"), "}");
     }
 
     /** note (1), productId (COMP-3, 5 digits, 3 bytes), units (COMP, 2 bytes): 6 bytes. */
     private static JavaFileObject numberLine() {
         return source("NumberLine", "public class NumberLine {",
-            field("@BookField(order = 1, pic = \"X\")", "String", "note"),
-            field("@BookField(order = 2, pic = \"S9(5) COMP-3\")", "Long", "productId"),
-            field("@BookField(order = 3, pic = \"9(4) COMP\")", "int", "units"),
+            field("@Field(order = 1, pic = \"X\")", "String", "note"),
+            field("@Field(order = 2, pic = \"S9(5) COMP-3\")", "Long", "productId"),
+            field("@Field(order = 3, pic = \"9(4) COMP\")", "int", "units"),
             "}");
     }
 
@@ -235,14 +235,14 @@ class EmptyItemMarkerTest {
     void keyOfASubtypeItemIsAFieldOfTheBaseClass() {
         BookCodec<Object> codec = codec(listLines("Entry", ", emptyKey = \"reference\""),
             source("Entry",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"C\", type = CardEntry.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"C\", type = CardEntry.class)})",
                 "public abstract class Entry {",
-                field("@BookField(order = 1, pic = \"X\")", "String", "kind"),
-                field("@BookField(order = 2, pic = \"X(2)\")", "String", "reference"),
+                field("@Field(order = 1, pic = \"X\")", "String", "kind"),
+                field("@Field(order = 2, pic = \"X(2)\")", "String", "reference"),
                 "}"),
             source("CardEntry", "public class CardEntry extends Entry {",
-                field("@BookField(order = 3, pic = \"9(2)\")", "int", "amount"), "}"));
+                field("@Field(order = 3, pic = \"9(2)\")", "int", "amount"), "}"));
         assertThat(decodedLines(codec, bytes("0CR142?  99?  99OK"), LATIN))
             .extracting(e -> CompiledCodec.get(e, "amount")).containsExactly(42);
     }
@@ -272,13 +272,13 @@ class EmptyItemMarkerTest {
     @Test
     void markersNeedAFixedCollection() {
         Compilation compilation = compiler.compile(source("ListLines",
-            "@BookOperation public class ListLines {",
-            field("@BookField(order = 5, pic = \"9(1)\")", "int", "lineCount"),
-            field("@BookCollection(order = 10, maxOccurs = 3, emptyItem = EmptyItem.SPACES)",
+            "@Operation public class ListLines {",
+            field("@Field(order = 5, pic = \"9(1)\")", "int", "lineCount"),
+            field("@Occurs(order = 10, maxOccurs = 3, emptyItem = EmptyItem.SPACES)",
                 "List<OrderLine>", "lines"),
-            field("@BookCollection(order = 20, maxOccurs = 3, dependsOn = \"lineCount2\","
+            field("@Occurs(order = 20, maxOccurs = 3, dependsOn = \"lineCount2\","
                 + " emptyKey = \"productCode\")", "List<OrderLine>", "others"),
-            field("@BookField(order = 15, pic = \"9(1)\")", "int", "lineCount2"),
+            field("@Field(order = 15, pic = \"9(1)\")", "int", "lineCount2"),
             "}"), orderLine());
         CompilationSubject.assertThat(compilation).failed();
         CompilationSubject.assertThat(compilation).hadErrorContaining(
@@ -304,13 +304,13 @@ class EmptyItemMarkerTest {
     void emptyKeyMustNotBeAFieldOfASubtype() {
         Compilation compilation = compiler.compile(listLines("Entry", ", emptyKey = \"amount\""),
             source("Entry",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"C\", type = CardEntry.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"C\", type = CardEntry.class)})",
                 "public abstract class Entry {",
-                field("@BookField(order = 1, pic = \"X\")", "String", "kind"),
+                field("@Field(order = 1, pic = \"X\")", "String", "kind"),
                 "}"),
             source("CardEntry", "public class CardEntry extends Entry {",
-                field("@BookField(order = 2, pic = \"9(2)\")", "int", "amount"), "}"));
+                field("@Field(order = 2, pic = \"9(2)\")", "int", "amount"), "}"));
         CompilationSubject.assertThat(compilation).hadErrorContaining("ListLines.lines (order"
             + " 10): emptyKey field 'amount' is not a field of item class test.Entry");
     }
@@ -319,7 +319,7 @@ class EmptyItemMarkerTest {
     void emptyKeyMustBeTextOrNumber() {
         assertError(", emptyKey = \"shipDate\"", "DatedLine",
             source("DatedLine", "public class DatedLine {",
-                field("@BookField(order = 1)", "LocalDate", "shipDate"), "}"),
+                field("@Field(order = 1)", "LocalDate", "shipDate"), "}"),
             "emptyKey field 'shipDate' must be String or a number without a converter");
     }
 
@@ -328,7 +328,7 @@ class EmptyItemMarkerTest {
         Compilation compilation = compiler.compile(listLines("EmptyLine",
             ", emptyKey = \"code\""), source("EmptyLine", "public class EmptyLine {", "}"));
         CompilationSubject.assertThat(compilation).hadErrorContaining(
-            "item class test.EmptyLine must have at least one @BookField");
+            "item class test.EmptyLine must have at least one @Field");
         CompilationSubject.assertThat(compilation).hadErrorCount(1);
     }
 
@@ -344,7 +344,7 @@ class EmptyItemMarkerTest {
     void numberKeyCanBeBigDecimal() {
         BookCodec<Object> codec = codec(listLines("PriceLine", ", emptyKey = \"price\""),
             source("PriceLine", "public class PriceLine {",
-                field("@BookField(order = 1, pic = \"9V9\")", "BigDecimal", "price"), "}"));
+                field("@Field(order = 1, pic = \"9V9\")", "BigDecimal", "price"), "}"));
         assertThat(decodedLines(codec, bytes("0120000OK"), LATIN))
             .extracting(l -> CompiledCodec.get(l, "price"))
             .containsExactly(new BigDecimal("1.2"));

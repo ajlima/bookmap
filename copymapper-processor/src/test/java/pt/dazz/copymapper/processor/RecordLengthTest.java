@@ -25,7 +25,7 @@ class RecordLengthTest {
     }
 
     private static String text(int order, String pic, String name) {
-        return field("@BookField(order = " + order + ", " + pic + ")", "String", name);
+        return field("@Field(order = " + order + ", " + pic + ")", "String", name);
     }
 
     private static String large(int order, String name) {
@@ -33,12 +33,12 @@ class RecordLengthTest {
     }
 
     private static JavaFileObject operation(String... members) {
-        return source("GetShipments", "@BookOperation public class GetShipments {",
+        return source("GetShipments", "@Operation public class GetShipments {",
             String.join("\n", members), "}");
     }
 
     private static String lines(int maxOccurs, String type) {
-        return field("@BookCollection(order = 10, maxOccurs = " + maxOccurs + ", fixed = true)",
+        return field("@Occurs(order = 10, maxOccurs = " + maxOccurs + ", fixed = true)",
             "List<" + type + ">", "lines");
     }
 
@@ -60,7 +60,7 @@ class RecordLengthTest {
 
     @Test
     void rejectsAFieldLongerThanTheMaximum() {
-        assertOnlyError(compiler.compile(operation(field("@BookField(order = 1, pic ="
+        assertOnlyError(compiler.compile(operation(field("@Field(order = 1, pic ="
                 + " \"S9(999999999)9(999999999)9(147483649) SIGN LEADING SEPARATE\")",
                 "BigDecimal", "amount"))),
             "GetShipments.amount (order 1): the field has 2147483648 bytes, " + MAX);
@@ -68,7 +68,7 @@ class RecordLengthTest {
 
     @Test
     void acceptsAFieldOfTheMaximumLength() {
-        Compilation compilation = compiler.compile(operation(field("@BookField(order = 1, pic ="
+        Compilation compilation = compiler.compile(operation(field("@Field(order = 1, pic ="
             + " \"S9(999999999)9(999999999)9(147483648) SIGN LEADING SEPARATE\")", "BigDecimal",
             "amount")));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -95,11 +95,11 @@ class RecordLengthTest {
     @Test
     void recordCountsBothDirections() {
         assertOnlyError(compiler.compile(operation(
-                field("@BookField(order = 1, " + LARGE + ", direction = Direction.INPUT)",
+                field("@Field(order = 1, " + LARGE + ", direction = Direction.INPUT)",
                     "String", "a"),
-                field("@BookField(order = 2, " + LARGE + ", direction = Direction.INPUT)",
+                field("@Field(order = 2, " + LARGE + ", direction = Direction.INPUT)",
                     "String", "b"),
-                field("@BookField(order = 3, " + LARGE + ", direction = Direction.OUTPUT)",
+                field("@Field(order = 3, " + LARGE + ", direction = Direction.OUTPUT)",
                     "String", "c"))),
             "GetShipments: the record has 2999999997 bytes, " + MAX);
     }
@@ -131,7 +131,7 @@ class RecordLengthTest {
     void innerCollectionErrorIsNotReportedAgain() {
         assertOnlyError(compiler.compile(operation(lines(2, "ShipmentPackage")),
                 item("ShipmentPackage",
-                    field("@BookCollection(order = 1, maxOccurs = 3000, fixed = true)",
+                    field("@Occurs(order = 1, maxOccurs = 3000, fixed = true)",
                         "List<ShipmentLine>", "items")),
                 item("ShipmentLine", text(1, "pic = \"X(1000000)\"", "a"))),
             "ShipmentPackage.items (order 1): the collection has 3000000000 bytes (maxOccurs 3000"
@@ -142,9 +142,9 @@ class RecordLengthTest {
     void rejectsAnItemSubtypeLongerThanTheMaximum() {
         assertOnlyError(compiler.compile(operation(lines(1, "ShipmentLine")),
                 source("ShipmentLine",
-                    "@BookSubTypes(discriminator = \"kind\", value = {",
-                    "  @BookSubTypes.Type(value = \"S\", type = SmallLine.class),",
-                    "  @BookSubTypes.Type(value = \"H\", type = HugeLine.class)})",
+                    "@SubTypes(discriminator = \"kind\", value = {",
+                    "  @SubTypes.Type(value = \"S\", type = SmallLine.class),",
+                    "  @SubTypes.Type(value = \"H\", type = HugeLine.class)})",
                     "public abstract class ShipmentLine {",
                     text(1, "length = 1", "kind"), "}"),
                 source("SmallLine", "public class SmallLine extends ShipmentLine {",
@@ -159,9 +159,9 @@ class RecordLengthTest {
     void rejectsAnOperationSubtypeLongerThanTheMaximum() {
         assertOnlyError(compiler.compile(
                 source("GetShipments",
-                    "@BookOperation @BookSubTypes(discriminator = \"kind\", value = {",
-                    "  @BookSubTypes.Type(value = \"S\", type = SmallShipments.class),",
-                    "  @BookSubTypes.Type(value = \"H\", type = HugeShipments.class)})",
+                    "@Operation @SubTypes(discriminator = \"kind\", value = {",
+                    "  @SubTypes.Type(value = \"S\", type = SmallShipments.class),",
+                    "  @SubTypes.Type(value = \"H\", type = HugeShipments.class)})",
                     "public class GetShipments {",
                     text(1, "length = 1", "kind"), "}"),
                 source("SmallShipments", "public class SmallShipments extends GetShipments {",
@@ -175,8 +175,8 @@ class RecordLengthTest {
     void rejectsAnOperationBaseLayoutLongerThanTheMaximum() {
         assertOnlyError(compiler.compile(
                 source("GetShipments",
-                    "@BookOperation @BookSubTypes(discriminator = \"kind\", value = {",
-                    "  @BookSubTypes.Type(value = \"S\", type = SmallShipments.class)})",
+                    "@Operation @SubTypes(discriminator = \"kind\", value = {",
+                    "  @SubTypes.Type(value = \"S\", type = SmallShipments.class)})",
                     "public class GetShipments {",
                     text(1, "length = 1", "kind"), large(2, "a"), large(3, "b"),
                     large(4, "c"), "}"),
@@ -190,8 +190,8 @@ class RecordLengthTest {
     private static JavaFileObject[] itemWithSubtype(int rest) {
         return new JavaFileObject[] {
             source("ShipmentLine",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"H\", type = HugeLine.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"H\", type = HugeLine.class)})",
                 "public abstract class ShipmentLine {",
                 text(1, "length = 1", "kind"), "}"),
             source("HugeLine", "public class HugeLine extends ShipmentLine {",
@@ -218,8 +218,8 @@ class RecordLengthTest {
     private Compilation operationWithSubtype(String base, String extra) {
         return compiler.compile(
             source("GetShipments",
-                "@BookOperation @BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"H\", type = HugeShipments.class)})",
+                "@Operation @SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"H\", type = HugeShipments.class)})",
                 "public abstract class GetShipments {",
                 text(1, "length = 1", "kind"), large(2, "a"), large(3, "b"),
                 text(4, "pic = \"X(" + base + ")\"", "c"), "}"),

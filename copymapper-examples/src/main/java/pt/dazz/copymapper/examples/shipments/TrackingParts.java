@@ -1,7 +1,7 @@
 package pt.dazz.copymapper.examples.shipments;
 
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * The parts of a tracking code: a view of the same 16 bytes.
@@ -9,12 +9,12 @@ import pt.dazz.copymapper.annotation.BookField;
 @Data
 public class TrackingParts {
 
-    @BookField(order = 10, pic = "X(4)")
+    @Field(order = 10, pic = "X(4)")
     private String carrierCode;
 
-    @BookField(order = 20, pic = "9(6)")
+    @Field(order = 20, pic = "9(6)")
     private int routeNumber;
 
-    @BookField(order = 30, pic = "9(6)")
+    @Field(order = 30, pic = "9(6)")
     private int sequenceNumber;
 }

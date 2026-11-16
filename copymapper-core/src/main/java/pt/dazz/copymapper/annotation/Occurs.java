@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.CLASS)
-public @interface BookCollection {
+public @interface Occurs {
 
     /**
      * Gives the position of the table in the book. Lower values come first.
@@ -98,7 +98,7 @@ public @interface BookCollection {
      * Gives the Java field name of the member that this member redefines (COBOL
      * {@code REDEFINES}). The member is in the same class and comes right before this member,
      * or before other members that redefine it. The two members read and write the same bytes:
-     * a view. See {@link BookGroup} for the rules of a {@code REDEFINES} area.
+     * a view. See {@link Group} for the rules of a {@code REDEFINES} area.
      *
      * @return the field name, or an empty value for a member that is not a view
      */

@@ -82,7 +82,7 @@ final class AreaBuilder {
             AnnotatedMember declared = byName.get(member.name());
             if (declared.redefines().isEmpty()) {
                 if (member instanceof GroupModel && !names.contains(member.name())) {
-                    problems.error(declared, "a @BookGroup must be in a REDEFINES area");
+                    problems.error(declared, "a @Group must be in a REDEFINES area");
                 }
                 slots.add(new ArrayList<>(List.of(member)));
             } else {

@@ -5,7 +5,7 @@ import javax.lang.model.element.TypeElement;
 import pt.dazz.copymapper.annotation.Direction;
 
 /**
- * Describes one group without {@code OCCURS} ({@code @BookGroup}). A group is always a member
+ * Describes one group without {@code OCCURS} ({@code @Group}). A group is always a member
  * of an {@link AreaModel}.
  *
  * @param ownerSimpleName the simple name of the class that declares the group

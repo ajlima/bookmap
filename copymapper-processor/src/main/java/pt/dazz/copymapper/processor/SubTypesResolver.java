@@ -14,18 +14,18 @@ import pt.dazz.copymapper.processor.model.FieldModel;
 import pt.dazz.copymapper.processor.model.FieldModel.JavaKind;
 
 /**
- * Reads the {@code @BookSubTypes} annotation and checks the discriminator values.
+ * Reads the {@code @SubTypes} annotation and checks the discriminator values.
  */
 final class SubTypesResolver {
 
-    static final String BOOK_SUB_TYPES = "pt.dazz.copymapper.annotation.BookSubTypes";
+    static final String SUB_TYPES = "pt.dazz.copymapper.annotation.SubTypes";
 
     /** The Java kinds of a numeric discriminator. */
     static final Set<JavaKind> NUMERIC_KINDS = EnumSet.of(JavaKind.INT, JavaKind.INTEGER,
         JavaKind.LONG, JavaKind.LONG_BOXED);
 
     /**
-     * The content of one {@code @BookSubTypes} annotation.
+     * The content of one {@code @SubTypes} annotation.
      *
      * @param discriminator the name of the discriminator field
      * @param entries the subtypes, in the order of the annotation
@@ -34,7 +34,7 @@ final class SubTypesResolver {
     }
 
     /**
-     * One {@code @BookSubTypes.Type}.
+     * One {@code @SubTypes.Type}.
      *
      * @param value the discriminator value, as written
      * @param type the subtype
@@ -46,17 +46,17 @@ final class SubTypesResolver {
     }
 
     /**
-     * Tells if a class has {@code @BookSubTypes}.
+     * Tells if a class has {@code @SubTypes}.
      *
      * @param type the class
      * @return {@code true} if the class has the annotation
      */
     static boolean present(TypeElement type) {
-        return Mirrors.find(type, BOOK_SUB_TYPES).isPresent();
+        return Mirrors.find(type, SUB_TYPES).isPresent();
     }
 
     /**
-     * Reads the {@code @BookSubTypes} annotation of a base class. A value that javac cannot
+     * Reads the {@code @SubTypes} annotation of a base class. A value that javac cannot
      * resolve yet makes the problems unresolved.
      *
      * @param base the base class
@@ -64,7 +64,7 @@ final class SubTypesResolver {
      * @return the content, or empty if a value is not resolved
      */
     static Optional<Declared> read(TypeElement base, Problems problems) {
-        AnnotationMirror mirror = Mirrors.find(base, BOOK_SUB_TYPES).orElseThrow();
+        AnnotationMirror mirror = Mirrors.find(base, SUB_TYPES).orElseThrow();
         Map<String, Object> values = Mirrors.explicitValues(mirror);
         if (values.containsValue(Mirrors.UNRESOLVED)) {
             problems.unresolved = true;

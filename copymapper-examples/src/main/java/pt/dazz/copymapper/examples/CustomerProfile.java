@@ -5,47 +5,47 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookOperation;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Operation;
 
 /**
  * Reads a customer profile. The class uses Lombok {@code @Data} and has a field of each
  * supported type.
  */
 @Data
-@BookOperation("GetCustomerProfile")
+@Operation("GetCustomerProfile")
 public class CustomerProfile {
 
-    @BookField(order = 10, pic = "X(10)")
+    @Field(order = 10, pic = "X(10)")
     private String customerId;
 
-    @BookField(order = 20, pic = "X(30)")
+    @Field(order = 20, pic = "X(30)")
     private String name;
 
-    @BookField(order = 30, pic = "9(3)")
+    @Field(order = 30, pic = "9(3)")
     private int age;
 
-    @BookField(order = 40, pic = "9(3)")
+    @Field(order = 40, pic = "9(3)")
     private Integer visits;
 
-    @BookField(order = 50, pic = "9(12)")
+    @Field(order = 50, pic = "9(12)")
     private long loyaltyPoints;
 
-    @BookField(order = 60, pic = "9(12)")
+    @Field(order = 60, pic = "9(12)")
     private Long lifetimeSpend;
 
-    @BookField(order = 70, pic = "S9(9)V99 COMP-3")
+    @Field(order = 70, pic = "S9(9)V99 COMP-3")
     private BigDecimal creditLimit;
 
-    @BookField(order = 80, pic = "S9(5)V99")
+    @Field(order = 80, pic = "S9(5)V99")
     private BigDecimal balance;
 
-    @BookField(order = 90)
+    @Field(order = 90)
     private LocalDate birthDate;
 
-    @BookField(order = 100, pattern = "HHmmss")
+    @Field(order = 100, pattern = "HHmmss")
     private LocalTime preferredContact;
 
-    @BookField(order = 110, pattern = "yyyyMMddHHmmss")
+    @Field(order = 110, pattern = "yyyyMMddHHmmss")
     private LocalDateTime lastLogin;
 }

@@ -52,10 +52,10 @@ import pt.dazz.copymapper.processor.model.VariantModel;
  */
 public final class ModelBuilder {
 
-    static final String BOOK_OPERATION = "pt.dazz.copymapper.annotation.BookOperation";
-    private static final String BOOK_FIELD = "pt.dazz.copymapper.annotation.BookField";
-    private static final String BOOK_COLLECTION = "pt.dazz.copymapper.annotation.BookCollection";
-    private static final String BOOK_GROUP = "pt.dazz.copymapper.annotation.BookGroup";
+    static final String OPERATION = "pt.dazz.copymapper.annotation.Operation";
+    private static final String FIELD = "pt.dazz.copymapper.annotation.Field";
+    private static final String OCCURS = "pt.dazz.copymapper.annotation.Occurs";
+    private static final String GROUP = "pt.dazz.copymapper.annotation.Group";
     private static final String CONTINUABLE = "pt.dazz.copymapper.Continuable";
     private static final String VALIDATABLE = "pt.dazz.copymapper.Validatable";
 
@@ -102,7 +102,7 @@ public final class ModelBuilder {
      * other problems, and {@link #deferred()} returns {@code true}. The next build of the class
      * does not report these problems again.
      *
-     * @param type the class with {@code @BookOperation}
+     * @param type the class with {@code @Operation}
      * @param lastRound {@code true} in the last processing round
      * @return the model, or empty if the class has problems or must wait for a later round
      */
@@ -182,7 +182,7 @@ public final class ModelBuilder {
             int before = problems.count();
             List<AnnotatedMember> annotated = annotatedFields(type);
             if (noMembers(annotated, before)) {
-                classError("operation class must have at least one @BookField or @BookCollection");
+                classError("operation class must have at least one @Field or @Occurs");
             }
             checkDuplicateOrders(annotated);
             List<MemberModel> members = areas.fold(type, annotated,
@@ -237,7 +237,7 @@ public final class ModelBuilder {
                 return;
             }
             if (type.getKind() != ElementKind.CLASS) {
-                classError("@BookOperation must be on a class");
+                classError("@Operation must be on a class");
                 return;
             }
             Set<Modifier> modifiers = type.getModifiers();
@@ -262,7 +262,7 @@ public final class ModelBuilder {
         }
 
         private String operationName() {
-            AnnotationMirror mirror = Mirrors.find(type, BOOK_OPERATION).orElseThrow();
+            AnnotationMirror mirror = Mirrors.find(type, OPERATION).orElseThrow();
             Object explicit = Mirrors.explicitValues(mirror).getOrDefault("value", "");
             if (explicit == Mirrors.UNRESOLVED) {
                 problems.unresolved = true;
@@ -283,9 +283,9 @@ public final class ModelBuilder {
         }
 
         /**
-         * Gives the charset of the operation: the {@code @BookDefaults} charset of the class or
+         * Gives the charset of the operation: the {@code @Defaults} charset of the class or
          * its package. Each other declaring class must not set a different charset. For a class
-         * in the package of the operation class, only its own {@code @BookDefaults} counts: the
+         * in the package of the operation class, only its own {@code @Defaults} counts: the
          * operation class can override the package charset.
          */
         private String charset() {
@@ -336,12 +336,12 @@ public final class ModelBuilder {
             List<AnnotatedMember> result = new ArrayList<>();
             for (TypeElement current : hierarchy) {
                 for (VariableElement field : ElementFilter.fieldsIn(current.getEnclosedElements())) {
-                    Optional<AnnotationMirror> bookField = Mirrors.find(field, BOOK_FIELD);
-                    Optional<AnnotationMirror> bookCollection = Mirrors.find(field,
-                        BOOK_COLLECTION);
-                    Optional<AnnotationMirror> bookGroup = Mirrors.find(field, BOOK_GROUP);
-                    Optional<AnnotationMirror> annotation = bookField.or(() -> bookCollection)
-                        .or(() -> bookGroup);
+                    Optional<AnnotationMirror> fieldMirror = Mirrors.find(field, FIELD);
+                    Optional<AnnotationMirror> occursMirror = Mirrors.find(field,
+                        OCCURS);
+                    Optional<AnnotationMirror> groupMirror = Mirrors.find(field, GROUP);
+                    Optional<AnnotationMirror> annotation = fieldMirror.or(() -> occursMirror)
+                        .or(() -> groupMirror);
                     if (annotation.isEmpty()) {
                         continue;
                     }
@@ -353,18 +353,18 @@ public final class ModelBuilder {
                         continue;
                     }
                     AnnotatedMember member = new AnnotatedMember(field,
-                        bookField.isEmpty() && bookCollection.isPresent(),
-                        bookField.isEmpty() && bookCollection.isEmpty(),
+                        fieldMirror.isEmpty() && occursMirror.isPresent(),
+                        fieldMirror.isEmpty() && occursMirror.isEmpty(),
                         (Integer) values.get("order"), values);
                     if (field.getModifiers().contains(Modifier.STATIC)) {
                         problems.error(member, "an annotated field must not be static");
-                    } else if (bookGroup.isPresent()
-                        && (bookField.isPresent() || bookCollection.isPresent())) {
-                        problems.error(member, "a field must have only one of @BookField,"
-                            + " @BookCollection, and @BookGroup");
-                    } else if (bookField.isPresent() && bookCollection.isPresent()) {
+                    } else if (groupMirror.isPresent()
+                        && (fieldMirror.isPresent() || occursMirror.isPresent())) {
+                        problems.error(member, "a field must have only one of @Field,"
+                            + " @Occurs, and @Group");
+                    } else if (fieldMirror.isPresent() && occursMirror.isPresent()) {
                         problems.error(member,
-                            "a field must not have both @BookField and @BookCollection");
+                            "a field must not have both @Field and @Occurs");
                     } else {
                         problems.unresolved |= isUnresolved(field.asType());
                         result.add(member);
@@ -418,9 +418,9 @@ public final class ModelBuilder {
 
         /**
          * Builds the subtypes of an operation class or an item class and checks the rules of
-         * {@code @BookSubTypes}.
+         * {@code @SubTypes}.
          *
-         * @param base the class with {@code @BookSubTypes}
+         * @param base the class with {@code @SubTypes}
          * @param baseAnnotated the annotated members of the base class and its superclasses
          * @param baseMembers the resolved members of the base class
          * @param itemDirection the collection direction for an item class, or null
@@ -437,7 +437,7 @@ public final class ModelBuilder {
             int before = problems.count();
             boolean baseAbstract = base.getModifiers().contains(Modifier.ABSTRACT);
             if (declared.entries().isEmpty()) {
-                problems.classError(base, "@BookSubTypes must list at least one type");
+                problems.classError(base, "@SubTypes must list at least one type");
             }
             List<TypeElement> listed = new ArrayList<>();
             List<String> values = new ArrayList<>();
@@ -484,7 +484,7 @@ public final class ModelBuilder {
 
         /**
          * Checks one listed type. It must be an instantiable subclass of the base class, listed
-         * once, without {@code @BookOperation}, and without {@code @BookSubTypes} below the base.
+         * once, without {@code @Operation}, and without {@code @SubTypes} below the base.
          *
          * @return the subtype, or null after an error
          */
@@ -512,8 +512,8 @@ public final class ModelBuilder {
                 return null;
             }
             int before = problems.count();
-            if (!subtype.equals(base) && Mirrors.find(subtype, BOOK_OPERATION).isPresent()) {
-                problems.classError(subtype, "a subtype must not have @BookOperation");
+            if (!subtype.equals(base) && Mirrors.find(subtype, OPERATION).isPresent()) {
+                problems.classError(subtype, "a subtype must not have @Operation");
             }
             for (TypeElement current : below(base, subtype)) {
                 if (SubTypesResolver.present(current)) {
@@ -850,7 +850,7 @@ public final class ModelBuilder {
             List<AnnotatedMember> annotated = annotatedFields(itemType);
             if (noMembers(annotated, beforeFields)) {
                 problems.error(collection, "item class " + itemType.getQualifiedName()
-                    + " must have at least one @BookField");
+                    + " must have at least one @Field");
                 return null;
             }
             checkDuplicateOrders(annotated);
@@ -1085,7 +1085,7 @@ public final class ModelBuilder {
             }
             if (SubTypesResolver.present(groupType)) {
                 problems.error(member, "group class " + groupType.getQualifiedName()
-                    + " must not have @BookSubTypes");
+                    + " must not have @SubTypes");
                 return null;
             }
             if (groupPath.contains(groupType)) {
@@ -1116,7 +1116,7 @@ public final class ModelBuilder {
             List<AnnotatedMember> annotated = annotatedFields(groupType);
             if (noMembers(annotated, before)) {
                 problems.error(member, "group class " + groupType.getQualifiedName()
-                    + " must have at least one @BookField");
+                    + " must have at least one @Field");
                 return null;
             }
             checkDuplicateOrders(annotated);

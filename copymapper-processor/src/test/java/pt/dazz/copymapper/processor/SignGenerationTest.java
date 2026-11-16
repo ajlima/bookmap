@@ -31,7 +31,7 @@ class SignGenerationTest {
     }
 
     private static JavaFileObject order(String... members) {
-        return source("Order", "@BookOperation public class Order {",
+        return source("Order", "@Operation public class Order {",
             String.join("\n", members), "}");
     }
 
@@ -48,14 +48,14 @@ class SignGenerationTest {
     @Test
     void eachSignFormatWritesItsBytesAndReadsThemBack() {
         BookCodec<Object> codec = codec("test.Invoice", source("Invoice",
-            "@BookOperation public class Invoice {",
-            field("@BookField(order = 1, pic = \"S9(3)\")", "int", "trailing"),
-            field("@BookField(order = 2, pic = \"S9(3) SIGN LEADING\")", "int", "leading"),
-            field("@BookField(order = 3, pic = \"S9(3)V9 SIGN IS TRAILING SEPARATE CHARACTER\")",
+            "@Operation public class Invoice {",
+            field("@Field(order = 1, pic = \"S9(3)\")", "int", "trailing"),
+            field("@Field(order = 2, pic = \"S9(3) SIGN LEADING\")", "int", "leading"),
+            field("@Field(order = 3, pic = \"S9(3)V9 SIGN IS TRAILING SEPARATE CHARACTER\")",
                 "BigDecimal", "trailingSeparate"),
-            field("@BookField(order = 4, length = 3, signed = true,"
+            field("@Field(order = 4, length = 3, signed = true,"
                 + " sign = Sign.LEADING_SEPARATE)", "Long", "leadingSeparate"),
-            field("@BookField(order = 5, length = 3, signed = true, sign = Sign.TRAILING)",
+            field("@Field(order = 5, length = 3, signed = true, sign = Sign.TRAILING)",
                 "Integer", "explicitTrailing"),
             "}"));
         Object value = codec.newInstance();
@@ -82,15 +82,15 @@ class SignGenerationTest {
         BookCodec<Object> codec = codec("test.ListLines",
             source("Priority", "public enum Priority {",
                 "  @CobolValue(\"-1\") LOW, @CobolValue(\"1\") HIGH }"),
-            source("ListLines", "@BookOperation public class ListLines {",
-                field("@BookField(order = 1, pic = \"S9 SIGN LEADING SEPARATE\")", "Priority",
+            source("ListLines", "@Operation public class ListLines {",
+                field("@Field(order = 1, pic = \"S9 SIGN LEADING SEPARATE\")", "Priority",
                     "priority"),
-                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true,"
+                field("@Occurs(order = 10, maxOccurs = 2, fixed = true,"
                     + " emptyKey = \"quantity\")", "List<OrderLine>", "lines"),
                 "}"),
             source("OrderLine", "public class OrderLine {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "String", "code"),
-                field("@BookField(order = 2, pic = \"S9(2) SIGN TRAILING SEPARATE\")", "int",
+                field("@Field(order = 1, pic = \"X(2)\")", "String", "code"),
+                field("@Field(order = 2, pic = \"S9(2) SIGN TRAILING SEPARATE\")", "int",
                     "quantity"),
                 "}"));
         Object value = codec.newInstance();
@@ -132,7 +132,7 @@ class SignGenerationTest {
     @Test
     void picMustNotBeCombinedWithSign() {
         assertError(compiler.compile(order(
-                field("@BookField(order = 1, pic = \"S9(3)\", sign = Sign.LEADING)", "int",
+                field("@Field(order = 1, pic = \"S9(3)\", sign = Sign.LEADING)", "int",
                     "a"))),
             "Order.a (order 1)", "pic must not be combined with sign");
     }
@@ -140,8 +140,8 @@ class SignGenerationTest {
     @Test
     void picSignClauseErrorsAreCompileErrors() {
         Compilation compilation = compiler.compile(order(
-            field("@BookField(order = 1, pic = \"9(3) SIGN LEADING\")", "int", "a"),
-            field("@BookField(order = 2, pic = \"S9(3) COMP-3 SIGN LEADING\")", "int", "b")));
+            field("@Field(order = 1, pic = \"9(3) SIGN LEADING\")", "int", "a"),
+            field("@Field(order = 2, pic = \"S9(3) COMP-3 SIGN LEADING\")", "int", "b")));
         assertError(compilation, "Order.a (order 1)", "Invalid PIC string \"9(3) SIGN LEADING\":"
             + " a SIGN clause needs a signed numeric picture");
         assertError(compilation, "Order.b (order 2)", "Invalid PIC string"
@@ -151,12 +151,12 @@ class SignGenerationTest {
     @Test
     void explicitSignNeedsASignedDisplayNumber() {
         Compilation compilation = compiler.compile(order(
-            field("@BookField(order = 1, length = 3, sign = Sign.LEADING)", "int", "a"),
-            field("@BookField(order = 2, length = 3, signed = true, usage = Usage.COMP3,"
+            field("@Field(order = 1, length = 3, sign = Sign.LEADING)", "int", "a"),
+            field("@Field(order = 2, length = 3, signed = true, usage = Usage.COMP3,"
                 + " sign = Sign.LEADING)", "int", "b"),
-            field("@BookField(order = 3, length = 3, sign = Sign.TRAILING)", "String", "c"),
-            field("@BookField(order = 4, sign = Sign.LEADING)", "LocalDate", "d"),
-            field("@BookField(order = 5, length = 3, sign = Sign.TRAILING)", "long", "e")));
+            field("@Field(order = 3, length = 3, sign = Sign.TRAILING)", "String", "c"),
+            field("@Field(order = 4, sign = Sign.LEADING)", "LocalDate", "d"),
+            field("@Field(order = 5, length = 3, sign = Sign.TRAILING)", "long", "e")));
         assertError(compilation, "Order.a (order 1)", "sign needs a signed field");
         assertError(compilation, "Order.b (order 2)", "sign is permitted only with usage DISPLAY");
         assertError(compilation, "Order.c (order 3)", "sign is not permitted for String");
@@ -169,12 +169,12 @@ class SignGenerationTest {
     void picSignClauseNeedsDisplayAlsoWithTheUsageOfTheDefaults() {
         Compilation compilation = compiler.compile(
             source("Level", "public enum Level { @CobolValue(\"1\") LOW, @CobolValue(\"2\") HIGH }"),
-            source("Order", "@BookDefaults(usage = Usage.COMP3) @BookOperation",
+            source("Order", "@Defaults(usage = Usage.COMP3) @Operation",
                 "public class Order {",
-                field("@BookField(order = 1, pic = \"S9(3) SIGN LEADING SEPARATE\")", "int", "a"),
-                field("@BookField(order = 2, pic = \"S9 LEADING\")", "Level", "b"),
-                field("@BookField(order = 3, pic = \"S9(3) SIGN LEADING DISPLAY\")", "int", "c"),
-                field("@BookField(order = 4, pic = \"S9(3)\")", "int", "d"),
+                field("@Field(order = 1, pic = \"S9(3) SIGN LEADING SEPARATE\")", "int", "a"),
+                field("@Field(order = 2, pic = \"S9 LEADING\")", "Level", "b"),
+                field("@Field(order = 3, pic = \"S9(3) SIGN LEADING DISPLAY\")", "int", "c"),
+                field("@Field(order = 4, pic = \"S9(3)\")", "int", "d"),
                 "}"));
         assertError(compilation, "Order.a (order 1)", "sign is permitted only with usage DISPLAY");
         assertError(compilation, "Order.b (order 2)", "sign is permitted only with usage DISPLAY");
@@ -189,9 +189,9 @@ class SignGenerationTest {
                 "public Integer decode(byte[] b, FieldContext c) { return 0; }",
                 "public byte[] encode(Integer v, FieldContext c) { return new byte[4]; }",
                 "}"),
-            order(field("@BookField(order = 1, pic = \"S9(3) LEADING SEPARATE\","
+            order(field("@Field(order = 1, pic = \"S9(3) LEADING SEPARATE\","
                 + " converter = CodeConverter.class)", "Integer", "a"),
-                field("@BookField(order = 2, pic = \"S9(3) TRAILING\","
+                field("@Field(order = 2, pic = \"S9(3) TRAILING\","
                     + " converter = CodeConverter.class)", "Integer", "b")));
         assertError(compilation, "Order.a (order 1)",
             "sign LEADING_SEPARATE is not permitted with a converter");

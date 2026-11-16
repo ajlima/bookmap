@@ -37,14 +37,14 @@ class PartialCollectionTest {
      */
     private static JavaFileObject listOpenOrders(String attributes, String... extra) {
         List<String> lines = new ArrayList<>(List.of(
-            "@BookOperation public class ListOpenOrders {",
-            field("@BookField(order = 10, pic = \"X(10)\", direction = Direction.INPUT)",
+            "@Operation public class ListOpenOrders {",
+            field("@Field(order = 10, pic = \"X(10)\", direction = Direction.INPUT)",
                 "String", "customerId"),
-            field("@BookField(order = 20, pic = \"X(4)\", direction = Direction.OUTPUT)",
+            field("@Field(order = 20, pic = \"X(4)\", direction = Direction.OUTPUT)",
                 "String", "returnCode"),
-            field("@BookField(order = 30, pic = \"9(2)\", direction = Direction.OUTPUT)", "int",
+            field("@Field(order = 30, pic = \"9(2)\", direction = Direction.OUTPUT)", "int",
                 "orderCount"),
-            field("@BookCollection(order = 40, maxOccurs = 3, fixed = true, partial = true"
+            field("@Occurs(order = 40, maxOccurs = 3, fixed = true, partial = true"
                 + attributes + ")", "List<OpenOrder>", "orders")));
         lines.addAll(List.of(extra));
         lines.add("}");
@@ -54,8 +54,8 @@ class PartialCollectionTest {
     /** orderId (12), orderStatus (2): 14 bytes. */
     private static JavaFileObject openOrder() {
         return source("OpenOrder", "public class OpenOrder {",
-            field("@BookField(order = 1, pic = \"X(12)\")", "String", "orderId"),
-            field("@BookField(order = 2, pic = \"X(2)\")", "String", "orderStatus"),
+            field("@Field(order = 1, pic = \"X(12)\")", "String", "orderId"),
+            field("@Field(order = 2, pic = \"X(2)\")", "String", "orderStatus"),
             "}");
     }
 
@@ -200,10 +200,10 @@ class PartialCollectionTest {
     @Test
     void lowValuesModeReadsThePresentSlots() {
         BookCodec<Object> codec = codec("ListOpenOrders", source("ListOpenOrders",
-            "@BookOperation public class ListOpenOrders {",
-            field("@BookField(order = 20, pic = \"X(4)\", direction = Direction.OUTPUT)",
+            "@Operation public class ListOpenOrders {",
+            field("@Field(order = 20, pic = \"X(4)\", direction = Direction.OUTPUT)",
                 "String", "returnCode"),
-            field("@BookCollection(order = 40, maxOccurs = 3, fixed = true, partial = true)",
+            field("@Occurs(order = 40, maxOccurs = 3, fixed = true, partial = true)",
                 "List<OpenOrder>", "orders"),
             "}"), openOrder());
         assertThat(orderIds(read(codec, concat(bytes("0000"), order(1), order(2)))))
@@ -238,11 +238,11 @@ class PartialCollectionTest {
     @Test
     void anInputOutputCollectionNeedsTheFullAreaInARequest() {
         BookCodec<Object> codec = codec("UpdateOrders", source("UpdateOrders",
-            "@BookOperation public class UpdateOrders {",
-            field("@BookField(order = 10, pic = \"X(10)\", direction = Direction.INPUT)",
+            "@Operation public class UpdateOrders {",
+            field("@Field(order = 10, pic = \"X(10)\", direction = Direction.INPUT)",
                 "String", "customerId"),
-            field("@BookField(order = 30, pic = \"9(2)\")", "int", "orderCount"),
-            field("@BookCollection(order = 40, maxOccurs = 3, fixed = true, partial = true,"
+            field("@Field(order = 30, pic = \"9(2)\")", "int", "orderCount"),
+            field("@Occurs(order = 40, maxOccurs = 3, fixed = true, partial = true,"
                 + " dependsOn = \"orderCount\", direction = Direction.INPUT_OUTPUT)",
                 "List<OpenOrder>", "orders"),
             "}"), openOrder());
@@ -258,21 +258,21 @@ class PartialCollectionTest {
     @Test
     void aSlotWithASubtypeItemIsTheUnit() {
         BookCodec<Object> codec = codec("GetStatement", source("GetStatement",
-                "@BookOperation public class GetStatement {",
-                field("@BookCollection(order = 10, maxOccurs = 3, fixed = true, partial = true)",
+                "@Operation public class GetStatement {",
+                field("@Occurs(order = 10, maxOccurs = 3, fixed = true, partial = true)",
                     "List<Entry>", "entries"),
                 "}"),
             source("Entry",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"C\", type = CardEntry.class),",
-                "  @BookSubTypes.Type(value = \"W\", type = WireEntry.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"C\", type = CardEntry.class),",
+                "  @SubTypes.Type(value = \"W\", type = WireEntry.class)})",
                 "public abstract class Entry {",
-                field("@BookField(order = 1, pic = \"X\")", "String", "kind"),
+                field("@Field(order = 1, pic = \"X\")", "String", "kind"),
                 "}"),
             source("CardEntry", "public class CardEntry extends Entry {",
-                field("@BookField(order = 2, pic = \"9(3)\")", "int", "amount"), "}"),
+                field("@Field(order = 2, pic = \"9(3)\")", "int", "amount"), "}"),
             source("WireEntry", "public class WireEntry extends Entry {",
-                field("@BookField(order = 2, pic = \"X(5)\")", "String", "iban"), "}"));
+                field("@Field(order = 2, pic = \"X(5)\")", "String", "iban"), "}"));
         Object target = codec.newInstance();
         codec.decodeResponse(bytes("C012  WGB001"), target, LATIN);
         assertThat(orders2(target)).hasSize(2);
@@ -291,17 +291,17 @@ class PartialCollectionTest {
     @Test
     void anItemWithAnInnerCollectionIsCompleteInEachPresentSlot() {
         BookCodec<Object> codec = codec("GetOrder", source("GetOrder",
-                "@BookOperation public class GetOrder {",
-                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true, partial = true)",
+                "@Operation public class GetOrder {",
+                field("@Occurs(order = 10, maxOccurs = 2, fixed = true, partial = true)",
                     "List<OrderLine>", "lines"),
                 "}"),
             source("OrderLine", "public class OrderLine {",
-                field("@BookField(order = 1, pic = \"X(4)\")", "String", "productCode"),
-                field("@BookCollection(order = 2, maxOccurs = 2, fixed = true)", "List<LineTax>",
+                field("@Field(order = 1, pic = \"X(4)\")", "String", "productCode"),
+                field("@Occurs(order = 2, maxOccurs = 2, fixed = true)", "List<LineTax>",
                     "taxes"),
                 "}"),
             source("LineTax", "public class LineTax {",
-                field("@BookField(order = 1, pic = \"X(3)\")", "String", "taxCode"), "}"));
+                field("@Field(order = 1, pic = \"X(3)\")", "String", "taxCode"), "}"));
         Object target = codec.newInstance();
         codec.decodeResponse(concat(bytes("P001VAT"), new byte[3]), target, LATIN);
         @SuppressWarnings("unchecked")
@@ -318,14 +318,14 @@ class PartialCollectionTest {
     @Test
     void aPartialCollectionInASubtypeOfTheOperationClass() {
         BookCodec<Object> codec = codec("GetShipment", source("GetShipment",
-                "@BookOperation @BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"E\", type = ExpressShipment.class)})",
+                "@Operation @SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"E\", type = ExpressShipment.class)})",
                 "public class GetShipment {",
-                field("@BookField(order = 10, pic = \"X\", direction = Direction.OUTPUT)",
+                field("@Field(order = 10, pic = \"X\", direction = Direction.OUTPUT)",
                     "String", "kind"),
                 "}"),
             source("ExpressShipment", "public class ExpressShipment extends GetShipment {",
-                field("@BookCollection(order = 20, maxOccurs = 3, fixed = true,"
+                field("@Occurs(order = 20, maxOccurs = 3, fixed = true,"
                     + " partial = true)", "List<OpenOrder>", "orders"),
                 "}"),
             openOrder());
@@ -339,9 +339,9 @@ class PartialCollectionTest {
     @Test
     void partialNeedsAFixedCollection() {
         assertError("ListLines.lines (order 10): partial needs fixed = true",
-            source("ListLines", "@BookOperation public class ListLines {",
-                field("@BookField(order = 5, pic = \"9\")", "int", "lineCount"),
-                field("@BookCollection(order = 10, maxOccurs = 3, partial = true)",
+            source("ListLines", "@Operation public class ListLines {",
+                field("@Field(order = 5, pic = \"9\")", "int", "lineCount"),
+                field("@Occurs(order = 10, maxOccurs = 3, partial = true)",
                     "List<OpenOrder>", "lines"),
                 "}"),
             openOrder());
@@ -357,13 +357,13 @@ class PartialCollectionTest {
     void partialIsOnlyForATopLevelCollection() {
         assertError("OrderLine.taxes (order 2): partial is permitted only on a top-level"
                 + " collection",
-            source("GetOrder", "@BookOperation public class GetOrder {",
-                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true)",
+            source("GetOrder", "@Operation public class GetOrder {",
+                field("@Occurs(order = 10, maxOccurs = 2, fixed = true)",
                     "List<OrderLine>", "lines"),
                 "}"),
             source("OrderLine", "public class OrderLine {",
-                field("@BookField(order = 1, pic = \"X(4)\")", "String", "productCode"),
-                field("@BookCollection(order = 2, maxOccurs = 2, fixed = true, partial = true)",
+                field("@Field(order = 1, pic = \"X(4)\")", "String", "productCode"),
+                field("@Occurs(order = 2, maxOccurs = 2, fixed = true, partial = true)",
                     "List<OpenOrder>", "taxes"),
                 "}"),
             openOrder());
@@ -374,9 +374,9 @@ class PartialCollectionTest {
         assertError(ORDERS + ": partial needs the collection at the end of the response:"
                 + " ListOpenOrders.returnCode2 (order 60) comes after it",
             listOpenOrders("",
-                field("@BookField(order = 50, pic = \"X(4)\", direction = Direction.INPUT)",
+                field("@Field(order = 50, pic = \"X(4)\", direction = Direction.INPUT)",
                     "String", "branch"),
-                field("@BookField(order = 60, pic = \"X(4)\", direction = Direction.OUTPUT)",
+                field("@Field(order = 60, pic = \"X(4)\", direction = Direction.OUTPUT)",
                     "String", "returnCode2")),
             openOrder());
     }
@@ -384,7 +384,7 @@ class PartialCollectionTest {
     @Test
     void anInputMemberAfterThePartialCollectionIsPermitted() {
         BookCodec<Object> codec = codec("ListOpenOrders", listOpenOrders("",
-                field("@BookField(order = 50, pic = \"X(4)\", direction = Direction.INPUT)",
+                field("@Field(order = 50, pic = \"X(4)\", direction = Direction.INPUT)",
                     "String", "branch")),
             openOrder());
         assertThat(orderIds(read(codec, concat(bytes("000000"), order(1))))).hasSize(1);
@@ -395,16 +395,16 @@ class PartialCollectionTest {
         assertError("GetShipment.orders (order 20): partial needs the collection at the end of"
                 + " the response: ExpressShipment.carrier (order 30) comes after it",
             source("GetShipment",
-                "@BookOperation @BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"E\", type = ExpressShipment.class)})",
+                "@Operation @SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"E\", type = ExpressShipment.class)})",
                 "public class GetShipment {",
-                field("@BookField(order = 10, pic = \"X\", direction = Direction.OUTPUT)",
+                field("@Field(order = 10, pic = \"X\", direction = Direction.OUTPUT)",
                     "String", "kind"),
-                field("@BookCollection(order = 20, maxOccurs = 3, fixed = true,"
+                field("@Occurs(order = 20, maxOccurs = 3, fixed = true,"
                     + " partial = true)", "List<OpenOrder>", "orders"),
                 "}"),
             source("ExpressShipment", "public class ExpressShipment extends GetShipment {",
-                field("@BookField(order = 30, pic = \"X(8)\", direction = Direction.OUTPUT)",
+                field("@Field(order = 30, pic = \"X(8)\", direction = Direction.OUTPUT)",
                     "String", "carrier"),
                 "}"),
             openOrder());

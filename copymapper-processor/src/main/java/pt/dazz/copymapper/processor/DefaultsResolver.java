@@ -10,14 +10,14 @@ import javax.lang.model.util.Elements;
 import pt.dazz.copymapper.cobol.Usage;
 
 /**
- * Reads {@code @BookDefaults} of a class and of its package.
+ * Reads {@code @Defaults} of a class and of its package.
  *
  * <p>An explicit value on the class has priority over an explicit value on the package. The
  * resolver does not use the enclosing class of a nested class, or the superclasses.
  */
 public final class DefaultsResolver {
 
-    private static final String BOOK_DEFAULTS = "pt.dazz.copymapper.annotation.BookDefaults";
+    private static final String DEFAULTS = "pt.dazz.copymapper.annotation.Defaults";
 
     private final Elements elements;
 
@@ -47,7 +47,7 @@ public final class DefaultsResolver {
     }
 
     /**
-     * Tells if {@code @BookDefaults} of a class or of its package has a value that javac could
+     * Tells if {@code @Defaults} of a class or of its package has a value that javac could
      * not resolve. javac reports that problem.
      *
      * @param type the class
@@ -58,7 +58,7 @@ public final class DefaultsResolver {
     }
 
     /**
-     * Gives the charset of {@code @BookDefaults} on the class only, without its package.
+     * Gives the charset of {@code @Defaults} on the class only, without its package.
      *
      * @param type the class
      * @return the explicit charset of the class, or empty
@@ -98,6 +98,6 @@ public final class DefaultsResolver {
     }
 
     private static Map<String, Object> explicit(Element element) {
-        return Mirrors.find(element, BOOK_DEFAULTS).map(Mirrors::explicitValues).orElse(Map.of());
+        return Mirrors.find(element, DEFAULTS).map(Mirrors::explicitValues).orElse(Map.of());
     }
 }

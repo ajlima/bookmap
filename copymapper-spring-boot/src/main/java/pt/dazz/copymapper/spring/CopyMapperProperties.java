@@ -11,7 +11,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * Do not use inline Javadoc tags in the {@code @param} tags: the IDE shows them as raw text.
  *
  * @param charset The default charset of the client. The charset must be single-byte, for example IBM037 or IBM500.
- *     A book with its own charset in BookDefaults uses that charset.
+ *     A book with its own charset in Defaults uses that charset.
  * @param maxCalls The maximum number of calls for one execution of a book with continuation.
  *     The value must be 1 or more.
  */

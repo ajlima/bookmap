@@ -38,8 +38,8 @@ class LombokRulesTest {
     /** An operation class with Lombok accessors and the given class annotations. */
     private static JavaFileObject order(String annotations, String... extraLines) {
         return source("Order",
-            annotations + " @lombok.Getter @lombok.Setter @BookOperation public class Order {",
-            "@BookField(order = 1, length = 5) private String id;",
+            annotations + " @lombok.Getter @lombok.Setter @Operation public class Order {",
+            "@Field(order = 1, length = 5) private String id;",
             String.join("\n", extraLines),
             "}");
     }
@@ -57,17 +57,17 @@ class LombokRulesTest {
     void subclassWithLombokData(ProcessorOrder order) {
         Compilation compilation = compile(order,
             source("GetAccount",
-                "@lombok.Getter @lombok.Setter @BookOperation",
-                "@BookSubTypes(discriminator = \"accountType\", value = {",
-                "    @BookSubTypes.Type(value = \"01\", type = test.accounts.CheckingAccount.class)})",
+                "@lombok.Getter @lombok.Setter @Operation",
+                "@SubTypes(discriminator = \"accountType\", value = {",
+                "    @SubTypes.Type(value = \"01\", type = test.accounts.CheckingAccount.class)})",
                 "public class GetAccount {",
-                "@BookField(order = 1, length = 5) private String id;",
-                "@BookField(order = 2, length = 2) private int accountType;",
+                "@Field(order = 1, length = 5) private String id;",
+                "@Field(order = 2, length = 2) private int accountType;",
                 "}"),
             sourceIn("test.accounts", "CheckingAccount",
                 "@lombok.Data @lombok.EqualsAndHashCode(callSuper = true)",
                 "public class CheckingAccount extends test.GetAccount {",
-                "@BookField(order = 3, length = 19) private String cardNumberMask;",
+                "@Field(order = 3, length = 19) private String cardNumberMask;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
     }
@@ -144,16 +144,16 @@ class LombokRulesTest {
     /** An operation class with a collection of {@code test.Line}. */
     private static JavaFileObject orderWithLines() {
         return source("Order",
-            "@lombok.Data @BookOperation public class Order {",
-            "@BookField(order = 1, length = 1) private int lineCount;",
-            "@BookCollection(order = 2, maxOccurs = 3) private List<Line> lines;",
+            "@lombok.Data @Operation public class Order {",
+            "@Field(order = 1, length = 1) private int lineCount;",
+            "@Occurs(order = 2, maxOccurs = 3) private List<Line> lines;",
             "}");
     }
 
     private static JavaFileObject line(String annotations, String... extraLines) {
         return source("Line",
             annotations + " @lombok.Getter @lombok.Setter public class Line {",
-            "@BookField(order = 1, length = 5) private String sku;",
+            "@Field(order = 1, length = 5) private String sku;",
             String.join("\n", extraLines),
             "}");
     }
@@ -188,9 +188,9 @@ class LombokRulesTest {
         Compilation compilation = compile(order,
             sourceIn("test.base", "Base", "public class Base {",
                 "@lombok.Getter(lombok.AccessLevel.PROTECTED) @lombok.Setter",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"),
-            source("Order", "@BookOperation public class Order extends test.base.Base { }"));
+            source("Order", "@Operation public class Order extends test.base.Base { }"));
         assertOnlyError(compilation, "Base.id (order 1): missing getter getId");
     }
 
@@ -200,9 +200,9 @@ class LombokRulesTest {
         Compilation compilation = compile(order,
             sourceIn("test.base", "Base",
                 "@lombok.Getter @lombok.Setter(lombok.AccessLevel.PACKAGE) public class Base {",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"),
-            source("Order", "@BookOperation public class Order extends test.base.Base { }"));
+            source("Order", "@Operation public class Order extends test.base.Base { }"));
         assertOnlyError(compilation, "Base.id (order 1): missing setter setId");
     }
 
@@ -211,14 +211,14 @@ class LombokRulesTest {
     void packageGetterOfAnItemClassInAnotherPackageFails(ProcessorOrder order) {
         Compilation compilation = compile(order,
             source("Order",
-                "@lombok.Data @BookOperation public class Order {",
-                "@BookField(order = 1, length = 1) private int lineCount;",
-                "@BookCollection(order = 2, maxOccurs = 3)",
+                "@lombok.Data @Operation public class Order {",
+                "@Field(order = 1, length = 1) private int lineCount;",
+                "@Occurs(order = 2, maxOccurs = 3)",
                 "private List<test.items.Line> lines;",
                 "}"),
             sourceIn("test.items", "Line", "@lombok.Setter public class Line {",
                 "@lombok.Getter(lombok.AccessLevel.PACKAGE)",
-                "@BookField(order = 1, length = 5) private String sku;",
+                "@Field(order = 1, length = 5) private String sku;",
                 "}"));
         assertOnlyError(compilation, "Line.sku (order 1): missing getter getSku");
     }
@@ -230,11 +230,11 @@ class LombokRulesTest {
             source("Base", "public class Base {",
                 "@lombok.Getter(lombok.AccessLevel.PROTECTED)",
                 "@lombok.Setter(lombok.AccessLevel.PACKAGE)",
-                "@BookField(order = 1, length = 5) private String id;",
+                "@Field(order = 1, length = 5) private String id;",
                 "}"),
-            source("Order", "@BookOperation public class Order extends Base {",
+            source("Order", "@Operation public class Order extends Base {",
                 "@SuppressWarnings(\"deprecation\") @lombok.Getter(lombok.AccessLevel.MODULE) @lombok.Setter",
-                "@BookField(order = 2, length = 5) private String code;",
+                "@Field(order = 2, length = 5) private String code;",
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
     }

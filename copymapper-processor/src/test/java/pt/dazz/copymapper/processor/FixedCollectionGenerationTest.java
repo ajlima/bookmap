@@ -40,14 +40,14 @@ class FixedCollectionGenerationTest {
      */
     private static JavaFileObject getOrder(String name, String itemType, String dependsOn) {
         return source(name,
-            "@BookOperation public class " + name + " {",
-            field("@BookField(order = 10, pic = \"X(10)\", direction = Direction.INPUT)", "String",
+            "@Operation public class " + name + " {",
+            field("@Field(order = 10, pic = \"X(10)\", direction = Direction.INPUT)", "String",
                 "orderId"),
-            field("@BookField(order = 20, pic = \"9(2)\", direction = Direction.OUTPUT)", "int",
+            field("@Field(order = 20, pic = \"9(2)\", direction = Direction.OUTPUT)", "int",
                 "lineCount"),
-            field("@BookCollection(order = 30, maxOccurs = 3, fixed = true" + dependsOn + ")",
+            field("@Occurs(order = 30, maxOccurs = 3, fixed = true" + dependsOn + ")",
                 "List<" + itemType + ">", "lines"),
-            field("@BookField(order = 40, pic = \"S9(7)V99 COMP-3\", direction = Direction.OUTPUT)",
+            field("@Field(order = 40, pic = \"S9(7)V99 COMP-3\", direction = Direction.OUTPUT)",
                 "BigDecimal", "orderTotal"),
             "}");
     }
@@ -55,24 +55,24 @@ class FixedCollectionGenerationTest {
     /** productCode (4), quantity (3): 7 bytes. */
     private static JavaFileObject orderLine() {
         return source("OrderLine", "public class OrderLine {",
-            field("@BookField(order = 1, pic = \"X(4)\")", "String", "productCode"),
-            field("@BookField(order = 2, pic = \"9(3)\")", "int", "quantity"),
+            field("@Field(order = 1, pic = \"X(4)\")", "String", "productCode"),
+            field("@Field(order = 2, pic = \"9(3)\")", "int", "quantity"),
             "}");
     }
 
     /** quantity (COMP, 2 bytes): the value 0 encodes as LOW-VALUES. */
     private static JavaFileObject binaryLine() {
         return source("BinaryLine", "public class BinaryLine {",
-            field("@BookField(order = 1, pic = \"9(4) COMP\")", "int", "quantity"),
+            field("@Field(order = 1, pic = \"9(4) COMP\")", "int", "quantity"),
             "}");
     }
 
     /** reference (5), entries (fixed, maxOccurs 3, subtype items of 6 bytes). */
     private static JavaFileObject statement() {
         return source("Statement",
-            "@BookOperation public class Statement {",
-            field("@BookField(order = 10, pic = \"X(5)\")", "String", "reference"),
-            field("@BookCollection(order = 20, maxOccurs = 3, fixed = true)", "List<Entry>",
+            "@Operation public class Statement {",
+            field("@Field(order = 10, pic = \"X(5)\")", "String", "reference"),
+            field("@Occurs(order = 20, maxOccurs = 3, fixed = true)", "List<Entry>",
                 "entries"),
             "}");
     }
@@ -80,16 +80,16 @@ class FixedCollectionGenerationTest {
     private static JavaFileObject[] entries() {
         return new JavaFileObject[] {
             source("Entry",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"C\", type = CardEntry.class),",
-                "  @BookSubTypes.Type(value = \"W\", type = WireEntry.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"C\", type = CardEntry.class),",
+                "  @SubTypes.Type(value = \"W\", type = WireEntry.class)})",
                 "public abstract class Entry {",
-                field("@BookField(order = 1, pic = \"X\")", "String", "kind"),
+                field("@Field(order = 1, pic = \"X\")", "String", "kind"),
                 "}"),
             source("CardEntry", "public class CardEntry extends Entry {",
-                field("@BookField(order = 2, pic = \"9(3)\")", "int", "amount"), "}"),
+                field("@Field(order = 2, pic = \"9(3)\")", "int", "amount"), "}"),
             source("WireEntry", "public class WireEntry extends Entry {",
-                field("@BookField(order = 2, pic = \"X(5)\")", "String", "iban"), "}")
+                field("@Field(order = 2, pic = \"X(5)\")", "String", "iban"), "}")
         };
     }
 
@@ -190,10 +190,10 @@ class FixedCollectionGenerationTest {
     @Test
     void lowValuesModeRequestAreaIsWrittenAndRead() {
         BookCodec<Object> codec = codec("SendOrder", source("SendOrder",
-                "@BookOperation public class SendOrder {",
-                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true,"
+                "@Operation public class SendOrder {",
+                field("@Occurs(order = 10, maxOccurs = 2, fixed = true,"
                     + " direction = Direction.INPUT)", "List<OrderLine>", "lines"),
-                field("@BookField(order = 20, pic = \"X(3)\", direction = Direction.INPUT)",
+                field("@Field(order = 20, pic = \"X(3)\", direction = Direction.INPUT)",
                     "String", "currency"),
                 "}"),
             orderLine());
@@ -308,9 +308,9 @@ class FixedCollectionGenerationTest {
     @Test
     void countModeRejectsAShortResponseWhenTheTableIsLast() {
         BookCodec<Object> codec = codec("ListLines", source("ListLines",
-                "@BookOperation public class ListLines {",
-                field("@BookField(order = 10, pic = \"9(2)\")", "int", "lineCount"),
-                field("@BookCollection(order = 20, maxOccurs = 3, fixed = true,"
+                "@Operation public class ListLines {",
+                field("@Field(order = 10, pic = \"9(2)\")", "int", "lineCount"),
+                field("@Occurs(order = 20, maxOccurs = 3, fixed = true,"
                     + " dependsOn = \"lineCount\")", "List<OrderLine>", "lines"),
                 "}"),
             orderLine());
@@ -356,24 +356,24 @@ class FixedCollectionGenerationTest {
     private static JavaFileObject[] accountSources() {
         return new JavaFileObject[] {
             source("Tag", "public class Tag {",
-                field("@BookField(order = 1, pic = \"X(3)\")", "String", "code"), "}"),
+                field("@Field(order = 1, pic = \"X(3)\")", "String", "code"), "}"),
             source("GetAccount",
-                "@BookOperation",
-                "@BookSubTypes(discriminator = \"accountType\", value = {",
-                "  @BookSubTypes.Type(value = \"01\", type = Checking.class),",
-                "  @BookSubTypes.Type(value = \"02\", type = Savings.class)})",
+                "@Operation",
+                "@SubTypes(discriminator = \"accountType\", value = {",
+                "  @SubTypes.Type(value = \"01\", type = Checking.class),",
+                "  @SubTypes.Type(value = \"02\", type = Savings.class)})",
                 "public class GetAccount {",
-                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true,"
+                field("@Occurs(order = 10, maxOccurs = 2, fixed = true,"
                     + " direction = Direction.INPUT_OUTPUT)", "List<Tag>", "tags"),
-                field("@BookField(order = 20, pic = \"9(2)\")", "int", "accountType"),
+                field("@Field(order = 20, pic = \"9(2)\")", "int", "accountType"),
                 "}"),
             source("Checking", "public class Checking extends GetAccount {",
-                field("@BookCollection(order = 30, maxOccurs = 2, fixed = true)",
+                field("@Occurs(order = 30, maxOccurs = 2, fixed = true)",
                     "List<OrderLine>", "entries"),
                 "}"),
             source("Savings", "public class Savings extends GetAccount {",
-                field("@BookField(order = 30, pic = \"9(1)\")", "int", "entryCount"),
-                field("@BookCollection(order = 40, maxOccurs = 2, fixed = true,"
+                field("@Field(order = 30, pic = \"9(1)\")", "int", "entryCount"),
+                field("@Occurs(order = 40, maxOccurs = 2, fixed = true,"
                     + " dependsOn = \"entryCount\")", "List<OrderLine>", "entries"),
                 "}"),
             orderLine()
@@ -407,7 +407,7 @@ class FixedCollectionGenerationTest {
     void countModeInASubtypeNeedsTheCountFieldInTheSubtype() {
         JavaFileObject[] sources = accountSources();
         sources[3] = source("Savings", "public class Savings extends GetAccount {",
-            field("@BookCollection(order = 40, maxOccurs = 2, fixed = true,"
+            field("@Occurs(order = 40, maxOccurs = 2, fixed = true,"
                 + " dependsOn = \"accountType\")", "List<OrderLine>", "entries"),
             "}");
         Compilation compilation = compiler.compile(sources);

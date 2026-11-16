@@ -1,13 +1,13 @@
 package pt.dazz.copymapper.examples.accounts;
 
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * A card payment: entry type {@code C}.
  */
 public class CardPayment extends StatementEntry {
 
-    @BookField(order = 30, pic = "X(20)")
+    @Field(order = 30, pic = "X(20)")
     private String merchant;
 
     public String getMerchant() {

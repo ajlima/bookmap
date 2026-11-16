@@ -38,11 +38,11 @@ class NestedCollectionTest {
      */
     private static JavaFileObject getOrder(String lines) {
         return source("GetOrder",
-            "@BookOperation public class GetOrder {",
-            field("@BookField(order = 10, pic = \"X(4)\", direction = Direction.INPUT)",
+            "@Operation public class GetOrder {",
+            field("@Field(order = 10, pic = \"X(4)\", direction = Direction.INPUT)",
                 "String", "orderId"),
-            field("@BookCollection(order = 20" + lines + ")", "List<OrderLine>", "lines"),
-            field("@BookField(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
+            field("@Occurs(order = 20" + lines + ")", "List<OrderLine>", "lines"),
+            field("@Field(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
                 "String", "status"),
             "}");
     }
@@ -56,9 +56,9 @@ class NestedCollectionTest {
      */
     private static JavaFileObject orderLine(String taxes) {
         return source("OrderLine", "public class OrderLine {",
-            field("@BookField(order = 10, pic = \"X(3)\")", "String", "productCode"),
-            field("@BookField(order = 20, pic = \"9\")", "int", "taxCount"),
-            field("@BookCollection(order = 30" + taxes + ")", "List<LineTax>", "taxes"),
+            field("@Field(order = 10, pic = \"X(3)\")", "String", "productCode"),
+            field("@Field(order = 20, pic = \"9\")", "int", "taxCount"),
+            field("@Occurs(order = 30" + taxes + ")", "List<LineTax>", "taxes"),
             "}");
     }
 
@@ -68,8 +68,8 @@ class NestedCollectionTest {
     /** taxCode (2), amount (3): 5 bytes. */
     private static JavaFileObject lineTax() {
         return source("LineTax", "public class LineTax {",
-            field("@BookField(order = 10, pic = \"X(2)\")", "String", "taxCode"),
-            field("@BookField(order = 20, pic = \"9(3)\")", "int", "amount"),
+            field("@Field(order = 10, pic = \"X(2)\")", "String", "taxCode"),
+            field("@Field(order = 20, pic = \"9(3)\")", "int", "amount"),
             "}");
     }
 
@@ -233,9 +233,9 @@ class NestedCollectionTest {
         BookCodec<Object> codec = codec("GetOrder",
             getOrder(FIXED_LINES + ", emptyKey = \"productCode\""),
             source("OrderLine", "public class OrderLine {",
-                field("@BookCollection(order = 10, maxOccurs = 1, fixed = true)",
+                field("@Occurs(order = 10, maxOccurs = 1, fixed = true)",
                     "List<LineTax>", "taxes"),
-                field("@BookField(order = 20, pic = \"X(3)\")", "String", "productCode"),
+                field("@Field(order = 20, pic = \"X(3)\")", "String", "productCode"),
                 "}"),
             lineTax());
         Object line = newObject(codec, "OrderLine");
@@ -254,11 +254,11 @@ class NestedCollectionTest {
     @Test
     void fixedInVariableReadsEachEntryAtItsOffset() {
         BookCodec<Object> codec = codec("GetOrder",
-            source("GetOrder", "@BookOperation public class GetOrder {",
-                field("@BookField(order = 10, pic = \"9\", direction = Direction.OUTPUT)",
+            source("GetOrder", "@Operation public class GetOrder {",
+                field("@Field(order = 10, pic = \"9\", direction = Direction.OUTPUT)",
                     "int", "lineCount"),
-                field("@BookCollection(order = 20, maxOccurs = 3)", "List<OrderLine>", "lines"),
-                field("@BookField(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
+                field("@Occurs(order = 20, maxOccurs = 3)", "List<OrderLine>", "lines"),
+                field("@Field(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
                     "String", "status"),
                 "}"),
             orderLine(COUNTED_TAXES), lineTax());
@@ -281,12 +281,12 @@ class NestedCollectionTest {
         BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
             orderLine(COUNTED_TAXES),
             source("LineTax", "public class LineTax {",
-                field("@BookField(order = 10, pic = \"X(2)\")", "String", "taxCode"),
-                field("@BookCollection(order = 20, maxOccurs = 2, fixed = true)",
+                field("@Field(order = 10, pic = \"X(2)\")", "String", "taxCode"),
+                field("@Occurs(order = 20, maxOccurs = 2, fixed = true)",
                     "List<TaxNote>", "notes"),
                 "}"),
             source("TaxNote", "public class TaxNote {",
-                field("@BookField(order = 10, pic = \"X\")", "String", "note"), "}"));
+                field("@Field(order = 10, pic = \"X\")", "String", "note"), "}"));
         Object note = newObject(codec, "TaxNote");
         CompiledCodec.set(note, "note", "A");
         Object tax = newObject(codec, "LineTax");
@@ -307,18 +307,18 @@ class NestedCollectionTest {
     private static JavaFileObject[] lineSubtypes() {
         return new JavaFileObject[] {
             source("OrderLine",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"P\", type = ProductLine.class),",
-                "  @BookSubTypes.Type(value = \"S\", type = ServiceLine.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"P\", type = ProductLine.class),",
+                "  @SubTypes.Type(value = \"S\", type = ServiceLine.class)})",
                 "public abstract class OrderLine {",
-                field("@BookField(order = 10, pic = \"X\")", "String", "kind"),
+                field("@Field(order = 10, pic = \"X\")", "String", "kind"),
                 "}"),
             source("ProductLine", "public class ProductLine extends OrderLine {",
-                field("@BookCollection(order = 20, maxOccurs = 2, fixed = true)",
+                field("@Occurs(order = 20, maxOccurs = 2, fixed = true)",
                     "List<LineTax>", "taxes"),
                 "}"),
             source("ServiceLine", "public class ServiceLine extends OrderLine {",
-                field("@BookField(order = 20, pic = \"9(2)\")", "int", "hours"), "}"),
+                field("@Field(order = 20, pic = \"9(2)\")", "int", "hours"), "}"),
             lineTax()
         };
     }
@@ -346,13 +346,13 @@ class NestedCollectionTest {
         BookCodec<Object> codec = codec("GetOrder", getOrder(FIXED_LINES),
             orderLine(COUNTED_TAXES),
             source("LineTax",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"R\", type = RateTax.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"R\", type = RateTax.class)})",
                 "public class LineTax {",
-                field("@BookField(order = 10, pic = \"X\")", "String", "kind"),
+                field("@Field(order = 10, pic = \"X\")", "String", "kind"),
                 "}"),
             source("RateTax", "public class RateTax extends LineTax {",
-                field("@BookField(order = 20, pic = \"9(4)\")", "int", "rate"), "}"));
+                field("@Field(order = 20, pic = \"9(4)\")", "int", "rate"), "}"));
         Object rate = newObject(codec, "RateTax");
         CompiledCodec.set(rate, "rate", 2300);
         byte[] bytes = codec.encodeResponse(order(codec, line(codec, "P01", rate)), LATIN);
@@ -367,18 +367,18 @@ class NestedCollectionTest {
     private static JavaFileObject[] taxesInTheBaseClassOfItemSubtypes() {
         return new JavaFileObject[] {getOrder(FIXED_LINES),
             source("OrderLine",
-                "@BookSubTypes(discriminator = \"kind\", value = {",
-                "  @BookSubTypes.Type(value = \"P\", type = ProductLine.class),",
-                "  @BookSubTypes.Type(value = \"S\", type = ServiceLine.class)})",
+                "@SubTypes(discriminator = \"kind\", value = {",
+                "  @SubTypes.Type(value = \"P\", type = ProductLine.class),",
+                "  @SubTypes.Type(value = \"S\", type = ServiceLine.class)})",
                 "public abstract class OrderLine {",
-                field("@BookField(order = 10, pic = \"X\")", "String", "kind"),
-                field("@BookCollection(order = 20, maxOccurs = 1, fixed = true)",
+                field("@Field(order = 10, pic = \"X\")", "String", "kind"),
+                field("@Occurs(order = 20, maxOccurs = 1, fixed = true)",
                     "List<LineTax>", "taxes"),
                 "}"),
             source("ProductLine", "public class ProductLine extends OrderLine {",
-                field("@BookField(order = 30, pic = \"X(2)\")", "String", "code"), "}"),
+                field("@Field(order = 30, pic = \"X(2)\")", "String", "code"), "}"),
             source("ServiceLine", "public class ServiceLine extends OrderLine {",
-                field("@BookField(order = 30, pic = \"9\")", "int", "hours"), "}"),
+                field("@Field(order = 30, pic = \"9\")", "int", "hours"), "}"),
             lineTax()};
     }
 
@@ -445,11 +445,11 @@ class NestedCollectionTest {
     @Test
     void variableOuterCollectionNamesTheIndexOnWrite() {
         BookCodec<Object> codec = codec("GetOrder",
-            source("GetOrder", "@BookOperation public class GetOrder {",
-                field("@BookField(order = 10, pic = \"9\", direction = Direction.OUTPUT)",
+            source("GetOrder", "@Operation public class GetOrder {",
+                field("@Field(order = 10, pic = \"9\", direction = Direction.OUTPUT)",
                     "int", "lineCount"),
-                field("@BookCollection(order = 20, maxOccurs = 3)", "List<OrderLine>", "lines"),
-                field("@BookField(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
+                field("@Occurs(order = 20, maxOccurs = 3)", "List<OrderLine>", "lines"),
+                field("@Field(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
                     "String", "status"),
                 "}"),
             orderLine(COUNTED_TAXES), lineTax());
@@ -501,11 +501,11 @@ class NestedCollectionTest {
     @Test
     void variableFlatCollectionNamesTheIndexAndTheNullItem() {
         BookCodec<Object> codec = codec("GetOrder",
-            source("GetOrder", "@BookOperation public class GetOrder {",
-                field("@BookField(order = 10, pic = \"9\", direction = Direction.OUTPUT)",
+            source("GetOrder", "@Operation public class GetOrder {",
+                field("@Field(order = 10, pic = \"9\", direction = Direction.OUTPUT)",
                     "int", "lineCount"),
-                field("@BookCollection(order = 20, maxOccurs = 3)", "List<OrderLine>", "lines"),
-                field("@BookField(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
+                field("@Occurs(order = 20, maxOccurs = 3)", "List<OrderLine>", "lines"),
+                field("@Field(order = 30, pic = \"X(2)\", direction = Direction.OUTPUT)",
                     "String", "status"),
                 "}"),
             flatLine(""));
@@ -553,7 +553,7 @@ class NestedCollectionTest {
     /** amount (3), with more attributes after {@code pic}. */
     private static JavaFileObject flatLine(String attributes) {
         return source("OrderLine", "public class OrderLine {",
-            field("@BookField(order = 10, pic = \"9(3)\"" + attributes + ")", "int", "amount"),
+            field("@Field(order = 10, pic = \"9(3)\"" + attributes + ")", "int", "amount"),
             "}");
     }
 
@@ -643,13 +643,13 @@ class NestedCollectionTest {
     void anItemClassThatContainsItselfIsAnError() {
         assertError(compile(getOrder(FIXED_LINES),
                 source("OrderLine", "public class OrderLine {",
-                    field("@BookField(order = 10, pic = \"X\")", "String", "code"),
-                    field("@BookCollection(order = 20, maxOccurs = 2, fixed = true)",
+                    field("@Field(order = 10, pic = \"X\")", "String", "code"),
+                    field("@Occurs(order = 20, maxOccurs = 2, fixed = true)",
                         "List<SubLine>", "parts"),
                     "}"),
                 source("SubLine", "public class SubLine {",
-                    field("@BookField(order = 10, pic = \"X\")", "String", "code"),
-                    field("@BookCollection(order = 20, maxOccurs = 2, fixed = true)",
+                    field("@Field(order = 10, pic = \"X\")", "String", "code"),
+                    field("@Occurs(order = 20, maxOccurs = 2, fixed = true)",
                         "List<OrderLine>", "lines"),
                     "}")),
             "SubLine.lines (order 20)",
@@ -660,15 +660,15 @@ class NestedCollectionTest {
     void aCycleBelowTheFirstItemClassNamesOnlyTheCycle() {
         assertError(compile(getOrder(FIXED_LINES),
                 source("OrderLine", "public class OrderLine {",
-                    field("@BookCollection(order = 10, maxOccurs = 2, fixed = true)",
+                    field("@Occurs(order = 10, maxOccurs = 2, fixed = true)",
                         "List<SubLine>", "parts"),
                     "}"),
                 source("SubLine", "public class SubLine {",
-                    field("@BookCollection(order = 10, maxOccurs = 2, fixed = true)",
+                    field("@Occurs(order = 10, maxOccurs = 2, fixed = true)",
                         "List<Part>", "parts"),
                     "}"),
                 source("Part", "public class Part {",
-                    field("@BookCollection(order = 10, maxOccurs = 2, fixed = true)",
+                    field("@Occurs(order = 10, maxOccurs = 2, fixed = true)",
                         "List<SubLine>", "lines"),
                     "}")),
             "Part.lines (order 10)",
@@ -678,14 +678,14 @@ class NestedCollectionTest {
     @Test
     void moreThanSevenLevelsIsAnError() {
         List<JavaFileObject> files = new ArrayList<>();
-        files.add(source("Deep", "@BookOperation public class Deep {",
-            field("@BookCollection(order = 10, maxOccurs = 1, fixed = true)", "List<L1>",
+        files.add(source("Deep", "@Operation public class Deep {",
+            field("@Occurs(order = 10, maxOccurs = 1, fixed = true)", "List<L1>",
                 "items"),
             "}"));
         for (int level = 1; level <= 8; level++) {
             files.add(source("L" + level, "public class L" + level + " {",
-                field("@BookField(order = 10, pic = \"X\")", "String", "code"),
-                level < 8 ? field("@BookCollection(order = 20, maxOccurs = 1, fixed = true)",
+                field("@Field(order = 10, pic = \"X\")", "String", "code"),
+                level < 8 ? field("@Occurs(order = 20, maxOccurs = 1, fixed = true)",
                     "List<L" + (level + 1) + ">", "items") : "",
                 "}"));
         }
@@ -696,14 +696,14 @@ class NestedCollectionTest {
     @Test
     void sevenLevelsArePermitted() {
         List<JavaFileObject> files = new ArrayList<>();
-        files.add(source("Deep", "@BookOperation public class Deep {",
-            field("@BookCollection(order = 10, maxOccurs = 1, fixed = true)", "List<L1>",
+        files.add(source("Deep", "@Operation public class Deep {",
+            field("@Occurs(order = 10, maxOccurs = 1, fixed = true)", "List<L1>",
                 "items"),
             "}"));
         for (int level = 1; level <= 7; level++) {
             files.add(source("L" + level, "public class L" + level + " {",
-                field("@BookField(order = 10, pic = \"X\")", "String", "code"),
-                level < 7 ? field("@BookCollection(order = 20, maxOccurs = 1, fixed = true)",
+                field("@Field(order = 10, pic = \"X\")", "String", "code"),
+                level < 7 ? field("@Occurs(order = 20, maxOccurs = 1, fixed = true)",
                     "List<L" + (level + 1) + ">", "items") : "",
                 "}"));
         }
@@ -714,8 +714,8 @@ class NestedCollectionTest {
     @Test
     void innerCollectionInAContinuableClassIsPermitted() {
         CompilationSubject.assertThat(compile(
-            source("GetOrder", "@BookOperation public class GetOrder implements Continuable {",
-                field("@BookCollection(order = 20, maxOccurs = 2, fixed = true)",
+            source("GetOrder", "@Operation public class GetOrder implements Continuable {",
+                field("@Occurs(order = 20, maxOccurs = 2, fixed = true)",
                     "List<OrderLine>", "lines"),
                 "public boolean hasContinuation() { return false; }",
                 "}"),

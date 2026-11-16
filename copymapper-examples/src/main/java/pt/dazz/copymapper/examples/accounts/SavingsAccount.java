@@ -4,17 +4,17 @@ import static pt.dazz.copymapper.annotation.Direction.OUTPUT;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * A savings account: account type {@code 02}.
  */
 public class SavingsAccount extends GetAccount {
 
-    @BookField(order = 50, pic = "9V9(4)", direction = OUTPUT)
+    @Field(order = 50, pic = "9V9(4)", direction = OUTPUT)
     private BigDecimal interestRate;
 
-    @BookField(order = 60, direction = OUTPUT)
+    @Field(order = 60, direction = OUTPUT)
     private LocalDate maturityDate;
 
     public BigDecimal getInterestRate() {

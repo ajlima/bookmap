@@ -2,9 +2,9 @@ package pt.dazz.copymapper.examples.shipments;
 
 import java.math.BigDecimal;
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookGroup;
-import pt.dazz.copymapper.annotation.BookOperation;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Group;
+import pt.dazz.copymapper.annotation.Operation;
 import pt.dazz.copymapper.annotation.Direction;
 
 /**
@@ -30,28 +30,28 @@ import pt.dazz.copymapper.annotation.Direction;
  * </pre>
  */
 @Data
-@BookOperation("GETSHIP")
+@Operation("GETSHIP")
 public class GetShipment {
 
-    @BookField(order = 10, pic = "X(10)", direction = Direction.INPUT)
+    @Field(order = 10, pic = "X(10)", direction = Direction.INPUT)
     private String shipmentId;
 
-    @BookField(order = 20, pic = "X(16)", direction = Direction.OUTPUT)
+    @Field(order = 20, pic = "X(16)", direction = Direction.OUTPUT)
     private String trackingCode;
 
-    @BookGroup(order = 30, redefines = "trackingCode")
+    @Group(order = 30, redefines = "trackingCode")
     private TrackingParts trackingParts;
 
-    @BookField(order = 40, pic = "X(2)", direction = Direction.OUTPUT)
+    @Field(order = 40, pic = "X(2)", direction = Direction.OUTPUT)
     private String resultCode;
 
-    @BookGroup(order = 50, direction = Direction.OUTPUT)
+    @Group(order = 50, direction = Direction.OUTPUT)
     private ResultDetail resultDetail;
 
-    @BookGroup(order = 60, redefines = "resultDetail")
+    @Group(order = 60, redefines = "resultDetail")
     private DeliveryData deliveryData;
 
-    @BookField(order = 70, pic = "S9(7)V99 COMP-3", direction = Direction.OUTPUT)
+    @Field(order = 70, pic = "S9(7)V99 COMP-3", direction = Direction.OUTPUT)
     private BigDecimal shippingCharge;
 
     /**

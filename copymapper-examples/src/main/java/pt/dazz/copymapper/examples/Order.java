@@ -2,21 +2,21 @@ package pt.dazz.copymapper.examples;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * One order in the answer of {@link GetCustomerOrders}. The class uses the convention style.
  */
 public class Order {
 
-    @BookField(order = 10, pic = "X(10)")
+    @Field(order = 10, pic = "X(10)")
     private String orderNumber;
 
-    @BookField(order = 20, pic = "S9(13)V99 COMP-3")
+    @Field(order = 20, pic = "S9(13)V99 COMP-3")
     private BigDecimal totalAmount;
 
     // The length is 8, from the default pattern yyyyMMdd.
-    @BookField(order = 30)
+    @Field(order = 30)
     private LocalDate orderDate;
 
     public String getOrderNumber() {

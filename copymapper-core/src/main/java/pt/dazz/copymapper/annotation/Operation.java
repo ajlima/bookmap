@@ -11,7 +11,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.CLASS)
-public @interface BookOperation {
+public @interface Operation {
 
     /**
      * Gives the operation name. An empty value means the simple class name.

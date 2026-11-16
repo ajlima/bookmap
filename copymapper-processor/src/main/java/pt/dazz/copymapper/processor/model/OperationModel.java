@@ -9,11 +9,11 @@ import javax.lang.model.element.TypeElement;
  *
  * @param type the operation class
  * @param operationName the logical operation name
- * @param charsetName the charset name from {@code @BookDefaults}, or {@code ""} if it is not set
+ * @param charsetName the charset name from {@code @Defaults}, or {@code ""} if it is not set
  * @param members the fields and collections, sorted by order
  * @param continuable {@code true} if the class implements {@code Continuable}
  * @param validatable {@code true} if the class implements {@code Validatable}
- * @param subTypes the subtypes, or {@code null} if the class has no {@code @BookSubTypes}
+ * @param subTypes the subtypes, or {@code null} if the class has no {@code @SubTypes}
  */
 public record OperationModel(TypeElement type, String operationName, String charsetName,
     List<MemberModel> members, boolean continuable, boolean validatable,

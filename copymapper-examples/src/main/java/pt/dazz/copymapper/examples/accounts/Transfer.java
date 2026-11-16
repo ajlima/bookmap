@@ -1,13 +1,13 @@
 package pt.dazz.copymapper.examples.accounts;
 
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * A transfer: entry type {@code T}.
  */
 public class Transfer extends StatementEntry {
 
-    @BookField(order = 30, pic = "X(34)")
+    @Field(order = 30, pic = "X(34)")
     private String counterpartyIban;
 
     public String getCounterpartyIban() {

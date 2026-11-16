@@ -17,14 +17,14 @@ import org.junit.jupiter.api.Test;
 class SubTypesValidationTest {
 
     private static final String ACCOUNT_ID = field(
-        "@BookField(order = 10, length = 12, direction = Direction.INPUT)", "String", "accountId");
-    private static final String ACCOUNT_TYPE = field("@BookField(order = 20, length = 2)", "int",
+        "@Field(order = 10, length = 12, direction = Direction.INPUT)", "String", "accountId");
+    private static final String ACCOUNT_TYPE = field("@Field(order = 20, length = 2)", "int",
         "accountType");
     private static final String CARD = field(
-        "@BookField(order = 30, length = 19, direction = Direction.OUTPUT)", "String",
+        "@Field(order = 30, length = 19, direction = Direction.OUTPUT)", "String",
         "cardNumberMask");
     private static final String RATE = field(
-        "@BookField(order = 30, length = 5, scale = 4, direction = Direction.OUTPUT)",
+        "@Field(order = 30, length = 5, scale = 4, direction = Direction.OUTPUT)",
         "BigDecimal", "interestRate");
     private static final String STANDARD = subTypes("accountType",
         "\"01\", CheckingAccount.class", "\"02\", SavingsAccount.class");
@@ -37,12 +37,12 @@ class SubTypesValidationTest {
         return annotation + " private " + type + " " + name + "; " + accessors(type, name);
     }
 
-    /** Gives a {@code @BookSubTypes} annotation. Each entry is {@code "<value>", <Class>.class}. */
+    /** Gives a {@code @SubTypes} annotation. Each entry is {@code "<value>", <Class>.class}. */
     private static String subTypes(String discriminator, String... entries) {
-        return "@BookSubTypes(discriminator = \"" + discriminator + "\", value = {"
+        return "@SubTypes(discriminator = \"" + discriminator + "\", value = {"
             + Arrays.stream(entries).map(entry -> {
                 int comma = entry.lastIndexOf(',');
-                return "@BookSubTypes.Type(value = " + entry.substring(0, comma).strip()
+                return "@SubTypes.Type(value = " + entry.substring(0, comma).strip()
                     + ", type = " + entry.substring(comma + 1).strip() + ")";
             }).collect(Collectors.joining(", ")) + "})";
     }
@@ -59,7 +59,7 @@ class SubTypesValidationTest {
 
     private static JavaFileObject declare(String modifiers, String annotation,
                                           String... members) {
-        return source("GetAccount", "@BookOperation " + annotation,
+        return source("GetAccount", "@Operation " + annotation,
             "public " + modifiers + "class GetAccount {", String.join("\n", members), "}");
     }
 
@@ -112,7 +112,7 @@ class SubTypesValidationTest {
 
     @Test
     void classWithoutSubTypesHasNoVariants() {
-        compile(source("Plain", "@BookOperation public class Plain {", ACCOUNT_ID, "}"));
+        compile(source("Plain", "@Operation public class Plain {", ACCOUNT_ID, "}"));
         assertThat(compiler.only().discriminator()).isEmpty();
         assertThat(compiler.only().variants()).isEmpty();
     }
@@ -136,9 +136,9 @@ class SubTypesValidationTest {
     @Test
     void siblingsShareOrders() {
         CompilationSubject.assertThat(compile(standardBase(),
-            checking(CARD, field("@BookField(order = 40, length = 1)", "String", "flag")),
+            checking(CARD, field("@Field(order = 40, length = 1)", "String", "flag")),
             sub("SavingsAccount", "GetAccount", RATE,
-                field("@BookField(order = 40, length = 1)", "String", "flag"))))
+                field("@Field(order = 40, length = 1)", "String", "flag"))))
             .succeededWithoutWarnings();
     }
 
@@ -160,18 +160,18 @@ class SubTypesValidationTest {
     @Test
     void textDiscriminatorValuesLoseTrailingSpaces() {
         compile(base(subTypes("kind", "\"C  \", CheckingAccount.class"),
-            field("@BookField(order = 20, length = 3)", "String", "kind")), checking());
+            field("@Field(order = 20, length = 3)", "String", "kind")), checking());
         assertThat(compiler.only().variants().get(0).value()).isEqualTo("C");
     }
 
     @Test
     void subclassCollectionUsesItsOwnCount() {
         CompilationSubject.assertThat(compile(standardBase(),
-            checking(field("@BookField(order = 30, length = 2)", "int", "entryCount"),
-                field("@BookCollection(order = 40, maxOccurs = 5)", "List<Entry>", "entries")),
+            checking(field("@Field(order = 30, length = 2)", "int", "entryCount"),
+                field("@Occurs(order = 40, maxOccurs = 5)", "List<Entry>", "entries")),
             savings(),
             source("Entry", "public class Entry {",
-                field("@BookField(order = 1, length = 8)", "String", "reference"), "}")))
+                field("@Field(order = 1, length = 8)", "String", "reference"), "}")))
             .succeededWithoutWarnings();
     }
 
@@ -187,7 +187,7 @@ class SubTypesValidationTest {
     void discriminatorInSubclass() {
         assertError(compile(base(subTypes("level", "\"01\", CheckingAccount.class"), ACCOUNT_ID,
                 ACCOUNT_TYPE),
-            checking(field("@BookField(order = 30, length = 2)", "int", "level"))),
+            checking(field("@Field(order = 30, length = 2)", "int", "level"))),
             "GetAccount: discriminator field 'level' must be in the base class or its"
                 + " superclasses");
     }
@@ -195,11 +195,11 @@ class SubTypesValidationTest {
     @Test
     void discriminatorIsACollection() {
         assertError(compile(base(subTypes("lines", "\"01\", CheckingAccount.class"),
-                field("@BookField(order = 10, length = 2)", "int", "count"),
-                field("@BookCollection(order = 20, maxOccurs = 2)", "List<Entry>", "lines")),
+                field("@Field(order = 10, length = 2)", "int", "count"),
+                field("@Occurs(order = 20, maxOccurs = 2)", "List<Entry>", "lines")),
             checking(),
             source("Entry", "public class Entry {",
-                field("@BookField(order = 1, length = 8)", "String", "reference"), "}")),
+                field("@Field(order = 1, length = 8)", "String", "reference"), "}")),
             "GetAccount.lines (order 20): discriminator must be String, int, Integer, long, or"
                 + " Long");
     }
@@ -207,7 +207,7 @@ class SubTypesValidationTest {
     @Test
     void discriminatorWrongType() {
         assertError(compile(base(STANDARD, ACCOUNT_ID,
-                field("@BookField(order = 20, length = 2)", "BigDecimal", "accountType")),
+                field("@Field(order = 20, length = 2)", "BigDecimal", "accountType")),
             checking(), savings()),
             "GetAccount.accountType (order 20): discriminator must be String, int, Integer, long,"
                 + " or Long");
@@ -216,7 +216,7 @@ class SubTypesValidationTest {
     @Test
     void discriminatorWithConverter() {
         assertError(compile(base(STANDARD, ACCOUNT_ID,
-                field("@BookField(order = 20, length = 2, converter = CodeConverter.class)",
+                field("@Field(order = 20, length = 2, converter = CodeConverter.class)",
                     "String", "accountType")),
             checking(), savings(),
             source("CodeConverter",
@@ -230,7 +230,7 @@ class SubTypesValidationTest {
     @Test
     void discriminatorInputOnly() {
         assertError(compile(base(STANDARD, ACCOUNT_ID,
-                field("@BookField(order = 20, length = 2, direction = Direction.INPUT)", "int",
+                field("@Field(order = 20, length = 2, direction = Direction.INPUT)", "int",
                     "accountType")),
             checking(), savings()),
             "GetAccount.accountType (order 20): discriminator must have direction OUTPUT or"
@@ -240,7 +240,7 @@ class SubTypesValidationTest {
     @Test
     void outputDiscriminatorOnAConcreteBaseCompiles() {
         CompilationSubject.assertThat(compile(base(STANDARD, ACCOUNT_ID,
-                field("@BookField(order = 20, length = 2, direction = Direction.OUTPUT)", "int",
+                field("@Field(order = 20, length = 2, direction = Direction.OUTPUT)", "int",
                     "accountType")),
             checking(), savings())).succeededWithoutWarnings();
     }
@@ -248,7 +248,7 @@ class SubTypesValidationTest {
     @Test
     void abstractBaseWithOutputDiscriminator() {
         assertError(compile(abstractBase(STANDARD, ACCOUNT_ID,
-                field("@BookField(order = 20, length = 2, direction = Direction.OUTPUT)", "int",
+                field("@Field(order = 20, length = 2, direction = Direction.OUTPUT)", "int",
                     "accountType")),
             checking(), savings()),
             "GetAccount: an abstract base class needs an INPUT_OUTPUT discriminator");
@@ -257,7 +257,7 @@ class SubTypesValidationTest {
     @Test
     void discriminatorWithOwnError() {
         assertError(compile(base(STANDARD, ACCOUNT_ID,
-                field("@BookField(order = 20, length = 2, usage = Usage.COMP3)", "String",
+                field("@Field(order = 20, length = 2, usage = Usage.COMP3)", "String",
                     "accountType")),
             checking(), savings()),
             "GetAccount.accountType (order 20): COMP3 is not permitted for String");
@@ -266,35 +266,35 @@ class SubTypesValidationTest {
     @Test
     void baseCollectionAfterDiscriminator() {
         CompilationSubject.assertThat(compile(base(STANDARD, ACCOUNT_ID, ACCOUNT_TYPE,
-                field("@BookField(order = 25, length = 2)", "int", "count"),
-                field("@BookCollection(order = 26, maxOccurs = 2)", "List<Entry>", "lines")),
+                field("@Field(order = 25, length = 2)", "int", "count"),
+                field("@Occurs(order = 26, maxOccurs = 2)", "List<Entry>", "lines")),
             checking(), savings(),
             source("Entry", "public class Entry {",
-                field("@BookField(order = 1, length = 8)", "String", "reference"), "}")))
+                field("@Field(order = 1, length = 8)", "String", "reference"), "}")))
             .succeededWithoutWarnings();
     }
 
     @Test
     void fixedCollectionBeforeDiscriminatorIsPermitted() {
         CompilationSubject.assertThat(compile(base(STANDARD,
-                field("@BookCollection(order = 10, maxOccurs = 2, fixed = true)", "List<Entry>",
+                field("@Occurs(order = 10, maxOccurs = 2, fixed = true)", "List<Entry>",
                     "lines"),
                 ACCOUNT_TYPE),
             checking(), savings(),
             source("Entry", "public class Entry {",
-                field("@BookField(order = 1, length = 8)", "String", "reference"), "}")))
+                field("@Field(order = 1, length = 8)", "String", "reference"), "}")))
             .succeededWithoutWarnings();
     }
 
     @Test
     void collectionBeforeDiscriminator() {
         assertError(compile(base(STANDARD,
-                field("@BookField(order = 5, length = 2)", "int", "count"),
-                field("@BookCollection(order = 10, maxOccurs = 2)", "List<Entry>", "lines"),
+                field("@Field(order = 5, length = 2)", "int", "count"),
+                field("@Occurs(order = 10, maxOccurs = 2)", "List<Entry>", "lines"),
                 ACCOUNT_TYPE),
             checking(), savings(),
             source("Entry", "public class Entry {",
-                field("@BookField(order = 1, length = 8)", "String", "reference"), "}")),
+                field("@Field(order = 1, length = 8)", "String", "reference"), "}")),
             "GetAccount.accountType (order 20): discriminator must not come after a variable collection");
     }
 
@@ -302,8 +302,8 @@ class SubTypesValidationTest {
 
     @Test
     void emptyTypeList() {
-        assertError(compile(base("@BookSubTypes(discriminator = \"accountType\", value = {})",
-            ACCOUNT_ID, ACCOUNT_TYPE)), "GetAccount: @BookSubTypes must list at least one type");
+        assertError(compile(base("@SubTypes(discriminator = \"accountType\", value = {})",
+            ACCOUNT_ID, ACCOUNT_TYPE)), "GetAccount: @SubTypes must list at least one type");
     }
 
     @Test
@@ -422,10 +422,10 @@ class SubTypesValidationTest {
     @Test
     void typeWithBookOperation() {
         assertError(compile(standardBase(),
-                source("CheckingAccount", "@BookOperation(\"CHECKING\")",
+                source("CheckingAccount", "@Operation(\"CHECKING\")",
                     "public class CheckingAccount extends GetAccount {", CARD, "}"),
                 savings()),
-            "CheckingAccount: a subtype must not have @BookOperation");
+            "CheckingAccount: a subtype must not have @Operation");
     }
 
     @Test
@@ -478,14 +478,14 @@ class SubTypesValidationTest {
     void negativeNumberOnSignedField() {
         CompilationSubject.assertThat(compile(base(subTypes("accountType",
                 "\"-1\", CheckingAccount.class"), ACCOUNT_ID,
-                field("@BookField(order = 20, length = 2, signed = true)", "Long", "accountType")),
+                field("@Field(order = 20, length = 2, signed = true)", "Long", "accountType")),
             checking())).succeededWithoutWarnings();
     }
 
     @Test
     void textTooLong() {
         assertError(compile(base(subTypes("kind", "\"ABCD\", CheckingAccount.class"),
-                field("@BookField(order = 20, length = 3)", "String", "kind")), checking()),
+                field("@Field(order = 20, length = 3)", "String", "kind")), checking()),
             "GetAccount.kind (order 20): discriminator value 'ABCD' does not fit the field");
     }
 
@@ -494,7 +494,7 @@ class SubTypesValidationTest {
     @Test
     void subclassOrderNotAfterBase() {
         assertError(compile(standardBase(),
-                checking(field("@BookField(order = 15, length = 6, direction = Direction.OUTPUT)",
+                checking(field("@Field(order = 15, length = 6, direction = Direction.OUTPUT)",
                     "String", "overdraftLimit")),
                 savings()),
             "CheckingAccount.overdraftLimit (order 15): a subtype member must come after all base"
@@ -504,7 +504,7 @@ class SubTypesValidationTest {
     @Test
     void duplicateOrderInSubclassPath() {
         assertError(compile(standardBase(),
-                checking(CARD, field("@BookField(order = 30, length = 1)", "String", "flag")),
+                checking(CARD, field("@Field(order = 30, length = 1)", "String", "flag")),
                 savings()),
             "CheckingAccount.flag (order 30): duplicate order, also used by"
                 + " CheckingAccount.cardNumberMask");
@@ -513,12 +513,12 @@ class SubTypesValidationTest {
     @Test
     void subclassCountInBase() {
         assertError(compile(base(STANDARD, ACCOUNT_ID, ACCOUNT_TYPE,
-                    field("@BookField(order = 25, length = 2)", "int", "entryCount")),
-                checking(field("@BookCollection(order = 40, maxOccurs = 5, dependsOn ="
+                    field("@Field(order = 25, length = 2)", "int", "entryCount")),
+                checking(field("@Occurs(order = 40, maxOccurs = 5, dependsOn ="
                     + " \"entryCount\")", "List<Entry>", "entries")),
                 savings(),
                 source("Entry", "public class Entry {",
-                    field("@BookField(order = 1, length = 8)", "String", "reference"), "}")),
+                    field("@Field(order = 1, length = 8)", "String", "reference"), "}")),
             "CheckingAccount.entries (order 40): dependsOn field 'entryCount' must be in the"
                 + " subtype layout");
     }
@@ -526,11 +526,11 @@ class SubTypesValidationTest {
     @Test
     void subclassCollectionWithoutCountByConvention() {
         assertError(compile(standardBase(),
-                checking(field("@BookCollection(order = 40, maxOccurs = 5)", "List<Entry>",
+                checking(field("@Occurs(order = 40, maxOccurs = 5)", "List<Entry>",
                     "entries")),
                 savings(),
                 source("Entry", "public class Entry {",
-                    field("@BookField(order = 1, length = 8)", "String", "reference"), "}")),
+                    field("@Field(order = 1, length = 8)", "String", "reference"), "}")),
             "CheckingAccount.entries (order 40): dependsOn is missing and no member comes before"
                 + " the collection");
     }
@@ -538,15 +538,15 @@ class SubTypesValidationTest {
     @Test
     void continuableSubtypeWithInputOutputBaseCollection() {
         assertError(compile(base(STANDARD, ACCOUNT_ID, ACCOUNT_TYPE,
-                field("@BookField(order = 25, length = 2)", "int", "count"),
-                field("@BookCollection(order = 26, direction = Direction.INPUT_OUTPUT,"
+                field("@Field(order = 25, length = 2)", "int", "count"),
+                field("@Occurs(order = 26, direction = Direction.INPUT_OUTPUT,"
                     + " maxOccurs = 2)", "List<Entry>", "lines")),
                 source("CheckingAccount", "public class CheckingAccount extends GetAccount"
                     + " implements Continuable {", CARD,
                     "public boolean hasContinuation() { return false; }", "}"),
                 savings(),
                 source("Entry", "public class Entry {",
-                    field("@BookField(order = 1, length = 8)", "String", "reference"), "}")),
+                    field("@Field(order = 1, length = 8)", "String", "reference"), "}")),
             "GetAccount.lines (order 26): an INPUT_OUTPUT collection is not permitted in a"
                 + " Continuable class (CheckingAccount)");
     }
@@ -554,20 +554,20 @@ class SubTypesValidationTest {
     @Test
     void continuableSubtypeWithOutputBaseCollectionCompiles() {
         CompilationSubject.assertThat(compile(base(STANDARD, ACCOUNT_ID, ACCOUNT_TYPE,
-                field("@BookField(order = 25, length = 2)", "int", "count"),
-                field("@BookCollection(order = 26, maxOccurs = 2)", "List<Entry>", "lines")),
+                field("@Field(order = 25, length = 2)", "int", "count"),
+                field("@Occurs(order = 26, maxOccurs = 2)", "List<Entry>", "lines")),
                 source("CheckingAccount", "public class CheckingAccount extends GetAccount"
                     + " implements Continuable {", CARD,
                     "public boolean hasContinuation() { return false; }", "}"),
                 savings(),
                 source("Entry", "public class Entry {",
-                    field("@BookField(order = 1, length = 8)", "String", "reference"), "}")))
+                    field("@Field(order = 1, length = 8)", "String", "reference"), "}")))
             .succeededWithoutWarnings();
     }
 
     @Test
     void continuableBaseCompiles() {
-        CompilationSubject.assertThat(compile(source("GetAccount", "@BookOperation " + STANDARD,
+        CompilationSubject.assertThat(compile(source("GetAccount", "@Operation " + STANDARD,
                 "public class GetAccount implements Continuable {", ACCOUNT_ID, ACCOUNT_TYPE,
                 "public boolean hasContinuation() { return false; }", "}"),
             checking(), savings())).succeededWithoutWarnings();
@@ -576,7 +576,7 @@ class SubTypesValidationTest {
     @Test
     void subclassFieldError() {
         assertError(compile(standardBase(),
-                checking(field("@BookField(order = 30, length = 5, usage = Usage.COMP3)",
+                checking(field("@Field(order = 30, length = 5, usage = Usage.COMP3)",
                     "String", "code")),
                 savings()),
             "CheckingAccount.code (order 30): COMP3 is not permitted for String");
@@ -585,7 +585,7 @@ class SubTypesValidationTest {
     @Test
     void subclassMissingSetter() {
         assertError(compile(standardBase(),
-                checking("@BookField(order = 30, length = 4) private String code;"
+                checking("@Field(order = 30, length = 4) private String code;"
                     + " public String getCode() { return code; }"),
                 savings()),
             "CheckingAccount.code (order 30): missing setter setCode");

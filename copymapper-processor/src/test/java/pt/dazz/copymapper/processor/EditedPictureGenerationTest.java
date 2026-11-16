@@ -27,7 +27,7 @@ class EditedPictureGenerationTest {
     }
 
     private static JavaFileObject invoice(String... members) {
-        return source("Invoice", "@BookOperation public class Invoice {",
+        return source("Invoice", "@Operation public class Invoice {",
             String.join("\n", members), "}");
     }
 
@@ -49,14 +49,14 @@ class EditedPictureGenerationTest {
     @Test
     void eachNumberTypeWritesEditedTextAndReadsItBack() {
         BookCodec<Object> codec = codec("test.Invoice", invoice(
-            field("@BookField(order = 1, pic = \"ZZ9\")", "int", "lineCount"),
-            field("@BookField(order = 2, pic = \"PIC -9(3).\")", "Integer", "adjustment"),
-            field("@BookField(order = 3, pic = \"Z(9)9\")", "long", "units"),
-            field("@BookField(order = 4, pic = \"$$$,$$9\")", "Long", "fee"),
-            field("@BookField(order = 5, pic = \"Z,ZZ9.99CR\")", "BigDecimal", "total"),
-            field("@BookField(order = 6, pic = \"9(3)V99 BLANK WHEN ZERO\")", "BigDecimal",
+            field("@Field(order = 1, pic = \"ZZ9\")", "int", "lineCount"),
+            field("@Field(order = 2, pic = \"PIC -9(3).\")", "Integer", "adjustment"),
+            field("@Field(order = 3, pic = \"Z(9)9\")", "long", "units"),
+            field("@Field(order = 4, pic = \"$$$,$$9\")", "Long", "fee"),
+            field("@Field(order = 5, pic = \"Z,ZZ9.99CR\")", "BigDecimal", "total"),
+            field("@Field(order = 6, pic = \"9(3)V99 BLANK WHEN ZERO\")", "BigDecimal",
                 "discount"),
-            field("@BookField(order = 7, pic = \"***9.99 DISPLAY\")", "BigDecimal", "check")));
+            field("@Field(order = 7, pic = \"***9.99 DISPLAY\")", "BigDecimal", "check")));
         Object value = codec.newInstance();
         CompiledCodec.set(value, "lineCount", 7);
         CompiledCodec.set(value, "adjustment", -12);
@@ -89,8 +89,8 @@ class EditedPictureGenerationTest {
     @Test
     void aBlankFieldReadsAsZeroForAPrimitive() {
         BookCodec<Object> codec = codec("test.Invoice", invoice(
-            field("@BookField(order = 1, pic = \"ZZZ\")", "int", "lineCount"),
-            field("@BookField(order = 2, pic = \"ZZZ\")", "Integer", "boxed")));
+            field("@Field(order = 1, pic = \"ZZZ\")", "int", "lineCount"),
+            field("@Field(order = 2, pic = \"ZZZ\")", "Integer", "boxed")));
         Object value = codec.newInstance();
 
         byte[] request = codec.encodeRequest(value, LATIN);
@@ -104,10 +104,10 @@ class EditedPictureGenerationTest {
     @Test
     void bookDefaultsDoNotChangeTheUsageOfAnEditedField() {
         Compilation compilation = compiler.compile(source("Invoice",
-            "@BookDefaults(usage = Usage.COMP3, signed = true) @BookOperation",
+            "@Defaults(usage = Usage.COMP3, signed = true) @Operation",
             "public class Invoice {",
-            field("@BookField(order = 1, pic = \"ZZ9.99\")", "BigDecimal", "total"),
-            field("@BookField(order = 2, length = 3)", "int", "count"),
+            field("@Field(order = 1, pic = \"ZZ9.99\")", "BigDecimal", "total"),
+            field("@Field(order = 2, length = 3)", "int", "count"),
             "}"));
 
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -135,13 +135,13 @@ class EditedPictureGenerationTest {
     })
     void rejectsAnIncorrectEditedField(String type, String pic, String phrase) {
         assertError(compiler.compile(invoice(
-            field("@BookField(order = 1, pic = \"" + pic + "\")", type, "amount"))), phrase);
+            field("@Field(order = 1, pic = \"" + pic + "\")", type, "amount"))), phrase);
     }
 
     @Test
     void rejectsAnEditedPicWithOtherAttributes() {
         assertError(compiler.compile(invoice(
-                field("@BookField(order = 1, pic = \"ZZ9\", usage = Usage.COMP3)", "int",
+                field("@Field(order = 1, pic = \"ZZ9\", usage = Usage.COMP3)", "int",
                     "amount"))),
             "Invoice.amount (order 1): pic must not be combined with usage");
     }
@@ -151,7 +151,7 @@ class EditedPictureGenerationTest {
         assertError(compiler.compile(
                 source("Priority", "public enum Priority {",
                     "  @CobolValue(\"1\") LOW, @CobolValue(\"2\") HIGH }"),
-                invoice(field("@BookField(order = 1, pic = \"Z9\")", "Priority", "priority"))),
+                invoice(field("@Field(order = 1, pic = \"Z9\")", "Priority", "priority"))),
             "Invoice.priority (order 1): an edited pic is not permitted for an enum");
     }
 
@@ -163,7 +163,7 @@ class EditedPictureGenerationTest {
                     "public Boolean decode(byte[] b, FieldContext c) { return null; }",
                     "public byte[] encode(Boolean v, FieldContext c) { return new byte[3]; }",
                     "}"),
-                invoice(field("@BookField(order = 1, pic = \"ZZ9\", converter ="
+                invoice(field("@Field(order = 1, pic = \"ZZ9\", converter ="
                     + " FlagConverter.class)", "Boolean", "flag"))),
             "Invoice.flag (order 1): an edited pic is not permitted with a converter");
     }
@@ -172,32 +172,32 @@ class EditedPictureGenerationTest {
     void rejectsAnEditedCountField() {
         assertError(compiler.compile(
                 invoice(
-                    field("@BookField(order = 1, pic = \"Z9\")", "int", "lineCount"),
-                    field("@BookCollection(order = 2, maxOccurs = 5)", "List<Line>", "lines")),
+                    field("@Field(order = 1, pic = \"Z9\")", "int", "lineCount"),
+                    field("@Occurs(order = 2, maxOccurs = 5)", "List<Line>", "lines")),
                 source("Line", "public class Line {",
-                    field("@BookField(order = 1, pic = \"X(2)\")", "String", "code"), "}")),
+                    field("@Field(order = 1, pic = \"X(2)\")", "String", "code"), "}")),
             "Invoice.lines (order 2): dependsOn field 'lineCount' must not have an edited pic");
     }
 
     @Test
     void rejectsAnEditedEmptyKey() {
         assertError(compiler.compile(
-                invoice(field("@BookCollection(order = 2, maxOccurs = 5, fixed = true,"
+                invoice(field("@Occurs(order = 2, maxOccurs = 5, fixed = true,"
                     + " emptyKey = \"quantity\")", "List<Line>", "lines")),
                 source("Line", "public class Line {",
-                    field("@BookField(order = 1, pic = \"ZZ9\")", "int", "quantity"), "}")),
+                    field("@Field(order = 1, pic = \"ZZ9\")", "int", "quantity"), "}")),
             "Invoice.lines (order 2): emptyKey field 'quantity' must not have an edited pic");
     }
 
     @Test
     void rejectsAnEditedDiscriminator() {
         assertError(compiler.compile(
-                source("GetAccount", "@BookOperation @BookSubTypes(discriminator = \"kind\","
-                        + " value = {@BookSubTypes.Type(value = \"1\", type = Checking.class)})",
+                source("GetAccount", "@Operation @SubTypes(discriminator = \"kind\","
+                        + " value = {@SubTypes.Type(value = \"1\", type = Checking.class)})",
                     "public class GetAccount {",
-                    field("@BookField(order = 1, pic = \"Z9\")", "int", "kind"), "}"),
+                    field("@Field(order = 1, pic = \"Z9\")", "int", "kind"), "}"),
                 source("Checking", "public class Checking extends GetAccount {",
-                    field("@BookField(order = 2, pic = \"X(2)\")", "String", "code"), "}")),
+                    field("@Field(order = 2, pic = \"X(2)\")", "String", "code"), "}")),
             "discriminator must not have an edited pic");
     }
 }

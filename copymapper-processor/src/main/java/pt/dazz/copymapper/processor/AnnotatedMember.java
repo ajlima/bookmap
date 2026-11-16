@@ -5,12 +5,12 @@ import javax.lang.model.element.VariableElement;
 import pt.dazz.copymapper.processor.model.MemberModel;
 
 /**
- * Gives one field with {@code @BookField}, {@code @BookCollection}, or {@code @BookGroup},
+ * Gives one field with {@code @Field}, {@code @Occurs}, or {@code @Group},
  * before the processor resolves the conventions.
  *
  * @param field the field
- * @param collection {@code true} for {@code @BookCollection}
- * @param group {@code true} for {@code @BookGroup}
+ * @param collection {@code true} for {@code @Occurs}
+ * @param group {@code true} for {@code @Group}
  * @param order the order
  * @param values the explicit attribute values, from {@link Mirrors#explicitValues}
  */

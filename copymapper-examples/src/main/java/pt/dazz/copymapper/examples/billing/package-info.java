@@ -3,8 +3,8 @@
  * A field with a pic and no usage clause gets usage COMP-3 from the defaults; the sign comes from the pic.
  * A field with only a length gets usage COMP-3 and the sign from the defaults.
  */
-@BookDefaults(usage = Usage.COMP3, signed = true)
+@Defaults(usage = Usage.COMP3, signed = true)
 package pt.dazz.copymapper.examples.billing;
 
-import pt.dazz.copymapper.annotation.BookDefaults;
+import pt.dazz.copymapper.annotation.Defaults;
 import pt.dazz.copymapper.cobol.Usage;

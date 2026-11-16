@@ -65,14 +65,14 @@ class EnumFieldTest {
     /** The operation class. It has a nested numeric enum with a fallback constant. */
     private static JavaFileObject invoice() {
         return source("Invoice",
-            "@BookOperation public class Invoice {",
+            "@Operation public class Invoice {",
             "public enum Tier { @CobolValue(\"1\") GOLD, @CobolUnknown @CobolValue(\"9\") OTHER }",
-            field("@BookField(order = 1, pic = \"X(8)\")", "PartyRole", "seller"),
-            field("@BookField(order = 2, pic = \"X(8)\")", "PartyRole", "buyer"),
-            field("@BookField(order = 3, length = 2)", "Grade", "grade"),
-            field("@BookField(order = 4, length = 1)", "Status", "status"),
-            field("@BookField(order = 5, pic = \"S9(3)V9\")", "Priority", "priority"),
-            field("@BookField(order = 6, pic = \"9 COMP-3\")", "Tier", "tier"),
+            field("@Field(order = 1, pic = \"X(8)\")", "PartyRole", "seller"),
+            field("@Field(order = 2, pic = \"X(8)\")", "PartyRole", "buyer"),
+            field("@Field(order = 3, length = 2)", "Grade", "grade"),
+            field("@Field(order = 4, length = 1)", "Status", "status"),
+            field("@Field(order = 5, pic = \"S9(3)V9\")", "Priority", "priority"),
+            field("@Field(order = 6, pic = \"9 COMP-3\")", "Tier", "tier"),
             "}");
     }
 
@@ -235,9 +235,9 @@ class EnumFieldTest {
     void enumWorksInAnItemClass() {
         Compilation compilation = compiler.compile(partyRole(),
             source("Party", "public class Party {",
-                field("@BookField(order = 1, pic = \"X(8)\")", "PartyRole", "role"), "}"),
-            source("Parties", "@BookOperation public class Parties {",
-                field("@BookCollection(order = 1, maxOccurs = 2, fixed = true)",
+                field("@Field(order = 1, pic = \"X(8)\")", "PartyRole", "role"), "}"),
+            source("Parties", "@Operation public class Parties {",
+                field("@Occurs(order = 1, maxOccurs = 2, fixed = true)",
                     "java.util.List<Party>", "parties"), "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         BookCodec<Object> codec = CompiledCodec.load(compilation, "test.Parties");
@@ -257,8 +257,8 @@ class EnumFieldTest {
                 "public PartyRole decode(byte[] b, FieldContext c) { return PartyRole.SELLER; }",
                 "public byte[] encode(PartyRole v, FieldContext c) { return new byte[1]; }",
                 "}"),
-            source("Order", "@BookOperation public class Order {",
-                field("@BookField(order = 1, length = 1, converter = RoleConverter.class)",
+            source("Order", "@Operation public class Order {",
+                field("@Field(order = 1, length = 1, converter = RoleConverter.class)",
                     "PartyRole", "role"), "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members().get(0).javaKind()).isEqualTo("CONVERTED");
@@ -268,7 +268,7 @@ class EnumFieldTest {
 
     private Compilation compileEnum(String fieldAnnotation, String... enumLines) {
         return compiler.compile(source("Code", enumLines),
-            source("Order", "@BookOperation public class Order {",
+            source("Order", "@Operation public class Order {",
                 field(fieldAnnotation, "Code", "code"), "}"));
     }
 
@@ -278,16 +278,16 @@ class EnumFieldTest {
             .hadErrorContaining("Order.code (order 1): " + phrase);
     }
 
-    private static final String TEXT_FIELD = "@BookField(order = 1, pic = \"X(3)\")";
-    private static final String NUMBER_FIELD = "@BookField(order = 1, pic = \"S9(3)V9\")";
-    private static final String UNSIGNED_FIELD = "@BookField(order = 1, pic = \"9(2)\")";
+    private static final String TEXT_FIELD = "@Field(order = 1, pic = \"X(3)\")";
+    private static final String NUMBER_FIELD = "@Field(order = 1, pic = \"S9(3)V9\")";
+    private static final String UNSIGNED_FIELD = "@Field(order = 1, pic = \"9(2)\")";
 
     @Test
     void privateEnumIsRejected() {
         Compilation nested = compiler.compile(source("Order",
-            "@BookOperation public class Order {",
+            "@Operation public class Order {",
             "private enum Code { @CobolValue(\"A\") A }",
-            field("@BookField(order = 1, length = 1)", "Code", "code"), "}"));
+            field("@Field(order = 1, length = 1)", "Code", "code"), "}"));
         assertError(nested, "enum Code: the enum must be public, or in the package test");
     }
 
@@ -296,8 +296,8 @@ class EnumFieldTest {
         Compilation compilation = compiler.compile(
             sourceIn("other", "Base", "public class Base {",
                 "protected enum Code { @CobolValue(\"A\") A }",
-                field("@BookField(order = 1, length = 1)", "Code", "code"), "}"),
-            source("Order", "@BookOperation public class Order extends other.Base {",
+                field("@Field(order = 1, length = 1)", "Code", "code"), "}"),
+            source("Order", "@Operation public class Order extends other.Base {",
                 TestCompiler.ID_FIELD.replace("order = 1", "order = 2"), "}"));
         CompilationSubject.assertThat(compilation).hadErrorContaining(
             "Base.code (order 1): enum Code: the enum must be public, or in the package test");
@@ -410,10 +410,10 @@ class EnumFieldTest {
 
     @Test
     void textEnumHasTheRulesOfAString() {
-        assertError(compileEnum("@BookField(order = 1, length = 1, usage = Usage.COMP3)",
+        assertError(compileEnum("@Field(order = 1, length = 1, usage = Usage.COMP3)",
                 "public enum Code { @CobolValue(\"A\") A }"),
             "COMP3 is not permitted for Code");
-        assertError(compileEnum("@BookField(order = 1, length = 1, scale = 1)",
+        assertError(compileEnum("@Field(order = 1, length = 1, scale = 1)",
                 "public enum Code { @CobolValue(\"A\") A }"),
             "scale is not permitted for Code");
     }
@@ -422,10 +422,10 @@ class EnumFieldTest {
     void numericEnumUsesTheDefaultUsage() {
         Compilation compilation = compiler.compile(
             source("Code", "public enum Code { @CobolValue(\"1\") A }"),
-            source("Order", "@BookOperation @BookDefaults(usage = Usage.COMP3)",
+            source("Order", "@Operation @Defaults(usage = Usage.COMP3)",
                 "public class Order {",
-                field("@BookField(order = 1, pic = \"9(3)\")", "Code", "code"),
-                field("@BookField(order = 2, length = 1)", "Code", "letter"), "}"));
+                field("@Field(order = 1, pic = \"9(3)\")", "Code", "code"),
+                field("@Field(order = 2, length = 1)", "Code", "letter"), "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().members()).extracting(ModelSnapshot.Member::usage)
             .containsExactly("COMP3", "DISPLAY");
@@ -435,13 +435,13 @@ class EnumFieldTest {
     void enumIsNotADiscriminator() {
         Compilation compilation = compiler.compile(
             source("Code", "public enum Code { @CobolValue(\"01\") A }"),
-            source("Account", "@BookOperation",
-                "@BookSubTypes(discriminator = \"code\", value = @BookSubTypes.Type(value = \"01\","
+            source("Account", "@Operation",
+                "@SubTypes(discriminator = \"code\", value = @SubTypes.Type(value = \"01\","
                     + " type = Checking.class))",
                 "public abstract class Account {",
-                field("@BookField(order = 1, pic = \"X(2)\")", "Code", "code"), "}"),
+                field("@Field(order = 1, pic = \"X(2)\")", "Code", "code"), "}"),
             source("Checking", "public class Checking extends Account {",
-                field("@BookField(order = 2, length = 1)", "String", "flag"), "}"));
+                field("@Field(order = 2, length = 1)", "String", "flag"), "}"));
         CompilationSubject.assertThat(compilation).hadErrorContaining(
             "Account.code (order 1): discriminator must be String, int, Integer, long, or Long");
     }

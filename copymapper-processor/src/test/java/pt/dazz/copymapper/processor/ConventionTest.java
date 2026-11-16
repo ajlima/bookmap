@@ -30,7 +30,7 @@ class ConventionTest {
     @Test
     void operationNameDefaultsToSimpleClassName() {
         Compilation compilation = compiler.compile(source("GetCustomerOrders",
-            "@BookOperation public class GetCustomerOrders { " + TestCompiler.ID_FIELD + " }"));
+            "@Operation public class GetCustomerOrders { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().operationName()).isEqualTo("GetCustomerOrders");
     }
@@ -38,7 +38,7 @@ class ConventionTest {
     @Test
     void explicitOperationNameWins() {
         Compilation compilation = compiler.compile(source("GetCustomerOrders",
-            "@BookOperation(\"ORDLIST\") public class GetCustomerOrders { " + TestCompiler.ID_FIELD + " }"));
+            "@Operation(\"ORDLIST\") public class GetCustomerOrders { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().operationName()).isEqualTo("ORDLIST");
     }
@@ -46,15 +46,15 @@ class ConventionTest {
     @Test
     void collectionDefaultsToOutput() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 1, length = 3) private int count;",
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 1, length = 3) private int count;",
                 accessors("int", "count"),
-                "@BookCollection(order = 2, maxOccurs = 3, dependsOn = \"count\")",
+                "@Occurs(order = 2, maxOccurs = 3, dependsOn = \"count\")",
                 "private List<Line> lines;",
                 accessors("List<Line>", "lines"),
                 "}"),
             source("Line", "public class Line {",
-                "@BookField(order = 1, length = 5) private String sku;",
+                "@Field(order = 1, length = 5) private String sku;",
                 accessors("String", "sku"),
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -67,8 +67,8 @@ class ConventionTest {
     void nestedOperationClass() {
         Compilation compilation = compiler.compile(source("Outer",
             "public class Outer {",
-            "@BookOperation public static class Inner {",
-            "@BookField(order = 1, length = 5) private String id;",
+            "@Operation public static class Inner {",
+            "@Field(order = 1, length = 5) private String id;",
             accessors("String", "id"),
             "}",
             "}"));
@@ -81,12 +81,12 @@ class ConventionTest {
     @Test
     void explicitAttributesReachTheModel() {
         Compilation compilation = compiler.compile(source("Order",
-            "@BookOperation public class Order {",
-            "@BookField(order = 5, length = 15, scale = 2, signed = true, usage = Usage.COMP3,",
+            "@Operation public class Order {",
+            "@Field(order = 5, length = 15, scale = 2, signed = true, usage = Usage.COMP3,",
             "    direction = Direction.INPUT)",
             "private BigDecimal amount;",
             accessors("BigDecimal", "amount"),
-            "@BookField(order = 1, length = 6, pattern = \"yyMMdd\") private LocalDate day;",
+            "@Field(order = 1, length = 6, pattern = \"yyMMdd\") private LocalDate day;",
             accessors("LocalDate", "day"),
             "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -110,10 +110,10 @@ class ConventionTest {
     @Test
     void picResolvesLengthScaleSignedUsage() {
         Compilation compilation = compiler.compile(source("Order",
-            "@BookOperation public class Order {",
-            "@BookField(order = 1, pic = \"S9(13)V99 COMP-3\") private BigDecimal amount;",
+            "@Operation public class Order {",
+            "@Field(order = 1, pic = \"S9(13)V99 COMP-3\") private BigDecimal amount;",
             accessors("BigDecimal", "amount"),
-            "@BookField(order = 2, pic = \"PIC X(10).\") private String customerId;",
+            "@Field(order = 2, pic = \"PIC X(10).\") private String customerId;",
             accessors("String", "customerId"),
             "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -132,13 +132,13 @@ class ConventionTest {
     @Test
     void picWithoutUsageUsesBookDefaults() {
         Compilation compilation = compiler.compile(source("Order",
-            "@BookDefaults(usage = Usage.COMP3, signed = true) @BookOperation",
+            "@Defaults(usage = Usage.COMP3, signed = true) @Operation",
             "public class Order {",
-            "@BookField(order = 1, pic = \"S9(5)\") private int quantity;",
+            "@Field(order = 1, pic = \"S9(5)\") private int quantity;",
             accessors("int", "quantity"),
-            "@BookField(order = 2, pic = \"9(5)\") private int units;",
+            "@Field(order = 2, pic = \"9(5)\") private int units;",
             accessors("int", "units"),
-            "@BookField(order = 3, pic = \"9(4) COMP\") private int lines;",
+            "@Field(order = 3, pic = \"9(4) COMP\") private int lines;",
             accessors("int", "lines"),
             "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -154,12 +154,12 @@ class ConventionTest {
     void classDefaultsOverridePackageDefaults() {
         Compilation compilation = compiler.compile(
             TestCompiler.packageInfo("test",
-                "@BookDefaults(usage = Usage.COMP, signed = true, pattern = \"yyMMdd\")"),
-            source("Order", "@BookDefaults(usage = Usage.COMP3) @BookOperation",
+                "@Defaults(usage = Usage.COMP, signed = true, pattern = \"yyMMdd\")"),
+            source("Order", "@Defaults(usage = Usage.COMP3) @Operation",
                 "public class Order {",
-                "@BookField(order = 1, length = 5) private int quantity;",
+                "@Field(order = 1, length = 5) private int quantity;",
                 accessors("int", "quantity"),
-                "@BookField(order = 2) private LocalDate shipped;",
+                "@Field(order = 2) private LocalDate shipped;",
                 accessors("LocalDate", "shipped"),
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -173,12 +173,12 @@ class ConventionTest {
     @Test
     void explicitAttributeOverridesDefaults() {
         Compilation compilation = compiler.compile(source("Order",
-            "@BookDefaults(usage = Usage.COMP3, signed = true, pattern = \"yyMMdd\")",
-            "@BookOperation public class Order {",
-            "@BookField(order = 1, length = 5, signed = false, usage = Usage.DISPLAY)",
+            "@Defaults(usage = Usage.COMP3, signed = true, pattern = \"yyMMdd\")",
+            "@Operation public class Order {",
+            "@Field(order = 1, length = 5, signed = false, usage = Usage.DISPLAY)",
             "private int quantity;",
             accessors("int", "quantity"),
-            "@BookField(order = 2, pattern = \"yyyyMMdd\") private LocalDate shipped;",
+            "@Field(order = 2, pattern = \"yyyyMMdd\") private LocalDate shipped;",
             accessors("LocalDate", "shipped"),
             "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -192,19 +192,19 @@ class ConventionTest {
     @Test
     void superclassFieldUsesItsOwnDefaults() {
         Compilation compilation = compiler.compile(
-            source("Base", "@BookDefaults(usage = Usage.COMP3) public class Base {",
-                "@BookField(order = 1, length = 5) private int quantity;",
+            source("Base", "@Defaults(usage = Usage.COMP3) public class Base {",
+                "@Field(order = 1, length = 5) private int quantity;",
                 accessors("int", "quantity"),
                 "}"),
-            source("Order", "@BookOperation public class Order extends Base {",
-                "@BookField(order = 2, length = 5) private int units;",
+            source("Order", "@Operation public class Order extends Base {",
+                "@Field(order = 2, length = 5) private int units;",
                 accessors("int", "units"),
-                "@BookCollection(order = 3, maxOccurs = 2, dependsOn = \"units\")",
+                "@Occurs(order = 3, maxOccurs = 2, dependsOn = \"units\")",
                 "private List<Line> lines;",
                 accessors("List<Line>", "lines"),
                 "}"),
-            source("Line", "@BookDefaults(usage = Usage.COMP) public class Line {",
-                "@BookField(order = 1, length = 5) private int quantity;",
+            source("Line", "@Defaults(usage = Usage.COMP) public class Line {",
+                "@Field(order = 1, length = 5) private int quantity;",
                 accessors("int", "quantity"),
                 "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -218,15 +218,15 @@ class ConventionTest {
     @Test
     void dateLengthFromDefaultPattern() {
         Compilation compilation = compiler.compile(source("Order",
-            "@BookOperation public class Order {",
-            "@BookField(order = 1) private LocalDate shipped;",
+            "@Operation public class Order {",
+            "@Field(order = 1) private LocalDate shipped;",
             accessors("LocalDate", "shipped"),
-            "@BookField(order = 2, pattern = \"HHmmss\") private LocalTime time;",
+            "@Field(order = 2, pattern = \"HHmmss\") private LocalTime time;",
             accessors("LocalTime", "time"),
-            "@BookField(order = 3, pattern = \"yyyy-MM-dd'T'HH:mm:ss\")",
+            "@Field(order = 3, pattern = \"yyyy-MM-dd'T'HH:mm:ss\")",
             "private LocalDateTime created;",
             accessors("LocalDateTime", "created"),
-            "@BookField(order = 4, pic = \"9(8)\") private LocalDate delivered;",
+            "@Field(order = 4, pic = \"9(8)\") private LocalDate delivered;",
             accessors("LocalDate", "delivered"),
             "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -243,10 +243,10 @@ class ConventionTest {
     @Test
     void dateLengthFromDefaultsPattern() {
         Compilation compilation = compiler.compile(source("Order",
-            "@BookDefaults(pattern = \"yyyyDDD\") @BookOperation public class Order {",
-            "@BookField(order = 1) private LocalDate shipped;",
+            "@Defaults(pattern = \"yyyyDDD\") @Operation public class Order {",
+            "@Field(order = 1) private LocalDate shipped;",
             accessors("LocalDate", "shipped"),
-            "@BookField(order = 2, length = 5, scale = 2) private BigDecimal rate;",
+            "@Field(order = 2, length = 5, scale = 2) private BigDecimal rate;",
             accessors("BigDecimal", "rate"),
             "}"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
@@ -260,12 +260,12 @@ class ConventionTest {
     @Test
     void dependsOnDefaultsToPreviousMember() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                "@BookCollection(order = 30, maxOccurs = 3) private List<Line> orders;",
+            source("Order", "@Operation public class Order {",
+                "@Occurs(order = 30, maxOccurs = 3) private List<Line> orders;",
                 accessors("List<Line>", "orders"),
-                "@BookField(order = 20, length = 3) private int orderCount;",
+                "@Field(order = 20, length = 3) private int orderCount;",
                 accessors("int", "orderCount"),
-                "@BookField(order = 10, length = 5) private int other;",
+                "@Field(order = 10, length = 5) private int other;",
                 accessors("int", "other"),
                 "}"),
             line());
@@ -277,11 +277,11 @@ class ConventionTest {
     void dependsOnDefaultsToPreviousMemberInSuperclass() {
         Compilation compilation = compiler.compile(
             source("Base", "public class Base {",
-                "@BookField(order = 1, length = 3) private Long orderCount;",
+                "@Field(order = 1, length = 3) private Long orderCount;",
                 accessors("Long", "orderCount"),
                 "}"),
-            source("Order", "@BookOperation public class Order extends Base {",
-                "@BookCollection(order = 2, maxOccurs = 3, dependsOn = \"\")",
+            source("Order", "@Operation public class Order extends Base {",
+                "@Occurs(order = 2, maxOccurs = 3, dependsOn = \"\")",
                 "private List<Line> orders;",
                 accessors("List<Line>", "orders"),
                 "}"),
@@ -293,10 +293,10 @@ class ConventionTest {
     @Test
     void fixedCollectionWithoutDependsOnHasNoCountField() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 10, length = 2) private int lineCount;",
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 10, length = 2) private int lineCount;",
                 accessors("int", "lineCount"),
-                "@BookCollection(order = 20, maxOccurs = 20, fixed = true) private List<Line> lines;",
+                "@Occurs(order = 20, maxOccurs = 20, fixed = true) private List<Line> lines;",
                 accessors("List<Line>", "lines"),
                 "}"),
             line());
@@ -310,10 +310,10 @@ class ConventionTest {
     @Test
     void fixedCollectionWithDependsOnUsesTheCountField() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 10, length = 2) private int lineCount;",
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 10, length = 2) private int lineCount;",
                 accessors("int", "lineCount"),
-                "@BookCollection(order = 20, maxOccurs = 20, fixed = true, dependsOn = \"lineCount\")",
+                "@Occurs(order = 20, maxOccurs = 20, fixed = true, dependsOn = \"lineCount\")",
                 "private List<Line> lines;",
                 accessors("List<Line>", "lines"),
                 "}"),
@@ -328,10 +328,10 @@ class ConventionTest {
     @Test
     void variableCollectionIsNotFixed() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 10, length = 2) private int lineCount;",
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 10, length = 2) private int lineCount;",
                 accessors("int", "lineCount"),
-                "@BookCollection(order = 20, maxOccurs = 20) private List<Line> lines;",
+                "@Occurs(order = 20, maxOccurs = 20) private List<Line> lines;",
                 accessors("List<Line>", "lines"),
                 "}"),
             line());
@@ -342,14 +342,14 @@ class ConventionTest {
     @Test
     void countFieldInheritsCollectionDirection() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 1, length = 3) private int orderCount;",
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 1, length = 3) private int orderCount;",
                 accessors("int", "orderCount"),
-                "@BookCollection(order = 2, maxOccurs = 3) private List<Line> orders;",
+                "@Occurs(order = 2, maxOccurs = 3) private List<Line> orders;",
                 accessors("List<Line>", "orders"),
-                "@BookField(order = 3, length = 3) private int inputCount;",
+                "@Field(order = 3, length = 3) private int inputCount;",
                 accessors("int", "inputCount"),
-                "@BookCollection(order = 4, maxOccurs = 3, direction = Direction.INPUT)",
+                "@Occurs(order = 4, maxOccurs = 3, direction = Direction.INPUT)",
                 "private List<Line> inputs;",
                 accessors("List<Line>", "inputs"),
                 "}"),
@@ -373,10 +373,10 @@ class ConventionTest {
                     }
                 }
             })),
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 1, length = 3) private int orderCount;",
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 1, length = 3) private int orderCount;",
                 accessors("int", "orderCount"),
-                "@BookCollection(order = 2, maxOccurs = 3) private List<Line> orders;",
+                "@Occurs(order = 2, maxOccurs = 3) private List<Line> orders;",
                 accessors("List<Line>", "orders"),
                 "}"),
             line());
@@ -387,11 +387,11 @@ class ConventionTest {
     @Test
     void explicitCountDirectionIsKept() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 1, length = 3, direction = Direction.INPUT_OUTPUT)",
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 1, length = 3, direction = Direction.INPUT_OUTPUT)",
                 "private int orderCount;",
                 accessors("int", "orderCount"),
-                "@BookCollection(order = 2, maxOccurs = 3) private List<Line> orders;",
+                "@Occurs(order = 2, maxOccurs = 3) private List<Line> orders;",
                 accessors("List<Line>", "orders"),
                 "}"),
             line());
@@ -402,10 +402,10 @@ class ConventionTest {
     @Test
     void previousMemberNotIntegerFails() {
         Compilation compilation = compiler.compile(
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 1, length = 10) private String customerId;",
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 1, length = 10) private String customerId;",
                 accessors("String", "customerId"),
-                "@BookCollection(order = 2, maxOccurs = 3) private List<Line> orders;",
+                "@Occurs(order = 2, maxOccurs = 3) private List<Line> orders;",
                 accessors("List<Line>", "orders"),
                 "}"),
             line());
@@ -417,7 +417,7 @@ class ConventionTest {
     @Test
     void charsetFromDefaults() {
         Compilation compilation = compiler.compile(source("Order",
-            "@BookDefaults(charset = \"IBM500\") @BookOperation public class Order { " + TestCompiler.ID_FIELD + " }"));
+            "@Defaults(charset = \"IBM500\") @Operation public class Order { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.only().charsetName()).isEqualTo("IBM500");
     }
@@ -425,9 +425,9 @@ class ConventionTest {
     @Test
     void emptyClassCharsetOverridesPackageCharset() {
         Compilation compilation = compiler.compile(
-            TestCompiler.packageInfo("test", "@BookDefaults(charset = \"IBM500\")"),
-            source("Order", "@BookDefaults(charset = \"\") @BookOperation public class Order { " + TestCompiler.ID_FIELD + " }"),
-            source("Invoice", "@BookOperation public class Invoice { " + TestCompiler.ID_FIELD + " }"));
+            TestCompiler.packageInfo("test", "@Defaults(charset = \"IBM500\")"),
+            source("Order", "@Defaults(charset = \"\") @Operation public class Order { " + TestCompiler.ID_FIELD + " }"),
+            source("Invoice", "@Operation public class Invoice { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
         assertThat(compiler.snapshots).extracting(ModelSnapshot::operationName,
                 ModelSnapshot::charsetName)
@@ -437,16 +437,16 @@ class ConventionTest {
     @Test
     void defaultsUsageIgnoredForTextAndTemporal() {
         Compilation compilation = compiler.compile(
-            TestCompiler.packageInfo("test", "@BookDefaults(usage = Usage.COMP3, signed = true)"),
-            source("Order", "@BookOperation public class Order {",
-                "@BookField(order = 1, pic = \"X(10)\") private String customerId;",
+            TestCompiler.packageInfo("test", "@Defaults(usage = Usage.COMP3, signed = true)"),
+            source("Order", "@Operation public class Order {",
+                "@Field(order = 1, pic = \"X(10)\") private String customerId;",
                 accessors("String", "customerId"),
-                "@BookField(order = 2) private LocalDate shipped;",
+                "@Field(order = 2) private LocalDate shipped;",
                 accessors("LocalDate", "shipped"),
-                "@BookField(order = 3, length = 1, converter = FlagConverter.class)",
+                "@Field(order = 3, length = 1, converter = FlagConverter.class)",
                 "private Boolean flag;",
                 accessors("Boolean", "flag"),
-                "@BookField(order = 4, length = 5) private Long quantity;",
+                "@Field(order = 4, length = 5) private Long quantity;",
                 accessors("Long", "quantity"),
                 "}"),
             source("FlagConverter",
@@ -466,12 +466,12 @@ class ConventionTest {
     @Test
     void nestedOperationClassUsesItsOwnDefaultsThenThePackage() {
         Compilation compilation = compiler.compile(
-            TestCompiler.packageInfo("test", "@BookDefaults(usage = Usage.COMP3)"),
+            TestCompiler.packageInfo("test", "@Defaults(usage = Usage.COMP3)"),
             source("Outer",
-                "@BookDefaults(usage = Usage.COMP, signed = true) public class Outer {",
-                "@BookDefaults(charset = \"IBM500\")",
-                "@BookOperation public static class Inner {",
-                "@BookField(order = 1, length = 5) private int quantity;",
+                "@Defaults(usage = Usage.COMP, signed = true) public class Outer {",
+                "@Defaults(charset = \"IBM500\")",
+                "@Operation public static class Inner {",
+                "@Field(order = 1, length = 5) private int quantity;",
                 accessors("int", "quantity"),
                 "}",
                 "}"));
@@ -485,7 +485,7 @@ class ConventionTest {
 
     private static JavaFileObject line() {
         return source("Line", "public class Line {",
-            "@BookField(order = 1, length = 5) private String sku;",
+            "@Field(order = 1, length = 5) private String sku;",
             accessors("String", "sku"),
             "}");
     }
@@ -501,7 +501,7 @@ class ConventionTest {
 
         @Override
         public Set<String> getSupportedAnnotationTypes() {
-            return Set.of(ModelBuilder.BOOK_OPERATION);
+            return Set.of(ModelBuilder.OPERATION);
         }
 
         @Override
@@ -513,7 +513,7 @@ class ConventionTest {
         public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment round) {
             ModelBuilder builder = new ModelBuilder(processingEnv);
             for (TypeElement type : ElementFilter.typesIn(round.getElementsAnnotatedWith(
-                processingEnv.getElementUtils().getTypeElement(ModelBuilder.BOOK_OPERATION)))) {
+                processingEnv.getElementUtils().getTypeElement(ModelBuilder.OPERATION)))) {
                 builder.build(type, false).ifPresent(check);
             }
             return false;

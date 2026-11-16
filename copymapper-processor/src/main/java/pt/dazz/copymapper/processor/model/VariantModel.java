@@ -4,7 +4,7 @@ import java.util.List;
 import javax.lang.model.element.TypeElement;
 
 /**
- * Describes the layout of one subtype of a base class with {@code @BookSubTypes}.
+ * Describes the layout of one subtype of a base class with {@code @SubTypes}.
  *
  * @param type the subtype, or the base class if the base class has its own value
  * @param value the normalized discriminator value: the text without spaces on the right, or

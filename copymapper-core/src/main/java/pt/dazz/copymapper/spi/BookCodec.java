@@ -5,8 +5,8 @@ import pt.dazz.copymapper.convert.CodecContext;
 
 /**
  * Converts a book class to bytes and back.
- * The annotation processor generates one implementation for each {@code @BookOperation} class.
- * For a class with {@code @BookSubTypes}, one codec handles the base class and all subtypes.
+ * The annotation processor generates one implementation for each {@code @Operation} class.
+ * For a class with {@code @SubTypes}, one codec handles the base class and all subtypes.
  *
  * @param <T> the book class
  */

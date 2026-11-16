@@ -4,7 +4,7 @@ import java.util.Optional;
 import pt.dazz.copymapper.cobol.Usage;
 
 /**
- * Gives the {@code @BookDefaults} values that apply to the fields of one declaring class.
+ * Gives the {@code @Defaults} values that apply to the fields of one declaring class.
  * A value is present only if the source code sets it explicitly on the class or on its package.
  *
  * @param charset the charset name

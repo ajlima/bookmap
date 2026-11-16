@@ -4,9 +4,9 @@ import static pt.dazz.copymapper.annotation.Direction.INPUT;
 import static pt.dazz.copymapper.annotation.Direction.OUTPUT;
 
 import pt.dazz.copymapper.Continuable;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookOperation;
-import pt.dazz.copymapper.annotation.BookSubTypes;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Operation;
+import pt.dazz.copymapper.annotation.SubTypes;
 
 /**
  * Reads a bank account. The remote program sets the account type in the response. The type
@@ -31,23 +31,23 @@ import pt.dazz.copymapper.annotation.BookSubTypes;
  * <p>Send a {@code GetAccount}. The client gives a {@link CheckingAccount} or a
  * {@link SavingsAccount}.
  */
-@BookOperation
-@BookSubTypes(discriminator = "accountType", value = {
-    @BookSubTypes.Type(value = "01", type = CheckingAccount.class),
-    @BookSubTypes.Type(value = "02", type = SavingsAccount.class)
+@Operation
+@SubTypes(discriminator = "accountType", value = {
+    @SubTypes.Type(value = "01", type = CheckingAccount.class),
+    @SubTypes.Type(value = "02", type = SavingsAccount.class)
 })
 public class GetAccount implements Continuable {
 
-    @BookField(order = 10, pic = "X(12)", direction = INPUT)
+    @Field(order = 10, pic = "X(12)", direction = INPUT)
     private String accountId;
 
-    @BookField(order = 20, pic = "X(10)")
+    @Field(order = 20, pic = "X(10)")
     private String restartKey;
 
-    @BookField(order = 30, pic = "X", direction = OUTPUT)
+    @Field(order = 30, pic = "X", direction = OUTPUT)
     private String moreData;
 
-    @BookField(order = 40, pic = "9(2)")
+    @Field(order = 40, pic = "9(2)")
     private int accountType;
 
     @Override

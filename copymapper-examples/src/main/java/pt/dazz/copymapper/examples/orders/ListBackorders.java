@@ -5,9 +5,9 @@ import static pt.dazz.copymapper.annotation.Direction.OUTPUT;
 
 import java.util.List;
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookCollection;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookOperation;
+import pt.dazz.copymapper.annotation.Occurs;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Operation;
 import pt.dazz.copymapper.annotation.EmptyItem;
 
 /**
@@ -26,16 +26,16 @@ import pt.dazz.copymapper.annotation.EmptyItem;
  * </pre>
  */
 @Data
-@BookOperation
+@Operation
 public class ListBackorders {
 
-    @BookField(order = 10, pic = "X(10)", direction = INPUT)
+    @Field(order = 10, pic = "X(10)", direction = INPUT)
     private String customerId;
 
-    @BookCollection(order = 20, maxOccurs = 4, fixed = true, emptyKey = "orderNumber",
+    @Occurs(order = 20, maxOccurs = 4, fixed = true, emptyKey = "orderNumber",
         emptyItem = EmptyItem.SPACES)
     private List<Backorder> backorders;
 
-    @BookField(order = 30, pic = "X(4)", direction = OUTPUT)
+    @Field(order = 30, pic = "X(4)", direction = OUTPUT)
     private String returnCode;
 }

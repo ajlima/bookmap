@@ -5,9 +5,9 @@ import static pt.dazz.copymapper.annotation.Direction.OUTPUT;
 
 import java.util.List;
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookCollection;
-import pt.dazz.copymapper.annotation.BookField;
-import pt.dazz.copymapper.annotation.BookOperation;
+import pt.dazz.copymapper.annotation.Occurs;
+import pt.dazz.copymapper.annotation.Field;
+import pt.dazz.copymapper.annotation.Operation;
 
 /**
  * Lists the open orders of a customer. The program sends only the used entries of the fixed
@@ -25,19 +25,19 @@ import pt.dazz.copymapper.annotation.BookOperation;
  * </pre>
  */
 @Data
-@BookOperation
+@Operation
 public class ListOpenOrders {
 
-    @BookField(order = 10, pic = "X(10)", direction = INPUT)
+    @Field(order = 10, pic = "X(10)", direction = INPUT)
     private String customerId;
 
-    @BookField(order = 20, pic = "X(4)", direction = OUTPUT)
+    @Field(order = 20, pic = "X(4)", direction = OUTPUT)
     private String returnCode;
 
-    @BookField(order = 30, pic = "9(2)")
+    @Field(order = 30, pic = "9(2)")
     private int orderCount;
 
-    @BookCollection(order = 40, maxOccurs = 10, fixed = true, dependsOn = "orderCount",
+    @Occurs(order = 40, maxOccurs = 10, fixed = true, dependsOn = "orderCount",
         partial = true)
     private List<OpenOrder> orders;
 }

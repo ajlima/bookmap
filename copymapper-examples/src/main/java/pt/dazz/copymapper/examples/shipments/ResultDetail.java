@@ -1,7 +1,7 @@
 package pt.dazz.copymapper.examples.shipments;
 
 import lombok.Data;
-import pt.dazz.copymapper.annotation.BookField;
+import pt.dazz.copymapper.annotation.Field;
 
 /**
  * The detail of a failed shipment.
@@ -9,6 +9,6 @@ import pt.dazz.copymapper.annotation.BookField;
 @Data
 public class ResultDetail {
 
-    @BookField(order = 10, pic = "X(40)")
+    @Field(order = 10, pic = "X(40)")
     private String errorText;
 }

@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 /**
  * Maps a Java field to a COBOL group without {@code OCCURS}, in a {@code REDEFINES} area. The
  * type of the field is a group class. A group class has the rules of an item class: it is
- * public, not generic, with a public no-argument constructor, at least one {@link BookField},
+ * public, not generic, with a public no-argument constructor, at least one {@link Field},
  * and only fixed collections. Its members have no direction.
  *
  * <p>A {@code REDEFINES} area is one redefined member and the members that name it in
@@ -20,7 +20,7 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.CLASS)
-public @interface BookGroup {
+public @interface Group {
 
     /**
      * Gives the position of the group in the book. Lower values come first.
@@ -39,7 +39,7 @@ public @interface BookGroup {
 
     /**
      * Gives the Java field name of the member that this group redefines. See
-     * {@link BookField#redefines()}.
+     * {@link Field#redefines()}.
      *
      * @return the field name, or an empty value for the redefined member of an area
      */
