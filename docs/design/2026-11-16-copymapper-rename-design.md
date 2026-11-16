@@ -27,7 +27,7 @@ Goals:
 Non-goals:
 
 - No relocation POMs in the old group `pt.dazz.bookmap`. The published versions stay as they are on Maven Central.
-- No change to the behavior of the codec, the processor, the generator, or the transports.
+- No change to the behavior of the codec, the generator, or the transports. The processor gets only the check of section 5.2. It still finds the classes from `@Operation`, as before.
 - No change to the types with the prefix `Book` that are not annotations (section 4.3).
 - No change to the GitHub repository settings (description, topics) in this change. Section 9 lists them.
 
@@ -145,7 +145,8 @@ These two charsets have different bytes for some characters, for example `[`, `]
 
 `copymapper-spring-boot` must fail at startup if the environment contains an old key:
 
-- An old key starts with `bookmap.`, or it is an environment variable that starts with `BOOKMAP_`. Ignore the case of the letters.
+- An old key is a key that the library used before this change: `bookmap.charset`, `bookmap.max-calls`, and each key under `bookmap.transport`. The check uses the relaxed binding of Spring Boot, so it also finds the forms `bookmap.maxCalls`, `BOOKMAP_CHARSET`, `BOOKMAP_MAXCALLS`, and `BOOKMAP_TRANSPORT_CTG_PASSWORD`.
+- Other keys that start with `bookmap` are not old keys. Another product with the name BookMap can use them, and the application must start.
 - The check reads all enumerable property sources of the environment.
 - The check runs before the `CopyMapperClient` bean is created. It runs also when no transport is configured.
 - The error message lists each old key and says: `Rename the properties bookmap.* to copymapper.*`. It gives the address of the migration page. It does not show the values, because a value can be a password.
@@ -155,20 +156,24 @@ The check is temporary. A later release can remove it.
 
 ### 5.2 A wrong import of an annotation
 
-An annotation without a prefix has the same simple name as other common types, for example `io.swagger.v3.oas.annotations.Operation` and the `@Field` of Spring Data MongoDB.
-An IDE can select the wrong import. Most wrong imports fail to compile, because a required attribute (`order`, `maxOccurs`) is missing or an attribute (`pic`) is unknown.
-Two cases compile without an error and lose data silently:
+An annotation without a prefix has the same simple name as other common types, for example `io.swagger.v3.oas.annotations.Operation`, `java.lang.reflect.Field`, and the `@Field` of Spring Data MongoDB.
+An IDE can select the wrong import. Most wrong imports fail to compile:
 
-- `@Operation` without attributes, with the Swagger import. The processor does not see the class and generates no codec.
-- `@Field(order = 3)` without other attributes, with the MongoDB import. That annotation also has `order`. The member is not in the layout, and the offsets of the next members are incorrect.
+- A required attribute (`order`, `maxOccurs`) is missing, or an attribute (`pic`) is unknown.
+- The Swagger `@Operation` can go only on a method. On a class, it does not compile.
+- `java.util.Collection` is not an annotation. Also, the new name is `@Occurs`.
 
-The processor must report a compile error in these cases:
+One case compiles without an error and loses data silently: `@Field(order = 3)` without other attributes, with the import of Spring Data MongoDB. That annotation also has `order`. The member is not in the layout, and the offsets of the next members are incorrect.
 
-- **Member:** a class has at least one member with a CopyMapper annotation, and another member has an annotation with the simple name `Field`, `Occurs`, or `Group` from a different package, and no CopyMapper annotation.
-- **Class:** a class has at least one member with a CopyMapper annotation, and the class has an annotation with the simple name `Operation`, `SubTypes`, `Defaults`, or `Group` from a different package, and no CopyMapper annotation with the same simple name.
+The processor must report a compile error in this case:
 
-The message gives the two qualified names, for example: `io.swagger.v3.oas.annotations.Operation is not pt.dazz.copymapper.annotation.Operation. Change the import.`
+- **Member:** a class that the processor maps (an operation class, or a class that the processor reaches from it: a group, an item, a subtype) has a member with an annotation with the simple name `Field`, `Occurs`, or `Group` from a different package, and the member has no CopyMapper annotation.
+- **Class:** a class that the processor maps has an annotation with the simple name `SubTypes` or `Defaults` from a different package, and no CopyMapper annotation with the same simple name.
+
+The message gives the two qualified names, for example: `org.springframework.data.mongodb.core.mapping.Field is not pt.dazz.copymapper.annotation.Field. Change the import.`
 A member or a class with both annotations (the CopyMapper annotation and the other annotation) is valid.
+
+The check applies only to the classes that the processor maps, because only these classes go into a layout. The processor still finds the classes from `@Operation`. A wrong import of `@Defaults` in a `package-info.java` file is not checked.
 
 ### 5.3 IDE settings
 
