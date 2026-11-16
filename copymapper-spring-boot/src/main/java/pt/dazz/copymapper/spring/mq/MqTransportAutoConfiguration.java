@@ -15,7 +15,7 @@ import pt.dazz.copymapper.mq.MqRoute;
 import pt.dazz.copymapper.mq.MqTransport;
 import pt.dazz.copymapper.mq.jms.JmsConnector;
 import pt.dazz.copymapper.spi.Transport;
-import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
+import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 /**
  * Creates an {@link MqTransport} bean from the {@code bookmap.transport.mq.*} properties, when
@@ -26,7 +26,7 @@ import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
  * factory is read when the connector is created, so the order of the auto-configuration that
  * creates the factory does not matter.
  */
-@AutoConfiguration(before = BookmapAutoConfiguration.class)
+@AutoConfiguration(before = CopyMapperAutoConfiguration.class)
 @ConditionalOnClass(MqTransport.class)
 @ConditionalOnProperty(name = "bookmap.transport.type", havingValue = "mq")
 @EnableConfigurationProperties(MqTransportProperties.class)

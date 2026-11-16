@@ -2,7 +2,7 @@ package pt.dazz.copymapper.nativetest;
 
 import java.util.Arrays;
 import java.util.HexFormat;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.simulator.SimulatorTransport;
 
 /**
@@ -25,7 +25,7 @@ public final class NativeSmokeTest {
         SimulatorTransport simulator = SimulatorTransport.builder().build();
         simulator.register(ShipmentNote.class,
             call -> call.setStatus("[ORDER]".equals(call.getNote()) ? "OK" : "KO"));
-        BookmapClient client = BookmapClient.builder().transport(simulator).build();
+        CopyMapperClient client = CopyMapperClient.builder().transport(simulator).build();
 
         ShipmentNote request = new ShipmentNote();
         request.setShipmentId("SHP000000042");

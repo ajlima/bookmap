@@ -23,7 +23,7 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.annotation.Order;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.exception.ConnectionException;
 import pt.dazz.copymapper.exception.RemoteAbendException;
 import pt.dazz.copymapper.exception.TransportException;
@@ -31,7 +31,7 @@ import pt.dazz.copymapper.exception.TransportTimeoutException;
 import pt.dazz.copymapper.http.HttpTransport;
 import pt.dazz.copymapper.spi.BookRequest;
 import pt.dazz.copymapper.spi.Transport;
-import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
+import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 class HttpTransportAutoConfigurationTest {
 
@@ -39,7 +39,7 @@ class HttpTransportAutoConfigurationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(HttpTransportAutoConfiguration.class,
-            BookmapAutoConfiguration.class, SslAutoConfiguration.class));
+            CopyMapperAutoConfiguration.class, SslAutoConfiguration.class));
 
     private RecordingServer server;
 
@@ -75,7 +75,7 @@ class HttpTransportAutoConfigurationTest {
     void createsTransportAndClient() {
         http().withPropertyValues(route())
             .run(context -> assertThat(context).hasSingleBean(HttpTransport.class)
-                .hasSingleBean(BookmapClient.class));
+                .hasSingleBean(CopyMapperClient.class));
     }
 
     @ParameterizedTest

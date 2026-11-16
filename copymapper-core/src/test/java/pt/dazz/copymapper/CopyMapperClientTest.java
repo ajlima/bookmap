@@ -20,7 +20,7 @@ import pt.dazz.copymapper.exception.RemoteAbendException;
 import pt.dazz.copymapper.spi.BookRequest;
 import pt.dazz.copymapper.spi.Transport;
 
-class BookmapClientTest {
+class CopyMapperClientTest {
 
     /** Counts the calls and records the requests. */
     static class CountingTransport implements Transport {
@@ -48,8 +48,8 @@ class BookmapClientTest {
     private final FakeCodec<PagedOrder> pagedCodec = new FakeCodec<>(PagedOrder.class, "");
     private final CountingTransport transport = new CountingTransport(new ArrayList<>());
 
-    private BookmapClient.Builder builder() {
-        return BookmapClient.builder().transport(transport)
+    private CopyMapperClient.Builder builder() {
+        return CopyMapperClient.builder().transport(transport)
             .codecRegistry(BookCodecRegistry.of(orderCodec, pagedCodec));
     }
 
@@ -86,7 +86,7 @@ class BookmapClientTest {
     void returnsTheObjectFromReadResponse() {
         ChangingCodec codec = new ChangingCodec();
         PagedOrder order = new PagedOrder();
-        PagedOrder result = BookmapClient.builder().transport(transport)
+        PagedOrder result = CopyMapperClient.builder().transport(transport)
             .codecRegistry(BookCodecRegistry.of(codec)).build().execute(order);
         assertThat(result).isSameAs(codec.created).isNotSameAs(order);
         assertThat(order.decoded).isZero();
@@ -97,7 +97,7 @@ class BookmapClientTest {
         ChangingCodec codec = new ChangingCodec();
         PagedOrder order = new PagedOrder();
         order.pagesWithMore = 1;
-        PagedOrder result = BookmapClient.builder().transport(transport)
+        PagedOrder result = CopyMapperClient.builder().transport(transport)
             .codecRegistry(BookCodecRegistry.of(codec)).build().execute(order);
         assertThat(codec.events).containsExactly("reset", "encode", "read", "encode", "decode");
         assertThat(codec.encoded).containsExactly(order, codec.created);
@@ -162,7 +162,7 @@ class BookmapClientTest {
     void continuationLimit() {
         PagedOrder order = new PagedOrder();
         order.pagesWithMore = Integer.MAX_VALUE;
-        BookmapClient client = builder().maxCalls(3).build();
+        CopyMapperClient client = builder().maxCalls(3).build();
         assertThatThrownBy(() -> client.execute(order))
             .isInstanceOf(ContinuationLimitException.class)
             .hasMessageContaining("GETORDER");
@@ -174,7 +174,7 @@ class BookmapClientTest {
         PagedOrder order = new PagedOrder();
         order.pagesWithMore = 1;
         CountingTransport shared = new CountingTransport(pagedCodec.events);
-        BookmapClient client = BookmapClient.builder().transport(shared)
+        CopyMapperClient client = CopyMapperClient.builder().transport(shared)
             .codecRegistry(BookCodecRegistry.of(pagedCodec)).build();
         client.execute(order);
         assertThat(pagedCodec.events).containsExactly(
@@ -196,7 +196,7 @@ class BookmapClientTest {
     @Test
     void codecCharsetOverridesClientCharset() {
         FakeCodec<Order> codec = new FakeCodec<>(Order.class, "IBM1047");
-        BookmapClient client = BookmapClient.builder().transport(transport)
+        CopyMapperClient client = CopyMapperClient.builder().transport(transport)
             .charset(Charset.forName("IBM500"))
             .codecRegistry(BookCodecRegistry.of(codec)).build();
         client.execute(new Order());
@@ -209,7 +209,7 @@ class BookmapClientTest {
     @Test
     void unknownCodecCharsetFails() {
         FakeCodec<Order> codec = new FakeCodec<>(Order.class, "NO-SUCH-CHARSET");
-        BookmapClient client = BookmapClient.builder().transport(transport)
+        CopyMapperClient client = CopyMapperClient.builder().transport(transport)
             .codecRegistry(BookCodecRegistry.of(codec)).build();
         assertThatThrownBy(() -> client.execute(new Order()))
             .isInstanceOf(MappingException.class)
@@ -222,7 +222,7 @@ class BookmapClientTest {
     void decodeOnlyCodecCharsetFails() {
         // The JDK can decode ISO-2022-CN, but it cannot encode it.
         FakeCodec<Order> codec = new FakeCodec<>(Order.class, "ISO-2022-CN");
-        BookmapClient client = BookmapClient.builder().transport(transport)
+        CopyMapperClient client = CopyMapperClient.builder().transport(transport)
             .codecRegistry(BookCodecRegistry.of(codec)).build();
         assertThatThrownBy(() -> client.execute(new Order()))
             .isInstanceOf(MappingException.class)
@@ -234,7 +234,7 @@ class BookmapClientTest {
     @Test
     void multiByteCodecCharsetFails() {
         FakeCodec<Order> codec = new FakeCodec<>(Order.class, "UTF-8");
-        BookmapClient client = BookmapClient.builder().transport(transport)
+        CopyMapperClient client = CopyMapperClient.builder().transport(transport)
             .codecRegistry(BookCodecRegistry.of(codec)).build();
         assertThatThrownBy(() -> client.execute(new Order()))
             .isInstanceOf(MappingException.class)
@@ -263,7 +263,7 @@ class BookmapClientTest {
     @Test
     void transportExceptionPropagates() {
         RemoteAbendException abend = new RemoteAbendException("ASRA", "abend");
-        BookmapClient client = builder().transport(request -> {
+        CopyMapperClient client = builder().transport(request -> {
             throw abend;
         }).build();
         assertThatThrownBy(() -> client.execute(new Order())).isSameAs(abend);
@@ -271,7 +271,7 @@ class BookmapClientTest {
 
     @Test
     void missingCodecFails() {
-        BookmapClient client = builder().build();
+        CopyMapperClient client = builder().build();
         assertThatThrownBy(() -> client.execute(new SpecialOrder()))
             .isInstanceOf(MappingException.class)
             .hasMessageContaining("annotationProcessor");
@@ -279,13 +279,13 @@ class BookmapClientTest {
 
     @Test
     void nullRequestFails() {
-        BookmapClient client = builder().build();
+        CopyMapperClient client = builder().build();
         assertThatThrownBy(() -> client.execute(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void defaultRegistryLoadsServiceEntries() {
-        BookmapClient client = BookmapClient.builder().transport(transport).build();
+        CopyMapperClient client = CopyMapperClient.builder().transport(transport).build();
         client.execute(new BookCodecRegistryTest.Invoice());
         assertThat(transport.calls()).isEqualTo(1);
         BookRequest request = transport.requests.get(0);
@@ -295,9 +295,9 @@ class BookmapClientTest {
 
     @Test
     void builderRejectsMissingTransportAndBadMaxCalls() {
-        assertThatThrownBy(() -> BookmapClient.builder().build())
+        assertThatThrownBy(() -> CopyMapperClient.builder().build())
             .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> BookmapClient.builder().maxCalls(0))
+        assertThatThrownBy(() -> CopyMapperClient.builder().maxCalls(0))
             .isInstanceOf(IllegalArgumentException.class);
     }
 }

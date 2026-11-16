@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.Charset;
 import org.junit.jupiter.api.Test;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.codec.BookCodecRegistry;
 
 class MqTransportClientTest {
@@ -18,7 +18,7 @@ class MqTransportClientTest {
                 .connector(fake)
                 .route("GetInvoice", "INVOICE.REQUEST", "INVOICE.REPLY")
                 .build()) {
-            BookmapClient client = BookmapClient.builder()
+            CopyMapperClient client = CopyMapperClient.builder()
                 .transport(transport)
                 .codecRegistry(BookCodecRegistry.of(new InvoiceCodec()))
                 .build();

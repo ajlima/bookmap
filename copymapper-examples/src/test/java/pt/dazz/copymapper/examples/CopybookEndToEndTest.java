@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.codec.BookCodecRegistry;
 import pt.dazz.copymapper.convert.CodecContext;
 import pt.dazz.copymapper.examples.copybook.CardAccount;
@@ -25,12 +25,12 @@ import pt.dazz.copymapper.spi.BookCodec;
 class CopybookEndToEndTest {
 
     private SimulatorTransport simulator;
-    private BookmapClient client;
+    private CopyMapperClient client;
 
     @BeforeEach
     void setUp() {
         simulator = SimulatorTransport.builder().build();
-        client = BookmapClient.builder().transport(simulator).build();
+        client = CopyMapperClient.builder().transport(simulator).build();
     }
 
     private static InvoiceLine line(String number, String amount) {

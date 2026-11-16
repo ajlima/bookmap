@@ -13,7 +13,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.Continuable;
 import pt.dazz.copymapper.codec.BookCodecRegistry;
 import pt.dazz.copymapper.convert.CodecContext;
@@ -22,10 +22,10 @@ import pt.dazz.copymapper.spi.BookCodec;
 import pt.dazz.copymapper.spi.BookRequest;
 import pt.dazz.copymapper.spi.Transport;
 
-class BookmapAutoConfigurationTest {
+class CopyMapperAutoConfigurationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(BookmapAutoConfiguration.class));
+        .withConfiguration(AutoConfigurations.of(CopyMapperAutoConfiguration.class));
 
     /** A book that always asks for one more call. */
     static class Statement implements Continuable {
@@ -77,22 +77,22 @@ class BookmapAutoConfigurationTest {
     @Test
     void createsClientWhenTransportExists() {
         runner.withBean(Transport.class, CountingTransport::new)
-            .run(context -> assertThat(context).hasSingleBean(BookmapClient.class)
+            .run(context -> assertThat(context).hasSingleBean(CopyMapperClient.class)
                 .hasSingleBean(BookCodecRegistry.class));
     }
 
     @Test
     void noClientWithoutTransport() {
-        runner.run(context -> assertThat(context).doesNotHaveBean(BookmapClient.class)
+        runner.run(context -> assertThat(context).doesNotHaveBean(CopyMapperClient.class)
             .hasSingleBean(BookCodecRegistry.class));
     }
 
     @Test
     void userClientWins() {
-        BookmapClient own = BookmapClient.builder().transport(new CountingTransport()).build();
+        CopyMapperClient own = CopyMapperClient.builder().transport(new CountingTransport()).build();
         runner.withBean(Transport.class, CountingTransport::new)
-            .withBean(BookmapClient.class, () -> own)
-            .run(context -> assertThat(context.getBean(BookmapClient.class)).isSameAs(own));
+            .withBean(CopyMapperClient.class, () -> own)
+            .run(context -> assertThat(context.getBean(CopyMapperClient.class)).isSameAs(own));
     }
 
     @Test
@@ -101,7 +101,7 @@ class BookmapAutoConfigurationTest {
         CountingTransport transport = new CountingTransport();
         withBeans(codec, transport).withPropertyValues("bookmap.max-calls=2")
             .run(context -> {
-                BookmapClient client = context.getBean(BookmapClient.class);
+                CopyMapperClient client = context.getBean(CopyMapperClient.class);
                 Statement statement = new Statement();
                 assertThatThrownBy(() -> client.execute(statement))
                     .isInstanceOf(ContinuationLimitException.class);
@@ -114,7 +114,7 @@ class BookmapAutoConfigurationTest {
         StatementCodec codec = new StatementCodec();
         withBeans(codec, new CountingTransport()).withPropertyValues("bookmap.max-calls=1")
             .run(context -> {
-                BookmapClient client = context.getBean(BookmapClient.class);
+                CopyMapperClient client = context.getBean(CopyMapperClient.class);
                 assertThatThrownBy(() -> client.execute(new Statement()))
                     .isInstanceOf(ContinuationLimitException.class);
                 assertThat(codec.charsets).containsExactly(Charset.forName("IBM037"));
@@ -127,7 +127,7 @@ class BookmapAutoConfigurationTest {
         withBeans(codec, new CountingTransport())
             .withPropertyValues("bookmap.charset=IBM500", "bookmap.max-calls=1")
             .run(context -> {
-                BookmapClient client = context.getBean(BookmapClient.class);
+                CopyMapperClient client = context.getBean(CopyMapperClient.class);
                 assertThatThrownBy(() -> client.execute(new Statement()))
                     .isInstanceOf(ContinuationLimitException.class);
                 assertThat(codec.charsets).containsExactly(Charset.forName("IBM500"));
@@ -178,7 +178,7 @@ class BookmapAutoConfigurationTest {
     void typeWithApplicationTransportStarts() {
         runner.withBean(Transport.class, CountingTransport::new)
             .withPropertyValues("bookmap.transport.type=http")
-            .run(context -> assertThat(context).hasSingleBean(BookmapClient.class));
+            .run(context -> assertThat(context).hasSingleBean(CopyMapperClient.class));
     }
 
     @Test

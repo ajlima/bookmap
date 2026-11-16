@@ -24,7 +24,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 class ValidationTest {
 
-    enum ProcessorOrder { LOMBOK_FIRST, BOOKMAP_FIRST }
+    enum ProcessorOrder { LOMBOK_FIRST, COPYMAPPER_FIRST }
 
     private final TestCompiler compiler = TestCompiler.create();
 
@@ -597,7 +597,7 @@ class ValidationTest {
 
     @Test
     void lombokClassGetterAndSetter() {
-        Compilation compilation = compileWithLombok(ProcessorOrder.BOOKMAP_FIRST,
+        Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Order", "@lombok.Getter @lombok.Setter @BookOperation public class Order {",
                 "@BookField(order = 1, length = 5) private String id;",
                 "}"));
@@ -607,7 +607,7 @@ class ValidationTest {
 
     @Test
     void lombokDataFinalFieldHasNoSetter() {
-        Compilation compilation = compileWithLombok(ProcessorOrder.BOOKMAP_FIRST,
+        Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Order", "@lombok.Data @BookOperation public class Order {",
                 "@BookField(order = 1, length = 5) private final String id = \"A\";",
                 "}"));
@@ -616,7 +616,7 @@ class ValidationTest {
 
     @Test
     void lombokSetterOnFinalFieldHasNoSetter() {
-        Compilation compilation = compileWithLombok(ProcessorOrder.BOOKMAP_FIRST,
+        Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Order", "@lombok.Getter @lombok.Setter @BookOperation public class Order {",
                 "@lombok.Setter @BookField(order = 1, length = 5) private final String id = \"A\";",
                 "}"));
@@ -625,7 +625,7 @@ class ValidationTest {
 
     @Test
     void lombokAccessLevelNoneGivesNoAccessor() {
-        Compilation compilation = compileWithLombok(ProcessorOrder.BOOKMAP_FIRST,
+        Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Order", "@lombok.Data @BookOperation public class Order {",
                 "@lombok.Getter(lombok.AccessLevel.NONE) @BookField(order = 1, length = 5)",
                 "private String id;",
@@ -642,7 +642,7 @@ class ValidationTest {
 
     @Test
     void lombokCallableAccessLevelsGiveAccessors() {
-        Compilation compilation = compileWithLombok(ProcessorOrder.BOOKMAP_FIRST,
+        Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Order", "@BookOperation public class Order {",
                 "@lombok.Getter(lombok.AccessLevel.PUBLIC) @lombok.Setter",
                 "@BookField(order = 1, length = 5) private String id;",
@@ -778,7 +778,7 @@ class ValidationTest {
 
     @Test
     void lombokOnSuperclassDoesNotApplyToSubclassFields() {
-        Compilation compilation = compileWithLombok(ProcessorOrder.BOOKMAP_FIRST,
+        Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Base", "@lombok.Data public class Base {",
                 "@BookField(order = 1, length = 5) private String id;",
                 "}"),
@@ -792,7 +792,7 @@ class ValidationTest {
 
     @Test
     void lombokAccessorsAnnotationNeedsVisibleMethods() {
-        Compilation compilation = compileWithLombok(ProcessorOrder.BOOKMAP_FIRST,
+        Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Order", "@lombok.Data @BookOperation public class Order {",
                 "@lombok.experimental.Accessors(fluent = true)",
                 "@BookField(order = 1, length = 5) private String id;",
@@ -1334,7 +1334,7 @@ class ValidationTest {
                                RoundEnvironment round) {
             ModelBuilder builder = new ModelBuilder(processingEnv);
             for (TypeElement type : ElementFilter.typesIn(round.getRootElements())) {
-                BookmapProcessor.reportCompletedInLastRound(processingEnv.getMessager(),
+                CopyMapperProcessor.reportCompletedInLastRound(processingEnv.getMessager(),
                     builder.build(type, true).orElseThrow());
             }
             return false;
@@ -1367,10 +1367,10 @@ class ValidationTest {
     }
 
     @Test
-    void lombokAfterBookmapWithAccessorsAnnotationBuildsInALaterRound() {
-        // Bookmap runs before Lombok. The Accessors annotation stops the name rule, so the first
+    void lombokAfterCopyMapperWithAccessorsAnnotationBuildsInALaterRound() {
+        // CopyMapper runs before Lombok. The Accessors annotation stops the name rule, so the first
         // round defers the class. Lombok starts one more round, in which its methods are visible.
-        Compilation compilation = compileWithLombok(ProcessorOrder.BOOKMAP_FIRST,
+        Compilation compilation = compileWithLombok(ProcessorOrder.COPYMAPPER_FIRST,
             source("Order", "@lombok.Data @lombok.experimental.Accessors(chain = true)",
                 "@BookOperation public class Order {",
                 "@BookField(order = 1, length = 5) private String id;",

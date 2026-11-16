@@ -14,7 +14,7 @@ import pt.dazz.copymapper.codec.internal.ZonedDecimal;
 import pt.dazz.copymapper.convert.CodecContext;
 import pt.dazz.copymapper.convert.FieldContext;
 import pt.dazz.copymapper.convert.FieldConverter;
-import pt.dazz.copymapper.exception.BookmapException;
+import pt.dazz.copymapper.exception.CopyMapperException;
 import pt.dazz.copymapper.exception.MappingException;
 
 /**
@@ -176,7 +176,7 @@ public final class BookWriter {
         byte[] bytes;
         try {
             bytes = converter.encode(value, context);
-        } catch (BookmapException e) {
+        } catch (CopyMapperException e) {
             throw e;
         } catch (RuntimeException e) {
             throw converterFailure(field, e);

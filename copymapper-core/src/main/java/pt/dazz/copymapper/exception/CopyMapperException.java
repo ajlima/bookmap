@@ -3,7 +3,7 @@ package pt.dazz.copymapper.exception;
 /**
  * Base class of all bookmap exceptions. It is unchecked.
  */
-public class BookmapException extends RuntimeException {
+public class CopyMapperException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
@@ -12,7 +12,7 @@ public class BookmapException extends RuntimeException {
      *
      * @param message the message
      */
-    public BookmapException(String message) {
+    public CopyMapperException(String message) {
         super(message);
     }
 
@@ -22,7 +22,7 @@ public class BookmapException extends RuntimeException {
      * @param message the message
      * @param cause the cause
      */
-    public BookmapException(String message, Throwable cause) {
+    public CopyMapperException(String message, Throwable cause) {
         super(message, cause);
     }
 }

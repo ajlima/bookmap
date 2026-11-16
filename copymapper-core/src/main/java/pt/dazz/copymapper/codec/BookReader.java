@@ -19,7 +19,7 @@ import pt.dazz.copymapper.codec.internal.ZonedDecimal;
 import pt.dazz.copymapper.convert.CodecContext;
 import pt.dazz.copymapper.convert.FieldContext;
 import pt.dazz.copymapper.convert.FieldConverter;
-import pt.dazz.copymapper.exception.BookmapException;
+import pt.dazz.copymapper.exception.CopyMapperException;
 import pt.dazz.copymapper.exception.InvalidValueException;
 import pt.dazz.copymapper.exception.MappingException;
 
@@ -375,7 +375,7 @@ public final class BookReader {
         byte[] bytes = Arrays.copyOfRange(data, from, from + context.byteLength());
         try {
             return converter.decode(bytes, context);
-        } catch (BookmapException e) {
+        } catch (CopyMapperException e) {
             throw e;
         } catch (RuntimeException e) {
             throw BookWriter.converterFailure(field, e);

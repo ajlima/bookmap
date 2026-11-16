@@ -34,7 +34,7 @@ class ModelTest {
 
     @Test
     void publicConstructorBuildsModels() {
-        Compilation compilation = Compiler.javac().withProcessors(new BookmapProcessor())
+        Compilation compilation = Compiler.javac().withProcessors(new CopyMapperProcessor())
             .compile(TestCompiler.source("Order", "@BookOperation public class Order { " + TestCompiler.ID_FIELD + " }"));
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();
     }
@@ -43,6 +43,6 @@ class ModelTest {
     void serviceFileRegistersTheProcessor() {
         List<Class<?>> types = ServiceLoader.load(Processor.class).stream()
             .<Class<?>>map(ServiceLoader.Provider::type).toList();
-        assertThat(types).contains(BookmapProcessor.class);
+        assertThat(types).contains(CopyMapperProcessor.class);
     }
 }

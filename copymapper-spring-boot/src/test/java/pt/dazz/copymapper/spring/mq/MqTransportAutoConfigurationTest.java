@@ -28,7 +28,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.Order;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.exception.ConnectionException;
 import pt.dazz.copymapper.exception.TransportException;
 import pt.dazz.copymapper.exception.TransportTimeoutException;
@@ -39,7 +39,7 @@ import pt.dazz.copymapper.mq.MqTransport;
 import pt.dazz.copymapper.mq.jms.JmsConnector;
 import pt.dazz.copymapper.spi.BookRequest;
 import pt.dazz.copymapper.spi.Transport;
-import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
+import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 class MqTransportAutoConfigurationTest {
 
@@ -52,7 +52,7 @@ class MqTransportAutoConfigurationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(MqTransportAutoConfiguration.class,
-            BookmapAutoConfiguration.class));
+            CopyMapperAutoConfiguration.class));
 
     @BeforeAll
     static void startBroker() throws Exception {
@@ -126,7 +126,7 @@ class MqTransportAutoConfigurationTest {
     void createsTransportAndClient() {
         withConnector(new RecordingConnector()).withPropertyValues(ROUTE)
             .run(context -> assertThat(context).hasSingleBean(MqTransport.class)
-                .hasSingleBean(BookmapClient.class));
+                .hasSingleBean(CopyMapperClient.class));
     }
 
     @ParameterizedTest

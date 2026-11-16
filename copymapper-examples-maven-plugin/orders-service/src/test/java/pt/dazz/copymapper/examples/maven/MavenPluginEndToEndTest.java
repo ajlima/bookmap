@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.examples.maven.billing.GetInvoice;
 import pt.dazz.copymapper.examples.maven.billing.PartyRole;
 import pt.dazz.copymapper.examples.maven.billing.InvoiceLine;
@@ -20,12 +20,12 @@ import pt.dazz.copymapper.simulator.SimulatorTransport;
 class MavenPluginEndToEndTest {
 
     private SimulatorTransport simulator;
-    private BookmapClient client;
+    private CopyMapperClient client;
 
     @BeforeEach
     void setUp() {
         simulator = SimulatorTransport.builder().build();
-        client = BookmapClient.builder().transport(simulator).build();
+        client = CopyMapperClient.builder().transport(simulator).build();
     }
 
     private static OrderLine line(String product, int quantity) {

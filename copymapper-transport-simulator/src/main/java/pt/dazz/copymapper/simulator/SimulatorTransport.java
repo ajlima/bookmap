@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import pt.dazz.copymapper.codec.BookCodecRegistry;
 import pt.dazz.copymapper.convert.CodecContext;
-import pt.dazz.copymapper.exception.BookmapException;
+import pt.dazz.copymapper.exception.CopyMapperException;
 import pt.dazz.copymapper.exception.MappingException;
 import pt.dazz.copymapper.exception.OperationNotFoundException;
 import pt.dazz.copymapper.exception.RemoteAbendException;
@@ -27,7 +27,7 @@ import pt.dazz.copymapper.spi.Transport;
 
 /**
  * In-memory transport for tests. It replaces a real CICS or MQ system. Register byte-level or
- * typed operations, then use the transport in a {@code BookmapClient}.
+ * typed operations, then use the transport in a {@code CopyMapperClient}.
  *
  * <p>Each request runs on a virtual thread. A request that takes more than the timeout is
  * interrupted and fails with {@link TransportTimeoutException}. The transport records every
@@ -176,11 +176,11 @@ public final class SimulatorTransport implements Transport {
         }
     }
 
-    private static BookmapException translate(Throwable failure, String operation) {
+    private static CopyMapperException translate(Throwable failure, String operation) {
         if (failure instanceof SimulatedAbend abend) {
             return new RemoteAbendException(abend.abendCode(), abend.getMessage(), abend);
         }
-        if (failure instanceof BookmapException bookmap) {
+        if (failure instanceof CopyMapperException bookmap) {
             return bookmap;
         }
         return new TransportException("Simulated operation " + operation + " failed", failure);

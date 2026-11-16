@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Bean;
 import pt.dazz.copymapper.http.HttpRoute;
 import pt.dazz.copymapper.http.HttpTransport;
 import pt.dazz.copymapper.spi.Transport;
-import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
+import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 /**
  * Creates an {@link HttpTransport} bean from the {@code bookmap.transport.http.*} properties, when
@@ -29,7 +29,7 @@ import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
  * <p>With {@code bookmap.transport.http.ssl.bundle}, the transport uses an HTTP client with the
  * {@code SSLContext} of that Spring Boot SSL bundle.
  */
-@AutoConfiguration(before = BookmapAutoConfiguration.class)
+@AutoConfiguration(before = CopyMapperAutoConfiguration.class)
 @ConditionalOnClass(HttpTransport.class)
 @ConditionalOnProperty(name = "bookmap.transport.type", havingValue = "http")
 @EnableConfigurationProperties(HttpTransportProperties.class)
@@ -56,7 +56,7 @@ public class HttpTransportAutoConfiguration {
     @Bean
     @ConditionalOnProperty(PREFIX + "ssl.bundle")
     @ConditionalOnMissingBean(Transport.class)
-    SslBundleHttpClient bookmapSslBundleHttpClient(HttpTransportProperties properties,
+    SslBundleHttpClient copyMapperSslBundleHttpClient(HttpTransportProperties properties,
                                                    ObjectProvider<SslBundles> sslBundles) {
         SslBundle bundle = sslBundles.getObject().getBundle(properties.ssl().bundle());
         SSLParameters parameters = new SSLParameters();

@@ -172,7 +172,7 @@ class ErrorReportingTest {
 
     @Test
     void accessorsOfALaterRoundAreAcceptedWhenTheClassHasAnotherError() {
-        // Bookmap runs before Lombok. The Accessors annotation stops the name rule, so the
+        // CopyMapper runs before Lombok. The Accessors annotation stops the name rule, so the
         // accessors are visible only in the next round. Only the other error is reported.
         Compilation compilation = compiler.compileWithProcessors(
             List.of(compiler.processor(), lombok()),

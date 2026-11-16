@@ -14,12 +14,12 @@ import org.gradle.api.tasks.Nested;
  * }
  * </pre>
  */
-public abstract class BookmapExtension {
+public abstract class CopyMapperExtension {
 
     /**
      * Creates the extension. Gradle calls this constructor.
      */
-    public BookmapExtension() {
+    public CopyMapperExtension() {
     }
 
     /**

@@ -12,7 +12,7 @@ import pt.dazz.copymapper.cobol.Usage;
 import pt.dazz.copymapper.convert.CodecContext;
 import pt.dazz.copymapper.convert.FieldContext;
 import pt.dazz.copymapper.convert.FieldConverter;
-import pt.dazz.copymapper.exception.BookmapException;
+import pt.dazz.copymapper.exception.CopyMapperException;
 import pt.dazz.copymapper.exception.InvalidValueException;
 import pt.dazz.copymapper.exception.MappingException;
 
@@ -149,9 +149,9 @@ class AreaReadTest {
             throw new MappingException("other");
         })).isInstanceOf(MappingException.class);
         assertThatThrownBy(() -> BookReader.orNull(() -> {
-            throw new BookmapException("transport") {
+            throw new CopyMapperException("transport") {
             };
-        })).isInstanceOf(BookmapException.class);
+        })).isInstanceOf(CopyMapperException.class);
     }
 
     @Test

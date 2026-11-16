@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.examples.orders.GetOrderTaxes;
 import pt.dazz.copymapper.examples.orders.LineTax;
 import pt.dazz.copymapper.examples.orders.TaxedOrderLine;
@@ -17,12 +17,12 @@ import pt.dazz.copymapper.simulator.SimulatorTransport;
 class NestedCollectionEndToEndTest {
 
     private SimulatorTransport simulator;
-    private BookmapClient client;
+    private CopyMapperClient client;
 
     @BeforeEach
     void setUp() {
         simulator = SimulatorTransport.builder().build();
-        client = BookmapClient.builder().transport(simulator).build();
+        client = CopyMapperClient.builder().transport(simulator).build();
     }
 
     private static LineTax tax(String code, String amount) {

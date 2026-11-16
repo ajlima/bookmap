@@ -19,7 +19,7 @@ import org.junit.jupiter.params.provider.EnumSource;
  */
 class LombokRulesTest {
 
-    enum ProcessorOrder { LOMBOK_FIRST, BOOKMAP_FIRST }
+    enum ProcessorOrder { LOMBOK_FIRST, COPYMAPPER_FIRST }
 
     private static final String NO_CONSTRUCTOR =
         "Order: operation class must have a public no-argument constructor";

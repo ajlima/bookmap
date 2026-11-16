@@ -30,7 +30,7 @@ import pt.dazz.copymapper.spi.BookCodec;
 
 class CollectionGenerationTest {
 
-    enum ProcessorOrder { LOMBOK_FIRST, BOOKMAP_FIRST }
+    enum ProcessorOrder { LOMBOK_FIRST, COPYMAPPER_FIRST }
 
     private static final CodecContext LATIN = new CodecContext(StandardCharsets.ISO_8859_1);
 

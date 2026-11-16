@@ -16,7 +16,7 @@ import pt.dazz.copymapper.spi.Transport;
  * Runs a book operation: encode, send, decode, validate, and continue.
  * The client is immutable and thread-safe. The book object is not thread-safe.
  */
-public final class BookmapClient {
+public final class CopyMapperClient {
 
     private static final int DEFAULT_MAX_CALLS = 1000;
 
@@ -26,7 +26,7 @@ public final class BookmapClient {
     private final BookCodecRegistry registry;
     private final Map<String, CodecContext> codecContexts = new ConcurrentHashMap<>();
 
-    private BookmapClient(Builder builder) {
+    private CopyMapperClient(Builder builder) {
         this.transport = builder.transport;
         this.defaultContext = builder.charset == null
             ? CodecContext.defaults() : new CodecContext(builder.charset);
@@ -109,7 +109,7 @@ public final class BookmapClient {
     }
 
     /**
-     * Builds a {@link BookmapClient}.
+     * Builds a {@link CopyMapperClient}.
      */
     public static final class Builder {
 
@@ -175,9 +175,9 @@ public final class BookmapClient {
          * @return the client
          * @throws NullPointerException if the transport is missing
          */
-        public BookmapClient build() {
+        public CopyMapperClient build() {
             Objects.requireNonNull(transport, "transport");
-            return new BookmapClient(this);
+            return new CopyMapperClient(this);
         }
     }
 }

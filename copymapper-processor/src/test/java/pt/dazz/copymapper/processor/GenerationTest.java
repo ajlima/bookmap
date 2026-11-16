@@ -38,7 +38,7 @@ import pt.dazz.copymapper.spi.BookCodec;
 
 class GenerationTest {
 
-    enum ProcessorOrder { LOMBOK_FIRST, BOOKMAP_FIRST }
+    enum ProcessorOrder { LOMBOK_FIRST, COPYMAPPER_FIRST }
 
     private static final String SERVICES = "META-INF/services/pt.dazz.copymapper.spi.BookCodec";
     private static final CodecContext LATIN = new CodecContext(StandardCharsets.ISO_8859_1);
@@ -127,7 +127,7 @@ class GenerationTest {
             .contentsAsUtf8String().contains("test.CustomerProfile_BookCodec");
         String source = sourceOf(compilation, "test.CustomerProfile_BookCodec");
         assertThat(source)
-            .contains("@Generated(\"pt.dazz.copymapper.processor.BookmapProcessor\")")
+            .contains("@Generated(\"pt.dazz.copymapper.processor.CopyMapperProcessor\")")
             .contains("public final class CustomerProfile_BookCodec implements "
                 + "BookCodec<CustomerProfile>")
             .contains("public CustomerProfile_BookCodec()")
@@ -522,7 +522,7 @@ class GenerationTest {
             JavaCompiler.CompilationTask task = javac.getTask(null, files, null,
                 List.of("-d", classes.toString(), "-classpath", classpath, "-proc:full"), null,
                 files.getJavaFileObjects(source));
-            task.setProcessors(List.of(new BookmapProcessor()));
+            task.setProcessors(List.of(new CopyMapperProcessor()));
             assertThat(task.call()).isTrue();
         }
     }

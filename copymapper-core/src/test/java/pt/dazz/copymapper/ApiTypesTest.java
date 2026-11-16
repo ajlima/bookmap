@@ -16,7 +16,7 @@ import pt.dazz.copymapper.cobol.Usage;
 import pt.dazz.copymapper.convert.CodecContext;
 import pt.dazz.copymapper.convert.FieldContext;
 import pt.dazz.copymapper.convert.NoConverter;
-import pt.dazz.copymapper.exception.BookmapException;
+import pt.dazz.copymapper.exception.CopyMapperException;
 import pt.dazz.copymapper.exception.BusinessException;
 import pt.dazz.copymapper.exception.ConnectionException;
 import pt.dazz.copymapper.exception.ContinuationLimitException;
@@ -76,17 +76,17 @@ class ApiTypesTest {
     }
     @Test void exceptionHierarchy() {
         assertThat(new RemoteAbendException("ASRA", "abend")).isInstanceOf(TransportException.class)
-            .isInstanceOf(BookmapException.class).isInstanceOf(RuntimeException.class);
+            .isInstanceOf(CopyMapperException.class).isInstanceOf(RuntimeException.class);
         assertThat(new RemoteAbendException("ASRA", "abend").abendCode()).isEqualTo("ASRA");
-        assertThat(new BusinessException("x")).isInstanceOf(BookmapException.class);
+        assertThat(new BusinessException("x")).isInstanceOf(CopyMapperException.class);
         assertThat(new TransportTimeoutException("m")).isInstanceOf(TransportException.class);
         assertThat(new ConnectionException("m")).isInstanceOf(TransportException.class);
         assertThat(new OperationNotFoundException("m")).isInstanceOf(TransportException.class);
     }
     @Test void exceptionConstructorsKeepMessageAndCause() {
         var cause = new IllegalStateException("c");
-        BookmapException[] all = {
-            new BookmapException("m"), new BookmapException("m", cause),
+        CopyMapperException[] all = {
+            new CopyMapperException("m"), new CopyMapperException("m", cause),
             new MappingException("m"), new MappingException("m", cause),
             new ContinuationLimitException("m"), new ContinuationLimitException("m", cause),
             new BusinessException("m"), new BusinessException("m", cause),

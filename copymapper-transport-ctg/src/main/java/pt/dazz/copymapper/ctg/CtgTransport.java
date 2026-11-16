@@ -5,7 +5,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import pt.dazz.copymapper.exception.BookmapException;
+import pt.dazz.copymapper.exception.CopyMapperException;
 import pt.dazz.copymapper.exception.ConnectionException;
 import pt.dazz.copymapper.exception.OperationNotFoundException;
 import pt.dazz.copymapper.exception.RemoteAbendException;
@@ -110,7 +110,7 @@ public final class CtgTransport implements Transport, AutoCloseable {
         return operation + " (" + route.program() + ")";
     }
 
-    private static BookmapException translate(String operation, CtgRoute route, EciReply reply) {
+    private static CopyMapperException translate(String operation, CtgRoute route, EciReply reply) {
         int code = reply.returnCode();
         String message = prefix(operation, route) + ": ECI return code " + code
             + " (" + EciReturnCodes.name(code) + ")";

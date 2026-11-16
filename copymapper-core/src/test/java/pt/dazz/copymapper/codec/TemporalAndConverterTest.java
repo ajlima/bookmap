@@ -14,7 +14,7 @@ import pt.dazz.copymapper.cobol.Usage;
 import pt.dazz.copymapper.convert.CodecContext;
 import pt.dazz.copymapper.convert.FieldContext;
 import pt.dazz.copymapper.convert.FieldConverter;
-import pt.dazz.copymapper.exception.BookmapException;
+import pt.dazz.copymapper.exception.CopyMapperException;
 import pt.dazz.copymapper.exception.MappingException;
 
 class TemporalAndConverterTest {
@@ -322,8 +322,8 @@ class TemporalAndConverterTest {
             .hasMessage(F + ": converter failed (java.lang.IllegalStateException)");
     }
 
-    @Test void bookmapExceptionFromConverterPassesThrough() {
-        var original = new BookmapException("own error") { };
+    @Test void copyMapperExceptionFromConverterPassesThrough() {
+        var original = new CopyMapperException("own error") { };
         FieldConverter<Boolean> failing = new FieldConverter<>() {
             @Override public Boolean decode(byte[] bytes, FieldContext context) {
                 throw original;

@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pt.dazz.copymapper.copybook.tree.TestCopybooks;
 
-class BookmapCopybookPluginTest {
+class CopyMapperCopybookPluginTest {
 
     @TempDir
     Path dir;
@@ -37,7 +37,7 @@ class BookmapCopybookPluginTest {
     }
 
     private CopybooksSpec spec() {
-        return project.getExtensions().getByType(BookmapExtension.class).getCopybooks();
+        return project.getExtensions().getByType(CopyMapperExtension.class).getCopybooks();
     }
 
     private Set<String> copybookNames(GenerateCopybookClasses task) {
@@ -55,7 +55,7 @@ class BookmapCopybookPluginTest {
     void registersTheExtensionAndTheTask() {
         GenerateCopybookClasses task = task();
         assertThat(project.getExtensions().findByName("bookmap"))
-            .isInstanceOf(BookmapExtension.class);
+            .isInstanceOf(CopyMapperExtension.class);
         assertThat(task.getGroup()).isEqualTo("build");
         assertThat(task.getDescription())
             .isEqualTo("Generates the CopyMapper classes from the COBOL copybooks.");
@@ -79,7 +79,7 @@ class BookmapCopybookPluginTest {
     @Test
     void mapsTheExtensionToTheTask() {
         GenerateCopybookClasses task = task();
-        project.getExtensions().getByType(BookmapExtension.class).copybooks(spec -> {
+        project.getExtensions().getByType(CopyMapperExtension.class).copybooks(spec -> {
             spec.getPackageName().set("com.example.mainframe");
             spec.getLombok().set(true);
             spec.getPackagePerCopybook().set(true);

@@ -31,7 +31,7 @@ import pt.dazz.copymapper.processor.model.OperationModel;
  * setters, waits for the next round. In the last round, the processor builds the waiting classes again only to
  * report their errors. It never generates sources in the last round.
  */
-public final class BookmapProcessor extends AbstractProcessor {
+public final class CopyMapperProcessor extends AbstractProcessor {
 
     private final Consumer<ModelSnapshot> listener;
     private final Set<String> deferred = new LinkedHashSet<>();
@@ -42,7 +42,7 @@ public final class BookmapProcessor extends AbstractProcessor {
     /**
      * Makes the processor. The compiler calls this constructor.
      */
-    public BookmapProcessor() {
+    public CopyMapperProcessor() {
         this(snapshot -> { });
     }
 
@@ -51,7 +51,7 @@ public final class BookmapProcessor extends AbstractProcessor {
      *
      * @param listener the listener
      */
-    BookmapProcessor(Consumer<ModelSnapshot> listener) {
+    CopyMapperProcessor(Consumer<ModelSnapshot> listener) {
         this.listener = listener;
     }
 

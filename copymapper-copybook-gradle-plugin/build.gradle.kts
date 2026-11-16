@@ -8,9 +8,9 @@ dependencies {
 
 gradlePlugin {
     plugins {
-        create("bookmapCopybook") {
+        create("copymapperCopybook") {
             id = "pt.dazz.copymapper.copybook"
-            implementationClass = "pt.dazz.copymapper.copybook.gradle.BookmapCopybookPlugin"
+            implementationClass = "pt.dazz.copymapper.copybook.gradle.CopyMapperCopybookPlugin"
             displayName = "CopyMapper copybook generator"
             description = "Generates CopyMapper classes from COBOL copybooks."
         }

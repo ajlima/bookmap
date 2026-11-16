@@ -50,7 +50,7 @@ import pt.dazz.copymapper.processor.model.OperationModel;
 final class CodecGenerator {
 
     /** The value of the {@code @Generated} annotation of each codec. */
-    static final String GENERATOR = "pt.dazz.copymapper.processor.BookmapProcessor";
+    static final String GENERATOR = "pt.dazz.copymapper.processor.CopyMapperProcessor";
 
     private final OperationModel model;
     private final ClassName type;

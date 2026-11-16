@@ -3,7 +3,7 @@ package pt.dazz.copymapper.exception;
 /**
  * Signals that the client reached the maximum number of calls for one continued operation.
  */
-public class ContinuationLimitException extends BookmapException {
+public class ContinuationLimitException extends CopyMapperException {
 
     private static final long serialVersionUID = 1L;
 

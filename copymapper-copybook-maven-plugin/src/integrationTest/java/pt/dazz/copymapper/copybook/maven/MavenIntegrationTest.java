@@ -21,7 +21,7 @@ class MavenIntegrationTest {
 
     @BeforeAll
     static void cleanLocalRepository() throws IOException {
-        MavenRunner.forgetBookmapArtifacts();
+        MavenRunner.forgetCopyMapperArtifacts();
     }
 
     private static String pom(String artifactId, String configuration) {

@@ -12,5 +12,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *     Without this property, no transport auto-configuration runs. Then declare a Transport bean.
  */
 @ConfigurationProperties("bookmap.transport")
-public record BookmapTransportProperties(TransportType type) {
+public record CopyMapperTransportProperties(TransportType type) {
 }

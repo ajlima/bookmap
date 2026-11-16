@@ -96,7 +96,7 @@ final class TestCompiler {
 
     Compilation compile(List<Processor> others, JavaFileObject... files) {
         List<Processor> processors = new ArrayList<>(others);
-        processors.add(new BookmapProcessor(snapshots::add));
+        processors.add(new CopyMapperProcessor(snapshots::add));
         return Compiler.javac().withOptions(LINT).withProcessors(processors).compile(files);
     }
 
@@ -104,8 +104,8 @@ final class TestCompiler {
         return Compiler.javac().withOptions(LINT).withProcessors(processors).compile(files);
     }
 
-    BookmapProcessor processor() {
-        return new BookmapProcessor(snapshots::add);
+    CopyMapperProcessor processor() {
+        return new CopyMapperProcessor(snapshots::add);
     }
 
     ModelSnapshot only() {

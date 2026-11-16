@@ -16,7 +16,7 @@ import pt.dazz.copymapper.ctg.CtgTransport;
 import pt.dazz.copymapper.ctg.EciConnector;
 import pt.dazz.copymapper.ctg.ibm.JavaGatewayConnector;
 import pt.dazz.copymapper.spi.Transport;
-import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
+import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 /**
  * Creates a {@link CtgTransport} bean from the {@code bookmap.transport.ctg.*} properties, when
@@ -25,7 +25,7 @@ import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
  * <p>The connector is an {@link EciConnector} bean. Without one, and with the IBM library
  * {@code ctgclient.jar} on the class path, this class creates a {@link JavaGatewayConnector}.
  */
-@AutoConfiguration(before = BookmapAutoConfiguration.class)
+@AutoConfiguration(before = CopyMapperAutoConfiguration.class)
 @ConditionalOnClass(CtgTransport.class)
 @ConditionalOnProperty(name = "bookmap.transport.type", havingValue = "ctg")
 @EnableConfigurationProperties(CtgTransportProperties.class)

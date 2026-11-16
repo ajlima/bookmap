@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.examples.orders.GetOrder;
 import pt.dazz.copymapper.examples.orders.Backorder;
 import pt.dazz.copymapper.examples.orders.ListBackorders;
@@ -19,12 +19,12 @@ import pt.dazz.copymapper.simulator.SimulatorTransport;
 class FixedOccursEndToEndTest {
 
     private SimulatorTransport simulator;
-    private BookmapClient client;
+    private CopyMapperClient client;
 
     @BeforeEach
     void setUp() {
         simulator = SimulatorTransport.builder().build();
-        client = BookmapClient.builder().transport(simulator).build();
+        client = CopyMapperClient.builder().transport(simulator).build();
     }
 
     private static OrderLine line(int number) {

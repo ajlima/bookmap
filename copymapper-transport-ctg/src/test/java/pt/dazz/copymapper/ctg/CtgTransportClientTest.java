@@ -4,14 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.codec.BookCodecRegistry;
 import pt.dazz.copymapper.spi.BookCodec;
 
 class CtgTransportClientTest {
 
     private final FakeConnector connector = new FakeConnector();
-    private final BookmapClient client = BookmapClient.builder()
+    private final CopyMapperClient client = CopyMapperClient.builder()
         .transport(CtgTransport.builder().connector(connector).route("GetInvoice", "PGMINV01").build())
         .build();
 

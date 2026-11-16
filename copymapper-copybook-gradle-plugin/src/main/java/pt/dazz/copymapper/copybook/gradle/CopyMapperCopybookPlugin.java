@@ -12,7 +12,7 @@ import org.gradle.api.tasks.TaskProvider;
  * extension and the task {@code generateCopybookClasses}. With the {@code java} plugin, it
  * adds the generated classes to the {@code main} source set.
  */
-public class BookmapCopybookPlugin implements Plugin<Project> {
+public class CopyMapperCopybookPlugin implements Plugin<Project> {
 
     /** The name of the generation task. */
     public static final String TASK_NAME = "generateCopybookClasses";
@@ -20,14 +20,14 @@ public class BookmapCopybookPlugin implements Plugin<Project> {
     /**
      * Creates the plugin. Gradle calls this constructor.
      */
-    public BookmapCopybookPlugin() {
+    public CopyMapperCopybookPlugin() {
     }
 
     @Override
     public void apply(Project project) {
         ProjectLayout layout = project.getLayout();
         CopybooksSpec spec = project.getExtensions()
-            .create("bookmap", BookmapExtension.class).getCopybooks();
+            .create("bookmap", CopyMapperExtension.class).getCopybooks();
         spec.getSourceDir().convention(layout.getProjectDirectory().dir("src/main/copybook"));
         spec.getOutputDir().convention(
             layout.getBuildDirectory().dir("generated/sources/copybook/main"));

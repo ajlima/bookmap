@@ -3,7 +3,7 @@ package pt.dazz.copymapper.exception;
 /**
  * Signals an error in the layout, in a conversion, or a missing codec.
  */
-public class MappingException extends BookmapException {
+public class MappingException extends CopyMapperException {
 
     private static final long serialVersionUID = 1L;
 

@@ -17,7 +17,7 @@ import org.springframework.boot.configurationmetadata.ConfigurationMetadataRepos
 import org.springframework.boot.configurationmetadata.ValueHint;
 import org.springframework.boot.configurationmetadata.ValueProvider;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.spi.Transport;
 
 /**
@@ -29,10 +29,10 @@ class ConfigurationMetadataTest {
     /**
      * Reads the metadata file of this module. Other JARs on the classpath, for example
      * spring-boot-autoconfigure, contain a file with the same name. Thus, the test finds the file
-     * next to the compiled {@code BookmapProperties} class.
+     * next to the compiled {@code CopyMapperProperties} class.
      */
     private static Map<String, ConfigurationMetadataProperty> properties() throws IOException {
-        URL classes = BookmapProperties.class.getProtectionDomain().getCodeSource().getLocation();
+        URL classes = CopyMapperProperties.class.getProtectionDomain().getCodeSource().getLocation();
         URL metadata = URI.create(classes + "META-INF/spring-configuration-metadata.json").toURL();
         try (InputStream in = metadata.openStream()) {
             return ConfigurationMetadataRepositoryJsonBuilder.create(in).build().getAllProperties();
@@ -40,7 +40,7 @@ class ConfigurationMetadataTest {
     }
 
     @Test
-    void listsOnlyTheBookmapProperties() throws IOException {
+    void listsOnlyTheCopyMapperProperties() throws IOException {
         assertThat(properties()).containsOnlyKeys("bookmap.charset", "bookmap.max-calls",
             "bookmap.transport.type",
             "bookmap.transport.ctg.url", "bookmap.transport.ctg.port",
@@ -85,12 +85,12 @@ class ConfigurationMetadataTest {
         assertThat(values).startsWith("IBM037").contains("IBM500");
 
         ApplicationContextRunner runner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(BookmapAutoConfiguration.class))
+            .withConfiguration(AutoConfigurations.of(CopyMapperAutoConfiguration.class))
             .withBean(Transport.class, () -> request -> new byte[0]);
         for (String value : values) {
             runner.withPropertyValues("bookmap.charset=" + value)
                 .run(context -> assertThat(context).as(value).hasNotFailed()
-                    .hasSingleBean(BookmapClient.class));
+                    .hasSingleBean(CopyMapperClient.class));
         }
     }
 

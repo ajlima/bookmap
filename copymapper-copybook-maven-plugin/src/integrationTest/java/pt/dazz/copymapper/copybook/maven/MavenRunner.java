@@ -26,8 +26,8 @@ final class MavenRunner {
     private static final Path DISTRIBUTIONS = Path.of(System.getProperty("maven.distributions"));
     private static final Path LOCAL_REPOSITORY =
         Path.of(System.getProperty("maven.localRepository"));
-    static final String BOOKMAP_VERSION = System.getProperty("bookmap.version");
-    private static final Path BOOKMAP_REPOSITORY =
+    static final String COPYMAPPER_VERSION = System.getProperty("bookmap.version");
+    private static final Path COPYMAPPER_REPOSITORY =
         Path.of(System.getProperty("bookmap.repository"));
 
     private final Path mvn;
@@ -37,7 +37,7 @@ final class MavenRunner {
     }
 
     /** Removes the CopyMapper artifacts from the shared local repository, once for each class. */
-    static void forgetBookmapArtifacts() throws IOException {
+    static void forgetCopyMapperArtifacts() throws IOException {
         Path bookmap = LOCAL_REPOSITORY.resolve("pt/dazz/copymapper");
         if (Files.exists(bookmap)) {
             try (Stream<Path> files = Files.walk(bookmap)) {
@@ -53,7 +53,7 @@ final class MavenRunner {
         Files.writeString(settings, settings());
         List<String> command = new ArrayList<>(List.of(mvn.toString(), "-B", "-e",
             "-s", settings.toString(), "-Dmaven.repo.local=" + LOCAL_REPOSITORY,
-            "-Dbookmap.version=" + BOOKMAP_VERSION));
+            "-Dbookmap.version=" + COPYMAPPER_VERSION));
         command.addAll(List.of(arguments));
         ProcessBuilder builder = new ProcessBuilder(command).directory(project.toFile())
             .redirectErrorStream(true);
@@ -71,7 +71,7 @@ final class MavenRunner {
     }
 
     private static String settings() {
-        String url = BOOKMAP_REPOSITORY.toUri().toString();
+        String url = COPYMAPPER_REPOSITORY.toUri().toString();
         String repository = """
                     <id>bookmap-integration-test</id>
                     <url>%s</url>

@@ -3,7 +3,7 @@ package pt.dazz.copymapper.exception;
 /**
  * Base class for the exceptions that a book throws in its validate method.
  */
-public class BusinessException extends BookmapException {
+public class BusinessException extends CopyMapperException {
 
     private static final long serialVersionUID = 1L;
 

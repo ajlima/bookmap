@@ -16,7 +16,7 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.core.annotation.Order;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.ctg.CtgTransport;
 import pt.dazz.copymapper.ctg.EciCall;
 import pt.dazz.copymapper.ctg.EciConnection;
@@ -27,7 +27,7 @@ import pt.dazz.copymapper.exception.ConnectionException;
 import pt.dazz.copymapper.exception.TransportException;
 import pt.dazz.copymapper.spi.BookRequest;
 import pt.dazz.copymapper.spi.Transport;
-import pt.dazz.copymapper.spring.BookmapAutoConfiguration;
+import pt.dazz.copymapper.spring.CopyMapperAutoConfiguration;
 
 class CtgTransportAutoConfigurationTest {
 
@@ -35,7 +35,7 @@ class CtgTransportAutoConfigurationTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CtgTransportAutoConfiguration.class,
-            BookmapAutoConfiguration.class));
+            CopyMapperAutoConfiguration.class));
 
     /** A connector that records each call. A call can wait for a latch. */
     static class RecordingConnector implements EciConnector {
@@ -88,7 +88,7 @@ class CtgTransportAutoConfigurationTest {
             .withPropertyValues(ROUTE)
             .run(context -> assertThat(context).hasNotFailed()
                 .doesNotHaveBean(CtgTransport.class)
-                .doesNotHaveBean(BookmapClient.class));
+                .doesNotHaveBean(CopyMapperClient.class));
     }
 
     @Test
@@ -97,14 +97,14 @@ class CtgTransportAutoConfigurationTest {
             .withPropertyValues("bookmap.transport.type=http", ROUTE)
             .run(context -> assertThat(context).hasNotFailed()
                 .doesNotHaveBean(CtgTransport.class)
-                .hasSingleBean(BookmapClient.class));
+                .hasSingleBean(CopyMapperClient.class));
     }
 
     @Test
     void createsTransportAndClient() {
         withConnector(new RecordingConnector()).withPropertyValues(ROUTE)
             .run(context -> assertThat(context).hasSingleBean(CtgTransport.class)
-                .hasSingleBean(BookmapClient.class));
+                .hasSingleBean(CopyMapperClient.class));
     }
 
     @ParameterizedTest

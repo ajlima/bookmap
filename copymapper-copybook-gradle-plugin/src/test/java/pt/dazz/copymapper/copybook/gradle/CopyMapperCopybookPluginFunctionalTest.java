@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pt.dazz.copymapper.copybook.tree.TestCopybooks;
 
-class BookmapCopybookPluginFunctionalTest {
+class CopyMapperCopybookPluginFunctionalTest {
 
     private static final String TASK = ":generateCopybookClasses";
     private static final String OUT = "build/generated/sources/copybook/main/";

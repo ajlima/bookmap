@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 import pt.dazz.copymapper.examples.copybook.GetShipmentStatus;
 import pt.dazz.copymapper.examples.shipments.DeliveryData;
 import pt.dazz.copymapper.examples.shipments.GetShipment;
@@ -19,12 +19,12 @@ import pt.dazz.copymapper.simulator.SimulatorTransport;
 class RedefinesViewsEndToEndTest {
 
     private SimulatorTransport simulator;
-    private BookmapClient client;
+    private CopyMapperClient client;
 
     @BeforeEach
     void setUp() {
         simulator = SimulatorTransport.builder().build();
-        client = BookmapClient.builder().transport(simulator).build();
+        client = CopyMapperClient.builder().transport(simulator).build();
     }
 
     private static GetShipment request(String shipmentId) {

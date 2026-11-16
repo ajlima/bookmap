@@ -269,7 +269,7 @@ class SimulatorTransportTest {
     }
 
     @Test
-    void bookmapExceptionPassesThrough() {
+    void copyMapperExceptionPassesThrough() {
         SimulatorTransport transport = SimulatorTransport.builder().build();
         ConnectionException failure = new ConnectionException("link down");
         transport.register("Down", req -> { throw failure; });

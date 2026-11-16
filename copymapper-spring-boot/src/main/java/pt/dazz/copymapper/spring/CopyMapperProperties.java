@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Settings for the {@code BookmapClient} bean, with the prefix {@code bookmap}.
+ * Settings for the {@code CopyMapperClient} bean, with the prefix {@code bookmap}.
  *
  * <p>The Spring Boot configuration processor copies the text of each {@code @param} tag into
  * {@code META-INF/spring-configuration-metadata.json}. Thus, the IDE shows this text.
@@ -16,7 +16,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *     The value must be 1 or more.
  */
 @ConfigurationProperties("bookmap")
-public record BookmapProperties(
+public record CopyMapperProperties(
         @DefaultValue("IBM037") String charset,
         @DefaultValue("1000") int maxCalls) {
 }

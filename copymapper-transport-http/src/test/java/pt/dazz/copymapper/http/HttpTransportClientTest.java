@@ -9,13 +9,13 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import pt.dazz.copymapper.BookmapClient;
+import pt.dazz.copymapper.CopyMapperClient;
 
 class HttpTransportClientTest {
 
     private TestServer server;
     private HttpTransport transport;
-    private BookmapClient client;
+    private CopyMapperClient client;
 
     @BeforeEach
     void start() throws IOException {
@@ -24,7 +24,7 @@ class HttpTransportClientTest {
             .baseUri(server.baseUri())
             .route("GetInvoice", "invoices")
             .build();
-        client = BookmapClient.builder().transport(transport).build();
+        client = CopyMapperClient.builder().transport(transport).build();
     }
 
     @AfterEach

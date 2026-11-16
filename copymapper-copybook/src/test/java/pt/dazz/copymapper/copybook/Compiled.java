@@ -15,7 +15,7 @@ import java.util.List;
 import javax.annotation.processing.Processor;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardLocation;
-import pt.dazz.copymapper.processor.BookmapProcessor;
+import pt.dazz.copymapper.processor.CopyMapperProcessor;
 import pt.dazz.copymapper.spi.BookCodec;
 
 /**
@@ -53,8 +53,8 @@ public final class Compiled {
             .forSourceString(file.packageName() + "." + file.typeSpec().name(),
                 file.toString())).toList();
         List<Processor> processors = lombok
-            ? List.of(lombokProcessor(), new BookmapProcessor())
-            : List.of(new BookmapProcessor());
+            ? List.of(lombokProcessor(), new CopyMapperProcessor())
+            : List.of(new CopyMapperProcessor());
         Compilation compilation = Compiler.javac().withOptions("-Xlint:all,-processing")
             .withProcessors(processors).compile(sources);
         CompilationSubject.assertThat(compilation).succeededWithoutWarnings();

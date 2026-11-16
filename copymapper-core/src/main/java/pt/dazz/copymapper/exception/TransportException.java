@@ -3,7 +3,7 @@ package pt.dazz.copymapper.exception;
 /**
  * Signals a technical failure in the transport.
  */
-public class TransportException extends BookmapException {
+public class TransportException extends CopyMapperException {
 
     private static final long serialVersionUID = 1L;
 
