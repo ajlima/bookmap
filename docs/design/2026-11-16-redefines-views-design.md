@@ -1,7 +1,7 @@
 # REDEFINES without a discriminator: views (design)
 
 Date: 2026-11-16
-Status: proposed.
+Status: approved.
 Base package: `pt.dazz.bookmap`
 Parent specs: `2026-11-10-bookmap-design.md`, `2026-11-11-bookmap-subtypes-design.md`
 Issue: #38
