@@ -4,14 +4,19 @@ GitHub Actions makes each release. Read this file to set up the release and to u
 
 ## How a release occurs
 
-The workflow `.github/workflows/release.yml` runs on each push to `main`.
+The workflow `.github/workflows/release.yml` runs on each push to `main` and on each manual run.
+A push to `main` only builds and tests. A manual run on `main` makes the release.
+Thus, one release can include the changes of many pull requests.
 
 1. The `build` job calculates the next version from the commit messages since the last tag:
    - `feat:` increases the minor version.
    - `fix:` increases the patch version.
    - `BREAKING CHANGE` in the commit body increases the major version.
    - Other types (`docs:`, `test:`, `build:`, `refactor:`, `ci:`) make no release.
-2. The `build` job builds and tests with that version. The build fails if coverage is less than 100%.
+
+   On a push to `main`, the `build` job shows the next version in a notice. The other jobs do not run.
+2. On a manual run, the `build` job checks the monthly release budget. See [Maven Central limits](#maven-central-limits).
+   Then it builds and tests with the new version. The build fails if coverage is less than 100%.
 3. The `publish` job checks out the same commit, signs the modules, and publishes them to Maven Central.
 4. The `attest` job makes a build provenance attestation for each JAR, POM, and Gradle module file that went to Maven Central. See [Verify an artifact](#verify-an-artifact).
 5. The `release` job creates the tag `vX.Y.Z` and a GitHub release. It attaches the same JAR files that went to Maven Central.
@@ -159,13 +164,42 @@ scripts/set-readme-version.sh X.Y.Z
 
 ## Make a release
 
-Open a Pull Request to `main`. The `build` check must pass before the merge.
-Merge a commit with the type `feat:` or `fix:` into `main`. The workflow does the rest.
+1. Merge the pull requests of the release into `main`. The `build` check must pass before each merge.
+2. Open the last run of **Build and release** on `main`. Read the notice with the next version.
+3. Open **Actions** > **Build and release** > **Run workflow**. Select the `main` branch.
+   Keep **force** cleared. Then click **Run workflow**.
+4. Make sure that the run creates the tag and the GitHub release.
 
 Use a merge commit or a rebase merge. Do not use a squash merge.
 A squash merge replaces the commit messages with one message, and the version comes from the commit messages.
 
-To run the workflow again (for example, after you add a missing secret), open **Actions** > **Build and release** > **Run workflow** on the `main` branch.
+To run the release again (for example, after you add a missing secret), do step 3 again.
+
+## Maven Central limits
+
+Maven Central limits the publishing volume of each organization in each calendar month.
+It counts three values: the file count, the release size, and the release count.
+In November 2026, the limits of the organization were 1,000 files, 80 MB, and 7 releases.
+One run of the release workflow is one release.
+The Usage page of the Central Portal shows the values: <https://central.sonatype.com/publishing/usage>.
+For the rules, see [Maven Central Publishing Limits](https://central.sonatype.org/publish/maven-central-publishing-limits/).
+
+A CopyMapper release has about 230 files and 5 MB.
+Each module has a JAR, a source JAR, a Javadoc JAR, a POM, and a Gradle module file.
+Each file also has a signature and checksums.
+The file count is the first limit that a release reaches.
+Thus, make 4 releases or less in each calendar month.
+
+The `build` job enforces this rule on a manual run. It runs `scripts/check-release-budget.sh`.
+The script counts the GitHub releases of the current calendar month (UTC). If the month has 4 releases or more, the run fails before the build.
+The value `MAX_RELEASES_PER_MONTH` in the `env` section of `release.yml` sets the maximum.
+
+For an urgent fix, for example a security fix, select **force** in step 3 of [Make a release](#make-a-release). The check does not run.
+
+**CAUTION:** Do not use **force** for a normal release. After the grace period of the limits, Maven Central refuses a release that keeps the organization over a limit.
+
+If the Central Portal shows a warning about the limits, read the Usage page. Then group more changes in each release.
+If the project needs higher limits, the owner of the organization can send a request to `central-support@sonatype.com`.
 
 ## Local check
 
