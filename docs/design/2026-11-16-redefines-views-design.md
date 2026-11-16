@@ -1,7 +1,7 @@
 # REDEFINES without a discriminator: views (design)
 
 Date: 2026-11-16
-Status: approved.
+Status: implemented in v0.27.0.
 Base package: `pt.dazz.copymapper`
 Parent specs: `2026-11-10-copymapper-design.md`, `2026-11-11-copymapper-subtypes-design.md`
 Issue: #38
