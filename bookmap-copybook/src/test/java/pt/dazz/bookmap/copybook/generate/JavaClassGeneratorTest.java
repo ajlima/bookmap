@@ -15,7 +15,9 @@ import pt.dazz.bookmap.copybook.Models;
 import pt.dazz.bookmap.copybook.model.BookModel;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
+import pt.dazz.bookmap.copybook.model.CollectionMember;
 import pt.dazz.bookmap.copybook.model.FieldMember;
+import pt.dazz.bookmap.copybook.model.GroupMember;
 import pt.dazz.bookmap.copybook.model.JavaType;
 
 class JavaClassGeneratorTest {
@@ -64,6 +66,47 @@ class JavaClassGeneratorTest {
             new ClassModel("Shipment", ClassKind.OPERATION, null, null, List.of(shipDate))));
         assertThat(JavaClassGenerator.generate(model, PLAIN).get(0).toString())
             .contains("private LocalDate shipDate = LocalDate.parse(\"2026-01-01\");");
+    }
+
+    @Test
+    void viewAreaGetsRedefinesAndBoxedNumbers() {
+        List<JavaFile> files = JavaClassGenerator.generate(Models.viewModel(), PLAIN);
+        String operation = files.get(0).toString();
+        assertThat(operation).contains("direction = Direction.OUTPUT", "private String code;",
+            "redefines = \"code\"", "private Integer number;", "private Long total;",
+            "@BookGroup(", "private Detail detail;", "private List<Parts> parts;",
+            "public static final Integer ZERO_NUM = 0;",
+            "return number != null && (number == 0);",
+            "return total != null && (total.compareTo(1L) >= 0 && total.compareTo(9L) <= 0);")
+            .containsOnlyOnce("direction = Direction.OUTPUT");
+        assertThat(files.get(2).toString()).contains("public class Detail")
+            .doesNotContain("direction");
+    }
+
+    @Test
+    void redefinedGroupGetsItsDirection() {
+        FieldMember text = new FieldMember("text", JavaType.STRING, 10, "X(4)",
+            Direction.OUTPUT, "TEXT", "10 TEXT PIC X(4).");
+        BookModel model = new BookModel(BookModel.FORMAT_VERSION, "GET-CODE.cpy", List.of(
+            new ClassModel("GetCode", ClassKind.OPERATION, null, null, List.of(
+                new GroupMember("first", 10, Direction.OUTPUT, "FIRST", "05 FIRST.", "Detail",
+                    ""),
+                new GroupMember("second", 20, Direction.OUTPUT, "SECOND",
+                    "05 SECOND REDEFINES FIRST.", "Detail", "first"),
+                new GroupMember("third", 30, Direction.INPUT_OUTPUT, "THIRD", "05 THIRD.",
+                    "Detail", ""),
+                new GroupMember("fourth", 40, Direction.INPUT_OUTPUT, "FOURTH",
+                    "05 FOURTH REDEFINES THIRD.", "Detail", "third"),
+                new CollectionMember("entries", 50, Direction.OUTPUT, "ENTRIES",
+                    "05 ENTRIES OCCURS 2.", 2, true, null, "Entries"))),
+            new ClassModel("Entries", ClassKind.ITEM, null, null, List.of(
+                new GroupMember("inner", 10, Direction.OUTPUT, "INNER", "10 INNER.", "Detail",
+                    ""))),
+            new ClassModel("Detail", ClassKind.GROUP, null, null, List.of(text))));
+        List<JavaFile> files = JavaClassGenerator.generate(model, PLAIN);
+        assertThat(files.get(0).toString()).containsOnlyOnce("direction = Direction.OUTPUT\n"
+            + "    )\n    private Detail first;");
+        assertThat(files.get(1).toString()).doesNotContain("direction");
     }
 
     @Test

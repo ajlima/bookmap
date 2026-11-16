@@ -24,6 +24,7 @@ import pt.dazz.bookmap.Continuable;
 import pt.dazz.bookmap.Validatable;
 import pt.dazz.bookmap.annotation.BookCollection;
 import pt.dazz.bookmap.annotation.BookField;
+import pt.dazz.bookmap.annotation.BookGroup;
 import pt.dazz.bookmap.annotation.BookOperation;
 import pt.dazz.bookmap.annotation.BookSubTypes;
 import pt.dazz.bookmap.annotation.CobolValue;
@@ -37,6 +38,7 @@ import pt.dazz.bookmap.copybook.model.ConditionMember;
 import pt.dazz.bookmap.copybook.model.EnumConstant;
 import pt.dazz.bookmap.copybook.model.EnumModel;
 import pt.dazz.bookmap.copybook.model.FieldMember;
+import pt.dazz.bookmap.copybook.model.GroupMember;
 import pt.dazz.bookmap.copybook.model.JavaType;
 import pt.dazz.bookmap.copybook.model.MemberModel;
 import pt.dazz.bookmap.copybook.model.SubTypeEntry;
@@ -98,7 +100,7 @@ public final class JavaClassGenerator {
         while (current.kind() == ClassKind.SUBTYPE) {
             current = byName.get(current.superclass());
         }
-        return current.kind() == ClassKind.ITEM;
+        return current.kind() == ClassKind.ITEM || current.kind() == ClassKind.GROUP;
     }
 
     private static TypeSpec type(ClassModel type, boolean inItem, String sourceName,
@@ -200,7 +202,7 @@ public final class JavaClassGenerator {
             .initializer(literal(field, javaType, condition.values().get(0).from()))
             .build());
         boolean object = field.javaType() == JavaType.STRING
-            || field.javaType() == JavaType.BIG_DECIMAL;
+            || field.javaType() == JavaType.BIG_DECIMAL || field.redefines() != null;
         List<CodeBlock> tests = new ArrayList<>();
         for (ValueRange range : condition.values()) {
             CodeBlock from = literal(field, javaType, range.from());
@@ -272,10 +274,12 @@ public final class JavaClassGenerator {
         return switch (member) {
             case CollectionMember collection -> ParameterizedTypeName.get(
                 ClassName.get(List.class), ClassName.get(packageName, collection.itemClass()));
+            case GroupMember group -> ClassName.get(packageName, group.groupClass());
+            // A member of a REDEFINES area can be null, so a number has a boxed type.
             case FieldMember field -> switch (field.javaType()) {
                 case STRING -> ClassName.get(String.class);
-                case INT -> TypeName.INT;
-                case LONG -> TypeName.LONG;
+                case INT -> field.redefines() != null ? TypeName.INT.box() : TypeName.INT;
+                case LONG -> field.redefines() != null ? TypeName.LONG.box() : TypeName.LONG;
                 case BIG_DECIMAL -> ClassName.get(BigDecimal.class);
                 case ENUM -> ClassName.get(packageName, field.enumType());
                 case LOCAL_DATE -> ClassName.get(LocalDate.class);
@@ -291,9 +295,10 @@ public final class JavaClassGenerator {
                 AnnotationSpec.Builder spec = AnnotationSpec.builder(BookField.class)
                     .addMember("order", "$L", field.order())
                     .addMember("pic", "$S", field.pic());
-                if (!inItem && field.direction() != Direction.INPUT_OUTPUT) {
+                if (!inItem && !isView(field) && field.direction() != Direction.INPUT_OUTPUT) {
                     spec.addMember("direction", direction(field.direction()));
                 }
+                addRedefines(spec, field);
                 if (field.pattern() != null) {
                     spec.addMember("pattern", "$S", field.pattern());
                 }
@@ -303,8 +308,9 @@ public final class JavaClassGenerator {
                 AnnotationSpec.Builder spec = AnnotationSpec.builder(BookCollection.class)
                     .addMember("order", "$L", collection.order())
                     .addMember("maxOccurs", "$L", collection.maxOccurs());
-                // A collection in an item class gets the direction of the outer collection.
-                if (!inItem) {
+                // A collection in an item class gets the direction of the outer collection. A
+                // view gets the direction of the redefined member.
+                if (!inItem && !isView(collection)) {
                     spec.addMember("direction", direction(collection.direction()));
                 }
                 if (collection.fixed()) {
@@ -323,9 +329,30 @@ public final class JavaClassGenerator {
                 if (collection.partial()) {
                     spec.addMember("partial", "true");
                 }
+                addRedefines(spec, collection);
+                yield spec.build();
+            }
+            case GroupMember group -> {
+                AnnotationSpec.Builder spec = AnnotationSpec.builder(BookGroup.class)
+                    .addMember("order", "$L", group.order());
+                if (!inItem && !isView(group) && group.direction() != Direction.INPUT_OUTPUT) {
+                    spec.addMember("direction", direction(group.direction()));
+                }
+                addRedefines(spec, group);
                 yield spec.build();
             }
         };
+    }
+
+    /** Tells if a member is a view: a member of a REDEFINES area after the first one. */
+    private static boolean isView(MemberModel member) {
+        return member.redefines() != null && !member.redefines().isEmpty();
+    }
+
+    private static void addRedefines(AnnotationSpec.Builder spec, MemberModel member) {
+        if (isView(member)) {
+            spec.addMember("redefines", "$S", member.redefines());
+        }
     }
 
     private static CodeBlock direction(Direction direction) {

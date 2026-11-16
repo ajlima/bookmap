@@ -9,5 +9,7 @@ public enum ClassKind {
     /** The item class of a collection. */
     ITEM,
     /** A subclass for one alternative of a {@code REDEFINES} area. */
-    SUBTYPE
+    SUBTYPE,
+    /** The class of a group in a {@code REDEFINES} view area ({@code @BookGroup}). */
+    GROUP
 }

@@ -192,6 +192,21 @@ class CopybookTreeTest {
     }
 
     @Test
+    void optionsFileKeepsTheViews() throws IOException {
+        Path source = Files.createDirectories(work.resolve("views"));
+        Files.writeString(source.resolve("ORDER.cpy"), String.join("\n",
+            "       01  ORDER.",
+            "           05  ORDER-CODE               PIC X(4).",
+            "           05  ORDER-NUMBER REDEFINES ORDER-CODE PIC 9(4).", ""));
+        Files.writeString(source.resolve("ORDER.json"), "{\"views\": [\"ORDER-CODE\"]}");
+        CopybookTree.run(settings(source, List.of(), BASE, false, false),
+            TestCopybooks.copybooks(source), output, log);
+        assertThat(log.errors).isEmpty();
+        assertThat(output.resolve("com/example/mainframe/Order.java")).content()
+            .contains("redefines = \"orderCode\"", "Integer orderNumber");
+    }
+
+    @Test
     void optionsFileKeepsThePartialTables() throws IOException {
         Path source = Files.createDirectories(work.resolve("partial"));
         Files.writeString(source.resolve("ORDER.cpy"), String.join("\n",

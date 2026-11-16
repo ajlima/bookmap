@@ -217,7 +217,8 @@ class ModelMapperTest {
             .containsExactly("orderDate");
         assertThat(diagnostics(result)).extracting(Diagnostic::severity, Diagnostic::message)
             .containsExactly(tuple(Severity.WARNING,
-                "ORDER-DATE-X redefines ORDER-DATE and is skipped"));
+                "ORDER-DATE-X redefines ORDER-DATE and is skipped. To keep both, add"
+                    + " \"views\": [\"ORDER-DATE\"]."));
         assertThat(result.hasErrors()).isFalse();
     }
 

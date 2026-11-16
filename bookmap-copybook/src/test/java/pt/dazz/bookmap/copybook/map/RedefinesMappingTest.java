@@ -166,7 +166,8 @@ class RedefinesMappingTest {
             + " decision. Add a direction for each alternative, for example \"directions\":"
             + " {\"PART-A\": \"INPUT\", \"PART-B\": \"OUTPUT\"}. Or add a subtype decision, for"
             + " example \"subTypes\": {\"PART-A\": {\"discriminator\": \"...\", \"values\":"
-            + " {\"PART-A\": \"01\", \"PART-B\": \"02\"}}}.");
+            + " {\"PART-A\": \"01\", \"PART-B\": \"02\"}}}. Or map the area to views:"
+            + " \"views\": [\"PART-A\"].");
     }
 
     @Test
@@ -340,7 +341,7 @@ class RedefinesMappingTest {
             .extracting(Diagnostic::severity, Diagnostic::line, Diagnostic::message)
             .containsExactly(tuple(Severity.WARNING, 6, "the REDEFINES area LIMITS is inside"
                 + " another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS."
-                + " See issues #38 and #39."));
+                + " To keep both, add \"views\": [\"LIMITS\"]."));
         assertThat(type(result, "CheckingData").members()).extracting(MemberModel::name)
             .containsExactly("l1");
     }
