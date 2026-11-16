@@ -6,6 +6,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.util.Arrays;
+import pt.dazz.bookmap.exception.InvalidValueException;
 import pt.dazz.bookmap.exception.MappingException;
 
 /**
@@ -98,7 +99,7 @@ public final class TextCodec {
                 .decode(ByteBuffer.wrap(bytes, from, len))
                 .toString();
         } catch (CharacterCodingException e) {
-            throw new MappingException(field + ": the field has a byte that charset "
+            throw new InvalidValueException(field + ": the field has a byte that charset "
                 + cs.name() + " cannot decode", e);
         }
     }

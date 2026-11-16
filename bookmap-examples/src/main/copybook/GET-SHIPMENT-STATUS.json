@@ -1,0 +1,4 @@
+{
+  "views": [ "TRACKING-CODE", "RESULT-DETAIL" ],
+  "dates": { "DELIVERY-DATE": "yyyyMMdd" }
+}

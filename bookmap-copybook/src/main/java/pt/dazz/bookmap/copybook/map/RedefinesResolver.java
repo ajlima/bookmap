@@ -14,14 +14,19 @@ import pt.dazz.bookmap.copybook.model.SubTypeEntry;
 import pt.dazz.bookmap.copybook.model.SubTypes;
 
 /**
- * Maps the {@code REDEFINES} items of a copybook. A group {@code REDEFINES} area becomes a
- * direction split or subtypes. All other {@code REDEFINES} items are skipped.
+ * Maps the {@code REDEFINES} items of a copybook. An area that the option {@code views} names
+ * becomes views. Another group {@code REDEFINES} area becomes a direction split or subtypes.
+ * All other {@code REDEFINES} items are skipped.
  */
 final class RedefinesResolver {
+
+    private static final String VIEWS = "views option";
 
     private final ModelMapper mapper;
     private final Map<DataItem, Direction> directions = new IdentityHashMap<>();
     private final Map<DataItem, SubTypeDecision> subTypes = new IdentityHashMap<>();
+    /** The redefined items of the areas that the option {@code views} names. */
+    private final Map<DataItem, Boolean> viewAreas = new IdentityHashMap<>();
     /** The number of members of a base class at the end of its subtype area. */
     private final Map<ModelMapper.ClassBuilder, DataItem> subTypeAreas = new IdentityHashMap<>();
     private final Map<ModelMapper.ClassBuilder, Integer> subTypeEnds = new IdentityHashMap<>();
@@ -47,6 +52,81 @@ final class RedefinesResolver {
                     + baseOf(item).name());
             }
         });
+        mapper.options.views().forEach(this::viewDecision);
+    }
+
+    /** Resolves one name of the option {@code views}. */
+    private void viewDecision(String name) {
+        DataItem item = mapper.findNamed(VIEWS, name);
+        if (item == null) {
+            return;
+        }
+        DataItem base = baseOf(item);
+        if (base == null || alternatives(base, siblings(base)).isEmpty()) {
+            mapper.optionError(VIEWS + ": " + name + " is not a REDEFINES item");
+            return;
+        }
+        String area = "the REDEFINES area " + base.name();
+        if (viewAreas.put(base, Boolean.TRUE) != null) {
+            mapper.optionError(VIEWS + ": two names give " + area);
+        } else if (subTypes.containsKey(base)) {
+            mapper.optionError(VIEWS + ": " + area + " also has a subtype decision."
+                + " Give one decision.");
+        } else if (directions.containsKey(base) || alternatives(base, siblings(base)).stream()
+            .anyMatch(directions::containsKey)) {
+            mapper.optionError(VIEWS + ": " + area + " also has a direction decision."
+                + " Give one decision.");
+        }
+    }
+
+    /**
+     * Tells if the option {@code views} names the area of a redefined item.
+     *
+     * @param base an item that other items redefine
+     * @return {@code true} for a view area
+     */
+    boolean isViews(DataItem base) {
+        return viewAreas.containsKey(base);
+    }
+
+    /**
+     * Tells if an item with {@code REDEFINES} is an alternative of a view area.
+     *
+     * @param item an item with {@code REDEFINES}
+     * @param siblings the items of its group
+     * @return {@code true} for an alternative of a view area
+     */
+    boolean inViews(DataItem item, List<DataItem> siblings) {
+        return siblings.stream().anyMatch(sibling -> sibling.name().equals(item.redefines().name())
+            && viewAreas.containsKey(sibling));
+    }
+
+    /**
+     * Maps a view area. Each alternative becomes a member of the class. The first member is
+     * the redefined member. The other members name it in {@code redefines}.
+     */
+    void views(DataItem base, DataItem previous, List<DataItem> redefiners,
+               ModelMapper.ClassBuilder owner, ModelMapper.Context context) {
+        List<DataItem> all = new ArrayList<>();
+        all.add(base);
+        all.addAll(redefiners);
+        for (DataItem alternative : all) {
+            if (hasVariableTable(alternative)) {
+                mapper.error(alternative, "the REDEFINES alternative " + alternative.name()
+                    + " has OCCURS DEPENDING ON. A view needs a fixed size.");
+                return;
+            }
+        }
+        int first = owner.members.size();
+        mapper.view(base, previous, owner, context, "");
+        if (owner.members.size() == first) {
+            // The redefined item has an error.
+            return;
+        }
+        String redefined = owner.members.get(first).name();
+        for (DataItem redefiner : redefiners) {
+            mapper.view(redefiner, previous, owner, context, redefined);
+        }
     }
 
     /** Finds an alternative group by name, or reports an error. */
@@ -118,7 +198,8 @@ final class RedefinesResolver {
                 + ", so the items after it would move.");
         } else if (!item.isGroup()) {
             mapper.warning(item, item.name() + " redefines " + item.redefines()
-                + " and is skipped");
+                + " and is skipped. To keep both, add \"views\": [\"" + item.redefines()
+                + "\"].");
         } else if (base == null || !base.isGroup()) {
             mapper.error(item, item.name() + " redefines " + item.redefines()
                 + ", which is not a group with the same parent");
@@ -137,7 +218,7 @@ final class RedefinesResolver {
         all.add(base);
         all.addAll(redefiners);
         if (context.direction() != Direction.INPUT_OUTPUT || subTypeAreas.containsKey(owner)
-            || owner.kind == ClassKind.SUBTYPE) {
+            || owner.kind == ClassKind.SUBTYPE || owner.kind == ClassKind.GROUP) {
             nested(base, previous, redefiners, owner, context);
             return;
         }
@@ -179,7 +260,8 @@ final class RedefinesResolver {
             + " \"directions\": {\"" + first + "\": \"INPUT\", \"" + second + "\": \"OUTPUT\"}."
             + " Or add a subtype decision, for example \"subTypes\": {\"" + first
             + "\": {\"discriminator\": \"...\", \"values\": {\"" + first + "\": \"01\", \""
-            + second + "\": \"02\"}}}.");
+            + second + "\": \"02\"}}}. Or map the area to views: \"views\": [\"" + first
+            + "\"].");
     }
 
     /**
@@ -197,7 +279,8 @@ final class RedefinesResolver {
             } else {
                 mapper.warning(redefiner, "the REDEFINES area " + base.name() + " is inside"
                     + " another REDEFINES area. BookMap keeps " + base.name() + " and skips "
-                    + redefiner.name() + ". See issues #38 and #39.");
+                    + redefiner.name() + ". To keep both, add \"views\": [\"" + base.name()
+                    + "\"].");
             }
         }
         mapper.item(base, previous, owner, context);
@@ -296,6 +379,10 @@ final class RedefinesResolver {
             return null;
         }
         ModelMapper.Placed field = mapper.placed.get(item);
+        if (field != null && field.field().redefines() != null) {
+            mapper.error(base, "the discriminator " + name + " must not be in a REDEFINES view");
+            return null;
+        }
         if (field == null || field.owner() != owner) {
             mapper.error(base, "the discriminator " + name + " must be an item before the"
                 + " REDEFINES area " + base.name() + ", in the same class");

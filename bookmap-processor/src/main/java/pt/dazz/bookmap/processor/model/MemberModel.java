@@ -3,10 +3,12 @@ package pt.dazz.bookmap.processor.model;
 import pt.dazz.bookmap.annotation.Direction;
 
 /**
- * Describes one member of a book: an elementary field or a collection.
+ * Describes one member of a book: an elementary field, a collection, a group, or a
+ * {@code REDEFINES} area.
  * All conventions are already resolved.
  */
-public sealed interface MemberModel permits FieldModel, CollectionModel {
+public sealed interface MemberModel permits FieldModel, CollectionModel, GroupModel,
+    AreaModel {
 
     /**
      * Gives the Java field name.

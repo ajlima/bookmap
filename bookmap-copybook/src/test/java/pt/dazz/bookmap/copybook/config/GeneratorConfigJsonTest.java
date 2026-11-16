@@ -86,6 +86,13 @@ class GeneratorConfigJsonTest {
     }
 
     @Test
+    void viewsAreReadFromTheOptionsFile() {
+        assertThat(GeneratorConfigJson.read("{\"views\": [\"ORDER-CODE\"]}", BASE).mapping()
+            .views()).containsExactly("ORDER-CODE");
+        assertThat(GeneratorConfigJson.read("{}", BASE).mapping().views()).isEmpty();
+    }
+
+    @Test
     void partialTablesAreEmptyByDefault() {
         assertThat(GeneratorConfigJson.read("{}", BASE).mapping().partialTables()).isEmpty();
     }

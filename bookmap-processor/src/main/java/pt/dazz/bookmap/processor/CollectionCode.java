@@ -139,6 +139,19 @@ final class CollectionCode {
      * @param partial {@code true} if the data can end on a slot boundary inside the fixed area
      */
     CodeBlock readItems(CollectionModel collection, boolean append, boolean partial) {
+        return readList(collection, append, partial).toBuilder()
+            .addStatement("target.$N($N)", collection.setter(), members.names(collection).list())
+            .build();
+    }
+
+    /**
+     * Gives the code that reads the items into the local list of the collection. Without
+     * {@code append} and without a count field, the code does not use {@code target}.
+     *
+     * @param append {@code true} to add the items to a new list with the existing items
+     * @param partial {@code true} if the data can end on a slot boundary inside the fixed area
+     */
+    CodeBlock readList(CollectionModel collection, boolean append, boolean partial) {
         CollectionNames n = members.names(collection);
         int itemLength = collection.item().byteLength();
         CodeBlock.Builder code = CodeBlock.builder();
@@ -182,7 +195,7 @@ final class CollectionCode {
             code.addStatement("reader.skipArea($N, ($L - $N) * $L)", n.descriptor(),
                 slots, n.count(), itemLength);
         }
-        return code.addStatement("target.$N($N)", collection.setter(), n.list()).build();
+        return code.build();
     }
 
     /**

@@ -7,10 +7,13 @@ import pt.dazz.bookmap.copybook.model.BookModel;
 import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
 import pt.dazz.bookmap.copybook.model.CollectionMember;
+import pt.dazz.bookmap.copybook.model.ConditionMember;
 import pt.dazz.bookmap.copybook.model.FieldMember;
+import pt.dazz.bookmap.copybook.model.GroupMember;
 import pt.dazz.bookmap.copybook.model.JavaType;
 import pt.dazz.bookmap.copybook.model.SubTypeEntry;
 import pt.dazz.bookmap.copybook.model.SubTypes;
+import pt.dazz.bookmap.copybook.model.ValueRange;
 
 /** Test models. */
 public final class Models {
@@ -80,5 +83,36 @@ public final class Models {
                     "05 OPEN-ORDER OCCURS 10.", 10, true, null, "OpenOrder",
                     EmptyItem.LOW_VALUES, null, true))),
             new ClassModel("OpenOrder", ClassKind.ITEM, null, null, List.of(orderId))));
+    }
+
+    /**
+     * Gives a model with a {@code REDEFINES} view area: a text, a number view with a level 88
+     * item, a table view, and a group view.
+     */
+    public static BookModel viewModel() {
+        FieldMember code = new FieldMember("code", JavaType.STRING, 10, "X(4)",
+            Direction.OUTPUT, "CODE", "05 CODE PIC X(4).", null, null, null, List.of(), "");
+        FieldMember number = new FieldMember("number", JavaType.INT, 20, "9(4)",
+            Direction.OUTPUT, "NUM", "05 NUM REDEFINES CODE PIC 9(4).", null, null, null,
+            List.of(new ConditionMember("ZERO-NUM", "ZERO_NUM", "isZeroNum",
+                List.of(new ValueRange("0", null)))), "code");
+        FieldMember total = new FieldMember("total", JavaType.LONG, 30, "9(4)",
+            Direction.OUTPUT, "TOTAL", "05 TOTAL REDEFINES CODE PIC 9(4).", null, null, null,
+            List.of(new ConditionMember("SMALL-TOTAL", "SMALL_TOTAL", "isSmallTotal",
+                List.of(new ValueRange("1", "9")))), "code");
+        CollectionMember parts = new CollectionMember("parts", 40, Direction.OUTPUT, "PARTS",
+            "05 PARTS REDEFINES CODE OCCURS 2.", 2, true, null, "Parts", EmptyItem.LOW_VALUES,
+            null, false, "code");
+        GroupMember detail = new GroupMember("detail", 50, Direction.OUTPUT, "DETAIL",
+            "05 DETAIL REDEFINES CODE.", "Detail", "code");
+        FieldMember part = new FieldMember("value", JavaType.STRING, 10, "X(2)",
+            Direction.INPUT_OUTPUT, "PARTS", "05 PARTS REDEFINES CODE OCCURS 2.");
+        FieldMember text = new FieldMember("text", JavaType.STRING, 10, "X(4)",
+            Direction.OUTPUT, "TEXT", "10 TEXT PIC X(4).");
+        return new BookModel(BookModel.FORMAT_VERSION, "GET-CODE.cpy", List.of(
+            new ClassModel("GetCode", ClassKind.OPERATION, null, null,
+                List.of(code, number, total, parts, detail)),
+            new ClassModel("Parts", ClassKind.ITEM, null, null, List.of(part)),
+            new ClassModel("Detail", ClassKind.GROUP, null, null, List.of(text))));
     }
 }

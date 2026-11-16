@@ -30,6 +30,7 @@ The transport maps the operation name to its destination. See [Transports and si
 | `sign` | The sign format of a signed `DISPLAY` number: `TRAILING`, `LEADING`, `TRAILING_SEPARATE`, or `LEADING_SEPARATE`. See [Sign formats](PIC-syntax-and-type-mapping#sign-formats). | `TRAILING`. |
 | `pattern` | Date or time format. | From `@BookDefaults`, else `yyyyMMdd`. Set a pattern on each `LocalTime` and `LocalDateTime` field. |
 | `converter` | A custom `FieldConverter` class. | None. |
+| `redefines` | The Java name of the member that this field redefines (a view). See [REDEFINES views](REDEFINES-views). | None. |
 
 A field needs `pic` or `length`. One exception exists: a date or time field with neither gets its length from the pattern.
 If you set `pic`, do not set `length`, `scale`, `signed`, `usage`, or `sign` on the same field. This is a compile error.
@@ -220,6 +221,7 @@ Compile errors on the field, for example `Invoice.partyRole (order 30): enum Par
 | `emptyItem` | Fixed table: the bytes of an unused slot, `EmptyItem.LOW_VALUES` or `EmptyItem.SPACES`. Without `emptyKey` and `dependsOn`, these bytes also mark an empty slot on read. | `EmptyItem.LOW_VALUES` |
 | `emptyKey` | Fixed table: the name of a field of the item class. A slot is empty if this key is blank or zero. Not permitted with `dependsOn`. | No key. |
 | `partial` | Fixed table: `true` if the response can end on a slot boundary inside the area. The collection must be the last member of the response. See [Partial responses](Collections-and-fixed-OCCURS#partial-responses). | `false` |
+| `redefines` | The Java name of the member that this collection redefines (a view). The collection must be fixed. See [REDEFINES views](REDEFINES-views). | None. |
 | `maxOccurs` | The maximum number of items in one call. | Mandatory. |
 
 The item class has `@BookField` fields without `direction`. They use the direction of the collection.
@@ -228,6 +230,18 @@ The item class needs a public constructor without arguments.
 The digits of the count field must hold `maxOccurs`. For example, `9(1)` with `maxOccurs = 50` is a compile error.
 
 See [Collections and fixed OCCURS](Collections-and-fixed-OCCURS) for the behavior.
+
+## @BookGroup (field of a group class)
+
+`@BookGroup` maps a COBOL group without `OCCURS` to a field of a group class, in a `REDEFINES` area. A group class has the rules of an item class.
+
+| Attribute | Meaning | Default |
+|---|---|---|
+| `order` | The position in the book. | Mandatory. |
+| `direction` | The direction. Set it only on the redefined member of an area in an operation class. | `INPUT_OUTPUT` |
+| `redefines` | The Java name of the member that this group redefines (a view). | None. |
+
+See [REDEFINES views](REDEFINES-views) for the rules and an example.
 
 ## @BookDefaults (class or package)
 

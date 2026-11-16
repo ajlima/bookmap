@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import pt.dazz.bookmap.cobol.Sign;
+import pt.dazz.bookmap.exception.InvalidValueException;
 import pt.dazz.bookmap.exception.MappingException;
 
 /**
@@ -113,7 +114,7 @@ public final class ZonedDecimal {
     }
 
     private static MappingException invalid(String field, int b, int offset, String problem) {
-        return new MappingException(field + ": byte 0x" + String.format("%02X", b)
+        return new InvalidValueException(field + ": byte 0x" + String.format("%02X", b)
             + " at offset " + offset + " of the field " + problem);
     }
 

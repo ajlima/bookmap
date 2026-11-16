@@ -27,6 +27,8 @@ final class CodecTypes {
     static final ClassName USAGE = ClassName.get("pt.dazz.bookmap.cobol", "Usage");
     static final ClassName MAPPING_EXCEPTION = ClassName.get("pt.dazz.bookmap.exception",
         "MappingException");
+    static final ClassName INVALID_VALUE_EXCEPTION = ClassName.get(
+        "pt.dazz.bookmap.exception", "InvalidValueException");
     static final ClassName GENERATED = ClassName.get("javax.annotation.processing",
         "Generated");
     static final ClassName DECIMAL = ClassName.get(BigDecimal.class);

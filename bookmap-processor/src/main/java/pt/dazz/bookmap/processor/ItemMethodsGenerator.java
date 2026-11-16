@@ -17,8 +17,10 @@ import java.util.Map;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import pt.dazz.bookmap.processor.CodecMembers.ItemMethods;
+import pt.dazz.bookmap.processor.model.AreaModel;
 import pt.dazz.bookmap.processor.model.CollectionModel;
 import pt.dazz.bookmap.processor.model.FieldModel;
+import pt.dazz.bookmap.processor.model.GroupModel;
 import pt.dazz.bookmap.processor.model.ItemModel;
 import pt.dazz.bookmap.processor.model.MemberModel;
 
@@ -59,17 +61,8 @@ final class ItemMethodsGenerator {
     private ItemMethods addItemMembers(TypeSpec.Builder builder, ItemModel item) {
         List<Layout> itemLayouts = Layout.of(item.type(), item.members(), item.subTypes());
         for (Layout layout : itemLayouts) {
-            for (MemberModel member : layout.members()) {
-                switch (member) {
-                    case FieldModel field when !members.hasNames(field) ->
-                        members.addField(builder, field);
-                    case CollectionModel inner when !members.hasNames(inner) ->
-                        addCollection(builder, inner);
-                    default -> {
-                        // The members of a base class are already in another layout.
-                    }
-                }
-            }
+            // The members of a base class can already be in another layout.
+            layout.members().forEach(member -> addMember(builder, member));
         }
         ClassName itemType = ClassName.get(item.type());
         String suffix = String.join("_", itemType.simpleNames());
@@ -177,18 +170,185 @@ final class ItemMethodsGenerator {
             }
         }
         for (MemberModel member : layoutMembers) {
-            switch (member) {
-                case FieldModel field -> {
-                    write.addStatement(fields.write(field));
-                    read.addStatement("target.$N($L)", field.setter(), fields.read(field));
-                }
-                case CollectionModel inner -> {
-                    write.addCode(collections.writeItems(inner));
-                    read.addCode(collections.readItems(inner, false, false));
-                }
-            }
+            write.addCode(writeMember(member));
+            read.addCode(readMember(member, false, false));
         }
         methods.add(write.build());
         methods.add(read.addStatement("return target").build());
+    }
+
+    // ---- members of any kind ----
+
+    /**
+     * Adds the constants and the methods of a member, if they are not there yet: a field, a
+     * collection and its item class, a group and its group class, or an area and its members.
+     */
+    void addMember(TypeSpec.Builder builder, MemberModel member) {
+        if (member instanceof FieldModel field) {
+            if (!members.hasNames(field)) {
+                members.addField(builder, field);
+            }
+        } else if (member instanceof CollectionModel collection) {
+            if (!members.hasNames(collection)) {
+                addCollection(builder, collection);
+            }
+        } else if (member instanceof GroupModel group) {
+            addGroup(builder, group);
+        } else {
+            addArea(builder, (AreaModel) member);
+        }
+    }
+
+    /**
+     * Gives the code that writes a member of {@code value}. For a collection, the code of
+     * {@link CollectionCode#setCount} comes before it.
+     */
+    CodeBlock writeMember(MemberModel member) {
+        if (member instanceof FieldModel field) {
+            return CodeBlock.builder().addStatement(fields.write(field)).build();
+        }
+        if (member instanceof CollectionModel collection) {
+            return collections.writeItems(collection);
+        }
+        if (member instanceof GroupModel group) {
+            return CodeBlock.builder().addStatement("$N(writer, value.$N(), ctx)",
+                members.groupMethods(group).write(), group.getter()).build();
+        }
+        return CodeBlock.builder().addStatement("$N(writer, value, ctx)",
+            members.areaNames((AreaModel) member).methods().write()).build();
+    }
+
+    /**
+     * Gives the code that reads a field, a collection, or an area into {@code target}.
+     *
+     * @param append {@code true} to add the items of a collection to the existing items
+     * @param partial {@code true} for a collection that can end the response
+     */
+    CodeBlock readMember(MemberModel member, boolean append, boolean partial) {
+        if (member instanceof FieldModel field) {
+            return CodeBlock.builder()
+                .addStatement("target.$N($L)", field.setter(), fields.read(field)).build();
+        }
+        if (member instanceof CollectionModel collection) {
+            return collections.readItems(collection, append, partial);
+        }
+        return CodeBlock.builder().addStatement("$N(reader, target, ctx)",
+            members.areaNames((AreaModel) member).methods().read()).build();
+    }
+
+    // ---- groups ----
+
+    /** Adds the members of a group class and makes its write and read methods. */
+    private void addGroup(TypeSpec.Builder builder, GroupModel group) {
+        if (members.groupMethods(group) != null) {
+            return;
+        }
+        group.members().forEach(member -> addMember(builder, member));
+        String suffix = String.join("_", ClassName.get(group.type()).simpleNames());
+        ItemMethods names = new ItemMethods(members.newName("writeGroup_" + suffix),
+            members.newName("readGroup_" + suffix));
+        members.putGroupMethods(group, names);
+        addLayoutMethods(names, group.type(), group.members());
+    }
+
+    // ---- areas ----
+
+    /**
+     * Adds the members of an area and makes its write and read methods. The write method
+     * writes the first member that is not null, then spaces to the end of the area. The read
+     * method reads each member from the start of the area. A member with a value that is not
+     * valid for its type is null.
+     */
+    private void addArea(TypeSpec.Builder builder, AreaModel area) {
+        if (members.areaNames(area) != null) {
+            return;
+        }
+        area.members().forEach(member -> addMember(builder, member));
+        String suffix = area.ownerSimpleName() + "_" + area.name();
+        ItemMethods names = new ItemMethods(members.newName("writeArea_" + suffix),
+            members.newName("readArea_" + suffix));
+        String descriptor = members.addAreaDescriptor(builder, area);
+        members.putAreaNames(area, new CodecMembers.AreaNames(descriptor, names));
+        ClassName owner = ClassName.get(area.owner());
+        MethodSpec.Builder write = MethodSpec.methodBuilder(names.write())
+            .addModifiers(Modifier.PRIVATE).addParameter(BOOK_WRITER, "writer")
+            .addParameter(owner, "value").addParameter(CODEC_CONTEXT, "ctx")
+            .addStatement("int areaStart = writer.position()");
+        boolean first = true;
+        for (MemberModel member : area.members()) {
+            if (first) {
+                write.beginControlFlow("if (value.$N() != null)", getter(member));
+            } else {
+                write.nextControlFlow("else if (value.$N() != null)", getter(member));
+            }
+            first = false;
+            if (member instanceof CollectionModel collection) {
+                write.addCode(collections.setCount(collection));
+            }
+            write.addCode(writeMember(member));
+        }
+        methods.add(write.endControlFlow()
+            .addStatement("writer.writeFiller($L - (writer.position() - areaStart))",
+                area.areaLength())
+            .build());
+        MethodSpec.Builder read = MethodSpec.methodBuilder(names.read())
+            .addModifiers(Modifier.PRIVATE).addParameter(BOOK_READER, "outer")
+            .addParameter(owner, "target").addParameter(CODEC_CONTEXT, "ctx")
+            .addStatement("$T area = outer.area($N, $L)", BOOK_READER, descriptor,
+                area.areaLength());
+        for (MemberModel member : area.members()) {
+            read.addStatement("target.$N($T.orNull(() -> $L))", setter(member), BOOK_READER,
+                readValue(builder, member));
+        }
+        methods.add(read.build());
+    }
+
+    /** Gives the expression that reads a member of an area from the start of the area. */
+    private CodeBlock readValue(TypeSpec.Builder builder, MemberModel member) {
+        if (member instanceof FieldModel field) {
+            return CodeBlock.builder().add("{\n").indent()
+                .add("$T reader = area.peek(0);\n", BOOK_READER)
+                .add("return $L;\n", fields.read(field))
+                .unindent().add("}").build();
+        }
+        if (member instanceof GroupModel group) {
+            return CodeBlock.of("$N(area.peek(0), ctx)", members.groupMethods(group).read());
+        }
+        return CodeBlock.of("$N(area.peek(0), ctx)",
+            listReader((CollectionModel) member));
+    }
+
+    /** Makes the method that reads the list of a collection in an area. */
+    private String listReader(CollectionModel collection) {
+        String name = members.newName("readList_" + collection.name());
+        methods.add(MethodSpec.methodBuilder(name).addModifiers(Modifier.PRIVATE)
+            .returns(CollectionCode.listOf(collection))
+            .addParameter(BOOK_READER, "reader").addParameter(CODEC_CONTEXT, "ctx")
+            .addCode(collections.readList(collection, false, false))
+            .addStatement("return $N", members.names(collection).list())
+            .build());
+        return name;
+    }
+
+    /** Gives the getter of a field, a collection, or a group. */
+    static String getter(MemberModel member) {
+        if (member instanceof FieldModel field) {
+            return field.getter();
+        }
+        if (member instanceof CollectionModel collection) {
+            return collection.getter();
+        }
+        return ((GroupModel) member).getter();
+    }
+
+    /** Gives the setter of a field, a collection, or a group. */
+    static String setter(MemberModel member) {
+        if (member instanceof FieldModel field) {
+            return field.setter();
+        }
+        if (member instanceof CollectionModel collection) {
+            return collection.setter();
+        }
+        return ((GroupModel) member).setter();
     }
 }

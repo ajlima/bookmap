@@ -16,6 +16,8 @@ A COBOL book can use `REDEFINES` to give one area more than one layout. A field 
         10  MATURITY-DATE     PIC 9(8).
 ```
 
+If no field selects the layout, use [REDEFINES views](REDEFINES-views).
+
 ## Map the layouts
 
 Map each layout to a subclass. Put `@BookSubTypes` on the base class. The base class (or one of its superclasses) declares the common fields and the discriminator:

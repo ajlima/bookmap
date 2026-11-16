@@ -9,6 +9,7 @@ import java.time.temporal.TemporalQueries;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Function;
+import pt.dazz.bookmap.exception.InvalidValueException;
 import pt.dazz.bookmap.exception.MappingException;
 
 /**
@@ -119,7 +120,7 @@ public final class TemporalCodec {
         }
         int sign = bytes[from + size - 1] & 0x0F;
         if (sign == 0xB || sign == 0xD) {
-            throw new MappingException(field + ": a date or time must not be negative (sign"
+            throw new InvalidValueException(field + ": a date or time must not be negative (sign"
                 + " nibble " + Integer.toHexString(sign).toUpperCase(Locale.ROOT) + ")");
         }
         BigDecimal number = PackedDecimal.decode(field, bytes, from, length, 0, signed, cs);
@@ -155,7 +156,7 @@ public final class TemporalCodec {
         try {
             return query.apply(formatter.parse(text));
         } catch (DateTimeException e) {
-            throw new MappingException(field + ": '" + text + "' is not a valid value for "
+            throw new InvalidValueException(field + ": '" + text + "' is not a valid value for "
                 + "the pattern (" + e.getMessage() + ")", e);
         }
     }

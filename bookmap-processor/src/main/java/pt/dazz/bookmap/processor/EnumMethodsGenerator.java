@@ -1,6 +1,7 @@
 package pt.dazz.bookmap.processor;
 
 import static pt.dazz.bookmap.processor.CodecTypes.DECIMAL;
+import static pt.dazz.bookmap.processor.CodecTypes.INVALID_VALUE_EXCEPTION;
 import static pt.dazz.bookmap.processor.CodecTypes.MAPPING_EXCEPTION;
 
 import com.palantir.javapoet.ClassName;
@@ -91,7 +92,7 @@ final class EnumMethodsGenerator {
                 .endControlFlow();
         }
         if (model.unknown() == null) {
-            read.addStatement("throw new $T(field + $S + $L + $S)", MAPPING_EXCEPTION,
+            read.addStatement("throw new $T(field + $S + $L + $S)", INVALID_VALUE_EXCEPTION,
                 ": unknown value '", model.numeric() ? "key.toPlainString()" : "key",
                 "' for enum " + enumType.simpleName());
         } else {
