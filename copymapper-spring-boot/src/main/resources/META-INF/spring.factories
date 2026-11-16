@@ -1,0 +1,2 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+  pt.dazz.copymapper.spring.OldPropertiesCheck

@@ -3,11 +3,13 @@ package pt.dazz.copymapper.spring;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.EnvironmentPostProcessor;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.boot.context.properties.source.IterableConfigurationPropertySource;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
 
 /**
@@ -21,14 +23,12 @@ import org.springframework.core.env.Environment;
  * for example {@code BOOKMAP_TRANSPORT_CTG_PASSWORD}. The message shows the names, never the
  * values.
  *
+ * <p>Spring Boot runs this class after it loads the configuration files and before it creates a
+ * bean, also with lazy initialization. The file {@code META-INF/spring.factories} registers it.
+ *
  * <p>This class is temporary. A later release can remove it.
  */
-@AutoConfiguration(beforeName = {
-    "pt.dazz.copymapper.spring.CopyMapperAutoConfiguration",
-    "pt.dazz.copymapper.spring.ctg.CtgTransportAutoConfiguration",
-    "pt.dazz.copymapper.spring.http.HttpTransportAutoConfiguration",
-    "pt.dazz.copymapper.spring.mq.MqTransportAutoConfiguration"})
-public class OldPropertiesAutoConfiguration {
+public class OldPropertiesCheck implements EnvironmentPostProcessor {
 
     private static final String MIGRATION =
         "https://github.com/dazz-pt/copymapper/wiki/Migrate-to-CopyMapper";
@@ -39,17 +39,28 @@ public class OldPropertiesAutoConfiguration {
         ConfigurationPropertyName.of("bookmap.transport");
 
     /**
-     * Checks the environment. Spring Boot calls this constructor.
+     * Creates the check. Spring Boot calls this constructor.
+     */
+    public OldPropertiesCheck() {
+        // No state.
+    }
+
+    /**
+     * Checks the environment.
      *
      * @param environment the environment of the application
+     * @param application the application
      * @throws IllegalStateException if the environment has an old property
      */
-    public OldPropertiesAutoConfiguration(Environment environment) {
+    @Override
+    public void postProcessEnvironment(ConfigurableEnvironment environment,
+                                       SpringApplication application) {
         List<String> keys = oldKeys(environment);
         if (!keys.isEmpty()) {
             throw new IllegalStateException("The properties bookmap.* have a new name. "
                 + "Rename the properties bookmap.* to copymapper.*: " + String.join(", ", keys)
-                + ". See " + MIGRATION);
+                + ". An environment variable has the same name in upper case, with _ for each"
+                + " separator. See " + MIGRATION);
         }
     }
 
@@ -63,7 +74,7 @@ public class OldPropertiesAutoConfiguration {
         Set<String> keys = new TreeSet<>();
         for (ConfigurationPropertySource source : ConfigurationPropertySources.get(environment)) {
             if (source instanceof IterableConfigurationPropertySource iterable) {
-                iterable.stream().filter(OldPropertiesAutoConfiguration::isOld)
+                iterable.stream().filter(OldPropertiesCheck::isOld)
                     .forEach(name -> keys.add(name.toString()));
             }
         }
