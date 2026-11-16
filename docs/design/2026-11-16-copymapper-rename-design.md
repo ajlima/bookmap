@@ -1,7 +1,7 @@
 # Rename the library to CopyMapper (design)
 
 Date: 2026-11-16
-Status: approved.
+Status: implemented in v0.28.0.
 Base package: `pt.dazz.copymapper` (before this change: `pt.dazz.bookmap`)
 Parent spec: `2026-11-10-copymapper-design.md` (before this change: `2026-11-10-bookmap-design.md`)
 

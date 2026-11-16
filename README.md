@@ -13,7 +13,7 @@
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-0f62fe">
   <img alt="Gradle 9" src="https://img.shields.io/badge/Gradle-9.9-02303A">
   <img alt="Coverage 100%" src="https://img.shields.io/badge/coverage-100%25-brightgreen">
-  <img alt="Version 0.27.0" src="https://img.shields.io/badge/version-0.27.0-f89820">
+  <img alt="Version 0.28.0" src="https://img.shields.io/badge/version-0.28.0-f89820">
   <a href="LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
 </p>
 
@@ -49,15 +49,15 @@ Before `0.28.0`, the library had the name BookMap. To update a project, see [Mig
 
 ## Installation
 
-The group is `pt.dazz.copymapper` and the version is `0.27.0`. The modules are on Maven Central.
+The group is `pt.dazz.copymapper` and the version is `0.28.0`. The modules are on Maven Central.
 
 Gradle:
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.copymapper:copymapper-core:0.27.0")
-    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.27.0")
-    testImplementation("pt.dazz.copymapper:copymapper-transport-simulator:0.27.0")
+    implementation("pt.dazz.copymapper:copymapper-core:0.28.0")
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.28.0")
+    testImplementation("pt.dazz.copymapper:copymapper-transport-simulator:0.28.0")
 }
 ```
 
@@ -67,7 +67,7 @@ Maven:
 <dependency>
   <groupId>pt.dazz.copymapper</groupId>
   <artifactId>copymapper-core</artifactId>
-  <version>0.27.0</version>
+  <version>0.28.0</version>
 </dependency>
 ```
 
@@ -219,10 +219,10 @@ Gradle:
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.copymapper:copymapper-transport-ctg:0.27.0")       // includes copymapper-core
-    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.27.0")
+    implementation("pt.dazz.copymapper:copymapper-transport-ctg:0.28.0")       // includes copymapper-core
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.28.0")
     runtimeOnly(files("libs/ctgclient.jar"))                             // or the artifact in your company repository
-    testImplementation("pt.dazz.copymapper:copymapper-transport-simulator:0.27.0")
+    testImplementation("pt.dazz.copymapper:copymapper-transport-simulator:0.28.0")
 }
 ```
 
@@ -232,7 +232,7 @@ Maven:
 <dependency>
   <groupId>pt.dazz.copymapper</groupId>
   <artifactId>copymapper-transport-ctg</artifactId>
-  <version>0.27.0</version>
+  <version>0.28.0</version>
 </dependency>
 <!-- The IBM library, from the repository of your company. Use your own coordinates. -->
 <dependency>
@@ -299,9 +299,9 @@ Add `copymapper-spring-boot` and the CTG transport:
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.copymapper:copymapper-spring-boot:0.27.0")
-    implementation("pt.dazz.copymapper:copymapper-transport-ctg:0.27.0")
-    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.27.0")
+    implementation("pt.dazz.copymapper:copymapper-spring-boot:0.28.0")
+    implementation("pt.dazz.copymapper:copymapper-transport-ctg:0.28.0")
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.28.0")
     runtimeOnly(files("libs/ctgclient.jar"))
 }
 ```
@@ -375,7 +375,7 @@ See [Transports and simulator](https://github.com/dazz-pt/copymapper/wiki/Transp
 The copybook generator reads a COBOL copybook and writes the annotated Java classes. Use one of these tools:
 
 - **[Command line](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator-CLI)**: `java -jar copymapper-copybook-cli-<version>-all.jar generate ORDERS.cpy --package com.example.orders --output-dir src/main/java`
-- **[Gradle plugin](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator-Gradle-plugin)**: `id("pt.dazz.copymapper.copybook") version "0.27.0"`. It generates the classes in each build.
+- **[Gradle plugin](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator-Gradle-plugin)**: `id("pt.dazz.copymapper.copybook") version "0.28.0"`. It generates the classes in each build.
 - **[Maven plugin](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator-Maven-plugin)**: the goal `generate` of `pt.dazz.copymapper:copymapper-copybook-maven-plugin`. It generates the classes in each build.
 
 See [Copybook generator](https://github.com/dazz-pt/copymapper/wiki/Copybook-generator) for the options file and the mapping rules.
@@ -425,7 +425,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 
 ## Project status
 
-CopyMapper is at version `0.27.0`. GitHub Actions builds each release and publishes it to Maven Central.
+CopyMapper is at version `0.28.0`. GitHub Actions builds each release and publishes it to Maven Central.
 The build enforces 100% line and branch coverage for all modules except the examples.
 It also checks the dependency structure (ArchUnit) and the cyclomatic complexity (PMD), and it reports the size of each module. A workflow runs the mutation tests (PIT) each night.
 CopyMapper has transports for the CICS Transaction Gateway (ECI), for HTTP (binary body), and for IBM MQ. The Spring Boot module creates each transport from properties.

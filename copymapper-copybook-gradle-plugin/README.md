@@ -35,7 +35,7 @@ Apply the plugin and add the CopyMapper libraries in `build.gradle.kts`. Use the
 ```kotlin
 plugins {
     java
-    id("pt.dazz.copymapper.copybook") version "0.27.0"
+    id("pt.dazz.copymapper.copybook") version "0.28.0"
 }
 
 repositories {
@@ -43,8 +43,8 @@ repositories {
 }
 
 dependencies {
-    implementation("pt.dazz.copymapper:copymapper-core:0.27.0")
-    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.27.0")
+    implementation("pt.dazz.copymapper:copymapper-core:0.28.0")
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:0.28.0")
 }
 
 copymapper {
