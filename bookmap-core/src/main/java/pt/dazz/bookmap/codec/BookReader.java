@@ -8,6 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Arrays;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import pt.dazz.bookmap.cobol.Sign;
 import pt.dazz.bookmap.cobol.Usage;
 import pt.dazz.bookmap.codec.internal.BinaryInteger;
@@ -66,6 +67,35 @@ public final class BookReader {
      */
     public void skip(int length) {
         position += length;
+    }
+
+    /**
+     * Gives a reader at the start of a {@code REDEFINES} area, and moves this reader after the
+     * area. A codec reads each member of the area from {@code peek(0)} of the returned reader.
+     *
+     * @param field the descriptor of the redefined member, for error messages
+     * @param length the number of bytes of the area: the length of its longest member
+     * @return a reader at the start of the area
+     * @throws MappingException if the data ends before the end of the area
+     */
+    public BookReader area(String field, int length) {
+        return new BookReader(data, ctx, take(field, length));
+    }
+
+    /**
+     * Reads one member of a {@code REDEFINES} area. If the bytes are not valid for the member,
+     * the method gives {@code null}. Other exceptions go to the caller.
+     *
+     * @param read the read of the member
+     * @param <J> the Java type of the member
+     * @return the value, or {@code null} if the read throws {@link MappingException}
+     */
+    public static <J> J orNull(Supplier<J> read) {
+        try {
+            return read.get();
+        } catch (MappingException e) {
+            return null;
+        }
     }
 
     /**
