@@ -1,9 +1,9 @@
-A `@BookCollection` maps a COBOL `OCCURS` to a `List<Item>`. A collection is variable or fixed:
+An `@Occurs` maps a COBOL `OCCURS` to a `List<Item>`. A collection is variable or fixed:
 
 - A **variable collection** works like `OCCURS DEPENDING ON`. The book size changes with the number of items.
 - A **fixed collection** (`fixed = true`) works like `OCCURS n` without `DEPENDING ON`. The area always holds `n` items.
 
-See [Annotations reference](Annotations-reference#bookcollection-field-of-type-listitem) for the attributes.
+See [Annotations reference](Annotations-reference#occurs-field-of-type-listitem) for the attributes.
 
 ## Rules for collections
 
@@ -11,9 +11,9 @@ Each rule gives a compile error if the class does not obey it:
 
 - Declare the field as `List<Item>`. Set `maxOccurs` to 1 or more.
 - The item class is public, has a public constructor without arguments, and has no type parameters.
-- The item class has at least one `@BookField`. An abstract item class is permitted only with `@BookSubTypes`.
+- The item class has at least one `@Field`. An abstract item class is permitted only with `@SubTypes`.
 - Do not set `direction` on an item field. The item fields use the direction of the collection.
-- A `@BookCollection` in an item class must be fixed. See [Nested collections](#nested-collections).
+- An `@Occurs` in an item class must be fixed. See [Nested collections](#nested-collections).
 
 ### The count field
 
@@ -56,7 +56,7 @@ The cycle for each call:
 4. If `hasContinuation()` is still true after `maxCalls` calls, the client throws `ContinuationLimitException`. The message is `<operation>: the remote program has more data after <n> calls`.
 
 The client encodes the current object on each call. Thus, the fields that a response sets go into the next request, for example the restart key.
-The default `maxCalls` is 1000. Change it with `BookmapClient.builder().maxCalls(n)`. If `hasContinuation()` gives `false` on the last permitted call, no exception occurs.
+The default `maxCalls` is 1000. Change it with `CopyMapperClient.builder().maxCalls(n)`. If `hasContinuation()` gives `false` on the last permitted call, no exception occurs.
 
 In `GetCustomerOrders`, `hasContinuation()` returns true when `moreData` is `"Y"`. The remote program sets the restart key in the same response.
 The client does not reset other fields. Set the restart key to its start value before you reuse an object.
@@ -80,14 +80,14 @@ Many books use a fixed table (`OCCURS n` without `DEPENDING ON`). The area alway
 Set `fixed = true` for this table:
 
 ```java
-@BookCollection(order = 40, maxOccurs = 3, fixed = true)
+@Occurs(order = 40, maxOccurs = 3, fixed = true)
 private List<OrderLine> lines;
 
-@BookField(order = 50, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
+@Field(order = 50, pic = "S9(9)V99 COMP-3", direction = OUTPUT)
 private BigDecimal orderTotal;
 ```
 
-The program tells the caller the number of used items in one of these ways. BookMap supports all of them.
+The program tells the caller the number of used items in one of these ways. CopyMapper supports all of them.
 
 | COBOL program | Mode | Attributes |
 |---|---|---|
@@ -110,7 +110,7 @@ LOW-VALUES mode applies when `dependsOn`, `emptyItem`, and `emptyKey` are not se
 SPACES mode applies when `emptyItem = EmptyItem.SPACES` is set, without `emptyKey` and without `dependsOn`:
 
 ```java
-@BookCollection(order = 30, maxOccurs = 20, fixed = true, emptyItem = EmptyItem.SPACES)
+@Occurs(order = 30, maxOccurs = 20, fixed = true, emptyItem = EmptyItem.SPACES)
 private List<OrderLine> lines;
 ```
 
@@ -124,7 +124,7 @@ private List<OrderLine> lines;
 Key mode applies when `emptyKey` is set. The key is a field of the item class. A slot is empty if its key is blank or zero:
 
 ```java
-@BookCollection(order = 20, maxOccurs = 4, fixed = true, emptyKey = "orderNumber",
+@Occurs(order = 20, maxOccurs = 4, fixed = true, emptyKey = "orderNumber",
     emptyItem = EmptyItem.SPACES)
 private List<Backorder> backorders;
 ```
@@ -148,7 +148,7 @@ Rules for the key. Each rule gives a compile error if the class does not obey it
 Count mode applies when `dependsOn` is set. A count field before the table holds the number of used items:
 
 ```java
-@BookCollection(order = 30, maxOccurs = 5, fixed = true, dependsOn = "shipmentCount")
+@Occurs(order = 30, maxOccurs = 5, fixed = true, dependsOn = "shipmentCount")
 private List<ShipmentSummary> shipments;
 ```
 
@@ -162,7 +162,7 @@ The copybook generator does not guess the mode of a fixed table. Give the count 
 
 ### Example: count mode
 
-The example `ListShipments` in `bookmap-examples` uses a count field:
+The example `ListShipments` in `copymapper-examples` uses a count field:
 
 ```cobol
 01  LIST-SHIPMENTS.
@@ -175,19 +175,19 @@ The example `ListShipments` in `bookmap-examples` uses a count field:
 ```
 
 ```java
-@BookOperation
+@Operation
 public class ListShipments {
 
-    @BookField(order = 10, pic = "X(10)", direction = INPUT)
+    @Field(order = 10, pic = "X(10)", direction = INPUT)
     private String customerId;
 
-    @BookField(order = 20, pic = "9(2)")          // gets the direction OUTPUT from the collection
+    @Field(order = 20, pic = "9(2)")          // gets the direction OUTPUT from the collection
     private int shipmentCount;
 
-    @BookCollection(order = 30, maxOccurs = 5, fixed = true, dependsOn = "shipmentCount")
+    @Occurs(order = 30, maxOccurs = 5, fixed = true, dependsOn = "shipmentCount")
     private List<ShipmentSummary> shipments;
 
-    @BookField(order = 40, pic = "X(4)", direction = OUTPUT)
+    @Field(order = 40, pic = "X(4)", direction = OUTPUT)
     private String returnCode;
 
     // getters and setters
@@ -195,10 +195,10 @@ public class ListShipments {
 
 public class ShipmentSummary {
 
-    @BookField(order = 10, pic = "X(12)")
+    @Field(order = 10, pic = "X(12)")
     private String shipmentId;
 
-    @BookField(order = 20, pic = "X(2)")
+    @Field(order = 20, pic = "X(2)")
     private String status;
 
     // getters and setters
@@ -213,7 +213,7 @@ The fixed area always has 5 slots of 14 bytes. `returnCode` is always at the sam
 - A field after a fixed collection has a fixed offset, if no variable collection comes before it.
 - The response must contain the full area, in all modes. A response that ends in the area causes a `MappingException`. To accept a response with only the used entries, set `partial = true`. See [Partial responses](#partial-responses).
 - Pagination, the reset of `OUTPUT` collections, and items with subtypes work as for a variable collection.
-- The full examples are `GetOrder`, `ListShipments`, and `ListBackorders` in `bookmap-examples`, package `pt.dazz.bookmap.examples.orders`.
+- The full examples are `GetOrder`, `ListShipments`, and `ListBackorders` in `copymapper-examples`, package `pt.dazz.copymapper.examples.orders`.
 
 ## Partial responses
 
@@ -230,10 +230,10 @@ Some programs send only the used entries of a fixed table. For example, an MQ me
 ```
 
 ```java
-@BookField(order = 30, pic = "9(2)")
+@Field(order = 30, pic = "9(2)")
 private int orderCount;
 
-@BookCollection(order = 40, maxOccurs = 10, fixed = true, dependsOn = "orderCount",
+@Occurs(order = 40, maxOccurs = 10, fixed = true, dependsOn = "orderCount",
     partial = true)
 private List<OpenOrder> orders;
 ```
@@ -262,7 +262,7 @@ A slot is the unit. A slot with an inner collection or with a subtype item is co
 **CAUTION:** Use `partial` only for a program that sends the used entries. In LOW-VALUES, SPACES, and key mode, a response that a gateway cuts on a slot boundary gives a shorter list without an error.
 
 The CICS Transaction Gateway transport always gives the full COMMAREA. The HTTP and MQ transports give the response as the program sent it.
-The full example is `ListOpenOrders` in `bookmap-examples`, package `pt.dazz.bookmap.examples.orders`.
+The full example is `ListOpenOrders` in `copymapper-examples`, package `pt.dazz.copymapper.examples.orders`.
 
 ## Nested collections
 
@@ -285,23 +285,23 @@ An item class can have a fixed collection. This is a table in a table entry:
 ```java
 public class TaxedOrderLine {
 
-    @BookField(order = 10, pic = "X(8)")
+    @Field(order = 10, pic = "X(8)")
     private String productCode;
 
-    @BookField(order = 20, pic = "9(5)")
+    @Field(order = 20, pic = "9(5)")
     private int quantity;
 
-    @BookField(order = 30, pic = "9")
+    @Field(order = 30, pic = "9")
     private int taxCount;
 
-    @BookCollection(order = 40, maxOccurs = 3, fixed = true, dependsOn = "taxCount")
+    @Occurs(order = 40, maxOccurs = 3, fixed = true, dependsOn = "taxCount")
     private List<LineTax> taxes;
 
     // getters and setters
 }
 ```
 
-The outer collection can be fixed or variable. The full example is `GetOrderTaxes` in `bookmap-examples`.
+The outer collection can be fixed or variable. The full example is `GetOrderTaxes` in `copymapper-examples`.
 
 ### Rules for a nested collection
 
@@ -348,7 +348,7 @@ CreateShipment.lines (order 30) item 2: ShipmentLine.sku (order 1): text is long
 ```
 
 The index starts at 0. The codec adds the prefix to the same exception object. Thus, the class and the cause of the exception do not change, also for a subclass of `MappingException` from a converter.
-A `BookmapException` from a converter that is not a `MappingException` goes to the caller unchanged, without the prefix.
+A `CopyMapperException` from a converter that is not a `MappingException` goes to the caller unchanged, without the prefix.
 The messages in the table below are about the collection. They do not get the prefix of their own collection.
 
 | Message | Cause |

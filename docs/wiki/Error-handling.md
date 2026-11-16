@@ -1,7 +1,7 @@
-All exceptions are unchecked. They are in the package `pt.dazz.bookmap.exception`.
+All exceptions are unchecked. They are in the package `pt.dazz.copymapper.exception`.
 
 ```
-BookmapException
+CopyMapperException
 ├── MappingException              (layout, conversion, missing codec)
 │   └── InvalidValueException     (bytes that are not a valid value of the type)
 ├── ContinuationLimitException
@@ -30,10 +30,10 @@ Each exception has a constructor `(String message)` and a constructor `(String m
 ## Business errors
 
 Extend `BusinessException` for the errors that the remote program reports in the response.
-The example `OrderQueryException` in `bookmap-examples` does this:
+The example `OrderQueryException` in `copymapper-examples` does this:
 
 ```java
-import pt.dazz.bookmap.exception.BusinessException;
+import pt.dazz.copymapper.exception.BusinessException;
 
 public class OrderQueryException extends BusinessException {
 
@@ -99,9 +99,9 @@ Most messages start with the field. The field has the format `Owner.field (order
 
 | Exception | Message | Cause |
 |---|---|---|
-| `MappingException` | `No codec for <class>. Make sure that bookmap-processor is on the annotationProcessor path.` | The processor did not run, or the class has no `@BookOperation`. |
+| `MappingException` | `No codec for <class>. Make sure that copymapper-processor is on the annotationProcessor path.` | The processor did not run, or the class has no `@Operation`. |
 | `MappingException` | `<operation>: empty response from transport` | The transport returned `null`. |
-| `MappingException` | `<operation>: invalid charset <name>` | The charset of `@BookDefaults(charset = ...)` is not a valid single-byte charset. |
+| `MappingException` | `<operation>: invalid charset <name>` | The charset of `@Defaults(charset = ...)` is not a valid single-byte charset. |
 | `ContinuationLimitException` | `<operation>: the remote program has more data after <n> calls` | `hasContinuation()` is still `true` after `maxCalls` calls. |
 | `IllegalArgumentException` | `Only single-byte charsets are valid: UTF-8` | The charset of the builder is not single-byte. |
 | `IllegalArgumentException` | `maxCalls must be at least 1: <n>` | The value of `maxCalls` is less than 1. |
@@ -120,7 +120,7 @@ Most messages start with the field. The field has the format `Owner.field (order
 | `<field>: value <value> does not fit int` | A number in the response is too large for the Java type. |
 | `<field>: byte 0xNN at offset K of the field is not valid in a packed decimal` | The response has bytes that are not a `COMP-3` number. The same message exists for a zoned decimal (`DISPLAY`). |
 | `<field>: value <value> cannot be represented by the pattern (...)` | The date or time pattern cannot keep the value. See [Dates and times](PIC-syntax-and-type-mapping#dates-and-times). |
-| `<field>: converter failed (<message>)` | Your `FieldConverter` threw a `RuntimeException`. The cause is the original exception. When the exception has no message, the message is the exception class. A `BookmapException` from a converter goes to the caller unchanged. |
+| `<field>: converter failed (<message>)` | Your `FieldConverter` threw a `RuntimeException`. The cause is the original exception. When the exception has no message, the message is the exception class. A `CopyMapperException` from a converter goes to the caller unchanged. |
 | `<field>: converter must return N bytes but returned M bytes` | Your `FieldConverter` returned the wrong number of bytes. |
 
 A message about a field of an item starts with the collection and the index of the item. The index starts at 0. With nested collections, each level adds its prefix, outer level first:
@@ -131,7 +131,7 @@ GetShipment.packages (order 30) item 1: ShipmentPackage.lines (order 40) item 0:
 ```
 
 The codec adds the prefix to the same exception object. Thus, the class and the cause do not change. A subclass of `MappingException` from a converter keeps its class.
-Another `BookmapException` from a converter goes to the caller unchanged, without the prefix.
+Another `CopyMapperException` from a converter goes to the caller unchanged, without the prefix.
 
 For the messages of collections, also for a partial response, and of subtypes, see [Collections and fixed OCCURS](Collections-and-fixed-OCCURS#messages) and [Subtypes (REDEFINES)](Subtypes-REDEFINES#behavior).
 For the messages of the simulator, see [Transports and simulator](Transports-and-simulator#simulate-failures).
@@ -139,7 +139,7 @@ For the messages of the simulator, see [Transports and simulator](Transports-and
 ## Mapping errors
 
 - If the client finds no codec for a class, it throws `MappingException`. Check the annotation processor configuration.
-- The client uses the exact class of the object. A subclass without its own `@BookOperation` has no codec, unless it is in the `@BookSubTypes` list of its base class.
+- The client uses the exact class of the object. A subclass without its own `@Operation` has no codec, unless it is in the `@SubTypes` list of its base class.
 - If a response is shorter than the layout, the codec throws `MappingException`. An empty response (zero bytes) also gives this message. The codec ignores extra bytes at the end.
 
 See [FAQ and troubleshooting](FAQ-and-troubleshooting) for the frequent causes.

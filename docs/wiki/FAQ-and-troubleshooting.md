@@ -1,18 +1,18 @@
 ## The client throws MappingException: no codec for a class
 
-The message is `No codec for <class>. Make sure that bookmap-processor is on the annotationProcessor path.`
+The message is `No codec for <class>. Make sure that copymapper-processor is on the annotationProcessor path.`
 The processor did not generate a codec, or the codec is not on the classpath.
 
-1. Add `bookmap-processor` to `annotationProcessor` (Gradle) or to `annotationProcessorPaths` (Maven), not to the normal dependencies.
-2. Make sure that the class has `@BookOperation`.
+1. Add `copymapper-processor` to `annotationProcessor` (Gradle) or to `annotationProcessorPaths` (Maven), not to the normal dependencies.
+2. Make sure that the class has `@Operation`.
 3. Look for the class `<Class>_BookCodec` in the generated sources of the build.
-4. Look for the file `META-INF/services/pt.dazz.bookmap.spi.BookCodec` in the output of the build.
+4. Look for the file `META-INF/services/pt.dazz.copymapper.spi.BookCodec` in the output of the build.
 
-The client uses the exact class of the object. A subclass without its own `@BookOperation` has no codec, unless it is in the `@BookSubTypes` list of its base class.
+The client uses the exact class of the object. A subclass without its own `@Operation` has no codec, unless it is in the `@SubTypes` list of its base class.
 
-## Lombok and BookMap do not work together
+## Lombok and CopyMapper do not work together
 
-List Lombok before BookMap in `annotationProcessor`. This is the recommended order.
+List Lombok before CopyMapper in `annotationProcessor`. This is the recommended order.
 
 If the processor reports `operation class must have a public no-argument constructor`, a Lombok annotation removed the default constructor.
 For example, `@AllArgsConstructor`, `@RequiredArgsConstructor`, and `@Builder` do this. Add `@NoArgsConstructor` to the class.
@@ -50,7 +50,7 @@ The message is `<operation>: the remote program has more data after <n> calls`. 
 
 1. Check that `hasContinuation()` reads a field that the remote program sets, for example `moreData`.
 2. Set the restart key to its start value before you reuse a request object.
-3. If the result is really that large, increase `maxCalls`: `BookmapClient.builder().maxCalls(n)`, or `bookmap.max-calls` in Spring Boot. The default is 1000.
+3. If the result is really that large, increase `maxCalls`: `CopyMapperClient.builder().maxCalls(n)`, or `copymapper.max-calls` in Spring Boot. The default is 1000.
 
 ## A text field is "" and not null
 
@@ -68,7 +68,7 @@ Do not rely on convention 4 for a fixed collection. See [Collections and fixed O
 ## The simulator throws OperationNotFoundException
 
 The message is `No simulated operation registered: <operation>`. The test did not register a handler for the operation.
-Register the handler with the class of the request. The operation name comes from `@BookOperation`, or from the simple class name.
+Register the handler with the class of the request. The operation name comes from `@Operation`, or from the simple class name.
 
 ## The simulator throws TransportTimeoutException
 
@@ -84,14 +84,14 @@ The simulator and the client use different charsets. Set the same charset on bot
 The message is `More than one codec for <class>`. Two codecs for the same class are on the classpath.
 For example, two JARs contain the generated classes of the same book. Keep only one of them.
 
-## Spring Boot has no BookmapClient bean
+## Spring Boot has no CopyMapperClient bean
 
 The auto-configuration creates the client only when a `Transport` bean exists. Declare a `Transport` bean.
 See [Spring Boot](Spring-Boot#what-the-auto-configuration-creates).
 
 ## The application does not start: Only single-byte charsets are valid
 
-The charset of the client, or `bookmap.charset` in Spring Boot, is a multi-byte charset, for example `UTF-8`.
+The charset of the client, or `copymapper.charset` in Spring Boot, is a multi-byte charset, for example `UTF-8`.
 Use an EBCDIC charset, for example `IBM037` or `IBM500`.
 
 ## Can I use a multi-byte charset?
@@ -121,4 +121,4 @@ See [Copybook generator](Copybook-generator#scaffold-mode-and-build-mode).
 
 ## Where do I report a problem?
 
-Open an issue in the [GitHub repository](https://github.com/ajlima/bookmap/issues).
+Open an issue in the [GitHub repository](https://github.com/dazz-pt/copymapper/issues).

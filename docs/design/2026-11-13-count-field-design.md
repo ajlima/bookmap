@@ -3,7 +3,7 @@
 Date: 2026-11-13
 Status: implemented in v0.16.0.
 
-Related documents: `docs/design/2026-11-11-bookmap-copybook-design.md` (the copybook generator), `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` (fixed collections and count mode), GitHub issue #81.
+Related documents: `docs/design/2026-11-11-copymapper-copybook-design.md` (the copybook generator), `docs/design/2026-11-11-copymapper-fixed-occurs-design.md` (fixed collections and count mode), GitHub issue #81.
 
 ## 1. Intent
 
@@ -16,7 +16,7 @@ Many copybooks keep the number of used entries of a fixed table in a separate fi
                10  PRODUCT-CODE         PIC X(12).
 ```
 
-The core supports this case with `@BookCollection(fixed = true, dependsOn = "invoiceLineCount")`: count mode.
+The core supports this case with `@Occurs(fixed = true, dependsOn = "invoiceLineCount")`: count mode.
 Before this change, the generator wrote a fixed collection without `dependsOn`. The codec then used LOW-VALUES mode, and the developer had to add `dependsOn` by hand.
 This spec adds an option that links a count field to a fixed table. The generator does not guess the link.
 
@@ -118,7 +118,7 @@ A model that a former version wrote is still valid. A model with `"fixed": true`
 
 11. **`MappingOptions` compatibility.**
     Options: (a) change the canonical constructor only; (b) also keep the former 5-argument constructor.
-    Choice: (b). `bookmap-copybook` is a published module. The extra constructor keeps callers compiling, and it keeps the diff small next to other changes that add options.
+    Choice: (b). `copymapper-copybook` is a published module. The extra constructor keeps callers compiling, and it keeps the diff small next to other changes that add options.
 
 12. **Command line merge.**
     Choice: `--count-field` adds to `countFields` of the options file, and the command line has priority for the same table. This is the rule of `--direction`.

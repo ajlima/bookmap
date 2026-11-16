@@ -1,16 +1,16 @@
-# BookMap CICS Transaction Gateway transport: design
+# CopyMapper CICS Transaction Gateway transport: design
 
 Date: 2026-11-13
 Status: implemented in v0.8.0.
 
-Related documents: `docs/design/2026-11-10-bookmap-design.md` (the main design, sections 2.2, 5.9, and 5.10), `CLAUDE.md` (project rules), GitHub issue #26.
+Related documents: `docs/design/2026-11-10-copymapper-design.md` (the main design, sections 2.2, 5.9, and 5.10), `CLAUDE.md` (project rules), GitHub issue #26.
 
 ## 1. Intent
 
-BookMap has a transport SPI and an in-memory simulator. It has no transport to a real CICS system.
+CopyMapper has a transport SPI and an in-memory simulator. It has no transport to a real CICS system.
 This design adds the first real transport: a call to a CICS program through the CICS Transaction Gateway (CTG), with the External Call Interface (ECI) and a COMMAREA.
 
-A user adds the module `bookmap-transport-ctg` and the IBM client library `ctgclient.jar`. The user maps each operation name to a CICS program and a transaction. Then the user gives the transport to a `BookmapClient`. The application code does not change: it uses the same book classes as with the simulator.
+A user adds the module `copymapper-transport-ctg` and the IBM client library `ctgclient.jar`. The user maps each operation name to a CICS program and a transaction. Then the user gives the transport to a `CopyMapperClient`. The application code does not change: it uses the same book classes as with the simulator.
 
 The MQ transport (#27) and the HTTP transport (#28) come later. The Spring Boot auto-configuration of the transports is a separate issue (#29).
 
@@ -20,7 +20,7 @@ Goals:
 
 - A `Transport` that sends the request bytes as a COMMAREA to a CICS program through a CTG Gateway daemon (remote mode) or a local CTG client (local mode), and returns the COMMAREA that the program gives back.
 - A mapping from operation name to program and transaction, set in a builder.
-- A translation of each CTG failure to one of the BookMap exceptions of section 5.10 of the main design.
+- A translation of each CTG failure to one of the CopyMapper exceptions of section 5.10 of the main design.
 - A thread-safe transport, with a bounded pool of gateway connections.
 - 100% line and branch coverage without a real CICS system and without the IBM library.
 - Publication to Maven Central, with no IBM dependency in the POM.
@@ -36,9 +36,9 @@ Non-goals (possible later):
 
 Anti-goals (failure, even if the code works):
 
-- `bookmap-core` or `bookmap-processor` depends on the CTG library, or contains a CICS concept.
-- A published BookMap artifact contains IBM code, or the POM of a published artifact names an IBM artifact.
-- A CTG exception or an ECI return code goes to the caller without a translation to a BookMap exception.
+- `copymapper-core` or `copymapper-processor` depends on the CTG library, or contains a CICS concept.
+- A published CopyMapper artifact contains IBM code, or the POM of a published artifact names an IBM artifact.
+- A CTG exception or an ECI return code goes to the caller without a translation to a CopyMapper exception.
 - Silent data loss: the transport returns a COMMAREA without the trailing `X'00'` bytes of a binary or packed field.
 
 ## 3. Constraints
@@ -56,15 +56,15 @@ The author decided four points. For each point, this section gives the options a
 
 | Option | Trade-off |
 |---|---|
-| **A. A BookMap interface, an adapter, and a stub (selected).** | The transport uses a small BookMap interface (`EciConnector`). All the logic is tested with fakes of that interface. One adapter class calls `JavaGateway` and `ECIRequest`. It compiles against a stub of these IBM classes. The stub is in the repository and is never published. The user adds the real `ctgclient.jar` at runtime. |
-| B. The interface only. | No IBM class name in BookMap. But each user must write and test the adapter. |
+| **A. A CopyMapper interface, an adapter, and a stub (selected).** | The transport uses a small CopyMapper interface (`EciConnector`). All the logic is tested with fakes of that interface. One adapter class calls `JavaGateway` and `ECIRequest`. It compiles against a stub of these IBM classes. The stub is in the repository and is never published. The user adds the real `ctgclient.jar` at runtime. |
+| B. The interface only. | No IBM class name in CopyMapper. But each user must write and test the adapter. |
 | C. Compile against the real jar from a local path. | CI and other contributors cannot build the module. |
 
 The author selected A.
 
 ### 4.2 Publication
 
-The author decided to publish `bookmap-transport-ctg` to Maven Central with the other modules. The POM has no IBM dependency. The jar contains no IBM code. Rejected: no publication until a test on a real CICS system.
+The author decided to publish `copymapper-transport-ctg` to Maven Central with the other modules. The POM has no IBM dependency. The jar contains no IBM code. Rejected: no publication until a test on a real CICS system.
 
 ### 4.3 The mapping from operation name to program and transaction
 
@@ -84,12 +84,12 @@ The author selected the COMMAREA only. Rejected for this version: the COMMAREA a
 
 ### 5.1 Module and packages
 
-- Module: `bookmap-transport-ctg`. Dependencies: `api(project(":bookmap-core"))`. No other runtime dependency.
-- Package `pt.dazz.bookmap.ctg`: `CtgTransport`, `CtgRoute`, `EciConnector`, `EciConnection`, `EciCall`, `EciReply`.
-- Package `pt.dazz.bookmap.ctg.ibm`: `JavaGatewayConnector`, the adapter to the IBM library. It is the only class that names an IBM class.
+- Module: `copymapper-transport-ctg`. Dependencies: `api(project(":copymapper-core"))`. No other runtime dependency.
+- Package `pt.dazz.copymapper.ctg`: `CtgTransport`, `CtgRoute`, `EciConnector`, `EciConnection`, `EciCall`, `EciReply`.
+- Package `pt.dazz.copymapper.ctg.ibm`: `JavaGatewayConnector`, the adapter to the IBM library. It is the only class that names an IBM class.
 - Source set `ctgStub` of the same module: the stub of `com.ibm.ctg.client`. See 5.7.
 
-`bookmap-core` and `bookmap-processor` do not change.
+`copymapper-core` and `copymapper-processor` do not change.
 
 ### 5.2 The connector interface
 
@@ -201,7 +201,7 @@ Each message gives the operation, the program, the return code, and the name of 
 
 The return code values come from `ECIReturnCodes` of CICS TG V9.3. The transport uses its own constants, because it does not compile against the IBM library. A test checks that the stub constants have the same values as the transport constants.
 
-A security failure has no BookMap exception of its own. This design adds no exception to `bookmap-core`.
+A security failure has no CopyMapper exception of its own. This design adds no exception to `copymapper-core`.
 
 ### 5.6 Connections, threads, and close
 
@@ -245,7 +245,7 @@ The transport opens no connection in `build()`. The first exchange opens the fir
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-transport-ctg:<version>")
+    implementation("pt.dazz.copymapper:copymapper-transport-ctg:<version>")
     runtimeOnly(files("libs/ctgclient.jar"))   // or the artifact in your internal repository
 }
 ```
@@ -256,7 +256,7 @@ The user gets `ctgclient.jar` from the CICS TG installation or the CICS TG Suppo
 
 - `CtgRouteTest`: the rules of 5.3.
 - `CtgTransportTest`, with a fake `EciConnector`: each row of the table of 5.5, the COMMAREA length and the limit, the values in `EciCall`, the builder rules, the pool (reuse, the limit, the wait timeout, the discard after `IOException`, the interrupt), and `close`.
-- `CtgTransportClientTest`: a `BookmapClient` with a generated codec, a fake connector, and a full call with a response that ends with `X'00'` bytes.
+- `CtgTransportClientTest`: a `CopyMapperClient` with a generated codec, a fake connector, and a full call with a response that ends with `X'00'` bytes.
 - `JavaGatewayConnectorTest`, with the stub: the constructor arguments, the `ECIRequest` fields, the timeout, the two COMMAREA lengths, the reply, and `close`.
 - `EciReturnCodesTest`: the transport constants are equal to the stub constants.
 - A check in the build: the jar of the module contains no `com/ibm/` entry.
@@ -265,14 +265,14 @@ No test uses a real CICS system.
 
 ## 7. Changes outside the module
 
-- `settings.gradle.kts`: include `bookmap-transport-ctg`.
-- `build.gradle.kts`: add the module to `publishedModules`, with the description "BookMap transport for the CICS Transaction Gateway (ECI)."
+- `settings.gradle.kts`: include `copymapper-transport-ctg`.
+- `build.gradle.kts`: add the module to `publishedModules`, with the description "CopyMapper transport for the CICS Transaction Gateway (ECI)."
 - `docs/wiki/Contributing.md` and `RELEASING.md`: add the module to the list of published modules.
 - `docs/wiki/CICS-Transaction-Gateway.md`: a new page. `_Sidebar.md` and `Home.md`: a link to the page.
 - `docs/wiki/Transports-and-simulator.md` and `docs/wiki/Getting-started.md`: name the new transport.
 - `README.md`: the module list and the "Project status" section.
 - `ROADMAP.md`: remove #26.
-- `bookmap-core` and `bookmap-processor`: no change.
+- `copymapper-core` and `copymapper-processor`: no change.
 - `gradle/verification-metadata.xml`: no change is expected. Run `scripts/update-verification-metadata.sh` to make sure.
 
 ## 8. Calls made by the builder of this design

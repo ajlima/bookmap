@@ -1,9 +1,9 @@
-# BookMap copybook generator, maximum record length: design
+# CopyMapper copybook generator, maximum record length: design
 
 Date: 2026-11-13
 Status: implemented in v0.15.0.
 
-Related documents: `docs/design/2026-11-11-bookmap-copybook-design.md` (the generator design), `docs/design/2026-11-13-ctg-transport-design.md` (the COMMAREA limit), GitHub issue #80.
+Related documents: `docs/design/2026-11-11-copymapper-copybook-design.md` (the generator design), `docs/design/2026-11-13-ctg-transport-design.md` (the COMMAREA limit), GitHub issue #80.
 
 ## 1. Intent
 
@@ -24,14 +24,14 @@ Goals:
 Non-goals:
 
 - No default limit. The generator does not know the transport.
-- No CICS concept in `bookmap-core` or `bookmap-processor`.
+- No CICS concept in `copymapper-core` or `copymapper-processor`.
 - No error. The warning does not stop the generation.
 
 ## 3. Design
 
 ### 3.1 The length
 
-The class `RecordLength` (package `pt.dazz.bookmap.copybook.map`) computes the length of a level `01` item with the existing rule of `RedefinesResolver.length`:
+The class `RecordLength` (package `pt.dazz.copymapper.copybook.map`) computes the length of a level `01` item with the existing rule of `RedefinesResolver.length`:
 
 - An elementary item has the byte length of its `PIC` and its `USAGE`.
 - A group has the sum of its children. A `REDEFINES` area counts with its longest alternative.
@@ -58,8 +58,8 @@ A record of exactly `maxRecordLength` bytes gives no warning.
 | `MappingOptions` | `maxRecordLength` (`Integer`, `null` = no check) | — |
 | Options file | `"maxRecordLength": 32500` | — |
 | CLI | `--max-record-length <bytes>` | The command line has priority over the options file. |
-| Gradle | `bookmap { copybooks { maxRecordLength = 32500 } }` | The options file has priority over the extension. |
-| Maven | `<maxRecordLength>32500</maxRecordLength>`, user property `bookmap.copybook.maxRecordLength` | The options file has priority over the parameter. |
+| Gradle | `copymapper { copybooks { maxRecordLength = 32500 } }` | The options file has priority over the extension. |
+| Maven | `<maxRecordLength>32500</maxRecordLength>`, user property `copymapper.copybook.maxRecordLength` | The options file has priority over the parameter. |
 
 A value less than 1 is an error: a `ModelJsonException` for the options file, exit code 2 for the CLI, and a `CopybookTreeException` for the plugins.
 With a model JSON input, `--max-record-length` is not permitted, like the other mapping options.

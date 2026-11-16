@@ -3,7 +3,7 @@
 Date: 2026-11-15
 Status: implemented in v0.26.0.
 
-Related documents: `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` (fixed collections, section 2.2 lists this feature as a non-goal), `docs/design/2026-11-13-empty-item-markers-design.md` (#44), `docs/design/2026-11-14-nested-collections-design.md` (#43), `docs/design/2026-11-14-processor-limits-and-item-errors-design.md` (#92 to #94), GitHub issue #45.
+Related documents: `docs/design/2026-11-11-copymapper-fixed-occurs-design.md` (fixed collections, section 2.2 lists this feature as a non-goal), `docs/design/2026-11-13-empty-item-markers-design.md` (#44), `docs/design/2026-11-14-nested-collections-design.md` (#43), `docs/design/2026-11-14-processor-limits-and-item-errors-design.md` (#92 to #94), GitHub issue #45.
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. Section 15 lists them for review.
 
@@ -50,7 +50,7 @@ These are facts from `main` (v0.25.0):
 - A top-level fixed collection can be cut in a response, on a slot boundary.
 - All four modes of a fixed collection: count, LOW-VALUES, SPACES, and key.
 - Items with subtypes and items with inner fixed collections (the slot is the unit).
-- Support in `bookmap-core`, `bookmap-processor`, the copybook generator (options file and command line), and the documentation. 100% line and branch coverage. Mutation score of 95% or more.
+- Support in `copymapper-core`, `copymapper-processor`, the copybook generator (options file and command line), and the documentation. 100% line and branch coverage. Mutation score of 95% or more.
 
 ### 3.2 Non-goals
 
@@ -115,26 +115,26 @@ The alternative is to permit members after the collection, and not set them when
 
 ## 6. Annotation API
 
-Add one attribute to `@BookCollection`:
+Add one attribute to `@Occurs`:
 
 | Attribute | Meaning | Default |
 |---|---|---|
 | `partial` | `true` if the response can end on a slot boundary inside the fixed area. The missing slots are unused slots. A request always has the full area. | `false` |
 
 ```java
-@BookOperation
+@Operation
 public class ListOpenOrders {
 
-    @BookField(order = 10, pic = "X(10)", direction = INPUT)
+    @Field(order = 10, pic = "X(10)", direction = INPUT)
     private String customerId;
 
-    @BookField(order = 20, pic = "X(4)", direction = OUTPUT)
+    @Field(order = 20, pic = "X(4)", direction = OUTPUT)
     private String returnCode;
 
-    @BookField(order = 30, pic = "9(2)")          // gets the direction OUTPUT from the collection
+    @Field(order = 30, pic = "9(2)")          // gets the direction OUTPUT from the collection
     private int orderCount;
 
-    @BookCollection(order = 40, maxOccurs = 10, fixed = true, dependsOn = "orderCount",
+    @Occurs(order = 40, maxOccurs = 10, fixed = true, dependsOn = "orderCount",
         partial = true)
     private List<OpenOrder> orders;
 
@@ -214,7 +214,7 @@ In the marker modes, a cut on a slot boundary after a used slot is not detected.
 
 No change. Each page is read on its own. On each page, an `OUTPUT` collection adds the decoded items to a new list with the existing items. A partial response on one page has no effect on the next page.
 
-## 9. Runtime API in `bookmap-core`
+## 9. Runtime API in `copymapper-core`
 
 Add one public method to `BookReader`. The existing signatures do not change.
 
@@ -281,7 +281,7 @@ The existing messages do not change. Without `partial = true`, a short response 
 The same class in LOW-VALUES mode, without `orderCount`. The area starts at offset 4:
 
 ```java
-@BookCollection(order = 40, maxOccurs = 10, fixed = true, partial = true)
+@Occurs(order = 40, maxOccurs = 10, fixed = true, partial = true)
 private List<OpenOrder> orders;
 ```
 
@@ -304,7 +304,7 @@ The copybook does not tell that the program sends only the used entries. Thus, t
 
 The names follow the existing rules: bare or qualified with `OF` or `IN`, not case-sensitive.
 
-The generator writes `partial = true` on the `@BookCollection` of each table in the list.
+The generator writes `partial = true` on the `@Occurs` of each table in the list.
 
 ### 11.2 Diagnostics
 
@@ -328,7 +328,7 @@ The last two checks use the directions that the generator gives to the items. Th
 - `MappingOptions`: the canonical constructor (a copy of the list). A new overload keeps the current constructor with 13 components and gives an empty list. The constructor with 11 components calls this overload, and the other overloads call it through a chain. `defaults()` uses an overload. `withHints` passes `partialTables`.
 - `GeneratorConfigJson`: the key `partialTables` in `KEYS`, and the constructor call.
 - `Main` (CLI), line 271: the option `--partial-table`, the constructor call, and the usage text.
-- `CopybookTree`, line 202: the constructor call. `CopybookTree` is in `bookmap-copybook`. The Gradle plugin (`GenerateCopybookClasses`) and the Maven plugin (`GenerateMojo`) only call `CopybookTree.run`. They need no change, because the option is in the options file. The Maven `Fingerprint` already reads the options files.
+- `CopybookTree`, line 202: the constructor call. `CopybookTree` is in `copymapper-copybook`. The Gradle plugin (`GenerateCopybookClasses`) and the Maven plugin (`GenerateMojo`) only call `CopybookTree.run`. They need no change, because the option is in the options file. The Maven `Fingerprint` already reads the options files.
 
 The model and the generated classes also change:
 
@@ -336,15 +336,15 @@ The model and the generated classes also change:
 - `ModelMapper`, line 397: sets `partial`.
 - `ModelJson`: writes and reads the key `partial`. A missing key is `false`.
 - `JavaClassGenerator`, line 316: writes `partial = true`. It writes nothing for `false`.
-- `ModelSnapshot` in `bookmap-processor` (main code that the tests read): a new value `partial` in `Member`.
+- `ModelSnapshot` in `copymapper-processor` (main code that the tests read): a new value `partial` in `Member`.
 
 ## 12. Tests
 
-- `bookmap-core`: `presentSlots` for a full area, a longer response, each slot boundary, 0 slots, a cut inside the first and the last slot, a reader position past the end of the data, and a large area in `long`.
-- `bookmap-processor`: each compile error of section 7. The generated code for each mode, for a response with 0 slots, some slots, and the full area. Each message of section 10. A class with subtypes, items with subtypes, and items with an inner fixed collection. A class without `partial` keeps the current messages. An `INPUT_OUTPUT` collection: the request needs the full area, the response can be partial.
-- `bookmap-transport-simulator`: a byte-level `SimulatedOperation` returns a short response.
-- `bookmap-copybook`, CLI, and plugins: the option in the options file and on the command line, each diagnostic of section 11.2, the model JSON, and the generated annotation.
-- `bookmap-examples`: the example `ListOpenOrders` in package `pt.dazz.bookmap.examples.orders`, with a round-trip test through the simulator.
+- `copymapper-core`: `presentSlots` for a full area, a longer response, each slot boundary, 0 slots, a cut inside the first and the last slot, a reader position past the end of the data, and a large area in `long`.
+- `copymapper-processor`: each compile error of section 7. The generated code for each mode, for a response with 0 slots, some slots, and the full area. Each message of section 10. A class with subtypes, items with subtypes, and items with an inner fixed collection. A class without `partial` keeps the current messages. An `INPUT_OUTPUT` collection: the request needs the full area, the response can be partial.
+- `copymapper-transport-simulator`: a byte-level `SimulatedOperation` returns a short response.
+- `copymapper-copybook`, CLI, and plugins: the option in the options file and on the command line, each diagnostic of section 11.2, the model JSON, and the generated annotation.
+- `copymapper-examples`: the example `ListOpenOrders` in package `pt.dazz.copymapper.examples.orders`, with a round-trip test through the simulator.
 
 ## 13. Documentation
 
@@ -354,8 +354,8 @@ The model and the generated classes also change:
 - `docs/wiki/FAQ-and-troubleshooting.md`: change the line "For a fixed collection, the response must contain the full area." Refer to `partial`.
 - `docs/wiki/Copybook-generator.md` and `docs/wiki/Copybook-generator-CLI.md`: the option `partialTables` and `--partial-table`.
 - `docs/wiki/Transports-and-simulator.md`, `docs/wiki/HTTP-transport.md`, and `docs/wiki/IBM-MQ.md`: a short note that these transports give the response as the program sent it.
-- Javadoc of `@BookCollection` and of `BookReader`.
-- `docs/design/2026-11-11-bookmap-fixed-occurs-design.md` section 2.2: refer to this spec.
+- Javadoc of `@Occurs` and of `BookReader`.
+- `docs/design/2026-11-11-copymapper-fixed-occurs-design.md` section 2.2: refer to this spec.
 - `ROADMAP.md` line 36 (#45): remove the item after the release.
 
 ## 14. Release
@@ -364,13 +364,13 @@ A `feat:` commit merged to `main` publishes a new minor version. The owner must 
 
 ## 15. Decisions for review
 
-1. Opt-in through the new attribute `partial` on `@BookCollection`, default `false`. Other names: `endsResponse`, `shortResponse`. A default of `true` would hide a cut in the marker modes.
+1. Opt-in through the new attribute `partial` on `@Occurs`, default `false`. Other names: `endsResponse`, `shortResponse`. A default of `true` would hide a cut in the marker modes.
 2. Only a cut on a slot boundary (section 4.1). A cut inside a slot is an error in all modes. The alternative is to fill the missing bytes with `0x00` up to `maxResponseLength()`. This alternative supports a transport that removes trailing `0x00` bytes:
    - LOW-VALUES, SPACES, and key modes would read the filled slots as unused. They would also read a last item whose bytes end in `0x00`.
    - Count mode would read the filled bytes of the counted items. A cut item would read with `0x00` values, or fail on a `DISPLAY` or `COMP-3` field.
    - The members after the collection could then stay in the layout. They would read as blank.
    - A text field that a program cut would read as a shorter text, without an error.
-   - The CTG transport of BookMap does not remove the bytes. This spec does not take the alternative.
+   - The CTG transport of CopyMapper does not remove the bytes. This spec does not take the alternative.
 3. The collection must be the last member of the response layout (section 5). A member with the direction `INPUT` can come after it.
 4. `partial` only on a top-level collection. An inner collection cannot be `partial`.
 5. A cut must be on the boundary of a full slot, also for a last item with a shorter subtype.

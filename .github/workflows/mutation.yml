@@ -1,7 +1,7 @@
 # Run the mutation tests each night.
 #
-# This workflow runs the task mutationTest: PIT (pitest) on bookmap-core, bookmap-processor, and
-# bookmap-copybook. The run fails if the mutation score of a module is less than its minimum score
+# This workflow runs the task mutationTest: PIT (pitest) on copymapper-core, copymapper-processor, and
+# copymapper-copybook. The run fails if the mutation score of a module is less than its minimum score
 # in build.gradle.kts. The mutation tests take about 20 minutes on a GitHub runner, so they do not
 # run on each pull request or push. They run on main at 02:00 UTC each day, and on request
 # (Actions > Mutation tests > Run workflow).

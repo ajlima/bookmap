@@ -1,10 +1,10 @@
-# Build and release BookMap.
+# Build and release CopyMapper.
 #
 # On each pull request to main: only the build job runs (build, tests, 100% coverage, dependency
 # structure, cyclomatic complexity, and module size). A pull request that changes only documentation
 # (*.md files and the docs/ folder) skips the Gradle steps, but the build job still checks the commit
 # authors and passes. The build job also builds the standalone examples of the Gradle plugin
-# (bookmap-examples-gradle-plugin) and of the Maven plugin (bookmap-examples-maven-plugin).
+# (copymapper-examples-gradle-plugin) and of the Maven plugin (copymapper-examples-maven-plugin).
 # The ruleset on main requires this check before a merge.
 #
 # On each push to main:
@@ -25,7 +25,7 @@
 #      job staged for Maven Central (the same bytes). Then it sets the new version in the README files
 #      (scripts/set-readme-version.sh) and pushes the commit "docs: set the README version to
 #      X.Y.Z" to main. A docs commit gives no new release. The push uses a short-lived token of
-#      the BookMap release GitHub App, because the ruleset on main blocks the GITHUB_TOKEN and a
+#      the CopyMapper release GitHub App, because the ruleset on main blocks the GITHUB_TOKEN and a
 #      personal repository cannot add GitHub Actions to the bypass list. The app is a bypass
 #      actor of the ruleset. Its key is a secret of the "readme-update" environment (see RELEASING.md).
 
@@ -131,14 +131,14 @@ jobs:
       # The example build includes the root build, so it uses the plugin from this commit.
       - name: Build the Gradle plugin example
         if: steps.changes.outputs.docs_only != 'true'
-        run: ./gradlew -p bookmap-examples-gradle-plugin build --no-daemon
+        run: ./gradlew -p copymapper-examples-gradle-plugin build --no-daemon
 
       # The Maven example takes the snapshot of this commit from the local Maven repository.
       - name: Build the Maven plugin example
         if: steps.changes.outputs.docs_only != 'true'
         run: |
           ./gradlew publishToMavenLocal --no-daemon
-          bookmap-examples-maven-plugin/mvnw -B -f bookmap-examples-maven-plugin/pom.xml verify
+          copymapper-examples-maven-plugin/mvnw -B -f copymapper-examples-maven-plugin/pom.xml verify
 
   publish:
     needs: build
@@ -245,7 +245,7 @@ jobs:
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
           tag_name: ${{ needs.build.outputs.new_tag }}
-          name: BookMap ${{ needs.build.outputs.new_version }}
+          name: CopyMapper ${{ needs.build.outputs.new_version }}
           target_commitish: ${{ github.sha }}
           body: ${{ needs.build.outputs.changelog }}
           files: release/**/*.jar

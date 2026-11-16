@@ -1,16 +1,16 @@
-# BookMap, edited pictures: design
+# CopyMapper, edited pictures: design
 
 Date: 2026-11-13
 Status: implemented in v0.23.0.
 
-Related documents: `docs/design/2026-11-10-bookmap-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-11-bookmap-copybook-design.md`, GitHub issue #48.
+Related documents: `docs/design/2026-11-10-copymapper-design.md` (sections 2.2 and 5.3), `docs/design/2026-11-11-copymapper-copybook-design.md`, GitHub issue #48.
 
 ## 1. Intent
 
 Today an edited picture is a compile error in the processor and an error in the copybook generator. Examples: `ZZ9`, `Z,ZZ9.99CR`, `$$$,$$9.99`, `***9.99`, `-9(5)`.
 A COBOL program uses an edited picture for a printable number, for example an amount on a report or a screen. When such an item is in a COMMAREA, the Java side must read it and write it.
 
-This change adds numeric edited pictures to the `pic` of `@BookField` and to the copybook generator. A field with an edited picture is a number in Java. The codec writes it as edited text, and reads the edited text back as a number.
+This change adds numeric edited pictures to the `pic` of `@Field` and to the copybook generator. A field with an edited picture is a number in Java. The codec writes it as edited text, and reads the edited text back as a number.
 
 ## 2. Scope
 
@@ -61,7 +61,7 @@ The engine expands the repeat counts, then reads the symbols from left to right.
 9. The picture has one decimal point at most: `.` or `V`, not both.
 10. A picture with only `9` and `V` is not an edited picture. It keeps the present rules. The exception is `BLANK WHEN ZERO` (section 5.4).
 
-These rules are a subset of the rules of IBM Enterprise COBOL. Each picture that BookMap accepts is also a valid COBOL picture.
+These rules are a subset of the rules of IBM Enterprise COBOL. Each picture that CopyMapper accepts is also a valid COBOL picture.
 
 ## 4. Field attributes
 
@@ -86,7 +86,7 @@ Examples:
 | `***9.99` | 6 | 2 | no | 7 |
 | `99/99/99` | 6 | 0 | no | 8 |
 
-`@BookDefaults(usage = ...)` and `@BookDefaults(signed = ...)` do not apply to an edited field. The picture gives the usage and the sign.
+`@Defaults(usage = ...)` and `@Defaults(signed = ...)` do not apply to an edited field. The picture gives the usage and the sign.
 
 This is the first field type where the number of digits and the number of bytes are not the same. Section 8 lists each place that uses the one or the other.
 
@@ -97,7 +97,7 @@ This is the first field type where the number of digits and the number of bytes 
 The write uses the present check of a number (`Unscaled.of`), with the digits, the scale, and the sign of the picture:
 
 - A `null` value writes as zero.
-- A value with more decimal places than the scale causes a `MappingException`. The codec does not round and does not truncate. COBOL truncates on a `MOVE`, but BookMap keeps its present rule.
+- A value with more decimal places than the scale causes a `MappingException`. The codec does not round and does not truncate. COBOL truncates on a `MOVE`, but CopyMapper keeps its present rule.
 - A value with more integer digits than the picture causes a `MappingException`.
 - A negative value in a picture without a sign causes a `MappingException`.
 
@@ -192,7 +192,7 @@ There is one exception: a zero that writes as all spaces (section 5.3 with `Z` o
 | `LocalDate`, `LocalTime`, `LocalDateTime` | Error. | `an edited pic is not permitted for LocalDate. Use X(n) with a pattern` |
 | An enum with `@CobolValue` | Error. | `an edited pic is not permitted for an enum` |
 | A field with a converter | Error. | `an edited pic is not permitted with a converter` |
-| A discriminator of `@BookSubTypes` | Error. | `discriminator must not have an edited pic` |
+| A discriminator of `@SubTypes` | Error. | `discriminator must not have an edited pic` |
 | A count field of a collection | Error. | `dependsOn field '<name>' must not have an edited pic` |
 | The `emptyKey` field of a collection | Error. | `emptyKey field '<name>' must not have an edited pic` |
 
@@ -200,21 +200,21 @@ There is one exception: a zero that writes as all spaces (section 5.3 with `Z` o
 
 ### 8.1 One engine in the core
 
-A new public class `pt.dazz.bookmap.codec.EditedPicture` holds the parsed picture and the editing rules.
+A new public class `pt.dazz.copymapper.codec.EditedPicture` holds the parsed picture and the editing rules.
 
 - `EditedPicture.parse(String picture, boolean blankWhenZero)` checks the grammar and gives the instance. It throws `IllegalArgumentException` with the messages of section 9.
 - `isEdited(String picture)` tells if a picture has an edit symbol.
 - `digits()`, `scale()`, `signed()`, and `byteLength()` give the attributes of section 4.
 - `encode(...)` and `decode(...)` give the text and the number. The point character and the comma character are fields of the engine. Thus, a later `DECIMAL-POINT IS COMMA` needs no new engine.
 
-The processor and the copybook generator both use `EditedPicture.parse`. Thus, the grammar has one source. The processor and the copybook generator already depend on `bookmap-core`.
+The processor and the copybook generator both use `EditedPicture.parse`. Thus, the grammar has one source. The processor and the copybook generator already depend on `copymapper-core`.
 
 `BookWriter.writeEdited(String field, BigDecimal value, EditedPicture picture)` and `BookReader.readEdited(String field, EditedPicture picture)` are new methods.
 
 ### 8.2 Processor
 
 - `PicParser`: an edited picture or a `BLANK WHEN ZERO` clause gives `PicSpec` with a new `Optional<EditedPicture> edited`. The checks of section 3 come from `EditedPicture.parse`.
-- `FieldResolver`: the checks of section 7; no `@BookDefaults` usage or sign for an edited field; the byte length comes from `EditedPicture.byteLength()`, not from `BookWriter.byteLength`.
+- `FieldResolver`: the checks of section 7; no `@Defaults` usage or sign for an edited field; the byte length comes from `EditedPicture.byteLength()`, not from `BookWriter.byteLength`.
 - `FieldModel`: a new component `edited` (the picture string and the `BLANK WHEN ZERO` flag, or `null`).
 - `CodecGenerator`: for an edited field, a `private static final EditedPicture` constant, like the date formatter. New branches in `write()` and `read()` only. The number helpers for `int`, `Integer`, `long`, and `Long` stay the same.
 - `ModelSnapshot` (a test helper): the snapshot records the edited picture.
@@ -271,6 +271,6 @@ The processor shows each message as `Invalid PIC string "<pic>": <problem>`, the
 - **D5. Only `$`.** No `CURRENCY SIGN` clause and no other currency character.
 - **D6. `BLANK WHEN ZERO` on a plain `9(n)`.** Today the generator ignores the clause with an info message, and the field is a zoned number. With this design, the generator writes `pic = "9(5) BLANK WHEN ZERO"`, and the field is an edited picture. The bytes are the same for a nonzero value. A zero writes spaces instead of zeros, and a field with a sign overpunch is not affected, because the clause is not permitted with `S`. This changes the generated code of existing copybooks with the clause.
 - **D7. Rejected Java types.** Date and time, enum, converter, discriminator, and count field are errors (section 7). Each can come later if a user needs it.
-- **D8. `DECIMAL-POINT IS COMMA` is out of scope.** It is a program setting, not a copybook setting. It would need a new option in `@BookDefaults` or in `MappingOptions`, and thus in `CopybookTree` of the Gradle and Maven plugins. The engine has the point and the comma characters as fields, so a later issue can add it.
+- **D8. `DECIMAL-POINT IS COMMA` is out of scope.** It is a program setting, not a copybook setting. It would need a new option in `@Defaults` or in `MappingOptions`, and thus in `CopybookTree` of the Gradle and Maven plugins. The engine has the point and the comma characters as fields, so a later issue can add it.
 - **D9. `S` is an error, not a synonym.** COBOL does not permit `S` in an edited picture.
-- **D10. One engine in `bookmap-core`.** The processor and the generator use the same parser at build time, and the codec uses it at run time.
+- **D10. One engine in `copymapper-core`.** The processor and the generator use the same parser at build time, and the codec uses it at run time.

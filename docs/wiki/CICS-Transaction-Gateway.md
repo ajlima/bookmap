@@ -1,4 +1,4 @@
-`bookmap-transport-ctg` is a transport for the CICS Transaction Gateway (CTG). It calls a CICS program with the External Call Interface (ECI).
+`copymapper-transport-ctg` is a transport for the CICS Transaction Gateway (CTG). It calls a CICS program with the External Call Interface (ECI).
 The request bytes go to the program in a COMMAREA. The transport returns the COMMAREA that the program gives back.
 
 The module contains no IBM code. Add the IBM client library `ctgclient.jar` to your application.
@@ -6,22 +6,22 @@ For the other transports and a comparison, see [Transports and simulator](Transp
 
 ## Setup
 
-Get `ctgclient.jar` from your CICS TG installation or from the CICS TG client package. BookMap cannot put it on Maven Central, because it has an IBM license.
+Get `ctgclient.jar` from your CICS TG installation or from the CICS TG client package. CopyMapper cannot put it on Maven Central, because it has an IBM license.
 Put the jar in a repository of your company, or in a folder of your project.
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-transport-ctg:<version>")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:<version>")
+    implementation("pt.dazz.copymapper:copymapper-transport-ctg:<version>")
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:<version>")
     runtimeOnly(files("libs/ctgclient.jar"))   // or the artifact in your company repository
 }
 ```
 
 ```xml
 <dependency>
-  <groupId>pt.dazz.bookmap</groupId>
-  <artifactId>bookmap-transport-ctg</artifactId>
-  <version>${bookmap.version}</version>
+  <groupId>pt.dazz.copymapper</groupId>
+  <artifactId>copymapper-transport-ctg</artifactId>
+  <version>${copymapper.version}</version>
 </dependency>
 <!-- The IBM library, from the repository of your company. Use your own coordinates. -->
 <dependency>
@@ -48,7 +48,7 @@ CtgTransport transport = CtgTransport.builder()
     .route("GetInvoice", "PGMINV01")
     .build();
 
-BookmapClient client = BookmapClient.builder()
+CopyMapperClient client = CopyMapperClient.builder()
     .transport(transport)
     .build();
 ```
@@ -57,7 +57,7 @@ Use one transport for all threads. Close the transport when the application stop
 
 ### Routes
 
-A route maps an operation name to a CICS program and a transaction. The operation name is the value of `@BookOperation`, or the simple class name.
+A route maps an operation name to a CICS program and a transaction. The operation name is the value of `@Operation`, or the simple class name.
 
 | Method | Meaning |
 |---|---|
@@ -105,7 +105,7 @@ Channels and containers are not supported.
 
 ## Errors
 
-The transport translates each failure to a BookMap exception:
+The transport translates each failure to a CopyMapper exception:
 
 | Failure | Exception |
 |---|---|
@@ -126,7 +126,7 @@ The message gives the operation, the program, the return code, and its name. For
 
 ## Spring Boot
 
-`bookmap-spring-boot` creates the transport from properties. Set `bookmap.transport.type=ctg` and the `bookmap.transport.ctg.*` properties.
+`copymapper-spring-boot` creates the transport from properties. Set `copymapper.transport.type=ctg` and the `copymapper.transport.ctg.*` properties.
 See [Spring Boot](Spring-Boot#cics-transaction-gateway).
 
 ## Test without CICS

@@ -15,31 +15,31 @@ val catalog = the<org.gradle.accessors.dm.LibrariesForLibs>()
 
 // Modules that go to Maven Central, with their POM descriptions.
 val publishedModules = mapOf(
-    "bookmap-core" to "BookMap core: annotations, runtime codecs, client, and transport SPI.",
-    "bookmap-processor" to "BookMap annotation processor: generates the codecs at compile time.",
-    "bookmap-transport-simulator" to "BookMap in-memory transport for tests.",
-    "bookmap-transport-ctg" to "BookMap transport for the CICS Transaction Gateway (ECI).",
-    "bookmap-transport-http" to "BookMap HTTP transport (binary body), for example for CICS web services.",
-    "bookmap-transport-mq" to "BookMap transport for IBM MQ (Jakarta Messaging request and reply).",
-    "bookmap-spring-boot" to "BookMap Spring Boot auto-configuration.",
-    "bookmap-copybook" to "BookMap copybook generator: parses COBOL copybooks and generates BookMap classes.",
-    "bookmap-copybook-cli" to "BookMap copybook generator command-line program.",
-    "bookmap-copybook-gradle-plugin" to "BookMap copybook generator Gradle plugin.",
-    "bookmap-copybook-maven-plugin" to "BookMap copybook generator Maven plugin.",
+    "copymapper-core" to "CopyMapper core: annotations, runtime codecs, client, and transport SPI.",
+    "copymapper-processor" to "CopyMapper annotation processor: generates the codecs at compile time.",
+    "copymapper-transport-simulator" to "CopyMapper in-memory transport for tests.",
+    "copymapper-transport-ctg" to "CopyMapper transport for the CICS Transaction Gateway (ECI).",
+    "copymapper-transport-http" to "CopyMapper HTTP transport (binary body), for example for CICS web services.",
+    "copymapper-transport-mq" to "CopyMapper transport for IBM MQ (Jakarta Messaging request and reply).",
+    "copymapper-spring-boot" to "CopyMapper Spring Boot auto-configuration.",
+    "copymapper-copybook" to "CopyMapper copybook generator: parses COBOL copybooks and generates CopyMapper classes.",
+    "copymapper-copybook-cli" to "CopyMapper copybook generator command-line program.",
+    "copymapper-copybook-gradle-plugin" to "CopyMapper copybook generator Gradle plugin.",
+    "copymapper-copybook-maven-plugin" to "CopyMapper copybook generator Maven plugin.",
 )
 
 // Modules with mutation tests (task mutationTest), with the minimum mutation score in percent.
 val mutationModules = mapOf(
-    "bookmap-core" to 95,
-    "bookmap-processor" to 95,
-    "bookmap-copybook" to 95,
+    "copymapper-core" to 95,
+    "copymapper-processor" to 95,
+    "copymapper-copybook" to 95,
 )
 
 // Modules that are Gradle plugins. They publish the plugin JAR and the plugin marker artifact.
-val gradlePluginModules = setOf("bookmap-copybook-gradle-plugin")
+val gradlePluginModules = setOf("copymapper-copybook-gradle-plugin")
 
 allprojects {
-    group = "pt.dazz.bookmap"
+    group = "pt.dazz.copymapper"
     // The release workflow passes -PreleaseVersion=X.Y.Z. Local builds use the snapshot version.
     version = providers.gradleProperty("releaseVersion").getOrElse("0.1.0-SNAPSHOT")
 }
@@ -75,7 +75,7 @@ subprojects {
         useJUnitPlatform()
     }
 
-    if (name != "bookmap-examples") {
+    if (name != "copymapper-examples") {
         apply(plugin = "jacoco")
 
         extensions.configure<JacocoPluginExtension> {
@@ -127,7 +127,7 @@ subprojects {
         extensions.configure<PitestPluginExtension> {
             pitestVersion = catalog.versions.pitest.asProvider().get()
             junit5PluginVersion = catalog.versions.pitest.junit5.get()
-            targetClasses = setOf("pt.dazz.bookmap.*")
+            targetClasses = setOf("pt.dazz.copymapper.*")
             // The architecture tests read the class files. A mutation does not change their result.
             excludedTestClasses = setOf("*.ArchitectureTest")
             threads = Runtime.getRuntime().availableProcessors()
@@ -170,13 +170,13 @@ subprojects {
             }
             coordinates(group.toString(), name, version.toString())
             pom {
-                if (project.name == "bookmap-copybook-maven-plugin") {
+                if (project.name == "copymapper-copybook-maven-plugin") {
                     packaging = "maven-plugin"
                 }
                 this.name.set(project.name)
                 description.set(moduleDescription)
                 inceptionYear.set("2026")
-                url.set("https://github.com/ajlima/bookmap")
+                url.set("https://github.com/dazz-pt/copymapper")
                 licenses {
                     license {
                         this.name.set("MIT License")
@@ -192,9 +192,9 @@ subprojects {
                     }
                 }
                 scm {
-                    url.set("https://github.com/ajlima/bookmap")
-                    connection.set("scm:git:https://github.com/ajlima/bookmap.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/ajlima/bookmap.git")
+                    url.set("https://github.com/dazz-pt/copymapper")
+                    connection.set("scm:git:https://github.com/dazz-pt/copymapper.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/dazz-pt/copymapper.git")
                 }
             }
         }
@@ -210,7 +210,7 @@ tasks.register("mutationTest") {
 
 // A report of the size of each module: the source files, the classes, and the lines of the main code.
 // The report is in build/reports/module-size.md. The task gives no limit.
-val sizeModules = subprojects.filter { it.name != "bookmap-examples" && it.file("src/main/java").isDirectory }
+val sizeModules = subprojects.filter { it.name != "copymapper-examples" && it.file("src/main/java").isDirectory }
 val moduleSize = tasks.register("moduleSize") {
     group = "verification"
     description = "Reports the source files, classes, and lines of the main code of each module."

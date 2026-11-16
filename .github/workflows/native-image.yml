@@ -1,9 +1,9 @@
 # Test the GraalVM native image.
 #
 # On each pull request to main and each push to main, this workflow builds the standalone build
-# bookmap-native-test as a GraalVM native image and runs it (task nativeRun). The program runs
+# copymapper-native-test as a GraalVM native image and runs it (task nativeRun). The program runs
 # one operation through the simulator transport with the EBCDIC charset IBM1047. It fails if the
-# native image does not contain the charset (option -H:+AddAllCharsets of bookmap-core).
+# native image does not contain the charset (option -H:+AddAllCharsets of copymapper-core).
 # A pull request that changes only documentation (*.md files and the docs/ folder) skips the Gradle
 # steps, and the check passes.
 #
@@ -79,4 +79,4 @@ jobs:
 
       - name: Build and run the native image
         if: steps.changes.outputs.docs_only != 'true'
-        run: ./gradlew -p bookmap-native-test nativeRun --no-daemon
+        run: ./gradlew -p copymapper-native-test nativeRun --no-daemon

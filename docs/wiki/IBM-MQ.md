@@ -1,6 +1,6 @@
-The module `bookmap-transport-mq` calls a mainframe program through IBM MQ. The transport puts the request bytes on a request queue. Then it waits for the reply on a reply queue, and it returns the reply bytes to `BookmapClient`.
+The module `copymapper-transport-mq` calls a mainframe program through IBM MQ. The transport puts the request bytes on a request queue. Then it waits for the reply on a reply queue, and it returns the reply bytes to `CopyMapperClient`.
 
-The transport uses Jakarta Messaging (JMS 3.1). You give it the connection factory of IBM MQ. The BookMap module does not contain IBM code, and its POM does not name an IBM artifact.
+The transport uses Jakarta Messaging (JMS 3.1). You give it the connection factory of IBM MQ. The CopyMapper module does not contain IBM code, and its POM does not name an IBM artifact.
 For the other transports and a comparison, see [Transports and simulator](Transports-and-simulator#choose-a-transport).
 
 ## Add the dependencies
@@ -9,7 +9,7 @@ Add the transport and the IBM MQ classes for Jakarta Messaging. Gradle:
 
 ```kotlin
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-transport-mq:<version>")
+    implementation("pt.dazz.copymapper:copymapper-transport-mq:<version>")
     implementation("com.ibm.mq:com.ibm.mq.jakarta.client:9.4.3.0")
 }
 ```
@@ -18,8 +18,8 @@ Maven:
 
 ```xml
 <dependency>
-    <groupId>pt.dazz.bookmap</groupId>
-    <artifactId>bookmap-transport-mq</artifactId>
+    <groupId>pt.dazz.copymapper</groupId>
+    <artifactId>copymapper-transport-mq</artifactId>
     <version><!-- version --></version>
 </dependency>
 <dependency>
@@ -51,7 +51,7 @@ MqTransport transport = MqTransport.builder()
     .route("GetInvoice", "INVOICE.REQUEST", "INVOICE.REPLY")
     .build();
 
-BookmapClient client = BookmapClient.builder().transport(transport).build();
+CopyMapperClient client = CopyMapperClient.builder().transport(transport).build();
 ```
 
 `MqTransport` is thread-safe. Create one transport for each queue manager, and close it when the application stops.
@@ -125,7 +125,7 @@ With `mqNativeMessages(true)`, the connector gives each queue name to Jakarta Me
 
 **CAUTION:** Do not set `mqNativeMessages(false)` with IBM MQ, unless the server program reads the RFH2 header. If not, the program gets the RFH2 bytes in front of the book, and the book is incorrect.
 
-Use `mqNativeMessages(false)` with a provider that is not IBM MQ, for example Apache ActiveMQ Artemis. The BookMap tests use Artemis.
+Use `mqNativeMessages(false)` with a provider that is not IBM MQ, for example Apache ActiveMQ Artemis. The CopyMapper tests use Artemis.
 
 ## Errors
 
@@ -147,7 +147,7 @@ IBM MQ gives the same exception type for all failures to open a queue. Thus, an 
 
 **WARNING:** Do not send a request again after a `TransportException` or a `TransportTimeoutException`, unless the program is idempotent. The program can have done the first request.
 
-The BookMap tests do not use a real queue manager. The mapping of the IBM MQ exceptions comes from the IBM documentation.
+The CopyMapper tests do not use a real queue manager. The mapping of the IBM MQ exceptions comes from the IBM documentation.
 
 ## Not supported
 
@@ -159,7 +159,7 @@ The BookMap tests do not use a real queue manager. The mapping of the IBM MQ exc
 
 ## Spring Boot
 
-`bookmap-spring-boot` creates the transport from properties. Set `bookmap.transport.type=mq` and the `bookmap.transport.mq.*` properties.
+`copymapper-spring-boot` creates the transport from properties. Set `copymapper.transport.type=mq` and the `copymapper.transport.mq.*` properties.
 The connection factory comes from a `ConnectionFactory` bean, for example from `mq-jms-spring-boot-starter`. See [Spring Boot](Spring-Boot#ibm-mq).
 
 ## Use another client library

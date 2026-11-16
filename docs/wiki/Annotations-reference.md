@@ -1,7 +1,7 @@
-The annotations are in the package `pt.dazz.bookmap.annotation`. The processor reads them at compile time.
-The enums `Usage` and `Sign` give the COBOL storage format. They are in the package `pt.dazz.bookmap.cobol`.
+The annotations are in the package `pt.dazz.copymapper.annotation`. The processor reads them at compile time.
+The enums `Usage` and `Sign` give the COBOL storage format. They are in the package `pt.dazz.copymapper.cobol`.
 
-## @BookOperation (class)
+## @Operation (class)
 
 | Attribute | Meaning | Default |
 |---|---|---|
@@ -10,13 +10,13 @@ The enums `Usage` and `Sign` give the COBOL storage format. They are in the pack
 Rules for an operation class (each rule gives a compile error):
 
 - The class is public, and top-level or static.
-- The class is not a record, not abstract, and not generic. An abstract base class with `@BookSubTypes` is permitted.
+- The class is not a record, not abstract, and not generic. An abstract base class with `@SubTypes` is permitted.
 - The class has a public constructor without arguments.
 - The operation name is not blank.
 
 The transport maps the operation name to its destination. See [Transports and simulator](Transports-and-simulator).
 
-## @BookField (field)
+## @Field (field)
 
 | Attribute | Meaning | Default |
 |---|---|---|
@@ -24,11 +24,11 @@ The transport maps the operation name to its destination. See [Transports and si
 | `pic` | A COBOL `PIC` string with an optional usage clause and an optional sign clause. It replaces `length`, `scale`, `signed`, `usage`, and `sign`. | None. |
 | `length` | Number of characters for text. Total number of digits for numbers (`S9(13)V99` is `length = 15`). | Mandatory without `pic`. |
 | `direction` | `INPUT`, `OUTPUT`, or `INPUT_OUTPUT`. | `INPUT_OUTPUT`. A count field without `direction` takes the direction of its collection. |
-| `usage` | `DISPLAY`, `COMP3`, or `COMP`. A date or time field can be `DISPLAY` or `COMP3`. | From `@BookDefaults`, else `DISPLAY`. A date or time field does not use `@BookDefaults`. |
+| `usage` | `DISPLAY`, `COMP3`, or `COMP`. A date or time field can be `DISPLAY` or `COMP3`. | From `@Defaults`, else `DISPLAY`. A date or time field does not use `@Defaults`. |
 | `scale` | Number of implied decimal places (`V99` is 2). | 0. |
-| `signed` | `true` if the field has a sign (`S9`). A date or time field can be signed only with `COMP3`. | From `@BookDefaults`, else `false`. |
+| `signed` | `true` if the field has a sign (`S9`). A date or time field can be signed only with `COMP3`. | From `@Defaults`, else `false`. |
 | `sign` | The sign format of a signed `DISPLAY` number: `TRAILING`, `LEADING`, `TRAILING_SEPARATE`, or `LEADING_SEPARATE`. See [Sign formats](PIC-syntax-and-type-mapping#sign-formats). | `TRAILING`. |
-| `pattern` | Date or time format. | From `@BookDefaults`, else `yyyyMMdd`. Set a pattern on each `LocalTime` and `LocalDateTime` field. |
+| `pattern` | Date or time format. | From `@Defaults`, else `yyyyMMdd`. Set a pattern on each `LocalTime` and `LocalDateTime` field. |
 | `converter` | A custom `FieldConverter` class. | None. |
 | `redefines` | The Java name of the member that this field redefines (a view). See [REDEFINES views](REDEFINES-views). | None. |
 
@@ -42,7 +42,7 @@ An operation class and an item class need at least one annotated field.
 - The processor reads the annotated fields of the class and of all its superclasses.
 - Each `order` is unique in that hierarchy. A duplicate gives `duplicate order, also used by <Class>.<field>`.
 - An annotated field is not `static`.
-- A field does not have both `@BookField` and `@BookCollection`.
+- A field does not have both `@Field` and `@Occurs`.
 - Each field has a public getter `getName()` that returns the field type, and a public setter `setName(T)`. The methods can be in a superclass.
 - A primitive `boolean` field (only with a converter) uses `isName()`.
 - A `final` field has no setter. Thus, it gives the compile error `missing setter setName`.
@@ -53,18 +53,18 @@ Example of inheritance, from the billing example: `ListInvoices` gets the field 
 @Getter
 @Setter
 public class BaseRequest {
-    @BookField(order = 10, pic = "X(10)")
+    @Field(order = 10, pic = "X(10)")
     private String accountId;
 }
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@BookOperation("ListInvoices")
+@Operation("ListInvoices")
 public class ListInvoices extends BaseRequest {
-    @BookField(order = 20, pic = "9(3)", direction = OUTPUT)
+    @Field(order = 20, pic = "9(3)", direction = OUTPUT)
     private int invoiceCount;
 
-    @BookCollection(order = 30, maxOccurs = 10)
+    @Occurs(order = 30, maxOccurs = 10)
     private List<Invoice> invoices;
 }
 ```
@@ -78,7 +78,7 @@ An `INPUT` field does not occupy bytes in the response area. An `OUTPUT` field d
 
 ### Converters
 
-A converter implements `pt.dazz.bookmap.convert.FieldConverter<J>`:
+A converter implements `pt.dazz.copymapper.convert.FieldConverter<J>`:
 
 ```java
 public interface FieldConverter<J> {
@@ -112,7 +112,7 @@ Rules at run time:
 - `encode` must return exactly `byteLength` bytes. Otherwise, the codec throws `MappingException`.
 - For a `null` value, `encode` gets `null`.
 - For a primitive field, `decode` must not return `null`.
-- The codec wraps a `RuntimeException` of the converter in a `MappingException`. A `BookmapException` goes to the caller unchanged.
+- The codec wraps a `RuntimeException` of the converter in a `MappingException`. A `CopyMapperException` goes to the caller unchanged.
 
 Each codec makes one instance of each converter class. All threads use it. Thus, make the converter thread-safe.
 
@@ -135,7 +135,7 @@ public class FlagConverter implements FieldConverter<Boolean> {
 ```
 
 ```java
-@BookField(order = 40, length = 1, converter = FlagConverter.class)
+@Field(order = 40, length = 1, converter = FlagConverter.class)
 private boolean express;   // accessors: isExpress() and setExpress(boolean)
 ```
 
@@ -152,7 +152,7 @@ public enum PartyRole {
 ```
 
 ```java
-@BookField(order = 30, pic = "X(8)")
+@Field(order = 30, pic = "X(8)")
 private PartyRole partyRole;
 ```
 
@@ -210,12 +210,12 @@ Compile errors on the field, for example `Invoice.partyRole (order 30): enum Par
 - **Unknown value.** Without a fallback constant, a value that no constant contains throws `MappingException`: `Invoice.partyRole (order 30): unknown value 'AGENT' for enum PartyRole`. With a fallback constant, the codec gives the fallback constant.
 - **Fallback write.** The fallback constant writes its canonical value. If it has no `@CobolValue`, the write throws `MappingException`: `the constant OTHER of enum Grade has no COBOL value`. Thus, the codec does not write a value that it did not read.
 
-## @BookCollection (field of type `List<Item>`)
+## @Occurs (field of type `List<Item>`)
 
 | Attribute | Meaning | Default |
 |---|---|---|
 | `order` | Position in the book. | Mandatory. |
-| `direction` | As in `@BookField`. | `OUTPUT`. |
+| `direction` | As in `@Field`. | `OUTPUT`. |
 | `dependsOn` | The name of the count field. | Variable collection: the member immediately before the collection. Fixed collection: no count field. |
 | `fixed` | `true` for a fixed table (`OCCURS n` without `DEPENDING ON`). | `false` |
 | `emptyItem` | Fixed table: the bytes of an unused slot, `EmptyItem.LOW_VALUES` or `EmptyItem.SPACES`. Without `emptyKey` and `dependsOn`, these bytes also mark an empty slot on read. | `EmptyItem.LOW_VALUES` |
@@ -224,16 +224,16 @@ Compile errors on the field, for example `Invoice.partyRole (order 30): enum Par
 | `redefines` | The Java name of the member that this collection redefines (a view). The collection must be fixed. See [REDEFINES views](REDEFINES-views). | None. |
 | `maxOccurs` | The maximum number of items in one call. | Mandatory. |
 
-The item class has `@BookField` fields without `direction`. They use the direction of the collection.
-The item class can have a fixed `@BookCollection` without `direction` (a nested collection). See [Nested collections](Collections-and-fixed-OCCURS#nested-collections).
+The item class has `@Field` fields without `direction`. They use the direction of the collection.
+The item class can have a fixed `@Occurs` without `direction` (a nested collection). See [Nested collections](Collections-and-fixed-OCCURS#nested-collections).
 The item class needs a public constructor without arguments.
 The digits of the count field must hold `maxOccurs`. For example, `9(1)` with `maxOccurs = 50` is a compile error.
 
 See [Collections and fixed OCCURS](Collections-and-fixed-OCCURS) for the behavior.
 
-## @BookGroup (field of a group class)
+## @Group (field of a group class)
 
-`@BookGroup` maps a COBOL group without `OCCURS` to a field of a group class, in a `REDEFINES` area. A group class has the rules of an item class.
+`@Group` maps a COBOL group without `OCCURS` to a field of a group class, in a `REDEFINES` area. A group class has the rules of an item class.
 
 | Attribute | Meaning | Default |
 |---|---|---|
@@ -243,13 +243,13 @@ See [Collections and fixed OCCURS](Collections-and-fixed-OCCURS) for the behavio
 
 See [REDEFINES views](REDEFINES-views) for the rules and an example.
 
-## @BookDefaults (class or package)
+## @Defaults (class or package)
 
 Use `package-info.java` to set defaults for a package. The billing example does this.
 
 ```java
-@BookDefaults(usage = Usage.COMP3, signed = true)
-package pt.dazz.bookmap.examples.billing;
+@Defaults(usage = Usage.COMP3, signed = true)
+package pt.dazz.copymapper.examples.billing;
 ```
 
 | Attribute | Meaning |
@@ -263,24 +263,24 @@ The priority is, from high to low:
 
 1. An explicit attribute on the field.
 2. The `pic` of the field.
-3. `@BookDefaults` on the class that declares the field.
-4. `@BookDefaults` on the package of that class.
+3. `@Defaults` on the class that declares the field.
+4. `@Defaults` on the package of that class.
 5. The built-in default.
 
 The `usage` and `signed` defaults apply only to numeric types. The `pattern` default applies only to date and time types. Fields with a converter ignore all three.
-Thus, a packed date needs `usage = Usage.COMP3` or a `pic` with `COMP-3` on the field. `@BookDefaults(usage = Usage.COMP3)` does not change a date field.
+Thus, a packed date needs `usage = Usage.COMP3` or a `pic` with `COMP-3` on the field. `@Defaults(usage = Usage.COMP3)` does not change a date field.
 
-- The processor does not use the `@BookDefaults` of an enclosing class or of a superclass. A field in a superclass uses the defaults of the superclass and of its package.
+- The processor does not use the `@Defaults` of an enclosing class or of a superclass. A field in a superclass uses the defaults of the superclass and of its package.
 - All classes of one operation (superclasses and item classes) must use the same charset. A different charset is a compile error.
 
-## @BookSubTypes (class)
+## @SubTypes (class)
 
-`@BookSubTypes` maps a `REDEFINES` area to subclasses. A discriminator field selects the subclass.
+`@SubTypes` maps a `REDEFINES` area to subclasses. A discriminator field selects the subclass.
 
 | Attribute | Meaning |
 |---|---|
 | `discriminator` | The name of the discriminator field. The base class or one of its superclasses declares it. |
-| `value` | The list of `@BookSubTypes.Type`. |
+| `value` | The list of `@SubTypes.Type`. |
 | `Type.value` | The discriminator value of the subclass, as text. |
 | `Type.type` | The subclass. |
 
@@ -288,7 +288,7 @@ See [Subtypes (REDEFINES)](Subtypes-REDEFINES) for the rules and an example.
 
 ## Interfaces
 
-Two interfaces in `pt.dazz.bookmap` control the execution cycle.
+Two interfaces in `pt.dazz.copymapper` control the execution cycle.
 
 ```java
 public interface Validatable {
@@ -309,5 +309,5 @@ The processor finds the Lombok annotations by name. It does not depend on Lombok
 - `@Data`, `@Getter`, and `@Setter` give the accessors. `AccessLevel.PRIVATE` and `AccessLevel.NONE` give no accessor.
 - `AccessLevel.PACKAGE`, `AccessLevel.MODULE`, and `AccessLevel.PROTECTED` give an accessor only in the package of the operation class. The codec is in that package. For a superclass or an item class in another package, use public accessors.
 - `@AllArgsConstructor`, `@RequiredArgsConstructor`, and `@Builder` remove the default constructor. Add `@NoArgsConstructor` or a public constructor without arguments to the class.
-- `@Data` on a class with a `final` or `@NonNull` field without a value also removes the default constructor. Add `@NoArgsConstructor` to such a class (`@NoArgsConstructor(force = true)` for a `final` field). If BookMap runs before Lombok, the processor cannot detect this case, and javac reports the error in the generated codec.
+- `@Data` on a class with a `final` or `@NonNull` field without a value also removes the default constructor. Add `@NoArgsConstructor` to such a class (`@NoArgsConstructor(force = true)` for a `final` field). If CopyMapper runs before Lombok, the processor cannot detect this case, and javac reports the error in the generated codec.
 - `@NoArgsConstructor` must be public and must not have a `staticName`.

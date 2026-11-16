@@ -3,7 +3,7 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
-# Maven (bookmap-examples-maven-plugin)
+# Maven (copymapper-examples-maven-plugin)
 target/
 
 # IDE

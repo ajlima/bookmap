@@ -1,25 +1,25 @@
-The plugin `pt.dazz.bookmap.copybook` runs the [copybook generator](Copybook-generator) in a Gradle build.
+The plugin `pt.dazz.copymapper.copybook` runs the [copybook generator](Copybook-generator) in a Gradle build.
 It reads a directory tree of COBOL copybooks and writes the annotated Java classes before `compileJava`.
 The directories of the tree give the Java subpackages.
 
 ## What the plugin does
 
-- It adds the extension `bookmap` and the task `generateCopybookClasses`.
+- It adds the extension `copymapper` and the task `generateCopybookClasses`.
 - The task scans `src/main/copybook` recursively for `.cpy` files.
 - It generates the classes of each copybook into `build/generated/sources/copybook/main`.
 - With the `java` plugin, it adds that directory to the `main` source set. Gradle then runs the task before `compileJava`.
-- The plugin does not add dependencies to your project. Add `bookmap-core` and `bookmap-processor` yourself.
+- The plugin does not add dependencies to your project. Add `copymapper-core` and `copymapper-processor` yourself.
 
 ## Requirements
 
 - Run the Gradle daemon on JDK 21 or later. The plugin is compiled for Java 21.
 - The tests of the plugin use Gradle 9.9.1.
-- The plugin puts these libraries on the build script classpath: `bookmap-copybook`, `bookmap-core`, JavaPoet, and Jackson. They are not isolated from other plugins.
+- The plugin puts these libraries on the build script classpath: `copymapper-copybook`, `copymapper-core`, JavaPoet, and Jackson. They are not isolated from other plugins.
 
 ## Setup
 
 The plugin is on Maven Central only. It is not on the Gradle Plugin Portal.
-Replace `<version>` with the latest version: ![Maven Central](https://img.shields.io/maven-central/v/pt.dazz.bookmap/bookmap-copybook-gradle-plugin)
+Replace `<version>` with the latest version: ![Maven Central](https://img.shields.io/maven-central/v/pt.dazz.copymapper/copymapper-copybook-gradle-plugin)
 
 1. Add Maven Central to the plugin repositories in `settings.gradle.kts`:
 
@@ -32,12 +32,12 @@ pluginManagement {
 }
 ```
 
-2. Apply the plugin and add the BookMap libraries in `build.gradle.kts`. Use the same version for all BookMap artifacts.
+2. Apply the plugin and add the CopyMapper libraries in `build.gradle.kts`. Use the same version for all CopyMapper artifacts.
 
 ```kotlin
 plugins {
     java
-    id("pt.dazz.bookmap.copybook") version "<version>"
+    id("pt.dazz.copymapper.copybook") version "<version>"
 }
 
 repositories {
@@ -45,11 +45,11 @@ repositories {
 }
 
 dependencies {
-    implementation("pt.dazz.bookmap:bookmap-core:<version>")
-    annotationProcessor("pt.dazz.bookmap:bookmap-processor:<version>")
+    implementation("pt.dazz.copymapper:copymapper-core:<version>")
+    annotationProcessor("pt.dazz.copymapper:copymapper-processor:<version>")
 }
 
-bookmap {
+copymapper {
     copybooks {
         packageName = "com.example.mainframe"
         copyDirs.from("src/main/copylib")
@@ -65,7 +65,7 @@ bookmap {
 ```
 
 If your company uses a Maven mirror (for example, Nexus or Artifactory), put the mirror in `pluginManagement.repositories`.
-The plugin marker artifact is `pt.dazz.bookmap.copybook:pt.dazz.bookmap.copybook.gradle.plugin`. The mirror must give it.
+The plugin marker artifact is `pt.dazz.copymapper.copybook:pt.dazz.copymapper.copybook.gradle.plugin`. The mirror must give it.
 
 ## Run the task
 
@@ -78,7 +78,7 @@ The `compileJava` task runs the generation. You can also run it alone:
 The generated files are in `build/generated/sources/copybook/main`. The plugin adds this directory to the `main` source set.
 Run `generateCopybookClasses` before you open the generated classes in the IDE.
 
-`./gradlew tasks` shows the task in the group "Build tasks", with the description `Generates the BookMap classes from the COBOL copybooks.`
+`./gradlew tasks` shows the task in the group "Build tasks", with the description `Generates the CopyMapper classes from the COBOL copybooks.`
 
 The plugin adds the generated classes only to the `main` source set. It has no task for test copybooks. See [Copybooks for tests](#copybooks-for-tests).
 Without the `java` plugin, no task depends on `generateCopybookClasses`. Then run it yourself.
@@ -86,7 +86,7 @@ Without the `java` plugin, no task depends on `generateCopybookClasses`. Then ru
 ## The DSL
 
 ```kotlin
-bookmap {
+copymapper {
     copybooks {
         sourceDir = layout.projectDirectory.dir("src/main/copybook") // the default
         copyDirs.from("src/main/copylib")                            // COPY members, in search order
@@ -114,7 +114,7 @@ bookmap {
 The patterns use the Ant style, and they are relative to `sourceDir`. You can also set the lists directly, for example `includes = listOf("**/*.cpy", "**/*.cob")`.
 
 If `sourceDir` does not exist, or if it has no copybook, the task generates no class. It deletes the old files in `outputDir`.
-If `packageName` is necessary and not set, the build fails with this message: `Set bookmap.copybooks.packageName.`
+If `packageName` is necessary and not set, the build fails with this message: `Set copymapper.copybooks.packageName.`
 
 **WARNING:** Do not set `outputDir` to a directory that contains other files, for example `src/main/java`. Each run deletes all files in `outputDir`, and you can lose your source files.
 
@@ -186,7 +186,7 @@ Each copybook gives a class `OrderLine` in the same package. The build fails wit
 ```
 Two copybooks generate the same class:
   class com.example.mainframe.OrderLine comes from CUSTOMER-ORDER.cpy and CUSTOMER-RETURN.cpy
-Set bookmap.copybooks.packagePerCopybook = true, set "package" in an options file, or put the copybooks in different directories.
+Set copymapper.copybooks.packagePerCopybook = true, set "package" in an options file, or put the copybooks in different directories.
 ```
 
 The message lists all collisions of the build, not only the first. Use one of these solutions:
@@ -223,7 +223,7 @@ src/main/copylib/ADDRESS.cpy                 a COPY member: it gives no classes
 If you must keep the members inside `sourceDir`, exclude them:
 
 ```kotlin
-bookmap {
+copymapper {
     copybooks {
         packageName = "com.example.mainframe"
         copyDirs.from("src/main/copybook/members")
@@ -254,7 +254,7 @@ The file is the name of the copybook or of the `COPY` member, without the direct
 - Errors have the level ERROR. Warnings have the level WARN. Infos have the level LIFECYCLE. Thus, an `info:` line also shows in the normal output, but it is not a warning.
 - The task checks all copybooks before it fails. Then the build fails with this message: `N copybook(s) have errors. See the messages above.`
 - The task checks for class name collisions only when no copybook has an error.
-- A missing `packageName` stops the task at once, with `Set bookmap.copybooks.packageName.`
+- A missing `packageName` stops the task at once, with `Set copymapper.copybooks.packageName.`
 - If the task cannot write a file, the message is `Cannot write the generated classes: <detail>`.
 
 The task deletes the old files in `outputDir` before it reads the copybooks. If a copybook has an error, the task writes no file.
@@ -267,15 +267,15 @@ The examples on this page use the Kotlin DSL. The tests of the plugin use only t
 ```groovy
 plugins {
     id 'java'
-    id 'pt.dazz.bookmap.copybook' version '<version>'
+    id 'pt.dazz.copymapper.copybook' version '<version>'
 }
 
 dependencies {
-    implementation 'pt.dazz.bookmap:bookmap-core:<version>'
-    annotationProcessor 'pt.dazz.bookmap:bookmap-processor:<version>'
+    implementation 'pt.dazz.copymapper:copymapper-core:<version>'
+    annotationProcessor 'pt.dazz.copymapper:copymapper-processor:<version>'
 }
 
-bookmap {
+copymapper {
     copybooks {
         packageName = 'com.example.mainframe'
         copyDirs.from('src/main/copylib')
@@ -289,7 +289,7 @@ The plugin generates only the classes of the `main` source set. For test copyboo
 A task that you register yourself gets no default values from the extension. Thus, set all properties. This example is not tested:
 
 ```kotlin
-import pt.dazz.bookmap.copybook.gradle.GenerateCopybookClasses
+import pt.dazz.copymapper.copybook.gradle.GenerateCopybookClasses
 
 val generateTestCopybookClasses by tasks.registering(GenerateCopybookClasses::class) {
     sourceDir = layout.projectDirectory.dir("src/test/copybook")
@@ -303,16 +303,16 @@ val generateTestCopybookClasses by tasks.registering(GenerateCopybookClasses::cl
 sourceSets.test { java.srcDir(generateTestCopybookClasses) }
 
 dependencies {
-    testAnnotationProcessor("pt.dazz.bookmap:bookmap-processor:<version>")
+    testAnnotationProcessor("pt.dazz.copymapper:copymapper-processor:<version>")
 }
 ```
 
 ## Example project
 
-The directory [`bookmap-examples-gradle-plugin`](https://github.com/ajlima/bookmap/tree/main/bookmap-examples-gradle-plugin) is a standalone build that uses the plugin:
+The directory [`copymapper-examples-gradle-plugin`](https://github.com/dazz-pt/copymapper/tree/main/copymapper-examples-gradle-plugin) is a standalone build that uses the plugin:
 
 ```
-bookmap-examples-gradle-plugin/
+copymapper-examples-gradle-plugin/
   settings.gradle.kts
   build.gradle.kts
   src/main/copybook/orders/GET-ORDER.cpy       -> package ...orders: GetOrder, OrderLine
@@ -325,19 +325,19 @@ bookmap-examples-gradle-plugin/
 It takes the plugin and the libraries from the source of the repository. Run it from the repository root:
 
 ```bash
-./gradlew -p bookmap-examples-gradle-plugin build
+./gradlew -p copymapper-examples-gradle-plugin build
 ```
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---|---|
-| `Plugin [id: 'pt.dazz.bookmap.copybook', ...] was not found` | Add `mavenCentral()` to `pluginManagement.repositories` in `settings.gradle.kts`. |
-| `Set bookmap.copybooks.packageName.` | Set `packageName` in the extension, or `package` in each options file. |
+| `Plugin [id: 'pt.dazz.copymapper.copybook', ...] was not found` | Add `mavenCentral()` to `pluginManagement.repositories` in `settings.gradle.kts`. |
+| `Set copymapper.copybooks.packageName.` | Set `packageName` in the extension, or `package` in each options file. |
 | `copy member '...' not found in ...` | Add the directory of the member to `copyDirs`. The search is not recursive. |
 | `copy member '...' not found: no copy directory is set` | Set `copyDirs` in the extension or in the options file. |
 | `N copybook(s) have errors. See the messages above.` | Read the `error:` lines above the failure. Each line gives the file, the line, and the column. |
 | `Cannot write the generated classes: ...` | Check that `outputDir` is a directory that you can write to. |
 | `Two copybooks generate the same class` | See [Class name collisions](#class-name-collisions). |
 | The build fails on a file that is not a copybook | Add an `exclude(...)` pattern for the file. |
-| The generated classes do not compile | Add `bookmap-core` to `implementation`. If you set `lombok = true`, add Lombok to the build. |
+| The generated classes do not compile | Add `copymapper-core` to `implementation`. If you set `lombok = true`, add Lombok to the build. |
