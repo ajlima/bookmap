@@ -173,12 +173,14 @@ Use a merge commit or a rebase merge. Do not use a squash merge: the release ver
 
 The commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-| Type | Release |
+| Type | Next release |
 |---|---|
 | `feat:` | A new minor version. |
 | `fix:` | A new patch version. |
 | `BREAKING CHANGE` in the commit body | A new major version. |
 | `docs:`, `test:`, `build:`, `refactor:`, `ci:` | No release. |
+
+A merge into `main` does not publish. The maintainer starts each release by hand, and one release includes all the changes since the last tag.
 
 ### Commit authors
 
@@ -190,8 +192,9 @@ The `build` check runs `scripts/check-commit-authors.sh`. The check fails if a c
 
 ## Releases
 
-GitHub Actions makes each release from `main`. It builds and tests the commit, publishes the modules to Maven Central, and creates the tag and the GitHub release.
-See [RELEASING.md](https://github.com/dazz-pt/copymapper/blob/main/RELEASING.md) for the release cycle and the one-time setup.
+GitHub Actions makes each release from `main`, when the maintainer runs the workflow by hand. It builds and tests the commit, publishes the modules to Maven Central, and creates the tag and the GitHub release.
+Maven Central limits the publishing volume of each organization per month, so a month has 4 releases maximum.
+See [RELEASING.md](https://github.com/dazz-pt/copymapper/blob/main/RELEASING.md) for the release cycle, the limits, and the one-time setup.
 
 ### The release jobs
 
@@ -199,8 +202,8 @@ The workflow `.github/workflows/release.yml` has four jobs:
 
 | Job | Runs on | Access | Result |
 |---|---|---|---|
-| `build` | Each pull request and each push to `main`. | Read-only. | The next version, the build, the tests, and the coverage check. |
-| `publish` | A push to `main` with a new version. | Read-only. The `maven-central` environment gives the Sonatype token and the signing key. | The signed modules on Maven Central. |
+| `build` | Each pull request, each push to `main`, and each manual run. | Read-only. | The next version, the monthly release budget check (manual run only), the build, the tests, and the coverage check. |
+| `publish` | A manual run on `main` with a new version. | Read-only. The `maven-central` environment gives the Sonatype token and the signing key. | The signed modules on Maven Central. |
 | `attest` | After a successful `publish`. | `id-token: write` and `attestations: write`. No environment and no secret. | A build provenance attestation for each file on Maven Central. |
 | `release` | After a successful `publish`. | `contents: write`. The `readme-update` environment gives the key of the release app. | The tag, the GitHub release, and the README version commit. |
 
