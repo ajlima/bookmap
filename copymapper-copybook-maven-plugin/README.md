@@ -29,7 +29,7 @@ Requirements:
   <dependency>
     <groupId>pt.dazz.copymapper</groupId>
     <artifactId>copymapper-core</artifactId>
-    <version>0.27.0</version>
+    <version>0.28.0</version>
   </dependency>
 </dependencies>
 
@@ -45,7 +45,7 @@ Requirements:
           <path>
             <groupId>pt.dazz.copymapper</groupId>
             <artifactId>copymapper-processor</artifactId>
-            <version>0.27.0</version>
+            <version>0.28.0</version>
           </path>
         </annotationProcessorPaths>
       </configuration>
@@ -53,7 +53,7 @@ Requirements:
     <plugin>
       <groupId>pt.dazz.copymapper</groupId>
       <artifactId>copymapper-copybook-maven-plugin</artifactId>
-      <version>0.27.0</version>
+      <version>0.28.0</version>
       <executions>
         <execution>
           <goals>
@@ -75,7 +75,7 @@ Requirements:
 You can also run the goal from the command line with the full coordinates:
 
 ```bash
-mvn pt.dazz.copymapper:copymapper-copybook-maven-plugin:0.27.0:generate
+mvn pt.dazz.copymapper:copymapper-copybook-maven-plugin:0.28.0:generate
 ```
 
 The short form `mvn copymapper-copybook:generate` works only if `pt.dazz.copymapper` is in the `<pluginGroups>` of your `settings.xml`.
@@ -246,7 +246,7 @@ In a corporate parent POM, declare the plugin one time in `<pluginManagement>`:
     <plugin>
       <groupId>pt.dazz.copymapper</groupId>
       <artifactId>copymapper-copybook-maven-plugin</artifactId>
-      <version>0.27.0</version>
+      <version>0.28.0</version>
       <executions>
         <execution>
           <goals>
