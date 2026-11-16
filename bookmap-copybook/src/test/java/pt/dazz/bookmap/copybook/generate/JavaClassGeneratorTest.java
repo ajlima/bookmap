@@ -79,6 +79,8 @@ class JavaClassGeneratorTest {
             "return number != null && (number == 0);",
             "return total != null && (total.compareTo(1L) >= 0 && total.compareTo(9L) <= 0);")
             .containsOnlyOnce("direction = Direction.OUTPUT");
+        // The two fields, the collection, and the group of the area are views.
+        assertThat(operation.split("redefines = \"code\"", -1)).hasSize(5);
         assertThat(files.get(2).toString()).contains("public class Detail")
             .doesNotContain("direction");
     }
