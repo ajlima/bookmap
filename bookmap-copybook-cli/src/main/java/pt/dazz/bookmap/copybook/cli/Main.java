@@ -73,6 +73,8 @@ public final class Main {
                                      table: blank or zero.
           --partial-table <table>    A fixed table that a response can end inside, on an
                                      entry boundary. Repeat for more.
+          --view <item>              A REDEFINES area to map to views: the redefined item
+                                     or an alternative. Repeat for more.
           --config <file.json>       A file with all options. The command line has priority.
         """;
 
@@ -281,7 +283,8 @@ public final class Main {
             conditions,
             pairs(arguments, "--empty-item", "TABLE=SPACES or TABLE=LOW-VALUES", base.emptyItems()),
             pairs(arguments, "--empty-key", "TABLE=ITEM", base.emptyKeys()),
-            concat(base.partialTables(), arguments.all("--partial-table")));
+            concat(base.partialTables(), arguments.all("--partial-table")),
+            concat(base.views(), arguments.all("--view")));
     }
 
     /** Adds the KEY=VALUE values of an option to the values of the options file. */

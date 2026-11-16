@@ -123,4 +123,14 @@ public @interface BookField {
      * @return the converter class
      */
     Class<? extends FieldConverter> converter() default NoConverter.class;
+
+    /**
+     * Gives the Java field name of the member that this member redefines (COBOL
+     * {@code REDEFINES}). The member is in the same class and comes right before this member,
+     * or before other members that redefine it. The two members read and write the same bytes:
+     * a view. See {@link BookGroup} for the rules of a {@code REDEFINES} area.
+     *
+     * @return the field name, or an empty value for a member that is not a view
+     */
+    String redefines() default "";
 }

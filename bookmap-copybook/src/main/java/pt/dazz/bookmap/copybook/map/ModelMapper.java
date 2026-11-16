@@ -21,6 +21,7 @@ import pt.dazz.bookmap.copybook.model.ClassKind;
 import pt.dazz.bookmap.copybook.model.ClassModel;
 import pt.dazz.bookmap.copybook.model.CollectionMember;
 import pt.dazz.bookmap.copybook.model.FieldMember;
+import pt.dazz.bookmap.copybook.model.GroupMember;
 import pt.dazz.bookmap.copybook.model.JavaType;
 import pt.dazz.bookmap.copybook.model.MemberModel;
 import pt.dazz.bookmap.copybook.model.SubTypes;
@@ -223,14 +224,22 @@ public final class ModelMapper {
     void walk(List<DataItem> items, ClassBuilder owner, Context context) {
         for (int i = 0; i < items.size(); i++) {
             DataItem item = items.get(i);
-            info(this, item);
+            boolean view = item.redefines() != null && redefines.inViews(item, items);
+            if (!view || item.isGroup()) {
+                // The view mapper maps the level 88 items of an elementary view.
+                info(this, item);
+            }
             if (item.redefines() != null) {
-                redefines.redefiningItem(item, items, context.usage());
+                if (!view) {
+                    redefines.redefiningItem(item, items, context.usage());
+                }
                 continue;
             }
             List<DataItem> alternatives = RedefinesResolver.alternatives(item, items);
             DataItem previous = i > 0 ? items.get(i - 1) : null;
-            if (item.isGroup() && !alternatives.isEmpty()) {
+            if (!alternatives.isEmpty() && redefines.isViews(item)) {
+                redefines.views(item, previous, alternatives, owner, context);
+            } else if (item.isGroup() && !alternatives.isEmpty()) {
                 redefines.area(item, previous, alternatives, items.subList(i + 1, items.size()),
                     owner, context);
             } else {
@@ -246,17 +255,49 @@ public final class ModelMapper {
     void item(DataItem item, DataItem previous, ClassBuilder owner, Context context) {
         Usage usage = item.usage() != null ? item.usage() : context.usage();
         if (item.occurs() != null) {
-            collection(item, previous, owner, context, usage);
+            collection(item, previous, owner, context, usage, null);
         } else if (item.isGroup()) {
             walk(item.children(), owner, context.withGroup(item, usage));
         } else {
-            field(item, owner, context, usage, null);
+            field(item, owner, context, usage, null, null);
         }
+    }
+
+    /**
+     * Maps one alternative of a {@code REDEFINES} view area: a field, a collection, or a group.
+     *
+     * @param place an empty value for the redefined item, or the Java name of the redefined
+     *     member for a view
+     */
+    void view(DataItem item, DataItem previous, ClassBuilder owner, Context context,
+              String place) {
+        Usage usage = item.usage() != null ? item.usage() : context.usage();
+        if (item.occurs() != null) {
+            collection(item, previous, owner, context, usage, place);
+        } else if (item.isGroup()) {
+            group(item, owner, context, usage, place);
+        } else {
+            field(item, owner, context, usage, null, place);
+        }
+    }
+
+    /** Maps a group of a {@code REDEFINES} view area to a group class. */
+    private void group(DataItem item, ClassBuilder owner, Context context, Usage usage,
+                       String place) {
+        String name = item.isFiller()
+            ? owner.fieldName("filler" + ++owner.fillers, List.of())
+            : owner.fieldName(names.fieldName(item.name()), context.groups());
+        int order = owner.nextOrder();
+        ClassBuilder type = newClass(names.className(item.name()), owner.name, ClassKind.GROUP);
+        walk(item.children(), type,
+            new Context(usage, context.direction(), context.occurs(), List.of()));
+        owner.members.add(new GroupMember(name, order, context.direction(), item.name(),
+            item.declaration(), type.name, place));
     }
 
     /** Maps an elementary item to a field. */
     void field(DataItem item, ClassBuilder owner, Context context, Usage usage,
-               String forcedName) {
+               String forcedName, String place) {
         Picture picture = item.picture();
         if (!picture.numeric() && usage != Usage.DISPLAY) {
             error(item, item.name() + " has a text picture and must not have COMP or COMP-3");
@@ -311,6 +352,14 @@ public final class ModelMapper {
                 PicText.of(picture, usage, item.sign()), context.direction(), item.name(), item.declaration(),
                 decision.enumType(), decision.initialValue(), decision.conditions());
         }
+        if (place != null) {
+            if (field.initialValue() != null) {
+                diagnostics.info(item.source(), item.line(), item.column(), "the VALUE of "
+                    + item.name() + " is ignored, because " + item.name()
+                    + " is in a REDEFINES view");
+            }
+            field = field.inViewArea(place);
+        }
         owner.members.add(field);
         placed.put(item, new Placed(owner, field, item, usage));
     }
@@ -349,7 +398,7 @@ public final class ModelMapper {
      * item just before the table in the same group, or {@code null}.
      */
     private void collection(DataItem item, DataItem previous, ClassBuilder owner,
-                            Context context, Usage usage) {
+                            Context context, Usage usage, String place) {
         if (context.occurs() != null && item.occurs().dependingOn() != null) {
             error(item, "OCCURS " + item.name() + " DEPENDING ON " + item.occurs().dependingOn()
                 + " is inside OCCURS " + context.occurs() + ". BookMap does not support a"
@@ -363,6 +412,10 @@ public final class ModelMapper {
             if (dependsOn == null) {
                 return;
             }
+        } else if (linked != null && place != null) {
+            error(item, "count field option: " + item.name() + " is in a REDEFINES view. A"
+                + " table in a view must not have a count field.");
+            return;
         } else if (linked != null) {
             dependsOn = countField(item, linked, "count field " + linked.name(), owner);
             if (dependsOn == null) {
@@ -380,7 +433,7 @@ public final class ModelMapper {
         if (item.isGroup()) {
             walk(item.children(), type, inner);
         } else {
-            field(item, type, inner, usage, "value");
+            field(item, type, inner, usage, "value", null);
         }
         if (continuable != null && context.occurs() == null
             && context.direction() == Direction.INPUT_OUTPUT) {
@@ -400,9 +453,13 @@ public final class ModelMapper {
                 + " the option emptyKeys, if the program has one.");
         }
         boolean partial = partialTables.partial(item, context);
+        if (partial && (place != null || owner.kind == ClassKind.GROUP)) {
+            error(item, "partial table option: " + item.name() + " is in a REDEFINES view");
+            partial = false;
+        }
         owner.members.add(new CollectionMember(name, order, context.direction(), item.name(),
             item.declaration(), item.occurs().max(), fixed, dependsOn, type.name, emptyItem,
-            emptyKey, partial));
+            emptyKey, partial, place));
         if (partial) {
             partialTables.added(owner, name, item);
         }

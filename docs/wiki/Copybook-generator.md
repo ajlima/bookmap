@@ -93,6 +93,7 @@ All keys are optional. An unknown key is an error.
 | `emptyItems` | map | The bytes of an unused entry of each fixed table: the table name, then `SPACES` or `LOW-VALUES`. See [Empty entries of a fixed table](#empty-entries-of-a-fixed-table). | empty |
 | `emptyKeys` | map | The key item that marks an empty entry of each fixed table: the table name, then the name of the key item. See [Empty entries of a fixed table](#empty-entries-of-a-fixed-table). | empty |
 | `partialTables` | list | The fixed tables that a response can end inside, on an entry boundary. See [Partial tables](#partial-tables). | empty |
+| `views` | list | The `REDEFINES` areas to map to views: the redefined item or an alternative of each area. See [Views](#views). | empty |
 | `maxRecordLength` | integer | The maximum record length in bytes. A longer record gives a warning. See [Record length](#record-length). | no check |
 | `dates` | map | The date hints: a date or time pattern for each item name or name pattern. See [Date hints](#date-hints). | empty |
 | `continuable` | map | The handler class of each `Continuable` record. See [Continuable and Validatable](#continuable-and-validatable). | empty |
@@ -333,8 +334,9 @@ Messages: `REPLACE needs pseudo-text, for example REPLACE ==A== BY ==B==.`, `REP
 | `OCCURS n` in an `OCCURS` entry | A fixed `@BookCollection` in the item class. See [A table in a table entry](#a-table-in-a-table-entry). |
 | An elementary item | A `@BookField` with `pic`, for example `pic = "S9(7)V99 COMP-3"`. |
 | `FILLER` | A field `filler1`, `filler2`, ... See [FILLER](#filler). |
-| `REDEFINES` of an elementary item | The first definition. The other item is skipped, with a warning: `E2 redefines E1 and is skipped`. See [REDEFINES of an elementary item](#redefines-of-an-elementary-item). |
+| `REDEFINES` of an elementary item | The first definition. The other item is skipped, with a warning: `E2 redefines E1 and is skipped. To keep both, add "views": ["E1"].` See [REDEFINES of an elementary item](#redefines-of-an-elementary-item). |
 | `REDEFINES` of a group | A direction split or subtypes. See the next sections. |
+| A `REDEFINES` area in the option `views` | A member for each alternative. See [Views](#views). |
 | Level `88` of an elementary item | An enum, or constants and boolean methods. See [Level 88 items](#level-88-items). |
 | Level `88` of a group | Ignored, with an `info` diagnostic: `condition CARD-ACCOUNT is ignored`. |
 | `VALUE` of an elementary item | The initial value of the field. See [Initial values](#initial-values). |
@@ -581,17 +583,17 @@ Rules for the option:
 
 ### REDEFINES of an elementary item
 
-The generator keeps the first definition and skips the other item, with the warning `E2 redefines E1 and is skipped`. Two cases are errors:
+The generator keeps the first definition and skips the other item, with the warning `E2 redefines E1 and is skipped. To keep both, add "views": ["E1"].` To keep both items, use the option [views](#views). Without the option, two cases are errors:
 
 - The redefining item is longer: `E3 redefines E1 and is longer than E1. BookMap keeps E1, so the items after it would move.`
 - An elementary item redefines a group: `... is an elementary item that redefines the group ... BookMap does not support this.`
 
 ### A REDEFINES area in another REDEFINES area
 
-BookMap cannot map a group `REDEFINES` area in an alternative of another area (see issues #38 and #39). The generator uses the rule of an elementary item: it keeps the redefined group, and it skips each group that redefines it, with a warning:
+Without a [views](#views) option, BookMap cannot map a group `REDEFINES` area in an alternative of another area (see issue #39). The generator uses the rule of an elementary item: it keeps the redefined group, and it skips each group that redefines it, with a warning:
 
 ```
-the REDEFINES area LIMITS is inside another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS. See issues #38 and #39.
+the REDEFINES area LIMITS is inside another REDEFINES area. BookMap keeps LIMITS and skips OTHER-LIMITS. To keep both, add "views": ["LIMITS"].
 ```
 
 The bytes of the skipped group stay in the fields of the kept group. A skipped group that is longer than the kept group is an error: `C redefines A and is longer than A. BookMap keeps A, so the items after it would move.`
@@ -828,16 +830,17 @@ The Javadoc of the filler is `FILLER PIC X(1). Added to give INVOICE-REQUEST the
 
 The generator decides what to do with a `REDEFINES` area in this order:
 
-1. A subtype decision. The area becomes subtypes. The generator ignores the directions and the markers of the area (next section).
-2. A direction decision (`--direction` or `directions`).
-3. A marker in the group name. The default input markers are `INPUT`, `IN`, `REQUEST`, and `REQ`. The default output markers are `OUTPUT`, `OUT`, `RESPONSE`, and `RESP`.
+1. A views decision (`--view` or `views`). See [Views](#views). The area must have no other decision.
+2. A subtype decision. The area becomes subtypes. The generator ignores the directions and the markers of the area (next section).
+3. A direction decision (`--direction` or `directions`).
+4. A marker in the group name. The default input markers are `INPUT`, `IN`, `REQUEST`, and `REQ`. The default output markers are `OUTPUT`, `OUT`, `RESPONSE`, and `RESP`.
 
 A marker must be equal to one full part of the name, between hyphens. Thus, `REQUEST` marks `INVOICE-REQUEST`, but not `INVOICEREQUEST`. The markers are case-sensitive: write them in upper case.
 
 If none applies, the generator does not guess. It reports an error with an example of each decision:
 
 ```
-QUERY-INVOICE.cpy:3:12: error: REDEFINES area INVOICE-QUERY at line 3 needs a decision. Add a direction for each alternative, for example "directions": {"INVOICE-QUERY": "INPUT", "INVOICE-DETAIL": "OUTPUT"}. Or add a subtype decision, for example "subTypes": {"INVOICE-QUERY": {"discriminator": "...", "values": {"INVOICE-QUERY": "01", "INVOICE-DETAIL": "02"}}}.
+QUERY-INVOICE.cpy:3:12: error: REDEFINES area INVOICE-QUERY at line 3 needs a decision. Add a direction for each alternative, for example "directions": {"INVOICE-QUERY": "INPUT", "INVOICE-DETAIL": "OUTPUT"}. Or add a subtype decision, for example "subTypes": {"INVOICE-QUERY": {"discriminator": "...", "values": {"INVOICE-QUERY": "01", "INVOICE-DETAIL": "02"}}}. Or map the area to views: "views": ["INVOICE-QUERY"].
 ```
 
 Rules for a direction split:
@@ -893,6 +896,45 @@ With the example options above, `GET-ACCOUNT-SUMMARY.cpy` (in `bookmap-examples`
 )
 public class GetAccountSummary {
 ```
+
+## Views
+
+The option `views` maps a `REDEFINES` area without a discriminator to [views](REDEFINES-views). All alternatives become members of the same class. The caller selects the view.
+
+```json
+{
+  "views": [ "TRACKING-CODE", "RESULT-DETAIL" ]
+}
+```
+
+On the command line, use `--view TRACKING-CODE --view RESULT-DETAIL`.
+
+- A name is the redefined item or one alternative of the area. The usual name rules apply (`OF`, `IN`, no case).
+- The area can be a group area or an elementary area. A group can redefine an elementary item, and the reverse.
+- The area can be in a record, in an `OCCURS` entry, in a subtype, in a split alternative, or in another view.
+- Without the option, the output of the generator does not change.
+
+The generator writes these members:
+
+- An elementary alternative gives a `@BookField`. An integer gets `Integer` or `Long`, because a view that is not valid is `null`.
+- A group alternative gives a `@BookGroup` and a group class. The class name comes from the item name, with the rules of an item class name.
+- An alternative with `OCCURS n` gives a fixed `@BookCollection`.
+- Each alternative after the first gets `redefines` with the Java name of the first.
+- The members of a view get the direction of the area. Only the first member shows it.
+- An elementary member of the area gets no initial value. Its `VALUE` gives the `info` diagnostic `the VALUE of CODE is ignored, because CODE is in a REDEFINES view`. The fields in a group class keep their initial values.
+- The level 88 items of an elementary member give an enum or constants, as for other fields.
+- An area in a group class needs its own name in `views`. Else the generator keeps the first group and skips the others, as for [a REDEFINES area in another REDEFINES area](#a-redefines-area-in-another-redefines-area).
+
+| Message | Cause |
+|---|---|
+| `views option: X is not a REDEFINES item` | The item has no `REDEFINES`, and no item redefines it. |
+| `views option: the REDEFINES area X also has a subtype decision. Give one decision.` | `views` and `subTypes` name the same area. |
+| `views option: the REDEFINES area X also has a direction decision. Give one decision.` | `views` and `directions` name the same area. |
+| `views option: two names give the REDEFINES area X` | Two names in `views` give the same area. |
+| `the REDEFINES alternative X has OCCURS DEPENDING ON. A view needs a fixed size.` | An alternative contains a variable table. |
+| `count field option: T is in a REDEFINES view. A table in a view must not have a count field.` | `countFields` names a table that is an alternative. |
+| `partial table option: T is in a REDEFINES view` | `partialTables` names a table in a view. |
+| `the discriminator D must not be in a REDEFINES view` | A subtype decision names an item of a view area. |
 
 ## Date hints
 
@@ -1070,7 +1112,7 @@ Other errors, with the position `<file>:1:1`:
 The `parse` command writes the model as JSON. The `generate` command reads it again.
 
 - The root keys are `formatVersion` (now `1`), `sourceName`, `classes`, and the optional `enums`.
-- A class has `name`, `kind` (`OPERATION`, `ITEM`, or `SUBTYPE`), an optional `superclass`, optional `subTypes` (`discriminator`, and `types` with `value` and `className`), and `members`.
+- A class has `name`, `kind` (`OPERATION`, `ITEM`, `SUBTYPE`, or `GROUP`), an optional `superclass`, optional `subTypes` (`discriminator`, and `types` with `value` and `className`), and `members`.
 - A class can also have `continuable` and `validatable`: the handler class names.
 - A field member has `kind: FIELD`, `name`, `javaType` (`STRING`, `INT`, `LONG`, `BIG_DECIMAL`, `ENUM`, `LOCAL_DATE`, `LOCAL_TIME`, or `LOCAL_DATE_TIME`), `order`, `pic`, `direction`, an optional `pattern`, `cobolName`, and `declaration`.
 - A field member can also have `enumType` (only with `javaType: ENUM`), `initialValue`, and `conditions`. A condition has `cobolName`, `constant`, `method`, and `values`.
@@ -1079,6 +1121,8 @@ The `parse` command writes the model as JSON. The `generate` command reads it ag
 - A value has `from`, and `thru` for a range.
 - The writer writes the optional keys only when they have a value. Thus, a model without level 88 items and `VALUE` clauses does not change.
 - A collection member has `kind: COLLECTION`, `name`, `order`, `direction`, `maxOccurs`, `fixed`, an optional `dependsOn`, `itemClass`, `cobolName`, and `declaration`. A fixed collection can also have `emptyItem` (`SPACES`) and `emptyKey` (the Java name of the key field). The generator writes them only if they are set. A former generator does not read a model with these keys: it gives the error `unknown key`.
+- A group member has `kind: GROUP`, `name`, `order`, `direction`, `groupClass`, `cobolName`, and `declaration`.
+- A member of a views area has `redefines`: an empty text for the first member, or the Java name of the first member for a view. A former generator does not read a model with this key.
 - The reader rejects an unknown key, and another `formatVersion`: `unsupported formatVersion 2. This reader supports 1.`
 - The generator does not check a model that you edit by hand. It writes the classes as the model gives them.
 
@@ -1210,7 +1254,7 @@ private BigDecimal invDiscount;
 - A packed date with a century digit that changes, for example `CYYMMDD`, cannot get a date hint. Write a `FieldConverter` for it.
 - A fixed `OCCURS` of `COMP` items without `dependsOn` and without `emptyKey` cannot write the value 0: its bytes are LOW-VALUES. The generator gives an `info` diagnostic: `T4: a COMP value of 0 is all LOW-VALUES and cannot be written. Link the count field with the option countFields, or the key item with the option emptyKeys, if the program has one.`
 - These items are errors: `COMP-1` and `COMP-2` (#46), `NATIONAL` and `N` (#49), alphanumeric edited pictures, `POINTER`, `P`, `A`, and an `OCCURS DEPENDING ON` in a table entry.
-- The generator skips the inner alternatives of a `REDEFINES` area in another one (#38, #39).
+- Without the option `views`, the generator skips the inner alternatives of a `REDEFINES` area in another one (#39).
 - `SYNC` in an `OCCURS` is an error if the item needs slack bytes.
 - BookMap writes a `COMP-5` value only if it has the digits of the picture.
 - The generator adds the lengths of a record in `int`. A record longer than 2147483647 bytes gives a wrong length in the diagnostics (#122). The processor rejects the generated class.

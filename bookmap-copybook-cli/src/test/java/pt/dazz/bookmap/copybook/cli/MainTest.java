@@ -193,6 +193,25 @@ class MainTest {
     }
 
     @Test
+    void viewOptionsAddToTheOptionsFile() throws IOException {
+        Path copybook = dir.resolve("CODES.cpy");
+        Files.writeString(copybook, String.join("\n",
+            "       01  GET-CODES.",
+            "           05  FIRST-CODE PIC X(4).",
+            "           05  FIRST-NUMBER REDEFINES FIRST-CODE PIC 9(4).",
+            "           05  SECOND-CODE PIC X(4).",
+            "           05  SECOND-NUMBER REDEFINES SECOND-CODE PIC 9(4)."));
+        Path config = dir.resolve("config.json");
+        Files.writeString(config, "{\"views\": [\"FIRST-CODE\"]}");
+        assertThat(run("generate", copybook.toString(), "--config", config.toString(),
+            "--view", "SECOND-NUMBER", "--package", "com.example.orders", "--output-dir",
+            dir.resolve("src").toString())).isEqualTo(Main.OK);
+        assertThat(Files.readString(dir.resolve("src/com/example/orders/GetCodes.java")))
+            .contains("redefines = \"firstCode\"", "redefines = \"secondCode\"");
+        assertThat(err()).doesNotContain("is skipped");
+    }
+
+    @Test
     void partialTableOptionsAddToTheOptionsFile() throws IOException {
         Path copybook = dir.resolve("ORDERS.cpy");
         Files.writeString(copybook, String.join("\n",
@@ -377,6 +396,8 @@ class MainTest {
         "generate A.json --package a --output-dir x --empty-key A=B|parse and mapping"
             + " options are not permitted with a model input",
         "generate A.json --package a --output-dir x --partial-table A|parse and mapping"
+            + " options are not permitted with a model input",
+        "generate A.json --package a --output-dir x --view A|parse and mapping"
             + " options are not permitted with a model input",
         "generate A.cpy --package a --output-dir x --max-record-length 0|--max-record-length"
             + " needs a number of bytes of 1 or more, not '0'",

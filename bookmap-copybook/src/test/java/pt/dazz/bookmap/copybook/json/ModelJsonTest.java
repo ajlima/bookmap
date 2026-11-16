@@ -77,6 +77,16 @@ class ModelJsonTest {
     }
 
     @Test
+    void viewModelRoundTrip() {
+        BookModel model = Models.viewModel();
+        String json = ModelJson.write(model);
+        assertThat(json).contains("\"kind\" : \"GROUP\"", "\"groupClass\" : \"Detail\"",
+            "\"redefines\" : \"code\"", "\"redefines\" : \"\"");
+        assertThat(ModelJson.read(json)).isEqualTo(model);
+        assertThat(ModelJson.write(Models.partialModel())).doesNotContain("redefines");
+    }
+
+    @Test
     void partialTableRoundTrip() {
         BookModel model = Models.partialModel();
         String json = ModelJson.write(model);
@@ -144,7 +154,7 @@ class ModelJsonTest {
             + "|key 'kind' in $.classes[0] has the unknown value 'TABLE'",
         "{\"formatVersion\": 1, \"sourceName\": \"A\", \"classes\": [{\"name\": \"A\","
             + " \"kind\": \"ITEM\", \"members\": [{\"kind\": \"OTHER\"}]}]}"
-            + "|key 'kind' in $.classes[0].members[0] must be FIELD or COLLECTION",
+            + "|key 'kind' in $.classes[0].members[0] must be FIELD, COLLECTION, or GROUP",
         "{\"formatVersion\": 1, \"sourceName\": \"A\", \"classes\": [{\"name\": \"A\","
             + " \"kind\": \"ITEM\", \"members\": [{\"name\": \"a\"}]}]}"
             + "|missing key 'kind' in $.classes[0].members[0]",

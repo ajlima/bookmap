@@ -406,7 +406,7 @@ See the standalone build `bookmap-native-test`.
 ## Next steps
 
 - Read the [Annotations reference](Annotations-reference) and the [Conventions](Conventions).
-- Map fixed tables and `REDEFINES` areas: [Collections and fixed OCCURS](Collections-and-fixed-OCCURS) and [Subtypes (REDEFINES)](Subtypes-REDEFINES).
+- Map fixed tables and `REDEFINES` areas: [Collections and fixed OCCURS](Collections-and-fixed-OCCURS), [Subtypes (REDEFINES)](Subtypes-REDEFINES), and [REDEFINES views](REDEFINES-views).
 - Select a transport for the mainframe: [Transports and simulator](Transports-and-simulator#choose-a-transport).
 - Generate the classes from a copybook with the [Copybook generator](Copybook-generator).
 - If a step fails, see [FAQ and troubleshooting](FAQ-and-troubleshooting).

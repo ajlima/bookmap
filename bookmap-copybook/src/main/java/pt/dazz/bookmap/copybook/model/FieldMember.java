@@ -18,11 +18,14 @@ import pt.dazz.bookmap.annotation.Direction;
  * @param initialValue the initial value from the {@code VALUE} clause, or {@code null}. It is
  *     a text without spaces on the right, a plain decimal number, or an enum constant name.
  * @param conditions the constants and boolean methods of the level 88 items
+ * @param redefines the place in a {@code REDEFINES} view area: {@code null} outside an area,
+ *     an empty value for the redefined member, or the Java name of the redefined member for a
+ *     view
  */
 public record FieldMember(String name, JavaType javaType, int order, String pic,
                           Direction direction, String cobolName, String declaration,
                           String pattern, String enumType, String initialValue,
-                          List<ConditionMember> conditions)
+                          List<ConditionMember> conditions, String redefines)
     implements MemberModel {
 
     /**
@@ -39,9 +42,46 @@ public record FieldMember(String name, JavaType javaType, int order, String pic,
      * @param enumType the enum name
      * @param initialValue the initial value
      * @param conditions the conditions
+     * @param redefines the place in a view area
      */
     public FieldMember {
         conditions = List.copyOf(conditions);
+    }
+
+    /**
+     * Creates a field outside a {@code REDEFINES} view area.
+     *
+     * @param name the name
+     * @param javaType the Java type
+     * @param order the order
+     * @param pic the pic
+     * @param direction the direction
+     * @param cobolName the COBOL name
+     * @param declaration the declaration
+     * @param pattern the date or time pattern
+     * @param enumType the enum name
+     * @param initialValue the initial value
+     * @param conditions the conditions
+     */
+    public FieldMember(String name, JavaType javaType, int order, String pic,
+                       Direction direction, String cobolName, String declaration,
+                       String pattern, String enumType, String initialValue,
+                       List<ConditionMember> conditions) {
+        this(name, javaType, order, pic, direction, cobolName, declaration, pattern, enumType,
+            initialValue, conditions, null);
+    }
+
+    /**
+     * Gives a copy of this field as a member of a {@code REDEFINES} view area, without an
+     * initial value.
+     *
+     * @param place an empty value for the redefined member, or the Java name of the redefined
+     *     member
+     * @return the copy
+     */
+    public FieldMember inViewArea(String place) {
+        return new FieldMember(name, javaType, order, pic, direction, cobolName, declaration,
+            pattern, enumType, null, conditions, place);
     }
 
     /**

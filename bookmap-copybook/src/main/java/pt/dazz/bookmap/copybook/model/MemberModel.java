@@ -5,7 +5,15 @@ import pt.dazz.bookmap.annotation.Direction;
 /**
  * Describes one member of a generated class.
  */
-public sealed interface MemberModel permits FieldMember, CollectionMember {
+public sealed interface MemberModel permits FieldMember, CollectionMember, GroupMember {
+
+    /**
+     * Gives the place of the member in a {@code REDEFINES} view area.
+     *
+     * @return {@code null} outside an area, an empty value for the redefined member, or the
+     *     Java name of the redefined member for a view
+     */
+    String redefines();
 
     /**
      * Gives the Java field name.

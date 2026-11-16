@@ -8,6 +8,7 @@ import java.util.Objects;
 import pt.dazz.bookmap.codec.internal.Blank;
 import pt.dazz.bookmap.codec.internal.TextCodec;
 import pt.dazz.bookmap.codec.internal.Unscaled;
+import pt.dazz.bookmap.exception.InvalidValueException;
 import pt.dazz.bookmap.exception.MappingException;
 
 /**
@@ -273,7 +274,7 @@ public final class EditedPicture {
             char kind = kinds[i];
             int bad = kind == LETTER ? letters(text, i) : valid(kind, chars[i], c) ? -1 : i;
             if (bad >= 0) {
-                throw new MappingException(field + ": byte 0x"
+                throw new InvalidValueException(field + ": byte 0x"
                     + String.format("%02X", bytes[from + bad] & 0xFF) + " at offset " + bad
                     + " of the field is not valid in the edited picture " + this.text);
             }

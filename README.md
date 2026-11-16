@@ -358,6 +358,7 @@ See [Copybook generator](https://github.com/ajlima/bookmap/wiki/Copybook-generat
 | `pic` strings, byte sizes, Java types, and conversion rules | [PIC syntax and type mapping](https://github.com/ajlima/bookmap/wiki/PIC-syntax-and-type-mapping) |
 | `OCCURS DEPENDING ON`, pagination, and fixed `OCCURS` | [Collections and fixed OCCURS](https://github.com/ajlima/bookmap/wiki/Collections-and-fixed-OCCURS) |
 | `REDEFINES` with a discriminator | [Subtypes (REDEFINES)](https://github.com/ajlima/bookmap/wiki/Subtypes-REDEFINES) |
+| `REDEFINES` without a discriminator | [REDEFINES views](https://github.com/ajlima/bookmap/wiki/REDEFINES-views) |
 | The exception hierarchy | [Error handling](https://github.com/ajlima/bookmap/wiki/Error-handling) |
 | The comparison of the transports, the transport SPI, and the simulator | [Transports and simulator](https://github.com/ajlima/bookmap/wiki/Transports-and-simulator) |
 | &nbsp;&nbsp;↳ The CICS Transaction Gateway transport | [CICS Transaction Gateway](https://github.com/ajlima/bookmap/wiki/CICS-Transaction-Gateway) |

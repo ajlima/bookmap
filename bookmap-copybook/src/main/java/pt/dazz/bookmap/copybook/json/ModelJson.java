@@ -18,6 +18,7 @@ import pt.dazz.bookmap.copybook.model.ConditionMember;
 import pt.dazz.bookmap.copybook.model.EnumConstant;
 import pt.dazz.bookmap.copybook.model.EnumModel;
 import pt.dazz.bookmap.copybook.model.FieldMember;
+import pt.dazz.bookmap.copybook.model.GroupMember;
 import pt.dazz.bookmap.copybook.model.JavaType;
 import pt.dazz.bookmap.copybook.model.MemberModel;
 import pt.dazz.bookmap.copybook.model.SubTypeEntry;
@@ -39,7 +40,7 @@ public final class ModelJson {
     private static final Set<String> TYPE_KEYS = Set.of("value", "className");
     private static final Set<String> FIELD_KEYS = Set.of("kind", "name", "javaType", "order",
         "pic", "direction", "pattern", "enumType", "initialValue", "conditions", "cobolName",
-        "declaration");
+        "declaration", "redefines");
     private static final Set<String> CONDITION_KEYS = Set.of("cobolName", "constant", "method",
         "values");
     private static final Set<String> VALUE_KEYS = Set.of("from", "thru");
@@ -47,7 +48,9 @@ public final class ModelJson {
     private static final Set<String> CONSTANT_KEYS = Set.of("name", "cobolName", "values");
     private static final Set<String> COLLECTION_KEYS = Set.of("kind", "name", "order",
         "direction", "maxOccurs", "fixed", "dependsOn", "itemClass", "cobolName", "declaration",
-        "emptyItem", "emptyKey", "partial");
+        "emptyItem", "emptyKey", "partial", "redefines");
+    private static final Set<String> GROUP_KEYS = Set.of("kind", "name", "order", "direction",
+        "groupClass", "redefines", "cobolName", "declaration");
 
     private ModelJson() {
     }
@@ -140,6 +143,13 @@ public final class ModelJson {
                     node.put("pattern", field.pattern());
                 }
             }
+            case GroupMember group -> {
+                node.put("kind", "GROUP");
+                node.put("name", group.name());
+                node.put("order", group.order());
+                node.put("direction", group.direction().name());
+                node.put("groupClass", group.groupClass());
+            }
             case CollectionMember collection -> {
                 node.put("kind", "COLLECTION");
                 node.put("name", collection.name());
@@ -161,6 +171,9 @@ public final class ModelJson {
                     node.put("partial", true);
                 }
             }
+        }
+        if (member.redefines() != null) {
+            node.put("redefines", member.redefines());
         }
         node.put("cobolName", member.cobolName());
         node.put("declaration", member.declaration());
@@ -271,12 +284,20 @@ public final class ModelJson {
                 member.has("emptyItem") ? member.enumValue("emptyItem", EmptyItem.class)
                     : EmptyItem.LOW_VALUES,
                 member.optionalText("emptyKey"),
-                member.has("partial") && member.bool("partial"));
+                member.has("partial") && member.bool("partial"),
+                member.optionalText("redefines"));
+        }
+        if (kind != null && "GROUP".equals(kind.asText())) {
+            JsonObject member = JsonObject.of(node, path, GROUP_KEYS);
+            return new GroupMember(member.text("name"), member.integer("order"),
+                member.enumValue("direction", Direction.class), member.text("cobolName"),
+                member.text("declaration"), member.text("groupClass"),
+                member.optionalText("redefines"));
         }
         JsonObject member = JsonObject.of(node, path, FIELD_KEYS);
         if (!"FIELD".equals(member.text("kind"))) {
             throw new ModelJsonException("key 'kind' in " + path
-                + " must be FIELD or COLLECTION");
+                + " must be FIELD, COLLECTION, or GROUP");
         }
         List<ConditionMember> conditions = new ArrayList<>();
         List<JsonNode> nodes = member.has("conditions") ? member.array("conditions") : List.of();
@@ -296,6 +317,7 @@ public final class ModelJson {
             member.integer("order"), member.text("pic"),
             member.enumValue("direction", Direction.class), member.text("cobolName"),
             member.text("declaration"), member.optionalText("pattern"), enumType,
-            member.optionalText("initialValue"), conditions);
+            member.optionalText("initialValue"), conditions,
+            member.optionalText("redefines"));
     }
 }

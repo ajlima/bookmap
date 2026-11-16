@@ -232,7 +232,7 @@ class ConditionMapperTest {
         MapResult result = map("01 ORDER.", "05 A PIC X.", "05 B REDEFINES A PIC X.",
             "88 B-ON VALUE 'Y'.");
         assertThat(messages(result)).containsExactly("condition B-ON is ignored",
-            "B redefines A and is skipped");
+            "B redefines A and is skipped. To keep both, add \"views\": [\"A\"].");
     }
 
     @Test

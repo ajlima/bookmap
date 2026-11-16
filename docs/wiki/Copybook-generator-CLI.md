@@ -67,6 +67,7 @@ A `generate` input that ends with `.json` is a model. Each other input is a copy
 | `--empty-item <table>=SPACES\|LOW-VALUES` | both | The bytes of an unused entry of a fixed table. The generator writes `emptyItem` on the table. Repeat the option for more tables. See [Empty entries of a fixed table](Copybook-generator#empty-entries-of-a-fixed-table). |
 | `--empty-key <table>=<item>` | both | The key item that marks an empty entry of a fixed table. The generator writes `emptyKey` on the table. Repeat the option for more tables. |
 | `--partial-table <table>` | both | A fixed table that a response can end inside, on an entry boundary. The generator writes `partial = true` on the table. Repeat the option for more tables. See [Partial tables](Copybook-generator#partial-tables). |
+| `--view <item>` | both | A `REDEFINES` area to map to views: the redefined item or an alternative. Repeat the option for more areas. See [Views](Copybook-generator#views). |
 | `--max-record-length <bytes>` | both | The maximum record length. A longer record gives a warning. Default: no check. See [Record length](Copybook-generator#record-length). |
 | `--conditions <name>=<mode>` | both | The mode (`enum`, `constants`, or `none`) of the level 88 items of an elementary item. The mode is not case-sensitive. Repeat the option for more items. See [Level 88 items](Copybook-generator#level-88-items). |
 | `--date <name>=<pattern>` | both | A date hint: the date or time pattern of an item. A name with `*` is a name pattern, for example `*-DATE=yyyyMMdd`. Repeat the option for more hints. See [Date hints](Copybook-generator#date-hints). |
@@ -74,7 +75,7 @@ A `generate` input that ends with `.json` is a model. Each other input is a copy
 | `--validatable <record>=<class>` | both | The handler class of a `Validatable` record. |
 | `--config <file.json>` | both | An [options file](Copybook-generator#options-file) with all options. |
 
-With a model input, the parse and mapping options (`--format` to `--validatable`, `--empty-item`, `--empty-key`, and `--partial-table`) are not permitted. The model already contains their result.
+With a model input, the parse and mapping options (`--format` to `--validatable`, `--empty-item`, `--empty-key`, `--partial-table`, and `--view`) are not permitted. The model already contains their result.
 With a model input, the generator uses only `package` and `lombok` from the options file. It ignores the other keys.
 If you give a single-value option two times, the last value applies.
 
@@ -89,6 +90,7 @@ The command line and the options file work together in this way:
 - `--count-field` adds a count field. For the same table, the command line has priority over `countFields` in the file.
 - `--empty-item` and `--empty-key` add a marker. For the same table, the command line has priority over `emptyItems` and `emptyKeys` in the file.
 - `--partial-table` adds a table after the tables of `partialTables` in the file.
+- `--view` adds an area after the areas of `views` in the file.
 - `--date`, `--continuable`, and `--validatable` add an entry. For the same name or record, the command line has priority.
 - `--lombok` sets `lombok`. Without `--lombok`, the value of the file applies. The command line cannot set `lombok` to `false`.
 - Subtype decisions come only from the file.
@@ -254,6 +256,15 @@ bookmap-copybook generate QUERY-INVOICE.cpy --package com.example.billing --outp
 ```
 
 See [Directions](Copybook-generator#directions).
+
+If no field selects the layout, map the area to views:
+
+```bash
+bookmap-copybook generate QUERY-INVOICE.cpy --package com.example.billing --output-dir src/main/java \
+  --view INVOICE-QUERY
+```
+
+See [Views](Copybook-generator#views).
 
 ### Keep the model and compare it
 

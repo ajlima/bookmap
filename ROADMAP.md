@@ -28,7 +28,6 @@ New features of the copybook generator and its build plugins. Milestone: [Copybo
 
 New layout features in the core and the processor. Milestone: [Mapping](https://github.com/ajlima/bookmap/milestone/4).
 
-- [#38](https://github.com/ajlima/bookmap/issues/38) Support REDEFINES without a discriminator
 - [#39](https://github.com/ajlima/bookmap/issues/39) Support subtypes in a subtype
 - [#40](https://github.com/ajlima/bookmap/issues/40) Support base fields after the redefined area
 - [#41](https://github.com/ajlima/bookmap/issues/41) Support a base count field for a collection in a subclass
