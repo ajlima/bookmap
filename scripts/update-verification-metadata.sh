@@ -2,7 +2,7 @@
 # Writes the SHA-256 checksums of all plugins and libraries in the Gradle dependency
 # verification files:
 #   - gradle/verification-metadata.xml (the root build);
-#   - bookmap-examples-gradle-plugin/gradle/verification-metadata.xml (the standalone example).
+#   - copymapper-examples-gradle-plugin/gradle/verification-metadata.xml (the standalone example).
 # The example is a separate root build, so Gradle does not read the file of the root build there.
 #
 # Usage: scripts/update-verification-metadata.sh [Gradle options]
@@ -17,7 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 root_file="gradle/verification-metadata.xml"
-example_file="bookmap-examples-gradle-plugin/gradle/verification-metadata.xml"
+example_file="copymapper-examples-gradle-plugin/gradle/verification-metadata.xml"
 
 clear_components() {
   local file="$1"
@@ -42,7 +42,7 @@ trap 'rm -rf "$gradle_home"' EXIT
 # dependencies of publishToMavenLocal. The mutation check runs mutationTest (PIT).
 ./gradlew --gradle-user-home "$gradle_home" --write-verification-metadata sha256 \
   clean build publishToMavenLocal mutationTest "$@"
-./gradlew --gradle-user-home "$gradle_home" -p bookmap-examples-gradle-plugin \
+./gradlew --gradle-user-home "$gradle_home" -p copymapper-examples-gradle-plugin \
   --write-verification-metadata sha256 clean build "$@"
 
 echo "Updated $root_file and $example_file"
