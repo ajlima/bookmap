@@ -83,6 +83,21 @@ A route maps an operation name to a CICS program and a transaction. The operatio
 
 `build()` throws `IllegalStateException` if the connector is not set or if no route is set. It opens no connection.
 
+### The timeout of one call
+
+A request can set the ECI timeout of its own call. Use the attribute `CtgTransport.TIMEOUT_ATTRIBUTE` (`ctg.timeoutSeconds`).
+`CopyMapperClient` sends no attributes. To set the timeout of one call, call `Transport.exchange` directly with a `BookRequest`.
+
+```java
+var request = new BookRequest(operation, bytes, maxResponseLength,
+    Map.of(CtgTransport.TIMEOUT_ATTRIBUTE, "8"));
+```
+
+- The value is a decimal integer from 0 to 32767. The unit is seconds. `0` means no ECI timeout.
+- The attribute applies to that call only. A call without the attribute uses the timeout of the builder.
+- A value that is not correct causes an `IllegalArgumentException`. The message gives the key and the value.
+- The transport checks the value after the route and the COMMAREA length, and before it takes a connection. Thus the transport sends no request.
+
 ### The builder of the connector
 
 `JavaGatewayConnector` opens a connection with `com.ibm.ctg.client.JavaGateway`.
@@ -123,6 +138,23 @@ The transport translates each failure to a CopyMapper exception:
 The message gives the operation, the program, the return code, and its name. For example: `GetInvoice (PGMINV01): ECI return code -22 (ECI_ERR_UNKNOWN_SERVER)`.
 
 **WARNING:** Do not retry a call after a `TransportException` from a failure during the call, or after a timeout, without a check. CICS can have run the program and changed data.
+
+### Failures before the send
+
+Each `TransportException` and each subclass has the method `requestSent()`. It tells if the transport possibly sent the request to CICS.
+
+`requestSent()` is `false` when the transport certainly did not send the request. This is the case for these failures:
+
+- No route for the operation.
+- A COMMAREA longer than 32,500 bytes.
+- No free connection after `connectionWaitTimeout`.
+- The connection to the gateway cannot be opened. This is an `IOException` from the connector.
+- The thread is interrupted while it waits for a free connection. The interrupt flag stays set.
+- The transport is closed.
+
+`requestSent()` is `true` for each failure during or after the ECI call. This includes each ECI return code, each timeout, and each abend. A `RuntimeException` from `EciConnector.open()` is not translated. The transport passes it to the caller as it is.
+
+**CAUTION:** Retry a call only when `requestSent()` is `false`. If you retry after `requestSent()` is `true`, the program can run two times and change data two times.
 
 ## Spring Boot
 

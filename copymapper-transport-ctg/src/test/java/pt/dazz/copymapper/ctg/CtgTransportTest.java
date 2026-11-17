@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -30,6 +31,10 @@ class CtgTransportTest {
 
     private static BookRequest request(String operation, int payloadLength, int maxResponse) {
         return new BookRequest(operation, new byte[payloadLength], maxResponse);
+    }
+
+    private static TransportException thrown(org.assertj.core.api.ThrowableAssert.ThrowingCallable call) {
+        return (TransportException) org.assertj.core.api.Assertions.catchThrowable(call);
     }
 
     private Throwable failWith(int returnCode, String abendCode) {
@@ -89,6 +94,53 @@ class CtgTransportTest {
     }
 
     @Test
+    void unknownOperationIsNotSent() {
+        assertThat(thrown(() -> transport.exchange(request("GetPayment", 4, 8))).requestSent())
+            .isFalse();
+    }
+
+    @Test
+    void commareaOverLimitIsNotSent() {
+        assertThat(thrown(() -> transport.exchange(request("GetInvoice", 10, 32_501)))
+            .requestSent()).isFalse();
+    }
+
+    @Test
+    void exchangeAfterCloseIsNotSent() {
+        transport.close();
+        assertThat(thrown(() -> transport.exchange(request("GetInvoice", 4, 8))).requestSent())
+            .isFalse();
+    }
+
+    @Test
+    void openFailureIsNotSent() {
+        connector.failOpen(new IOException("refused"));
+        TransportException e = thrown(() -> transport.exchange(request("GetInvoice", 4, 8)));
+        assertThat(e).isExactlyInstanceOf(ConnectionException.class);
+        assertThat(e.requestSent()).isFalse();
+    }
+
+    @Test
+    void callIoFailureIsPossiblySent() {
+        connector.thenFail(new IOException("reset"));
+        assertThat(thrown(() -> transport.exchange(request("GetInvoice", 4, 8))).requestSent())
+            .isTrue();
+    }
+
+    @Test
+    void uncheckedCallFailureIsPossiblySent() {
+        connector.thenFail(new IllegalStateException("broken library"));
+        assertThat(thrown(() -> transport.exchange(request("GetInvoice", 4, 8))).requestSent())
+            .isTrue();
+    }
+
+    @Test
+    void abendIsPossiblySent() {
+        assertThat(((TransportException) failWith(-7, "ASRA")).requestSent()).isTrue();
+        assertThat(((TransportException) failWith(-7, "AEI0")).requestSent()).isTrue();
+    }
+
+    @Test
     void commareaOverLimitFails() {
         assertThatThrownBy(() -> transport.exchange(request("GetInvoice", 10, 32_501)))
             .isExactlyInstanceOf(TransportException.class)
@@ -119,19 +171,22 @@ class CtgTransportTest {
     @ParameterizedTest
     @ValueSource(ints = {-5, -6})
     void timeoutCodesAreTimeout(int code) {
-        assertThat(failWith(code, null)).isExactlyInstanceOf(TransportTimeoutException.class);
+        assertThat(failWith(code, null)).isExactlyInstanceOf(TransportTimeoutException.class)
+            .extracting(e -> ((TransportException) e).requestSent()).isEqualTo(true);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {-3, -4, -16, -17, -22, -26, -28, -29})
     void connectionCodesAreConnectionException(int code) {
-        assertThat(failWith(code, null)).isExactlyInstanceOf(ConnectionException.class);
+        assertThat(failWith(code, null)).isExactlyInstanceOf(ConnectionException.class)
+            .extracting(e -> ((TransportException) e).requestSent()).isEqualTo(true);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {-27, -1, -9, -30, -999})
     void otherCodesAreTransportException(int code) {
-        assertThat(failWith(code, null)).isExactlyInstanceOf(TransportException.class);
+        assertThat(failWith(code, null)).isExactlyInstanceOf(TransportException.class)
+            .extracting(e -> ((TransportException) e).requestSent()).isEqualTo(true);
     }
 
     @Test
@@ -193,5 +248,77 @@ class CtgTransportTest {
         assertThat(connector.connections().getFirst().closed()).isTrue();
         single.exchange(request("GetInvoice", 4, 8));
         assertThat(connector.opened()).isEqualTo(2);
+    }
+
+    private static BookRequest withTimeout(String value) {
+        return new BookRequest("GetInvoice", new byte[4], 8,
+            Map.of(CtgTransport.TIMEOUT_ATTRIBUTE, value));
+    }
+
+    private CtgTransport transportWithInstanceTimeout() {
+        return builder().timeout(Duration.ofSeconds(45)).build();
+    }
+
+    @Test
+    void timeoutAttributeSetsTheCallTimeout() {
+        transportWithInstanceTimeout().exchange(withTimeout("8"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(8);
+    }
+
+    @Test
+    void timeoutAttributeZeroMeansNoTimeout() {
+        transportWithInstanceTimeout().exchange(withTimeout("0"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isZero();
+    }
+
+    @Test
+    void timeoutAttributeMaximum() {
+        transportWithInstanceTimeout().exchange(withTimeout("32767"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(32767);
+    }
+
+    @Test
+    void timeoutAttributeWithLeadingZerosIsAccepted() {
+        transportWithInstanceTimeout().exchange(withTimeout("008"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(8);
+    }
+
+    @Test
+    void withoutAttributeTheInstanceTimeoutApplies() {
+        CtgTransport configured = transportWithInstanceTimeout();
+        configured.exchange(request("GetInvoice", 4, 8));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(45);
+        configured.exchange(withTimeout("8"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(8);
+        configured.exchange(request("GetInvoice", 4, 8));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(45);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"-1", "32768", "", " 5", "+5", "5.0", "abc", "99999999999"})
+    void incorrectTimeoutAttributeFails(String value) {
+        CtgTransport configured = transportWithInstanceTimeout();
+        assertThatThrownBy(() -> configured.exchange(withTimeout(value)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining(CtgTransport.TIMEOUT_ATTRIBUTE)
+            .hasMessageContaining("\"" + value + "\"");
+        assertThat(connector.opened()).isZero();
+        assertThat(connector.calls()).isEmpty();
+    }
+
+    @Test
+    void unknownOperationWinsOverIncorrectAttribute() {
+        BookRequest unknown = new BookRequest("Unknown", new byte[4], 8,
+            Map.of(CtgTransport.TIMEOUT_ATTRIBUTE, "abc"));
+        assertThatThrownBy(() -> transport.exchange(unknown))
+            .isInstanceOf(OperationNotFoundException.class);
+    }
+
+    @Test
+    void commareaLengthErrorWinsOverIncorrectAttribute() {
+        BookRequest tooLong = new BookRequest("GetInvoice", new byte[4],
+            CtgTransport.MAX_COMMAREA_LENGTH + 1, Map.of(CtgTransport.TIMEOUT_ATTRIBUTE, "abc"));
+        assertThatThrownBy(() -> transport.exchange(tooLong))
+            .isExactlyInstanceOf(TransportException.class);
     }
 }

@@ -76,12 +76,44 @@ class ConnectionPoolTest {
     }
 
     @Test
+    void waitTimeoutIsNotSent() {
+        ConnectionPool pool = pool(1, Duration.ofMillis(50));
+        pool.acquire();
+        assertThat(org.assertj.core.api.Assertions.catchThrowableOfType(
+            TransportException.class, pool::acquire).requestSent()).isFalse();
+    }
+
+    @Test
+    void interruptIsNotSent() throws Exception {
+        ConnectionPool pool = pool(1, Duration.ofSeconds(10));
+        pool.acquire();
+        AtomicReference<TransportException> thrown = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        CountDownLatch done = new CountDownLatch(1);
+        Thread waiter = Thread.ofVirtual().start(() -> {
+            try {
+                pool.acquire();
+            } catch (TransportException e) {
+                thrown.set(e);
+                interrupted.set(Thread.currentThread().isInterrupted());
+            }
+            done.countDown();
+        });
+        Thread.sleep(50);
+        waiter.interrupt();
+        assertThat(done.await(2, TimeUnit.SECONDS)).isTrue();
+        assertThat(thrown.get().requestSent()).isFalse();
+        assertThat(interrupted).isTrue();
+    }
+
+    @Test
     void openFailureIsConnectionException() {
         IOException failure = new IOException("refused");
         connector.failOpen(failure);
         ConnectionPool pool = pool(1, Duration.ofMillis(50));
         assertThatThrownBy(pool::acquire).isExactlyInstanceOf(ConnectionException.class)
-            .hasCause(failure);
+            .hasCause(failure)
+            .extracting(e -> ((TransportException) e).requestSent()).isEqualTo(false);
         connector.failOpen(null);
         assertThat(pool.acquire()).isNotNull();
     }
@@ -115,7 +147,8 @@ class ConnectionPoolTest {
         ConnectionPool pool = pool(1, Duration.ofSeconds(1));
         pool.close();
         assertThatThrownBy(pool::acquire).isExactlyInstanceOf(TransportException.class)
-            .hasMessage("The CTG transport is closed");
+            .hasMessage("The CTG transport is closed")
+            .extracting(e -> ((TransportException) e).requestSent()).isEqualTo(false);
     }
 
     @Test
