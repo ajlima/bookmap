@@ -13,12 +13,20 @@ public enum FieldDirection {
     /** The field is derived by the runtime. */
     DERIVED;
 
-    /** Tells if the field is in the request. @return true for INPUT and INPUT_OUTPUT */
+    /**
+     * Tells if the field is in the request.
+     *
+     * @return true for INPUT and INPUT_OUTPUT
+     */
     public boolean inRequest() {
         return this == INPUT || this == INPUT_OUTPUT;
     }
 
-    /** Tells if the field is in the response. @return true for OUTPUT and INPUT_OUTPUT */
+    /**
+     * Tells if the field is in the response.
+     *
+     * @return true for OUTPUT and INPUT_OUTPUT
+     */
     public boolean inResponse() {
         return this == OUTPUT || this == INPUT_OUTPUT;
     }

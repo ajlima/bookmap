@@ -9,7 +9,7 @@ import java.util.Objects;
  * @param formatVersion the format version, always 1
  * @param sourceName the name of the source
  * @param sourceHash the hash of the source, or null
- * @param charset the name of a single-byte charset
+ * @param charset the name of a single-byte charset; the record keeps the canonical name
  * @param byteOrder the byte order, always BIG_ENDIAN
  * @param root the root node
  */
@@ -33,18 +33,23 @@ public record MappingSpec(int formatVersion, String sourceName, String sourceHas
         if (!BIG_ENDIAN.equals(byteOrder)) {
             throw new IllegalArgumentException("unsupported byteOrder " + byteOrder);
         }
-        requireSingleByte(charset);
+        charset = canonicalSingleByte(charset);
     }
 
-    private static void requireSingleByte(String name) {
+    private static String canonicalSingleByte(String name) {
+        Charset found;
         float max;
         try {
-            max = Charset.forName(name).newEncoder().maxBytesPerChar();
+            found = Charset.forName(name);
+            max = found.newEncoder().maxBytesPerChar();
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("unknown charset " + name, e);
+        } catch (UnsupportedOperationException e) {
+            throw new IllegalArgumentException("charset " + name + " cannot encode", e);
         }
         if (max != 1.0f) {
             throw new IllegalArgumentException("charset " + name + " is not single-byte");
         }
+        return found.name();
     }
 }

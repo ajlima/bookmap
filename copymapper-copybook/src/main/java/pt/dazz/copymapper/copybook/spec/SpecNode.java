@@ -45,12 +45,20 @@ public record SpecNode(String cobolName, int level, String path, String picture,
         children = List.copyOf(children);
     }
 
-    /** Tells if the node is a group. @return true if it has children */
+    /**
+     * Tells if the node is a group.
+     *
+     * @return true if it has children
+     */
     public boolean isGroup() {
         return !children.isEmpty();
     }
 
-    /** Tells if the node is a FILLER. @return true for the name FILLER */
+    /**
+     * Tells if the node is a FILLER.
+     *
+     * @return true for the name FILLER
+     */
     public boolean isFiller() {
         return "FILLER".equals(cobolName);
     }

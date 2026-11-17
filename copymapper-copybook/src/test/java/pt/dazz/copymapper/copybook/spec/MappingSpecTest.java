@@ -61,4 +61,17 @@ class MappingSpecTest {
         assertThrows(NullPointerException.class,
                 () -> new MappingSpec(1, "A", null, "IBM037", "BIG_ENDIAN", null));
     }
+
+    @Test
+    void storesTheCanonicalCharsetName() {
+        assertEquals("IBM037", spec(1, "cp037", "BIG_ENDIAN").charset());
+        assertEquals("IBM037", spec(1, "ibm037", "BIG_ENDIAN").charset());
+    }
+
+    @Test
+    void rejectsADecodeOnlyCharset() {
+        var e = assertThrows(IllegalArgumentException.class,
+                () -> spec(1, "ISO-2022-CN", "BIG_ENDIAN"));
+        assertTrue(e.getMessage().contains("ISO-2022-CN"));
+    }
 }

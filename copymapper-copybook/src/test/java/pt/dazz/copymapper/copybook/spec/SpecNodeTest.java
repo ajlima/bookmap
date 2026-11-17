@@ -2,13 +2,14 @@ package pt.dazz.copymapper.copybook.spec;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SpecNodeTest {
@@ -92,13 +93,15 @@ class SpecNodeTest {
         assertEquals(List.of("B", "A"), List.copyOf(d.values().keySet()));
         assertThrows(UnsupportedOperationException.class, () -> d.values().put("Z", "Z"));
         VariantSpec v = new VariantSpec.FixedSelection("R", null);
-        assertTrue(v instanceof VariantSpec.FixedSelection f && f.response() == null
-                && f.request().equals("R"));
+        var fixed = assertInstanceOf(VariantSpec.FixedSelection.class, v);
+        assertNull(fixed.response());
+        assertEquals("R", fixed.request());
         var from = new ValueSpec("NUMERIC", "1");
         var range = new ConditionRange(from, null);
         var c = new ConditionSpec("OK", List.of(range));
-        assertEquals(Map.of("OK", 1), Map.of(c.name(), c.values().size()));
+        assertEquals("OK", c.name());
+        assertEquals(1, c.values().size());
         assertEquals(new OccursSpec(1, 3, null), new OccursSpec(1, 3, null));
-        assertEquals(new SourceLocation("a", 1, 2).column(), 2);
+        assertEquals(2, new SourceLocation("a", 1, 2).column());
     }
 }
