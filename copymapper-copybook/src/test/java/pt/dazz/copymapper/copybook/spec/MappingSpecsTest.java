@@ -183,6 +183,13 @@ class MappingSpecsTest {
     }
 
     @Test
+    void resolvesARedefinesAmongTheSiblingsOnly() {
+        var spec = draft("R", "01 R.", "05 G.", "10 A PIC X.", "05 A PIC X.",
+                "05 B REDEFINES A PIC X.");
+        assertThat(at(spec, "R.B").redefines()).isEqualTo("R.A");
+    }
+
+    @Test
     void keepsAnUnresolvedRedefines() {
         var spec = draft("R", "01 R.", "05 B REDEFINES GONE PIC X.");
         assertThat(at(spec, "R.B").redefines()).isEqualTo("GONE");
