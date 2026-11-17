@@ -18,14 +18,18 @@ CopyMapperException
 | `MappingException` | A layout or conversion problem, or a missing codec. | Correct the class, the data, or the build. It is a bug, not a runtime condition. |
 | `ContinuationLimitException` | `hasContinuation()` is still `true` after `maxCalls` calls. | Check `hasContinuation()`, or increase `maxCalls`. |
 | `BusinessException` | The base class for the errors that your `validate()` throws. | Show the error to the user, or handle it in the business logic. |
-| `TransportException` | A technical failure of the transport. | Retry the call, or report the failure. |
+| `TransportException` | A technical failure of the transport. `requestSent()` is `false` if the transport certainly did not send the request. | Retry the call only if `requestSent()` is `false`. Otherwise, report the failure. |
 | `RemoteAbendException` | The remote program stopped abnormally. `abendCode()` gives the abend code, for example `ASRA`. | Report the failure to the mainframe team. |
-| `TransportTimeoutException` | The remote program did not answer in time. | Retry the call, or increase the timeout of the transport. |
+| `TransportTimeoutException` | The remote program did not answer in time. | Increase the timeout of the transport. Retry the call only if `requestSent()` is `false`. |
 | `ConnectionException` | The transport cannot connect to the remote system. A custom transport throws it. | Check the network and the configuration. |
 | `OperationNotFoundException` | The transport has no destination for the operation name. | Check the operation name and the configuration of the transport. |
 
 Each exception has a constructor `(String message)` and a constructor `(String message, Throwable cause)`.
+`TransportException` and `ConnectionException` also have the constructors `(String message, boolean requestSent)` and `(String message, Throwable cause, boolean requestSent)`.
+`OperationNotFoundException` has only the constructor `(String message, boolean requestSent)`. Use `false` if the transport certainly did not send the request.
 `RemoteAbendException` has the constructors `(String abendCode, String message)` and `(String abendCode, String message, Throwable cause)`.
+
+**WARNING:** Do not retry a call after a `TransportException` when `requestSent()` is `true`. The remote program can run two times.
 
 ## Business errors
 

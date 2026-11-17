@@ -86,6 +86,7 @@ A route maps an operation name to a CICS program and a transaction. The operatio
 ### The timeout of one call
 
 A request can set the ECI timeout of its own call. Use the attribute `CtgTransport.TIMEOUT_ATTRIBUTE` (`ctg.timeoutSeconds`).
+`CopyMapperClient` sends no attributes. To set the timeout of one call, call `Transport.exchange` directly with a `BookRequest`.
 
 ```java
 var request = new BookRequest(operation, bytes, maxResponseLength,
