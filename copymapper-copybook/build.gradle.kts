@@ -6,7 +6,7 @@ plugins {
 dependencies {
     api(project(":copymapper-core"))
     api(libs.javapoet)
-    implementation(libs.jackson.databind)
+    implementation(libs.jackson3.databind)
 
     testImplementation(project(":copymapper-processor"))
     testImplementation(libs.compile.testing)

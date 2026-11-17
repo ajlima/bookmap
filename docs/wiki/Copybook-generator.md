@@ -75,7 +75,7 @@ The build plugins read the file `<NAME>.json` next to `<NAME>.cpy`.
 }
 ```
 
-All keys are optional. An unknown key is an error.
+All keys are optional. An unknown key is an error. Text after the JSON value is also an error.
 
 | Key | Type | Meaning | Default |
 |---|---|---|---|
@@ -1109,7 +1109,7 @@ Other errors, with the position `<file>:1:1`:
 
 ## Model JSON
 
-The `parse` command writes the model as JSON. The `generate` command reads it again.
+The `parse` command writes the model as JSON. The `generate` command reads it again. Text after the JSON value is an error.
 
 - The root keys are `formatVersion` (now `1`), `sourceName`, `classes`, and the optional `enums`.
 - A class has `name`, `kind` (`OPERATION`, `ITEM`, `SUBTYPE`, or `GROUP`), an optional `superclass`, optional `subTypes` (`discriminator`, and `types` with `value` and `className`), and `members`.

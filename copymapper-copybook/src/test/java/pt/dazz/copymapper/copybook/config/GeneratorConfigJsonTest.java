@@ -162,6 +162,20 @@ class GeneratorConfigJsonTest {
     }
 
     @Test
+    void rejectsTextAfterTheRootValue() {
+        assertThatThrownBy(() -> GeneratorConfigJson.read("{\"format\":\"FREE\"} x", BASE))
+            .isInstanceOf(ModelJsonException.class)
+            .hasMessageStartingWith("the text is not valid JSON");
+    }
+
+    @Test
+    void rejectsEmptyText() {
+        assertThatThrownBy(() -> GeneratorConfigJson.read("", BASE))
+            .isInstanceOf(ModelJsonException.class)
+            .hasMessage("$ must be an object");
+    }
+
+    @Test
     void markerListsArePlainLists() {
         assertThat(GeneratorConfigJson.read("{\"stripPrefixes\": []}", BASE).mapping()
             .stripPrefixes()).isEqualTo(List.of());

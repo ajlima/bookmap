@@ -1,8 +1,5 @@
 package pt.dazz.copymapper.copybook.config;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -19,13 +16,19 @@ import pt.dazz.copymapper.copybook.map.MappingOptions;
 import pt.dazz.copymapper.copybook.map.SubTypeDecision;
 import pt.dazz.copymapper.copybook.parse.ParseOptions;
 import pt.dazz.copymapper.copybook.parse.SourceFormat;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Reads a generator configuration file (JSON).
  */
 public final class GeneratorConfigJson {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+        .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     private static final Set<String> KEYS = Set.of("format", "charset", "copyDirs",
         "recordName", "stripPrefixes", "inputMarkers", "outputMarkers", "directions",
         "subTypes", "conditions", "countFields", "maxRecordLength", "dates", "continuable",
@@ -50,7 +53,7 @@ public final class GeneratorConfigJson {
         JsonNode tree;
         try {
             tree = MAPPER.readTree(json);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new ModelJsonException("the text is not valid JSON: "
                 + e.getOriginalMessage());
         }
