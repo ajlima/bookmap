@@ -38,9 +38,10 @@ public record SpecNode(String cobolName, int level, String path, String picture,
         String format, TableSpec table, String counter, VariantSpec variant, String javaName,
         List<SpecNode> children) {
 
-    /** Checks the names and copies the lists. */
+    /** Checks the name and the path, and copies the lists. */
     public SpecNode {
         Objects.requireNonNull(cobolName, "cobolName");
+        Objects.requireNonNull(path, "path");
         conditions = List.copyOf(conditions);
         children = List.copyOf(children);
     }

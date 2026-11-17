@@ -1,6 +1,7 @@
 package pt.dazz.copymapper.copybook.spec;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A condition name (level 88).
@@ -10,8 +11,9 @@ import java.util.List;
  */
 public record ConditionSpec(String name, List<ConditionRange> values) {
 
-    /** Copies the list. */
+    /** Checks the name and copies the list. */
     public ConditionSpec {
+        Objects.requireNonNull(name, "name");
         values = List.copyOf(values);
     }
 }

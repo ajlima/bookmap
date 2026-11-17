@@ -12,6 +12,7 @@ import pt.dazz.copymapper.copybook.ast.Usage;
 import pt.dazz.copymapper.copybook.json.JsonObject;
 import pt.dazz.copymapper.copybook.json.ModelJsonException;
 import tools.jackson.core.JacksonException;
+import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -27,7 +28,8 @@ import tools.jackson.databind.node.ObjectNode;
 public final class MappingSpecJson {
 
     private static final ObjectMapper MAPPER = JsonMapper.builder()
-            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
+            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
     private static final Set<String> SPEC_KEYS = Set.of("formatVersion", "sourceName",
             "sourceHash", "charset", "byteOrder", "root");
     private static final Set<String> NODE_KEYS = Set.of("cobolName", "level", "path", "picture",
@@ -199,7 +201,7 @@ public final class MappingSpecJson {
         try {
             return readSpec(json);
         } catch (ModelJsonException | IllegalArgumentException e) {
-            throw new MappingSpecFormatException(e.getMessage());
+            throw new MappingSpecFormatException(e.getMessage(), e);
         }
     }
 
@@ -209,7 +211,7 @@ public final class MappingSpecJson {
             tree = MAPPER.readTree(json);
         } catch (JacksonException e) {
             throw new MappingSpecFormatException("the text is not valid JSON: "
-                    + e.getOriginalMessage());
+                    + e.getOriginalMessage(), e);
         }
         JsonObject root = object(tree, "$", SPEC_KEYS);
         int version = root.integer("formatVersion");
@@ -230,7 +232,8 @@ public final class MappingSpecJson {
         try {
             return new MappingSpec(version, sourceName, sourceHash, charset, byteOrder, node);
         } catch (IllegalArgumentException e) {
-            throw new MappingSpecFormatException(e.getMessage() + " in " + root.path("charset"));
+            throw new MappingSpecFormatException(e.getMessage() + " in " + root.path("charset"),
+                    e);
         }
     }
 
@@ -288,7 +291,11 @@ public final class MappingSpecJson {
 
     private static ValueSpec readValue(JsonNode tree, String path) {
         JsonObject value = object(tree, path, VALUE_KEYS);
-        return new ValueSpec(value.text("kind"), value.text("text"));
+        try {
+            return new ValueSpec(value.text("kind"), value.text("text"));
+        } catch (IllegalArgumentException e) {
+            throw new MappingSpecFormatException(path + ": " + e.getMessage(), e);
+        }
     }
 
     private static List<ConditionSpec> readConditions(JsonObject o) {
@@ -337,7 +344,7 @@ public final class MappingSpecJson {
             return new TableSpec(requiredEnum(table, "mode", TableMode.class),
                     table.optionalText("path"));
         } catch (IllegalArgumentException e) {
-            throw new MappingSpecFormatException(o.path("table") + ": " + e.getMessage());
+            throw new MappingSpecFormatException(o.path("table") + ": " + e.getMessage(), e);
         }
     }
 
@@ -356,7 +363,7 @@ public final class MappingSpecJson {
             return new VariantSpec.FixedSelection(fixed.optionalText("request"),
                     fixed.optionalText("response"));
         } catch (IllegalArgumentException e) {
-            throw new MappingSpecFormatException(path + ": " + e.getMessage());
+            throw new MappingSpecFormatException(path + ": " + e.getMessage(), e);
         }
     }
 

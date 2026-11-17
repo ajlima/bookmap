@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SpecNodeTest {
@@ -45,6 +46,49 @@ class SpecNodeTest {
     @Test
     void rejectsNullNames() {
         assertThrows(NullPointerException.class, () -> node(null, List.of(), List.of()));
+    }
+
+    @Test
+    void rejectsANullPath() {
+        var thrown = assertThrows(NullPointerException.class, () -> new SpecNode("A", 5, null,
+                null, null, null, null, null, null, List.of(), null, false, false, null, null,
+                null, null, null, null, null, null, List.of()));
+        assertEquals("path", thrown.getMessage());
+    }
+
+    @Test
+    void rejectsNullComponents() {
+        var value = new ValueSpec("TEXT", "A");
+        assertEquals("kind", assertThrows(NullPointerException.class,
+                () -> new ValueSpec(null, "A")).getMessage());
+        assertEquals("text", assertThrows(NullPointerException.class,
+                () -> new ValueSpec("TEXT", null)).getMessage());
+        assertEquals("source", assertThrows(NullPointerException.class,
+                () -> new SourceLocation(null, 1, 1)).getMessage());
+        assertEquals("name", assertThrows(NullPointerException.class,
+                () -> new ConditionSpec(null, List.of())).getMessage());
+        assertEquals("from", assertThrows(NullPointerException.class,
+                () -> new ConditionRange(null, value)).getMessage());
+        assertEquals("path", assertThrows(NullPointerException.class,
+                () -> new VariantSpec.Discriminator(null, Map.of())).getMessage());
+        var nullKey = new LinkedHashMap<String, String>();
+        nullKey.put(null, "P.A");
+        assertEquals("a value of the discriminator", assertThrows(NullPointerException.class,
+                () -> new VariantSpec.Discriminator("P.T", nullKey)).getMessage());
+        var nullPath = new LinkedHashMap<String, String>();
+        nullPath.put("A", null);
+        assertEquals("the alternative of the value A", assertThrows(NullPointerException.class,
+                () -> new VariantSpec.Discriminator("P.T", nullPath)).getMessage());
+    }
+
+    @Test
+    void valueKindIsALiteralKind() {
+        assertEquals("FIGURATIVE", new ValueSpec("FIGURATIVE", "SPACE").kind());
+        assertEquals("NUMBER", new ValueSpec("NUMBER", "1").kind());
+        var thrown = assertThrows(IllegalArgumentException.class,
+                () -> new ValueSpec("NUMERIC", "1"));
+        assertEquals("unknown value kind 'NUMERIC'. The kinds are TEXT, NUMBER, FIGURATIVE.",
+                thrown.getMessage());
     }
 
     @Test
@@ -96,7 +140,7 @@ class SpecNodeTest {
         var fixed = assertInstanceOf(VariantSpec.FixedSelection.class, v);
         assertNull(fixed.response());
         assertEquals("R", fixed.request());
-        var from = new ValueSpec("NUMERIC", "1");
+        var from = new ValueSpec("NUMBER", "1");
         var range = new ConditionRange(from, null);
         var c = new ConditionSpec("OK", List.of(range));
         assertEquals("OK", c.name());

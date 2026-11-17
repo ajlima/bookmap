@@ -3,6 +3,7 @@ package pt.dazz.copymapper.copybook.spec;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /** Selects one alternative of a group that redefines another. */
 public sealed interface VariantSpec permits VariantSpec.Discriminator, VariantSpec.FixedSelection {
@@ -15,8 +16,14 @@ public sealed interface VariantSpec permits VariantSpec.Discriminator, VariantSp
      */
     record Discriminator(String path, Map<String, String> values) implements VariantSpec {
 
-        /** Copies the map and keeps its order. */
+        /** Checks the path, the values, and the alternatives, and copies the map in order. */
         public Discriminator {
+            Objects.requireNonNull(path, "path");
+            for (Map.Entry<String, String> entry : values.entrySet()) {
+                Objects.requireNonNull(entry.getKey(), "a value of the discriminator");
+                Objects.requireNonNull(entry.getValue(),
+                        "the alternative of the value " + entry.getKey());
+            }
             values = Collections.unmodifiableMap(new LinkedHashMap<>(values));
         }
     }

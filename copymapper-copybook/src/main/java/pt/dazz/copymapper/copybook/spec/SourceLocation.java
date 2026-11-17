@@ -1,5 +1,7 @@
 package pt.dazz.copymapper.copybook.spec;
 
+import java.util.Objects;
+
 /**
  * A place in a source file.
  *
@@ -8,4 +10,9 @@ package pt.dazz.copymapper.copybook.spec;
  * @param column the column, from 1
  */
 public record SourceLocation(String source, int line, int column) {
+
+    /** Checks the source name. */
+    public SourceLocation {
+        Objects.requireNonNull(source, "source");
+    }
 }

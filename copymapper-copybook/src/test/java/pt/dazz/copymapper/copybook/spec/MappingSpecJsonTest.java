@@ -38,14 +38,14 @@ class MappingSpecJsonTest {
         values.put("01", "R.A");
         values.put("02", "R.B");
         var condition = new ConditionSpec("IS-OK", List.of(
-                new ConditionRange(new ValueSpec("ALPHANUMERIC", "A"), null),
-                new ConditionRange(new ValueSpec("NUMERIC", "1"), new ValueSpec("NUMERIC", "9"))));
+                new ConditionRange(new ValueSpec("TEXT", "A"), null),
+                new ConditionRange(new ValueSpec("NUMBER", "1"), new ValueSpec("NUMBER", "9"))));
         var alt = new SpecNode("A", 10, "R.A", "X(4)", Usage.DISPLAY, null, null, "R.B", null,
                 List.of(), null, false, false, null, null, null, null, null, null,
                 new VariantSpec.FixedSelection("R.A", null), null, List.of());
         var leaf = new SpecNode("AMOUNT", 10, "R.AMOUNT", "S9(5)V99", Usage.DISPLAY,
                 Sign.TRAILING_SEPARATE, new OccursSpec(1, 5, "R.COUNT"), "R.OTHER",
-                new ValueSpec("NUMERIC", "0"), List.of(condition),
+                new ValueSpec("FIGURATIVE", "ZERO"), List.of(condition),
                 new SourceLocation("ACCOUNT.cpy", 12, 8), true, true, "amount",
                 FieldDirection.INPUT_OUTPUT, JsonType.DECIMAL_STRING, "#,##0.00",
                 new TableSpec(TableMode.KEY, "R.KEY"), "R.COUNT",
@@ -212,6 +212,53 @@ class MappingSpecJsonTest {
         String json = MappingSpecJson.write(spec).replace("\"mode\":\"KEY\"",
                 "\"mode\":\"SPACES\"");
         assertRejectsContaining(json, "$.root.children[0].table");
+    }
+
+    @Test
+    void rejectsADuplicateKey() {
+        assertThatThrownBy(() -> MappingSpecJson.read(account("\"level\":1,",
+                "\"level\":1,\"level\":2,")))
+                .isInstanceOf(MappingSpecFormatException.class)
+                .hasMessageStartingWith("the text is not valid JSON")
+                .hasMessageContaining("level")
+                .hasCauseInstanceOf(tools.jackson.core.JacksonException.class);
+    }
+
+    @Test
+    void keepsTheCause() {
+        assertThatThrownBy(() -> MappingSpecJson.read(account("IBM037", "UTF-8")))
+                .isInstanceOf(MappingSpecFormatException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> MappingSpecJson.read(account("\"level\":1", "\"level\":\"1\"")))
+                .isInstanceOf(MappingSpecFormatException.class)
+                .hasCauseInstanceOf(pt.dazz.copymapper.copybook.json.ModelJsonException.class);
+        assertThatThrownBy(() -> MappingSpecJson.read("{oops"))
+                .hasCauseInstanceOf(tools.jackson.core.JacksonException.class);
+        String json = MappingSpecJson.write(everything());
+        assertThatThrownBy(() -> MappingSpecJson.read(json.replace("\"mode\":\"KEY\"",
+                "\"mode\":\"SPACES\"")))
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> MappingSpecJson.read(json.replace("\"request\":\"R.A\"}",
+                "}")))
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rejectsAnUnknownValueKind() {
+        String json = MappingSpecJson.write(everything());
+        assertThatThrownBy(() -> MappingSpecJson.read(json.replace("\"kind\":\"FIGURATIVE\"",
+                "\"kind\":\"NUMERIC\"")))
+                .isInstanceOf(MappingSpecFormatException.class)
+                .hasMessage("$.root.children[0].value: unknown value kind 'NUMERIC'. "
+                        + "The kinds are TEXT, NUMBER, FIGURATIVE.")
+                .hasCauseInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rejectsANullDiscriminatorAlternative() {
+        String json = MappingSpecJson.write(everything());
+        assertRejectsContaining(json.replace("\"01\":\"R.A\"", "\"01\":null"),
+                "$.root.children[0].variant");
     }
 
     @Test

@@ -13,4 +13,14 @@ public class MappingSpecFormatException extends RuntimeException {
     public MappingSpecFormatException(String message) {
         super(message);
     }
+
+    /**
+     * Creates the exception with its cause.
+     *
+     * @param message the message, with the JSON path of the fault
+     * @param cause the cause
+     */
+    public MappingSpecFormatException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
