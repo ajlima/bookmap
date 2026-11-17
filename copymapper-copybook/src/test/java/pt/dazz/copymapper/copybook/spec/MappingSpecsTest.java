@@ -278,6 +278,19 @@ class MappingSpecsTest {
     }
 
     @Test
+    void hashesOnlyTheDeclarationsOfTheRecord() {
+        String hash = draft("R", "01 R.", "05 A PIC X(3) VALUE 'ABC'.", "88 A-OK VALUE 'ABC'.")
+                .sourceHash();
+        assertThat(draft("R", "01 R.", "05 A PIC X(3) VALUE 'XYZ'.", "88 A-OK VALUE 'XYZ'.")
+                .sourceHash()).isEqualTo(hash);
+        assertThat(draft("R", "01 R.", "05 A PIC X(3).").sourceHash()).isEqualTo(hash);
+        assertThat(draft("R", "01   R.", "  05  A   PIC   X(3).", "01 OTHER.", "05 B PIC X.")
+                .sourceHash()).isEqualTo(hash);
+        assertThat(draft("R", "01 R.", "05 A PIC X(4).").sourceHash()).isNotEqualTo(hash);
+        assertThat(draft("R", "01 R.", "05 B PIC X(3).").sourceHash()).isNotEqualTo(hash);
+    }
+
+    @Test
     void draftRoundTripsThroughJson() {
         var spec = draft("R", "01 R.", "05 CNT PIC 9(2).", "05 ROWS PIC X OCCURS 1 TO 3 "
                 + "DEPENDING ON CNT.", "05 F PIC X VALUE 'A'.", "88 F-A VALUE 'A'.",
