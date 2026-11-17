@@ -138,6 +138,25 @@ class ModelJsonTest {
     }
 
     @Test
+    void rejectsAnObjectAsMemberKind() {
+        assertThatThrownBy(() -> ModelJson.read(memberKind("{}")))
+            .isInstanceOf(ModelJsonException.class)
+            .hasMessage("key 'kind' in $.classes[0].members[0] must be a string");
+    }
+
+    @Test
+    void rejectsAnArrayAsMemberKind() {
+        assertThatThrownBy(() -> ModelJson.read(memberKind("[]")))
+            .isInstanceOf(ModelJsonException.class)
+            .hasMessage("key 'kind' in $.classes[0].members[0] must be a string");
+    }
+
+    private static String memberKind(String kind) {
+        return "{\"formatVersion\":1,\"sourceName\":\"A\",\"classes\":[{\"name\":\"X\","
+            + "\"kind\":\"ITEM\",\"members\":[{\"kind\":" + kind + "}]}]}";
+    }
+
+    @Test
     void rejectsUnknownVersion() {
         assertThatThrownBy(() -> ModelJson.read(
                 "{\"formatVersion\": 2, \"sourceName\": \"A\", \"classes\": []}"))

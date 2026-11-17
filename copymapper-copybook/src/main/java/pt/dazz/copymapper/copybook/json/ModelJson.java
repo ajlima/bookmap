@@ -1,12 +1,5 @@
 package pt.dazz.copymapper.copybook.json;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.node.ArrayNode;
-import tools.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -26,6 +19,13 @@ import pt.dazz.copymapper.copybook.model.MemberModel;
 import pt.dazz.copymapper.copybook.model.SubTypeEntry;
 import pt.dazz.copymapper.copybook.model.SubTypes;
 import pt.dazz.copymapper.copybook.model.ValueRange;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Writes and reads the JSON form of a {@link BookModel}. The writer is deterministic: the same
@@ -277,8 +277,9 @@ public final class ModelJson {
     }
 
     private static MemberModel readMember(JsonNode node, String path) {
-        JsonNode kind = node.get("kind");
-        if (kind != null && "COLLECTION".equals(kind.asString())) {
+        JsonNode kindNode = node.get("kind");
+        String kind = kindNode != null && kindNode.isString() ? kindNode.stringValue() : null;
+        if ("COLLECTION".equals(kind)) {
             JsonObject member = JsonObject.of(node, path, COLLECTION_KEYS);
             return new CollectionMember(member.text("name"), member.integer("order"),
                 member.enumValue("direction", Direction.class), member.text("cobolName"),
@@ -290,7 +291,7 @@ public final class ModelJson {
                 member.has("partial") && member.bool("partial"),
                 member.optionalText("redefines"));
         }
-        if (kind != null && "GROUP".equals(kind.asString())) {
+        if ("GROUP".equals(kind)) {
             JsonObject member = JsonObject.of(node, path, GROUP_KEYS);
             return new GroupMember(member.text("name"), member.integer("order"),
                 member.enumValue("direction", Direction.class), member.text("cobolName"),
