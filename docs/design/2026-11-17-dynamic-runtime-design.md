@@ -4,7 +4,7 @@ Date: 2026-11-17
 Status: proposed.
 Base package: `pt.dazz.copymapper`
 Parent specs: `2026-11-10-copymapper-design.md`, `2026-11-11-copymapper-copybook-design.md`, `2026-11-11-copymapper-fixed-occurs-design.md`, `2026-11-11-copymapper-subtypes-design.md`, `2026-11-13-empty-item-markers-design.md`, `2026-11-13-ctg-transport-design.md`
-Milestone: [Dynamic runtime](https://github.com/dazz-pt/copymapper/milestone/7). Issues: #135 to #144, and #147.
+Milestone: [Dynamic runtime](https://github.com/dazz-pt/copymapper/milestone/7). Issues: #135 to #144, #147, and #148. Related: #149.
 
 Decisions marked **[builder call]** come from the spec author, not from the project owner. You can change them if you have a good reason. All other decisions come from the project owner.
 
@@ -19,16 +19,16 @@ The flow in CopyBridge is:
 ```text
 Studio: upload of the .cpy file
   -> copymapper-copybook: parser -> AST (DataItem)               (exists)
-  -> copymapper-runtime: draft of the book spec from the AST     (new)
-  -> Studio: the operator completes the book spec in a mapping screen
+  -> copymapper-copybook: draft of the mapping spec from the AST    (new)
+  -> Studio: the operator completes the mapping spec in a mapping screen
        (COBOL on the left, REST on the right)
-  -> copymapper-runtime: compile the book spec                   (new)
+  -> copymapper-runtime: compile the mapping spec                   (new)
        - complete:   a layout, then an interpreted codec (JSON <-> bytes)
        - incomplete: the list of all open decisions, back to the screen
   -> Gateway: JSON -> codec -> Transport.exchange -> codec -> JSON
 ```
 
-This design adds the module `copymapper-runtime` for the draft, the compiler, the layout, and the interpreted codec. It also adds two changes to the CTG transport that a runtime caller needs:
+This design adds the mapping spec: one JSON document that holds all decisions for a record. The copybook generator also accepts it, so the generated classes and the interpreted codec come from the same decisions (#148). The design adds the module `copymapper-runtime` for the compiler, the layout, and the interpreted codec. It also adds two changes to the CTG transport that a runtime caller needs:
 
 - A timeout for one call (#143).
 - A failure that tells that the request was not sent (#144). With it, a caller can retry a call without a risk to execute a CICS program two times.
@@ -53,11 +53,12 @@ These are facts from `main` (v0.28.0):
 
 ### 3.1 Goals
 
-- A draft of a complete book spec from one `01` record of the AST, with default values and with the open decisions marked.
-- A compiler that checks a book spec and gives an immutable layout, or the list of all open decisions.
+- A draft of a complete mapping spec from one `01` record of the AST, with default values and with the open decisions marked.
+- A compiler that checks a mapping spec and gives an immutable layout, or the list of all open decisions.
 - An interpreted codec that converts Jackson 3 JSON to bytes and bytes to JSON with the layout, in both directions.
 - The types: `PIC X`, `PIC 9` `DISPLAY` and `COMP-3`, signs, `COMP`, `COMP-4`, `COMP-5`, dates, groups, `FILLER`, fixed `OCCURS`, `OCCURS DEPENDING ON`, and `REDEFINES` with a discriminator or a fixed selection.
-- Byte-exact fixtures that compare the interpreted codec with the generated codec.
+- Generated Java classes from a mapping spec, in the copybook generator, the CLI, and the build plugins (#148).
+- Byte-exact fixtures that compare the interpreted codec with the codec that the processor generates from the same mapping spec.
 - A timeout for one CTG call, and a failure that tells that a request was not sent.
 - Jackson 3 in all modules of the library (#147).
 - 100% line and branch coverage, and a mutation score of 95% or more in `copymapper-runtime`.
@@ -72,6 +73,7 @@ These are facts from `main` (v0.28.0):
 - The roles `INTERNAL` and the binding concepts of CopyBridge.
 - `requestSent()` in the HTTP and MQ transports. They keep the default.
 - A native image test of `copymapper-runtime`.
+- The deprecation of the options file and of the model JSON of the copybook generator. Issue #149 does it later, in the milestone "Copybook generator".
 
 ### 3.3 Anti-goals
 
@@ -94,7 +96,7 @@ These are facts from `main` (v0.28.0):
 
 The owner wants Jackson 3 in all projects. Thus, #147 moves `copymapper-copybook` to Jackson 3 before #136. Use the version line of Spring Boot 4.1 (3.1.x) **[builder call]**: a caller then never runs the library on an older Jackson than the build used.
 
-### 4.2 The book spec: a complete tree
+### 4.2 The mapping spec: a complete tree
 
 | Option | Trade-off |
 |---|---|
@@ -102,36 +104,46 @@ The owner wants Jackson 3 in all projects. Thus, #147 moves `copymapper-copybook
 | A tree of decisions only, linked to the AST by path. | The AST stays the only physical source. The compiler needs the copybook and the parser each time. |
 | **A self-contained tree of the full copybook (selected).** | One document holds the COBOL side and the REST side of each item. The screen, the storage, and the Gateway use the same object. |
 
-The draft always comes from the parser. The compiler calculates the offsets again from the COBOL side, and checks the COBOL rules again. It never trusts a stored offset. A complete book spec has no implicit value: each decision is explicit.
+The draft always comes from the parser. The compiler calculates the offsets again from the COBOL side, and checks the COBOL rules again. It never trusts a stored offset. A complete mapping spec has no implicit value: each decision is explicit.
 
-### 4.3 The scope of the mapping
+### 4.3 One JSON: the mapping spec drives the generator too
+
+| Option | Trade-off |
+|---|---|
+| Two formats: the mapping spec for the runtime, and the options file and the model JSON for the generator. | Smaller. But the same decisions are in two formats. |
+| **The mapping spec as the one source, in two steps (selected).** | This milestone: the generator accepts a mapping spec (#148). Later: the options file and the model JSON are deprecated (#149), then removed. No change breaks the CLI or the plugins now. |
+| Replace the options file and the model JSON now. | An incompatible change of the CLI, the plugins, #30, and #32. |
+
+The name is `MappingSpec` in all places: the class, the JSON form, and the documentation.
+
+### 4.4 The scope of the mapping
 
 The library applies the decisions that change the bytes or the JSON shape: the JSON name, the direction, the JSON type, the date format, the table mode, the counter, the discriminator, and the fixed selection. Business validations stay in the caller.
 
-### 4.4 The compile result
+### 4.5 The compile result
 
 The compiler gives a result with the layout, or with the list of all open decisions. Each open decision has a kind, the path of the item, the source line, and a message. The mapping screen shows this list.
 
-### 4.5 `OCCURS DEPENDING ON`
+### 4.6 `OCCURS DEPENDING ON`
 
 The rules of the generated codec (main design, section 5.6), with a check of the minimum. See 5.9.
 
-### 4.6 Fixed `OCCURS`
+### 4.7 Fixed `OCCURS`
 
 The rules of the generated codec: count mode, or an empty-slot marker (LOW-VALUES, SPACES, or a key). See 5.8.
 
-### 4.7 `REDEFINES`
+### 4.8 `REDEFINES`
 
 A discriminator, or a fixed selection for each direction. An area without one is an open decision. See 5.10.
 
-### 4.8 The CTG timeout for one call
+### 4.9 The CTG timeout for one call
 
 | Option | Trade-off |
 |---|---|
 | **A `BookRequest` attribute (selected).** | The SPI already has attributes for a transport. The caller keeps the transport as a `Transport`. |
 | A method `exchange(BookRequest, Duration)` of `CtgTransport`. | Typed. But the caller must keep the concrete type. |
 
-### 4.9 The failure before the send
+### 4.10 The failure before the send
 
 | Option | Trade-off |
 |---|---|
@@ -142,13 +154,12 @@ A discriminator, or a fixed selection for each direction. An area without one is
 
 ### 5.1 Module and packages
 
-- Module: `copymapper-runtime`. Dependencies: `api(project(":copymapper-core"))`, `api(project(":copymapper-copybook"))` for the AST, and `api` Jackson 3 `jackson-databind`.
-- One module for the draft, the compiler, the layout, and the codec **[builder call]**. The Gateway of CopyBridge compiles only a book spec. The parser and JavaPoet (an `api` dependency of `copymapper-copybook`) are then on its classpath, but it does not use them.
-- Packages **[builder call]**:
-  - `pt.dazz.copymapper.runtime.spec`: the book spec, its JSON form, and the draft.
+- The mapping spec, its JSON form, and the draft are in `copymapper-copybook`, package `pt.dazz.copymapper.copybook.spec` **[builder call]**. Reason: the generator must read a mapping spec (#148), and `copymapper-runtime` depends on `copymapper-copybook`. A mapping spec in `copymapper-runtime` would make a cycle.
+- Module `copymapper-runtime`: the compiler, the layout, and the codec. Dependencies: `api(project(":copymapper-core"))`, `api(project(":copymapper-copybook"))` for the mapping spec, and `api` Jackson 3 `jackson-databind`. The parser and JavaPoet (an `api` dependency of `copymapper-copybook`) are then on the classpath of the Gateway, but it does not use them.
+- Packages of `copymapper-runtime` **[builder call]**:
   - `pt.dazz.copymapper.runtime.layout`: the compiler, the compile result, and the layout.
   - `pt.dazz.copymapper.runtime.codec`: the interpreted codec.
-- `ArchitectureTest` of the module permits only `java..`, `tools.jackson..`, and `pt.dazz.copymapper..`. No package cycle.
+- `ArchitectureTest` of `copymapper-runtime` permits only `java..`, `tools.jackson..`, and `pt.dazz.copymapper..`. No package cycle.
 - The module is published to Maven Central.
 
 ### 5.2 Public API
@@ -156,13 +167,13 @@ A discriminator, or a fixed selection for each direction. An area without one is
 The names are proposals **[builder call]**. The behavior is the decision.
 
 ```java
-// Draft: AST -> book spec
-BookSpec spec = BookSpecs.draft(copybook, "GET-ACCOUNT", DraftOptions.defaults());
+// Draft: AST -> mapping spec
+MappingSpec spec = MappingSpecs.draft(copybook, "GET-ACCOUNT", DraftOptions.defaults());
 
-// JSON form of the book spec
-String json = BookSpecJson.write(spec);       // canonical form
-BookSpec back = BookSpecJson.read(json);
-String hash = BookSpecJson.sha256(spec);      // hex, from the canonical form
+// JSON form of the mapping spec
+String json = MappingSpecJson.write(spec);       // canonical form
+MappingSpec back = MappingSpecJson.read(json);
+String hash = MappingSpecJson.sha256(spec);      // hex, from the canonical form
 
 // Compile
 Compilation result = LayoutCompiler.compile(spec);
@@ -180,12 +191,12 @@ int maxResponse = codec.maxResponseLength();
 ```
 
 - `Layout` and `DynamicCodec` are immutable and thread-safe.
-- `BookSpec` and its nodes are immutable records with list copies.
+- `MappingSpec` and its nodes are immutable records with list copies.
 - `DraftOptions` holds the parse options that the draft needs, for example the charset **[builder call]**.
 
-### 5.3 The book spec
+### 5.3 The mapping spec
 
-The book spec is a tree with one node for each item of the record, `FILLER` included. Level 88 items are metadata of their node. Level 66 and 77 items are not in the tree.
+The mapping spec is a tree with one node for each item of the record, `FILLER` included. Level 88 items are metadata of their node. Level 66 and 77 items are not in the tree.
 
 **Root.**
 
@@ -237,12 +248,12 @@ The book spec is a tree with one node for each item of the record, `FILLER` incl
 
 **The JSON form** **[builder call]**:
 
-- `BookSpecJson.read` rejects an unknown property, and a `formatVersion` other than `1`. The message gives the JSON path, as `ModelJson` does.
-- The canonical form has the properties in the order of the tables in 5.3, no whitespace, no `null` property, and integers without a fraction. A test freezes the canonical form and the hash of one book spec. A change of the form needs a new `formatVersion`.
+- `MappingSpecJson.read` rejects an unknown property, and a `formatVersion` other than `1`. The message gives the JSON path, as `ModelJson` does.
+- The canonical form has the properties in the order of the tables in 5.3, no whitespace, no `null` property, and integers without a fraction. A test freezes the canonical form and the hash of one mapping spec. A change of the form needs a new `formatVersion`.
 
 ### 5.5 The compiler and the open decisions
 
-`LayoutCompiler.compile(BookSpec)` checks the full tree, and collects all open decisions. It does not stop at the first one.
+`LayoutCompiler.compile(MappingSpec)` checks the full tree, and collects all open decisions. It does not stop at the first one.
 
 | Kind | Example |
 |---|---|
@@ -348,14 +359,34 @@ The generated codec does not pad a subtype at the operation level, and it does n
 
 ### 5.11 The test kit (#139)
 
-- A fixture is a folder with: `book.cpy`, `spec.json` (the decisions that change the draft), `request.json`, `request.hex`, `response.hex`, and `response.json`.
+- A fixture is a folder with: `book.cpy`, `spec.json` (the full mapping spec, in its JSON form), `request.json`, `request.hex`, `response.hex`, and `response.json`.
 - One test runs each fixture through the interpreted codec, in both directions, and compares the bytes and the JSON.
-- One test also generates the Java classes for the same copybook with the copybook generator and the processor, in memory, as `EndToEndTest` of `copymapper-copybook` does. It compares the bytes of the generated codec with the expected bytes. A case that the generator does not support (for example `COMP-5`) is marked in the fixture, and it uses independent expected bytes.
+- One test also generates the Java classes from the same `spec.json` (5.12) and compiles them with the processor, in memory, as `EndToEndTest` of `copymapper-copybook` does. It compares the bytes of the generated codec with the expected bytes. A case that the generator does not support (for example `COMP-5`) is marked in the fixture, and it uses independent expected bytes.
 - Each type of 5.7, each table mode, each variant kind, and each error case of this design has a fixture.
 - The copybook generator ignores `VALUE`. A fixture that leaves out an item with a `VALUE` is marked, and it does not use the generated codec for that direction.
 - The fixtures are in the `testFixtures` source set of `copymapper-runtime`, and they are published with the module (Gradle test fixtures) **[builder call]**. Thus, CopyBridge can run the same fixtures.
 
-### 5.12 The CTG timeout for one call (#143)
+### 5.12 Java classes from a mapping spec (#148)
+
+- The copybook generator accepts a mapping spec as input. The CLI and the build plugins accept a `.mapping.json` file next to, or instead of, the `.cpy` file **[builder call: file name]**.
+- The generator translates the mapping spec to its current inputs, then runs the current pipeline: the COBOL side gives the `DataItem` tree, and the REST side gives the `MappingOptions` **[builder call: the method]**.
+- The translation:
+
+  | Mapping spec | Generator |
+  |---|---|
+  | `format` of a date | `dates` |
+  | `table: COUNT` | `countFields` |
+  | `table: SPACES` or `KEY` | the empty-item markers |
+  | A discriminator | `subTypes` |
+  | A fixed selection with two alternatives | `directions` (a direction split) |
+  | A direction outside a `REDEFINES` area | `INPUT_OUTPUT` in Java. In Java, all items occupy their bytes, so the JSON direction does not apply. |
+  | `jsonName` | Not used. The Java names keep the rules of the generator. |
+
+- A node can have an optional `javaName`: the class name of the record, a group, a table, or an alternative, or the field name of an item. Without it, the generator rules apply. `javaName` is not in the canonical form when it is `null`, so the hash of a spec without Java names does not change.
+- A mapping spec with an item that the generator cannot express gives an error diagnostic with the path and the source line. Example: an item that the runtime supports and the generator does not.
+- #148 covers the types of #136. Each later issue (#138, #140, #141, #142) adds its translation.
+
+### 5.13 The CTG timeout for one call (#143)
 
 - A new constant `CtgTransport.TIMEOUT_ATTRIBUTE` has the value `"ctg.timeoutSeconds"`.
 - If `BookRequest.attributes()` has this key, the transport uses its value as the ECI timeout of this call. The value is a decimal integer, from 0 to 32767. `0` means no ECI timeout.
@@ -363,14 +394,13 @@ The generated codec does not pad a subtype at the operation level, and it does n
 - An incorrect value is an `IllegalArgumentException`, before the transport opens a connection.
 - The design of the CTG transport and its wiki page get the attribute.
 
-### 5.13 The failure before the send (#144)
+### 5.14 The failure before the send (#144)
 
 - `TransportException` gets the property `requestSent()`. New constructors take it. The existing constructors keep the value `true`: "the request was possibly sent". This is the safe default.
 - The subclasses (`ConnectionException`, `TransportTimeoutException`, `RemoteAbendException`, and `OperationNotFoundException`) get the same constructors.
 - `CtgTransport` sets `requestSent()` to `false` only for these failures:
   - no route for the operation;
   - the COMMAREA is longer than 32,500 bytes;
-  - an incorrect timeout attribute **[builder call: this one stays an `IllegalArgumentException`, see 5.12]**;
   - no free connection after `connectionWaitTimeout`;
   - `EciConnector.open()` fails;
   - the thread is interrupted while it waits for a connection;
@@ -384,16 +414,17 @@ The generated codec does not pad a subtype at the operation level, and it does n
 |---|---|---|
 | 1 | #135 | This design. |
 | 2 | #147 | `copymapper-copybook` on Jackson 3. |
-| 3 | #136 | The module, the book spec, its JSON form, the draft, the compiler, and the layout for `PIC X`, `PIC 9` `DISPLAY`, `COMP-3`, groups, and `FILLER`. |
-| 4 | #137 | The codec for the types of #136, with the directions and the JSON names. |
-| 5 | #139 | The test kit, with fixtures for #136 and #137. |
-| 6 | #138 | Fixed `OCCURS`, with count mode and the markers. |
-| 7 | #140 | `COMP`, `COMP-4`, `COMP-5`, signs, and dates. |
-| 8 | #141 | `OCCURS DEPENDING ON`. |
-| 9 | #142 | `REDEFINES` with a discriminator or a fixed selection. |
+| 3 | #136 | The mapping spec, its JSON form, and the draft (in `copymapper-copybook`). The module `copymapper-runtime`, the compiler, and the layout. The types `PIC X`, `PIC 9` `DISPLAY`, `COMP-3`, groups, and `FILLER`. |
+| 4 | #148 | Java classes from a mapping spec, for the types of #136. |
+| 5 | #137 | The codec for the types of #136, with the directions and the JSON names. |
+| 6 | #139 | The test kit, with fixtures for #136 and #137. |
+| 7 | #138 | Fixed `OCCURS`, with count mode and the markers. |
+| 8 | #140 | `COMP`, `COMP-4`, `COMP-5`, signs, and dates. |
+| 9 | #141 | `OCCURS DEPENDING ON`. |
+| 10 | #142 | `REDEFINES` with a discriminator or a fixed selection. |
 | any | #143, #144 | The CTG transport. Independent of the runtime. |
 
-Each issue after #139 adds its fixtures to the test kit.
+Each issue after #139 adds its rules to the mapping spec, the compiler, the codec, and the generator translation, and adds its fixtures to the test kit.
 
 ## 7. Changes outside the module
 
@@ -404,12 +435,14 @@ Each issue after #139 adds its fixtures to the test kit.
 - `docs/wiki/Dynamic-runtime.md`: a new page. `_Sidebar.md` and `Home.md`: a link to it.
 - `docs/wiki/CICS-Transaction-Gateway.md`: the timeout attribute and `requestSent()`.
 - `docs/wiki/Contributing.md`, `RELEASING.md`, and `README.md`: the new module.
-- `ROADMAP.md`: #147 in the group "Dynamic runtime".
+- `ROADMAP.md`: #147 and #148 in the group "Dynamic runtime", and #149 in the group "Copybook generator".
+- `docs/wiki/Copybook-generator.md`: the mapping spec as an input.
 
 ## 8. Calls made by the builder of this design
 
 - The Jackson 3 version line of Spring Boot 4.1.
-- One module for the draft, the compiler, the layout, and the codec. Its package names and its class names.
+- The mapping spec in `copymapper-copybook`, and one runtime module for the compiler, the layout, and the codec. The package names and the class names.
+- The translation of a mapping spec to the current generator inputs, and the file name `.mapping.json`.
 - The index in the path of a `FILLER`.
 - A strict request: an unknown property or a property that is not in the request is an error.
 - The `jsonType` `DECIMAL_STRING`, for callers that cannot keep the precision of a JSON number.
