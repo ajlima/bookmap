@@ -263,9 +263,10 @@ public final class MappingSpecJson {
     }
 
     private static <E extends Enum<E>> E enumOrNull(JsonObject o, String key, Class<E> type) {
-        if (!o.has(key)) {
-            return null;
-        }
+        return o.has(key) ? requiredEnum(o, key, type) : null;
+    }
+
+    private static <E extends Enum<E>> E requiredEnum(JsonObject o, String key, Class<E> type) {
         String text = o.text(key);
         for (E constant : type.getEnumConstants()) {
             if (constant.name().equals(text)) {
@@ -332,9 +333,8 @@ public final class MappingSpecJson {
             return null;
         }
         JsonObject table = object(o.node("table"), o.path("table"), TABLE_KEYS);
-        table.node("mode");
         try {
-            return new TableSpec(enumOrNull(table, "mode", TableMode.class),
+            return new TableSpec(requiredEnum(table, "mode", TableMode.class),
                     table.optionalText("path"));
         } catch (IllegalArgumentException e) {
             throw new MappingSpecFormatException(o.path("table") + ": " + e.getMessage());
@@ -352,8 +352,12 @@ public final class MappingSpecJson {
             return new VariantSpec.Discriminator(d.text("discriminator"), d.textMap("values"));
         }
         JsonObject fixed = object(tree, path, FIXED_KEYS);
-        return new VariantSpec.FixedSelection(fixed.optionalText("request"),
-                fixed.optionalText("response"));
+        try {
+            return new VariantSpec.FixedSelection(fixed.optionalText("request"),
+                    fixed.optionalText("response"));
+        } catch (IllegalArgumentException e) {
+            throw new MappingSpecFormatException(path + ": " + e.getMessage());
+        }
     }
 
     private static List<SpecNode> readChildren(JsonObject o) {

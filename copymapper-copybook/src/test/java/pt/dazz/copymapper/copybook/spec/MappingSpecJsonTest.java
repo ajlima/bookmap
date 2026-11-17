@@ -116,10 +116,13 @@ class MappingSpecJsonTest {
                 "\"jsonName\"", "\"direction\"", "\"jsonType\"", "\"format\"", "\"table\"",
                 "\"counter\"", "\"variant\"", "\"javaName\"", "\"children\"");
         int at = json.indexOf("\"cobolName\":\"AMOUNT\"");
-        for (String key : keys) {
-            int next = json.indexOf(key, at);
-            assertThat(next).as(key).isGreaterThanOrEqualTo(at);
-            at = key.equals("\"cobolName\"") ? at : next;
+        assertThat(at).isNotNegative();
+        for (String key : keys.subList(1, keys.size())) {
+            int next = json.indexOf(key, at + 1);
+            if (next >= 0) {
+                assertThat(next).as(key).isGreaterThan(at);
+                at = next;
+            }
         }
         assertThat(json).startsWith("{\"formatVersion\":1,\"sourceName\":\"R.cpy\","
                 + "\"sourceHash\":\"abc123\",\"charset\":\"IBM037\",\"byteOrder\":\"BIG_ENDIAN\","
@@ -218,9 +221,15 @@ class MappingSpecJsonTest {
     }
 
     @Test
-    void readsAnEmptyVariantObject() {
-        var read = MappingSpecJson.read(account("\"root\":{", "\"root\":{\"variant\":{},"));
-        assertThat(read.root().variant()).isEqualTo(new VariantSpec.FixedSelection(null, null));
+    void rejectsAnEmptyVariantObject() {
+        assertRejectsContaining(account("\"root\":{", "\"root\":{\"variant\":{},"),
+                "$.root.variant");
+    }
+
+    @Test
+    void rejectsAFixedSelectionWithNoAlternative() {
+        assertThatThrownBy(() -> new VariantSpec.FixedSelection(null, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

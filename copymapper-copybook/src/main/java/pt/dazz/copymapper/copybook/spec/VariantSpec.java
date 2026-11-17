@@ -28,5 +28,13 @@ public sealed interface VariantSpec permits VariantSpec.Discriminator, VariantSp
      * @param response the path of the alternative of the response, or null
      */
     record FixedSelection(String request, String response) implements VariantSpec {
+
+        /** Checks that at least one alternative is set. */
+        public FixedSelection {
+            if (request == null && response == null) {
+                throw new IllegalArgumentException(
+                        "a fixed selection needs a request or a response");
+            }
+        }
     }
 }
