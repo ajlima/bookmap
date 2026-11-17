@@ -124,6 +124,20 @@ class ModelJsonTest {
     }
 
     @Test
+    void rejectsTextAfterTheRootValue() {
+        assertThatThrownBy(() -> ModelJson.read("{\"formatVersion\":1} x"))
+            .isInstanceOf(ModelJsonException.class)
+            .hasMessageStartingWith("the text is not valid JSON");
+    }
+
+    @Test
+    void rejectsEmptyText() {
+        assertThatThrownBy(() -> ModelJson.read(""))
+            .isInstanceOf(ModelJsonException.class)
+            .hasMessage("$ must be an object");
+    }
+
+    @Test
     void rejectsUnknownVersion() {
         assertThatThrownBy(() -> ModelJson.read(
                 "{\"formatVersion\": 2, \"sourceName\": \"A\", \"classes\": []}"))

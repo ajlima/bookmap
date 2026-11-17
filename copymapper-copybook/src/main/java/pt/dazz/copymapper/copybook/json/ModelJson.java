@@ -1,10 +1,12 @@
 package pt.dazz.copymapper.copybook.json;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -31,7 +33,8 @@ import pt.dazz.copymapper.copybook.model.ValueRange;
  */
 public final class ModelJson {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = JsonMapper.builder()
+        .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).build();
     private static final Set<String> MODEL_KEYS = Set.of("formatVersion", "sourceName", "classes",
         "enums");
     private static final Set<String> CLASS_KEYS = Set.of("name", "kind", "superclass",
@@ -225,7 +228,7 @@ public final class ModelJson {
         JsonNode tree;
         try {
             tree = MAPPER.readTree(json);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new ModelJsonException("the text is not valid JSON: "
                 + e.getOriginalMessage());
         }
@@ -275,7 +278,7 @@ public final class ModelJson {
 
     private static MemberModel readMember(JsonNode node, String path) {
         JsonNode kind = node.get("kind");
-        if (kind != null && "COLLECTION".equals(kind.asText())) {
+        if (kind != null && "COLLECTION".equals(kind.asString())) {
             JsonObject member = JsonObject.of(node, path, COLLECTION_KEYS);
             return new CollectionMember(member.text("name"), member.integer("order"),
                 member.enumValue("direction", Direction.class), member.text("cobolName"),
@@ -287,7 +290,7 @@ public final class ModelJson {
                 member.has("partial") && member.bool("partial"),
                 member.optionalText("redefines"));
         }
-        if (kind != null && "GROUP".equals(kind.asText())) {
+        if (kind != null && "GROUP".equals(kind.asString())) {
             JsonObject member = JsonObject.of(node, path, GROUP_KEYS);
             return new GroupMember(member.text("name"), member.integer("order"),
                 member.enumValue("direction", Direction.class), member.text("cobolName"),

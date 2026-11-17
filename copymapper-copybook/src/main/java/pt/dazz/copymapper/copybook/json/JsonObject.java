@@ -1,8 +1,7 @@
 package pt.dazz.copymapper.copybook.json;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -35,9 +34,7 @@ public final class JsonObject {
         if (!node.isObject()) {
             throw new ModelJsonException(path + " must be an object");
         }
-        Iterator<String> names = node.fieldNames();
-        while (names.hasNext()) {
-            String name = names.next();
+        for (String name : node.propertyNames()) {
             if (!keys.contains(name)) {
                 throw new ModelJsonException("unknown key '" + name + "' in " + path);
             }
@@ -86,10 +83,10 @@ public final class JsonObject {
      */
     public String text(String key) {
         JsonNode value = node(key);
-        if (!value.isTextual()) {
+        if (!value.isString()) {
             throw wrongType(key, "a string");
         }
-        return value.asText();
+        return value.asString();
     }
 
     /**
@@ -174,10 +171,10 @@ public final class JsonObject {
     public List<String> texts(String key) {
         List<String> texts = new ArrayList<>();
         for (JsonNode element : array(key)) {
-            if (!element.isTextual()) {
+            if (!element.isString()) {
                 throw wrongType(key, "an array of strings");
             }
-            texts.add(element.asText());
+            texts.add(element.asString());
         }
         return texts;
     }
@@ -194,7 +191,7 @@ public final class JsonObject {
             throw wrongType(key, "an object");
         }
         Map<String, JsonNode> entries = new LinkedHashMap<>();
-        value.fields().forEachRemaining(entry -> entries.put(entry.getKey(), entry.getValue()));
+        value.properties().forEach(entry -> entries.put(entry.getKey(), entry.getValue()));
         return entries;
     }
 
@@ -207,11 +204,11 @@ public final class JsonObject {
     public Map<String, String> textMap(String key) {
         Map<String, String> texts = new LinkedHashMap<>();
         nodeMap(key).forEach((name, value) -> {
-            if (!value.isTextual()) {
+            if (!value.isString()) {
                 throw new ModelJsonException("key '" + name + "' in " + path(key)
                     + " must be a string");
             }
-            texts.put(name, value.asText());
+            texts.put(name, value.asString());
         });
         return texts;
     }

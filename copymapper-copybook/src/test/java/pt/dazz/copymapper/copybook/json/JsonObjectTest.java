@@ -3,14 +3,14 @@ package pt.dazz.copymapper.copybook.json;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class JsonObjectTest {
 
     private static JsonObject object(String json) throws Exception {
-        return JsonObject.of(new ObjectMapper().readTree(json), "$", Set.of("names"));
+        return JsonObject.of(JsonMapper.builder().build().readTree(json), "$", Set.of("names"));
     }
 
     @Test
