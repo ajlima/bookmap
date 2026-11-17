@@ -415,6 +415,7 @@ The source of the wiki is the folder [`docs/wiki/`](docs/wiki). Change the wiki 
 | `copymapper-transport-mq` | A transport for IBM MQ request and reply queues (Jakarta Messaging). See [IBM MQ](https://github.com/dazz-pt/copymapper/wiki/IBM-MQ). |
 | `copymapper-spring-boot` | Spring Boot 4 auto-configuration for `CopyMapperClient` (built and tested with 4.1.2). |
 | `copymapper-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
+| `copymapper-runtime` | The mapping spec runtime: the layout compiler and its open decisions. |
 | `copymapper-copybook-cli` | The command line of the copybook generator. |
 | `copymapper-copybook-gradle-plugin` | The Gradle plugin of the copybook generator (`pt.dazz.copymapper.copybook`). |
 | `copymapper-copybook-maven-plugin` | The Maven plugin of the copybook generator (goal `generate`). |

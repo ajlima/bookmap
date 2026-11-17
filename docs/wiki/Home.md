@@ -50,6 +50,7 @@ Before `0.28.0`, the library had the name BookMap. To update a project, see [Mig
 | &nbsp;&nbsp;↳ [HTTP transport](HTTP-transport) | The transport for an HTTP endpoint with a binary body. |
 | &nbsp;&nbsp;↳ [IBM MQ](IBM-MQ) | The IBM MQ transport: request and reply queues. |
 | [Spring Boot](Spring-Boot) | The auto-configuration of `CopyMapperClient`. |
+| [Dynamic runtime](Dynamic-runtime) | The mapping spec, its JSON form, and the layout compiler. |
 | [Copybook generator](Copybook-generator) | The concepts, the options file, and the mapping rules of the generator. |
 | [Copybook generator CLI](Copybook-generator-CLI) | The command line, with examples, and the Java API. |
 | [Copybook generator Gradle plugin](Copybook-generator-Gradle-plugin) | The Gradle plugin: setup, DSL, packages, and troubleshooting. |
@@ -70,6 +71,7 @@ Before `0.28.0`, the library had the name BookMap. To update a project, see [Mig
 | `copymapper-transport-mq` | A transport for IBM MQ request and reply queues (Jakarta Messaging). |
 | `copymapper-spring-boot` | Spring Boot 4 auto-configuration for `CopyMapperClient` (built and tested with 4.1.2). |
 | `copymapper-copybook` | The copybook generator library: parser, model, JSON form, and Java generator. |
+| `copymapper-runtime` | The mapping spec runtime: the layout compiler and its open decisions. |
 | `copymapper-copybook-cli` | The command line of the copybook generator. |
 | `copymapper-copybook-gradle-plugin` | The Gradle plugin of the copybook generator (`pt.dazz.copymapper.copybook`). |
 | `copymapper-copybook-maven-plugin` | The Maven plugin of the copybook generator (goal `generate`). |

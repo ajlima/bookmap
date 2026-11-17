@@ -28,7 +28,7 @@ Do this before the end of the 7-day retention of the `maven-central-files` artif
 
 These modules go to Maven Central with the group `pt.dazz.copymapper`:
 `copymapper-core`, `copymapper-processor`, `copymapper-transport-simulator`, `copymapper-transport-ctg`, `copymapper-transport-http`, `copymapper-transport-mq`, `copymapper-spring-boot`,
-`copymapper-copybook`, `copymapper-copybook-cli`, `copymapper-copybook-gradle-plugin`, and `copymapper-copybook-maven-plugin`.
+`copymapper-copybook`, `copymapper-runtime`, `copymapper-copybook-cli`, `copymapper-copybook-gradle-plugin`, and `copymapper-copybook-maven-plugin`.
 The examples are not published.
 The releases until `0.27.0` used the group `pt.dazz.bookmap` and the module names `bookmap-*`. These releases stay on Maven Central.
 
