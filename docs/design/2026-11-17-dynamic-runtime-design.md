@@ -397,7 +397,7 @@ The generated codec does not pad a subtype at the operation level, and it does n
 ### 5.14 The failure before the send (#144)
 
 - `TransportException` gets the property `requestSent()`. New constructors take it. The existing constructors keep the value `true`: "the request was possibly sent". This is the safe default.
-- The subclasses (`ConnectionException`, `TransportTimeoutException`, `RemoteAbendException`, and `OperationNotFoundException`) get the same constructors.
+- The subclasses that the CTG transport throws before the send (`ConnectionException` and `OperationNotFoundException`) get the same constructors. The other subclasses get them when a transport needs them.
 - `CtgTransport` sets `requestSent()` to `false` only for these failures:
   - no route for the operation;
   - the COMMAREA is longer than 32,500 bytes;
