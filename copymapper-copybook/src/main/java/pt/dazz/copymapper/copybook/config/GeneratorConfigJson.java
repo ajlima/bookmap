@@ -1,10 +1,5 @@
 package pt.dazz.copymapper.copybook.config;
 
-import tools.jackson.databind.JsonNode;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.UnsupportedCharsetException;
@@ -21,6 +16,11 @@ import pt.dazz.copymapper.copybook.map.MappingOptions;
 import pt.dazz.copymapper.copybook.map.SubTypeDecision;
 import pt.dazz.copymapper.copybook.parse.ParseOptions;
 import pt.dazz.copymapper.copybook.parse.SourceFormat;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Reads a generator configuration file (JSON).

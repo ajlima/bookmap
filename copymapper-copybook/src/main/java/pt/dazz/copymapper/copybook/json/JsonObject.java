@@ -1,12 +1,12 @@
 package pt.dazz.copymapper.copybook.json;
 
-import tools.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import tools.jackson.databind.JsonNode;
 
 /**
  * Reads the keys of one JSON object with strict checks. Each message gives the JSON path.
