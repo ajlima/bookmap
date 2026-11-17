@@ -44,7 +44,7 @@ public final class MappingSpecs {
         Draft draft = new Draft(record);
         return new MappingSpec(MappingSpec.FORMAT_VERSION, copybook.sourceName(),
                 draft.sourceHash(), options.charset(), MappingSpec.BIG_ENDIAN,
-                draft.build(record, Usage.DISPLAY, Draft.jsonName(record.name())));
+                draft.build(record, Usage.DISPLAY, Draft.jsonName(record.name()), false));
     }
 
     private static DataItem select(Copybook copybook, String recordName) {
@@ -65,6 +65,7 @@ public final class MappingSpecs {
 
         private static final Names NAMES = new Names(List.of());
 
+        private final DataItem record;
         private final List<DataItem> items = new ArrayList<>();
         private final Map<DataItem, DataItem> parents = new IdentityHashMap<>();
         private final Map<DataItem, String> paths = new IdentityHashMap<>();
@@ -72,6 +73,7 @@ public final class MappingSpecs {
                 new IdentityHashMap<>());
 
         Draft(DataItem record) {
+            this.record = record;
             collect(record, null, record.name());
             for (DataItem item : items) {
                 if (item.occurs() != null && item.occurs().dependingOn() != null) {
@@ -103,14 +105,16 @@ public final class MappingSpecs {
             return HexFormat.of().formatHex(digest.digest(text.getBytes(StandardCharsets.UTF_8)));
         }
 
-        /** Gives the item that the name designates, or null if the record has none. */
+        /**
+         * Gives the item that the name designates, or null if no item, or more than one, has
+         * the name. A FILLER and the record itself are never designated.
+         */
         private DataItem resolve(QualifiedName name, List<DataItem> candidates) {
-            for (DataItem item : candidates) {
-                if (item.name().equals(name.name()) && qualifiedBy(item, name.parts())) {
-                    return item;
-                }
-            }
-            return null;
+            List<DataItem> found = candidates.stream()
+                    .filter(item -> item != record && !item.isFiller()
+                            && item.name().equals(name.name()) && qualifiedBy(item, name.parts()))
+                    .toList();
+            return found.size() == 1 ? found.get(0) : null;
         }
 
         private boolean qualifiedBy(DataItem item, List<String> parts) {
@@ -127,12 +131,16 @@ public final class MappingSpecs {
             return true;
         }
 
-        SpecNode build(DataItem item, Usage inherited, String jsonName) {
+        /** Builds a node. Each item in a FILLER group is ignored and has no JSON name. */
+        SpecNode build(DataItem item, Usage inherited, String jsonName,
+                boolean inFiller) {
             Usage usage = item.usage() != null ? item.usage() : inherited;
+            boolean ignored = inFiller || item.isFiller();
             List<SpecNode> children = new ArrayList<>();
             List<String> jsonNames = jsonNames(item.children());
             for (int i = 0; i < jsonNames.size(); i++) {
-                children.add(build(item.children().get(i), usage, jsonNames.get(i)));
+                children.add(build(item.children().get(i), usage,
+                        ignored ? null : jsonNames.get(i), ignored));
             }
             var picture = item.picture();
             var occurs = item.occurs();
@@ -148,8 +156,10 @@ public final class MappingSpecs {
                     item.value() == null ? null : value(item.value()),
                     item.conditions().stream().map(Draft::condition).toList(),
                     new SourceLocation(item.source(), item.line(), item.column()),
-                    picture != null && picture.edited() != null && !picture.editSymbols(),
-                    picture != null && picture.editSymbols(), jsonName, direction(item),
+                    picture != null && picture.edited() != null
+                            && picture.edited().blankWhenZero(),
+                    picture != null && picture.editSymbols(), jsonName,
+                    ignored ? FieldDirection.IGNORE : direction(item),
                     jsonType(item), null,
                     fixedTable ? new TableSpec(TableMode.LOW_VALUES, null) : null,
                     dependingOn, null, null, children);
@@ -204,14 +214,13 @@ public final class MappingSpecs {
             if (item.sign() != null) {
                 return item.sign();
             }
-            boolean signed = item.picture() != null && item.picture().signed();
+            // An edited picture shows its own sign, so it has no default sign.
+            boolean signed = item.picture() != null && item.picture().edited() == null
+                    && item.picture().signed();
             return signed && usage == Usage.DISPLAY ? Sign.TRAILING : null;
         }
 
         private FieldDirection direction(DataItem item) {
-            if (item.isFiller()) {
-                return FieldDirection.IGNORE;
-            }
             return derived.contains(item) ? FieldDirection.DERIVED : FieldDirection.INPUT_OUTPUT;
         }
 

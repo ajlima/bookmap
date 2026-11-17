@@ -211,6 +211,59 @@ class MappingSpecsTest {
     }
 
     @Test
+    void keepsTheFactsOfEditedPictures() {
+        var spec = draft("R", "01 R.", "05 A PIC +ZZ9.", "05 B PIC -9(3).99 BLANK WHEN ZERO.",
+                "05 C PIC ZZ9 BLANK WHEN ZERO.");
+        assertThat(at(spec, "R.A").sign()).isNull();
+        assertThat(at(spec, "R.A").edited()).isTrue();
+        assertThat(at(spec, "R.A").blankWhenZero()).isFalse();
+        assertThat(at(spec, "R.B").sign()).isNull();
+        assertThat(at(spec, "R.B").edited()).isTrue();
+        assertThat(at(spec, "R.B").blankWhenZero()).isTrue();
+        assertThat(at(spec, "R.C").edited()).isTrue();
+        assertThat(at(spec, "R.C").blankWhenZero()).isTrue();
+    }
+
+    @Test
+    void ignoresEveryItemOfAFillerGroup() {
+        var spec = draft("R", "01 R.", "05 FILLER.", "10 A PIC X(2).", "10 G.", "15 CNT PIC 9.",
+                "05 ROWS PIC X OCCURS 1 TO 3 DEPENDING ON CNT.", "05 B PIC X.");
+        for (String path : List.of("R.FILLER", "R.FILLER.A", "R.FILLER.G", "R.FILLER.G.CNT")) {
+            assertThat(at(spec, path).direction()).as(path).isEqualTo(FieldDirection.IGNORE);
+            assertThat(at(spec, path).jsonName()).as(path).isNull();
+        }
+        assertThat(at(spec, "R.ROWS").counter()).isEqualTo("R.FILLER.G.CNT");
+        assertThat(at(spec, "R.B").direction()).isEqualTo(FieldDirection.INPUT_OUTPUT);
+        assertThat(at(spec, "R.B").jsonName()).isEqualTo("b");
+    }
+
+    @Test
+    void keepsAnAmbiguousDependingOnName() {
+        var spec = draft("R", "01 R.", "05 G1.", "10 CNT PIC 9.", "05 G2.", "10 CNT PIC 9.",
+                "10 ROWS PIC X OCCURS 1 TO 5 DEPENDING ON CNT.");
+        assertThat(at(spec, "R.G2.ROWS").counter()).isEqualTo("CNT");
+        assertThat(at(spec, "R.G2.ROWS").occurs().dependingOn()).isEqualTo("CNT");
+        assertThat(at(spec, "R.G1.CNT").direction()).isEqualTo(FieldDirection.INPUT_OUTPUT);
+        assertThat(at(spec, "R.G2.CNT").direction()).isEqualTo(FieldDirection.INPUT_OUTPUT);
+    }
+
+    @Test
+    void doesNotCountAFillerAsACounter() {
+        var spec = draft("R", "01 R.", "05 FILLER PIC 9.",
+                "05 ROWS PIC X OCCURS 1 TO 5 DEPENDING ON FILLER.");
+        assertThat(at(spec, "R.ROWS").counter()).isEqualTo("FILLER");
+        assertThat(at(spec, "R.FILLER").direction()).isEqualTo(FieldDirection.IGNORE);
+    }
+
+    @Test
+    void doesNotCountTheRecordAsACounter() {
+        var spec = draft("CNT", "01 CNT.", "05 CNT PIC 9.",
+                "05 ROWS PIC X OCCURS 1 TO 5 DEPENDING ON CNT.");
+        assertThat(at(spec, "CNT.ROWS").counter()).isEqualTo("CNT.CNT");
+        assertThat(at(spec, "CNT.CNT").direction()).isEqualTo(FieldDirection.DERIVED);
+    }
+
+    @Test
     void keepsSourceLocationAndHash() {
         var one = draft("R", "01 R.", "05 A PIC X(3).", "05 B PIC X(3).");
         var other = draft("R", "01 R.", "05 A PIC X(3).", "05 B PIC X(4).");
