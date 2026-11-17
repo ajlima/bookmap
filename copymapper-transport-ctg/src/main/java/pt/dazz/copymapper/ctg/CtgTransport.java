@@ -1,6 +1,7 @@
 package pt.dazz.copymapper.ctg;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +33,12 @@ import pt.dazz.copymapper.spi.Transport;
  *   <li>Any other failure: {@link TransportException}.</li>
  * </ul>
  *
+ * <p>A request can set the ECI timeout of its own call with the attribute
+ * {@value #TIMEOUT_ATTRIBUTE}. The value is a decimal integer in seconds, from 0 to
+ * {@value #MAX_TIMEOUT_SECONDS}. {@code 0} means no ECI timeout. The attribute applies to that
+ * call only. A call without the attribute uses the timeout of the transport. An incorrect value
+ * gives an {@link IllegalArgumentException} before the transport takes a connection.
+ *
  * <p>{@link TransportException#requestSent()} is {@code false} only when the transport
  * certainly did not send the request: no route, a COMMAREA of more than
  * {@value #MAX_COMMAREA_LENGTH} bytes, no free connection in time, a failure to open a
@@ -42,6 +49,15 @@ public final class CtgTransport implements Transport, AutoCloseable {
 
     /** The maximum COMMAREA length in bytes. CTG can send this length with all protocols. */
     public static final int MAX_COMMAREA_LENGTH = 32_500;
+
+    /**
+     * The key of the request attribute that sets the ECI timeout of one call, in seconds. The
+     * value is a decimal integer from 0 to 32767. {@code 0} means no ECI timeout.
+     */
+    public static final String TIMEOUT_ATTRIBUTE = "ctg.timeoutSeconds";
+
+    /** The maximum ECI timeout in seconds. */
+    private static final int MAX_TIMEOUT_SECONDS = Short.MAX_VALUE;
 
     /** The abend code of a program that CICS does not know ({@code PGMIDERR}). */
     private static final String PROGRAM_NOT_FOUND_ABEND = "AEI0";
@@ -79,6 +95,9 @@ public final class CtgTransport implements Transport, AutoCloseable {
      *
      * @param request the request
      * @return the COMMAREA that the program gives back
+     * @throws IllegalArgumentException if the attribute {@value #TIMEOUT_ATTRIBUTE} has a value
+     *     that is not a decimal integer from 0 to 32767. The transport checks it after the route
+     *     and the COMMAREA length, and before it takes a connection.
      * @throws TransportException if the call fails. {@code requestSent()} is {@code false} for
      *     a failure before the send, and {@code true} for each failure of the ECI call. See the
      *     class description.
@@ -97,9 +116,10 @@ public final class CtgTransport implements Transport, AutoCloseable {
                 + commareaLength + " is more than the maximum of " + MAX_COMMAREA_LENGTH + " bytes",
                 false);
         }
+        int callTimeout = callTimeout(request.attributes(), timeoutSeconds);
         String transaction = route.transaction() == null ? defaultTransaction : route.transaction();
         EciCall call = new EciCall(server, userid, password, route.program(), transaction,
-            request.payload(), commareaLength, timeoutSeconds);
+            request.payload(), commareaLength, callTimeout);
         EciConnection connection = pool.acquire();
         EciReply reply;
         boolean replied = false;
@@ -121,6 +141,21 @@ public final class CtgTransport implements Transport, AutoCloseable {
             throw translate(operation, route, reply);
         }
         return reply.commarea();
+    }
+
+    private static int callTimeout(Map<String, String> attributes, int instanceTimeout) {
+        String value = attributes.get(TIMEOUT_ATTRIBUTE);
+        if (value == null) {
+            return instanceTimeout;
+        }
+        // Compare as a BigInteger: a long digit string must not overflow int.
+        if (!value.matches("[0-9]+")
+                || new BigInteger(value).compareTo(BigInteger.valueOf(MAX_TIMEOUT_SECONDS)) > 0) {
+            throw new IllegalArgumentException("The attribute " + TIMEOUT_ATTRIBUTE
+                + " must be a whole number of seconds from 0 to " + MAX_TIMEOUT_SECONDS
+                + ": \"" + value + "\"");
+        }
+        return Integer.parseInt(value);
     }
 
     private static String prefix(String operation, CtgRoute route) {

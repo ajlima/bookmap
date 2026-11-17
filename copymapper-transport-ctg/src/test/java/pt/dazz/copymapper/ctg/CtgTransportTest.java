@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -247,5 +248,77 @@ class CtgTransportTest {
         assertThat(connector.connections().getFirst().closed()).isTrue();
         single.exchange(request("GetInvoice", 4, 8));
         assertThat(connector.opened()).isEqualTo(2);
+    }
+
+    private static BookRequest withTimeout(String value) {
+        return new BookRequest("GetInvoice", new byte[4], 8,
+            Map.of(CtgTransport.TIMEOUT_ATTRIBUTE, value));
+    }
+
+    private CtgTransport transportWithInstanceTimeout() {
+        return builder().timeout(Duration.ofSeconds(45)).build();
+    }
+
+    @Test
+    void timeoutAttributeSetsTheCallTimeout() {
+        transportWithInstanceTimeout().exchange(withTimeout("8"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(8);
+    }
+
+    @Test
+    void timeoutAttributeZeroMeansNoTimeout() {
+        transportWithInstanceTimeout().exchange(withTimeout("0"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isZero();
+    }
+
+    @Test
+    void timeoutAttributeMaximum() {
+        transportWithInstanceTimeout().exchange(withTimeout("32767"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(32767);
+    }
+
+    @Test
+    void timeoutAttributeWithLeadingZerosIsAccepted() {
+        transportWithInstanceTimeout().exchange(withTimeout("008"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(8);
+    }
+
+    @Test
+    void withoutAttributeTheInstanceTimeoutApplies() {
+        CtgTransport configured = transportWithInstanceTimeout();
+        configured.exchange(request("GetInvoice", 4, 8));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(45);
+        configured.exchange(withTimeout("8"));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(8);
+        configured.exchange(request("GetInvoice", 4, 8));
+        assertThat(connector.calls().getLast().timeoutSeconds()).isEqualTo(45);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"-1", "32768", "", " 5", "+5", "5.0", "abc", "99999999999"})
+    void incorrectTimeoutAttributeFails(String value) {
+        CtgTransport configured = transportWithInstanceTimeout();
+        assertThatThrownBy(() -> configured.exchange(withTimeout(value)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining(CtgTransport.TIMEOUT_ATTRIBUTE)
+            .hasMessageContaining("\"" + value + "\"");
+        assertThat(connector.opened()).isZero();
+        assertThat(connector.calls()).isEmpty();
+    }
+
+    @Test
+    void unknownOperationWinsOverIncorrectAttribute() {
+        BookRequest unknown = new BookRequest("Unknown", new byte[4], 8,
+            Map.of(CtgTransport.TIMEOUT_ATTRIBUTE, "abc"));
+        assertThatThrownBy(() -> transport.exchange(unknown))
+            .isInstanceOf(OperationNotFoundException.class);
+    }
+
+    @Test
+    void commareaLengthErrorWinsOverIncorrectAttribute() {
+        BookRequest tooLong = new BookRequest("GetInvoice", new byte[4],
+            CtgTransport.MAX_COMMAREA_LENGTH + 1, Map.of(CtgTransport.TIMEOUT_ATTRIBUTE, "abc"));
+        assertThatThrownBy(() -> transport.exchange(tooLong))
+            .isExactlyInstanceOf(TransportException.class);
     }
 }

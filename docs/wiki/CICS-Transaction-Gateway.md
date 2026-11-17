@@ -83,6 +83,20 @@ A route maps an operation name to a CICS program and a transaction. The operatio
 
 `build()` throws `IllegalStateException` if the connector is not set or if no route is set. It opens no connection.
 
+### The timeout of one call
+
+A request can set the ECI timeout of its own call. Use the attribute `CtgTransport.TIMEOUT_ATTRIBUTE` (`ctg.timeoutSeconds`).
+
+```java
+var request = new BookRequest(operation, bytes, maxResponseLength,
+    Map.of(CtgTransport.TIMEOUT_ATTRIBUTE, "8"));
+```
+
+- The value is a decimal integer from 0 to 32767. The unit is seconds. `0` means no ECI timeout.
+- The attribute applies to that call only. A call without the attribute uses the timeout of the builder.
+- A value that is not correct causes an `IllegalArgumentException`. The message gives the key and the value.
+- The transport checks the value after the route and the COMMAREA length, and before it takes a connection. Thus the transport sends no request.
+
 ### The builder of the connector
 
 `JavaGatewayConnector` opens a connection with `com.ibm.ctg.client.JavaGateway`.
@@ -137,7 +151,7 @@ Each `TransportException` and each subclass has the method `requestSent()`. It t
 - The thread is interrupted while it waits for a free connection. The interrupt flag stays set.
 - The transport is closed.
 
-`requestSent()` is `true` for each failure during or after the ECI call. This includes each ECI return code, each timeout, and each abend. A failure of the connector that is not an `IOException` is not translated. The connector passes it to the caller as it is.
+`requestSent()` is `true` for each failure during or after the ECI call. This includes each ECI return code, each timeout, and each abend. A `RuntimeException` from `EciConnector.open()` is not translated. The transport passes it to the caller as it is.
 
 **CAUTION:** Retry a call only when `requestSent()` is `false`. If you retry after `requestSent()` is `true`, the program can run two times and change data two times.
 
