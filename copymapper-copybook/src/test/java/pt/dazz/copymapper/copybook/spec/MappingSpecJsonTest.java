@@ -108,25 +108,14 @@ class MappingSpecJsonTest {
     }
 
     @Test
-    void writesTheNodeKeysInOrder() {
-        String json = MappingSpecJson.write(everything());
-        List<String> keys = List.of("\"cobolName\"", "\"level\"", "\"path\"", "\"picture\"",
-                "\"usage\"", "\"sign\"", "\"occurs\"", "\"redefines\"", "\"value\"",
-                "\"conditions\"", "\"location\"", "\"blankWhenZero\"", "\"edited\"",
-                "\"jsonName\"", "\"direction\"", "\"jsonType\"", "\"format\"", "\"table\"",
-                "\"counter\"", "\"variant\"", "\"javaName\"", "\"children\"");
-        int at = json.indexOf("\"cobolName\":\"AMOUNT\"");
-        assertThat(at).isNotNegative();
-        for (String key : keys.subList(1, keys.size())) {
-            int next = json.indexOf(key, at + 1);
-            if (next >= 0) {
-                assertThat(next).as(key).isGreaterThan(at);
-                at = next;
-            }
-        }
-        assertThat(json).startsWith("{\"formatVersion\":1,\"sourceName\":\"R.cpy\","
-                + "\"sourceHash\":\"abc123\",\"charset\":\"IBM037\",\"byteOrder\":\"BIG_ENDIAN\","
-                + "\"root\":{");
+    void writesTheCanonicalFormOfEveryComponent() {
+        Golden.assertMatches("spec/everything.mapping.json", MappingSpecJson.write(everything()));
+    }
+
+    @Test
+    void freezesTheHashOfEveryComponent() {
+        assertThat(MappingSpecJson.sha256(everything())).isEqualTo(
+                "2f6c8fd1a7cbd80d246b987bf5bc96a34890f53ee393117d61b36845ab85ee0c");
     }
 
     private static String account(String replace, String with) {
