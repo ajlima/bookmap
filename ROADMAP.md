@@ -22,6 +22,8 @@ A runtime codec that reads a copybook and converts JSON to bytes and bytes to JS
 - [#142](https://github.com/dazz-pt/copymapper/issues/142) Support REDEFINES with a discriminator in the layout and the codec
 - [#143](https://github.com/dazz-pt/copymapper/issues/143) Set a timeout for each call in the CTG transport
 - [#144](https://github.com/dazz-pt/copymapper/issues/144) Separate a CTG failure before the send from a failure after the send
+- [#147](https://github.com/dazz-pt/copymapper/issues/147) Move copymapper-copybook to Jackson 3
+- [#148](https://github.com/dazz-pt/copymapper/issues/148) Generate Java classes from a mapping spec
 
 ## 2. Transports
 
@@ -38,6 +40,7 @@ New features of the copybook generator and its build plugins. Milestone: [Copybo
 - [#32](https://github.com/dazz-pt/copymapper/issues/32) Generate classes from a model JSON file in the Gradle plugin
 - [#33](https://github.com/dazz-pt/copymapper/issues/33) Read copybooks from a dependency artifact
 - [#34](https://github.com/dazz-pt/copymapper/issues/34) Support Maven 4 in the Maven plugin
+- [#149](https://github.com/dazz-pt/copymapper/issues/149) Deprecate the options file and the model JSON of the copybook generator
 
 ## 4. Mapping
 
