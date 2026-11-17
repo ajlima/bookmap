@@ -32,6 +32,10 @@ class CtgTransportTest {
         return new BookRequest(operation, new byte[payloadLength], maxResponse);
     }
 
+    private static TransportException thrown(org.assertj.core.api.ThrowableAssert.ThrowingCallable call) {
+        return (TransportException) org.assertj.core.api.Assertions.catchThrowable(call);
+    }
+
     private Throwable failWith(int returnCode, String abendCode) {
         connector.thenReply(new EciReply(returnCode, abendCode, new byte[8]));
         return org.assertj.core.api.Assertions.catchThrowable(
@@ -89,6 +93,53 @@ class CtgTransportTest {
     }
 
     @Test
+    void unknownOperationIsNotSent() {
+        assertThat(thrown(() -> transport.exchange(request("GetPayment", 4, 8))).requestSent())
+            .isFalse();
+    }
+
+    @Test
+    void commareaOverLimitIsNotSent() {
+        assertThat(thrown(() -> transport.exchange(request("GetInvoice", 10, 32_501)))
+            .requestSent()).isFalse();
+    }
+
+    @Test
+    void exchangeAfterCloseIsNotSent() {
+        transport.close();
+        assertThat(thrown(() -> transport.exchange(request("GetInvoice", 4, 8))).requestSent())
+            .isFalse();
+    }
+
+    @Test
+    void openFailureIsNotSent() {
+        connector.failOpen(new IOException("refused"));
+        TransportException e = thrown(() -> transport.exchange(request("GetInvoice", 4, 8)));
+        assertThat(e).isExactlyInstanceOf(ConnectionException.class);
+        assertThat(e.requestSent()).isFalse();
+    }
+
+    @Test
+    void callIoFailureIsPossiblySent() {
+        connector.thenFail(new IOException("reset"));
+        assertThat(thrown(() -> transport.exchange(request("GetInvoice", 4, 8))).requestSent())
+            .isTrue();
+    }
+
+    @Test
+    void uncheckedCallFailureIsPossiblySent() {
+        connector.thenFail(new IllegalStateException("broken library"));
+        assertThat(thrown(() -> transport.exchange(request("GetInvoice", 4, 8))).requestSent())
+            .isTrue();
+    }
+
+    @Test
+    void abendIsPossiblySent() {
+        assertThat(((TransportException) failWith(-7, "ASRA")).requestSent()).isTrue();
+        assertThat(((TransportException) failWith(-7, "AEI0")).requestSent()).isTrue();
+    }
+
+    @Test
     void commareaOverLimitFails() {
         assertThatThrownBy(() -> transport.exchange(request("GetInvoice", 10, 32_501)))
             .isExactlyInstanceOf(TransportException.class)
@@ -119,19 +170,22 @@ class CtgTransportTest {
     @ParameterizedTest
     @ValueSource(ints = {-5, -6})
     void timeoutCodesAreTimeout(int code) {
-        assertThat(failWith(code, null)).isExactlyInstanceOf(TransportTimeoutException.class);
+        assertThat(failWith(code, null)).isExactlyInstanceOf(TransportTimeoutException.class)
+            .extracting(e -> ((TransportException) e).requestSent()).isEqualTo(true);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {-3, -4, -16, -17, -22, -26, -28, -29})
     void connectionCodesAreConnectionException(int code) {
-        assertThat(failWith(code, null)).isExactlyInstanceOf(ConnectionException.class);
+        assertThat(failWith(code, null)).isExactlyInstanceOf(ConnectionException.class)
+            .extracting(e -> ((TransportException) e).requestSent()).isEqualTo(true);
     }
 
     @ParameterizedTest
     @ValueSource(ints = {-27, -1, -9, -30, -999})
     void otherCodesAreTransportException(int code) {
-        assertThat(failWith(code, null)).isExactlyInstanceOf(TransportException.class);
+        assertThat(failWith(code, null)).isExactlyInstanceOf(TransportException.class)
+            .extracting(e -> ((TransportException) e).requestSent()).isEqualTo(true);
     }
 
     @Test

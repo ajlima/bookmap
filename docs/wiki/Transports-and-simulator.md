@@ -58,6 +58,8 @@ public interface Transport {
 | The remote system does not know the operation. | `OperationNotFoundException` |
 | Any other technical failure. | `TransportException` |
 
+Each `TransportException` has the method `requestSent()`. It is `false` only when the transport certainly did not send the request. Each existing constructor gives `true`. To set the value, use the constructors with a `boolean requestSent` parameter of `TransportException`, `ConnectionException`, and `OperationNotFoundException`. The CTG transport sets it. The other transports of CopyMapper always give `true`.
+
 ### Example: a transport with fixed responses
 
 ```java

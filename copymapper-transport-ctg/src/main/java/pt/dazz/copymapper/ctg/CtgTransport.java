@@ -31,6 +31,12 @@ import pt.dazz.copymapper.spi.Transport;
  *   <li>No connection to the gateway or to CICS: {@link ConnectionException}.</li>
  *   <li>Any other failure: {@link TransportException}.</li>
  * </ul>
+ *
+ * <p>{@link TransportException#requestSent()} is {@code false} only when the transport
+ * certainly did not send the request: no route, a COMMAREA of more than
+ * {@value #MAX_COMMAREA_LENGTH} bytes, no free connection in time, a failure to open a
+ * connection, an interrupt while the thread waits for a connection, and a closed transport.
+ * In all other cases it is {@code true}.
  */
 public final class CtgTransport implements Transport, AutoCloseable {
 
@@ -68,17 +74,28 @@ public final class CtgTransport implements Transport, AutoCloseable {
         return new Builder();
     }
 
+    /**
+     * Calls the CICS program of the operation.
+     *
+     * @param request the request
+     * @return the COMMAREA that the program gives back
+     * @throws TransportException if the call fails. {@code requestSent()} is {@code false} for
+     *     a failure before the send, and {@code true} for each failure of the ECI call. See the
+     *     class description.
+     */
     @Override
     public byte[] exchange(BookRequest request) {
         String operation = request.operation();
         CtgRoute route = routes.get(operation);
         if (route == null) {
-            throw new OperationNotFoundException("No CTG route for the operation " + operation);
+            throw new OperationNotFoundException("No CTG route for the operation " + operation,
+                false);
         }
         int commareaLength = Math.max(request.payload().length, request.maxResponseLength());
         if (commareaLength > MAX_COMMAREA_LENGTH) {
             throw new TransportException(prefix(operation, route) + ": the COMMAREA length "
-                + commareaLength + " is more than the maximum of " + MAX_COMMAREA_LENGTH + " bytes");
+                + commareaLength + " is more than the maximum of " + MAX_COMMAREA_LENGTH + " bytes",
+                false);
         }
         String transaction = route.transaction() == null ? defaultTransaction : route.transaction();
         EciCall call = new EciCall(server, userid, password, route.program(), transaction,

@@ -124,6 +124,23 @@ The message gives the operation, the program, the return code, and its name. For
 
 **WARNING:** Do not retry a call after a `TransportException` from a failure during the call, or after a timeout, without a check. CICS can have run the program and changed data.
 
+### Failures before the send
+
+Each `TransportException` and each subclass has the method `requestSent()`. It tells if the transport possibly sent the request to CICS.
+
+`requestSent()` is `false` when the transport certainly did not send the request. This is the case for these failures:
+
+- No route for the operation.
+- A COMMAREA longer than 32,500 bytes.
+- No free connection after `connectionWaitTimeout`.
+- The connection to the gateway cannot be opened. This is an `IOException` from the connector.
+- The thread is interrupted while it waits for a free connection. The interrupt flag stays set.
+- The transport is closed.
+
+`requestSent()` is `true` for each failure during or after the ECI call. This includes each ECI return code, each timeout, and each abend. A failure of the connector that is not an `IOException` is not translated. The connector passes it to the caller as it is.
+
+**CAUTION:** Retry a call only when `requestSent()` is `false`. If you retry after `requestSent()` is `true`, the program can run two times and change data two times.
+
 ## Spring Boot
 
 `copymapper-spring-boot` creates the transport from properties. Set `copymapper.transport.type=ctg` and the `copymapper.transport.ctg.*` properties.

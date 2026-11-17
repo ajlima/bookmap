@@ -39,19 +39,21 @@ final class ConnectionPool implements AutoCloseable {
      *
      * @return a connection. Give it back with {@link #release} or {@link #discard}.
      * @throws ConnectionException if no connection is free in time, or if a new connection
-     *     cannot be opened
-     * @throws TransportException if the pool is closed, or if the thread is interrupted
+     *     cannot be opened. {@code requestSent()} is {@code false}.
+     * @throws TransportException if the pool is closed, or if the thread is interrupted.
+     *     {@code requestSent()} is {@code false}.
      */
     EciConnection acquire() {
         checkOpen();
         try {
             if (!permits.tryAcquire(waitNanos, TimeUnit.NANOSECONDS)) {
                 throw new ConnectionException("No free CTG connection after "
-                    + waitTimeout.toMillis() + " ms");
+                    + waitTimeout.toMillis() + " ms", false);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new TransportException("Interrupted while waiting for a CTG connection", e);
+            throw new TransportException("Interrupted while waiting for a CTG connection", e,
+                false);
         }
         EciConnection connection = takeFree();
         if (connection != null) {
@@ -64,7 +66,7 @@ final class ConnectionPool implements AutoCloseable {
             return opening;
         } catch (IOException e) {
             throw new ConnectionException("Cannot open a connection to the CTG gateway: "
-                + e.getMessage(), e);
+                + e.getMessage(), e, false);
         } finally {
             // Also for an unchecked failure, for example a missing ctgclient.jar.
             if (!opened) {
@@ -75,7 +77,7 @@ final class ConnectionPool implements AutoCloseable {
 
     private synchronized void checkOpen() {
         if (closed) {
-            throw new TransportException("The CTG transport is closed");
+            throw new TransportException("The CTG transport is closed", false);
         }
     }
 
