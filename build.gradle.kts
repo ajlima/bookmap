@@ -26,7 +26,7 @@ val publishedModules = mapOf(
     "copymapper-copybook-cli" to "CopyMapper copybook generator command-line program.",
     "copymapper-copybook-gradle-plugin" to "CopyMapper copybook generator Gradle plugin.",
     "copymapper-copybook-maven-plugin" to "CopyMapper copybook generator Maven plugin.",
-    "copymapper-runtime" to "CopyMapper runtime: compiles a mapping spec to a layout and moves records between JSON and COBOL bytes.",
+    "copymapper-runtime" to "CopyMapper runtime: compiles a mapping spec to a layout, and converts JSON to COBOL bytes without generated classes.",
 )
 
 // Modules with mutation tests (task mutationTest), with the minimum mutation score in percent.
