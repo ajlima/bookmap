@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -74,7 +75,10 @@ public final class MappingSpecs {
             collect(record, null, record.name());
             for (DataItem item : items) {
                 if (item.occurs() != null && item.occurs().dependingOn() != null) {
-                    derived.add(resolve(item.occurs().dependingOn(), items));
+                    DataItem counter = resolve(item.occurs().dependingOn(), items);
+                    if (counter != null) {
+                        derived.add(counter);
+                    }
                 }
             }
         }
@@ -99,13 +103,14 @@ public final class MappingSpecs {
             return HexFormat.of().formatHex(digest.digest(text.getBytes(StandardCharsets.UTF_8)));
         }
 
+        /** Gives the item that the name designates, or null if the record has none. */
         private DataItem resolve(QualifiedName name, List<DataItem> candidates) {
             for (DataItem item : candidates) {
                 if (item.name().equals(name.name()) && qualifiedBy(item, name.parts())) {
                     return item;
                 }
             }
-            throw new IllegalArgumentException("the name " + name + " is not in the record");
+            return null;
         }
 
         private boolean qualifiedBy(DataItem item, List<String> parts) {
@@ -125,21 +130,21 @@ public final class MappingSpecs {
         SpecNode build(DataItem item, Usage inherited, String jsonName) {
             Usage usage = item.usage() != null ? item.usage() : inherited;
             List<SpecNode> children = new ArrayList<>();
-            Map<String, Integer> jsonSeen = new HashMap<>();
-            for (DataItem child : item.children()) {
-                children.add(build(child, usage, uniqueJson(child, jsonSeen)));
+            List<String> jsonNames = jsonNames(item.children());
+            for (int i = 0; i < jsonNames.size(); i++) {
+                children.add(build(item.children().get(i), usage, jsonNames.get(i)));
             }
             var picture = item.picture();
             var occurs = item.occurs();
             String dependingOn = occurs == null || occurs.dependingOn() == null ? null
-                    : paths.get(resolve(occurs.dependingOn(), items));
+                    : pathOf(occurs.dependingOn(), items);
             boolean fixedTable = occurs != null && occurs.dependingOn() == null;
             return new SpecNode(item.name(), item.level(), paths.get(item),
                     picture == null ? null : picture.text(), usage, sign(item, usage),
                     occurs == null ? null
                             : new OccursSpec(occurs.min(), occurs.max(), dependingOn),
                     item.redefines() == null ? null
-                            : paths.get(resolve(item.redefines(), siblings(item))),
+                            : pathOf(item.redefines(), siblings(item)),
                     item.value() == null ? null : value(item.value()),
                     item.conditions().stream().map(Draft::condition).toList(),
                     new SourceLocation(item.source(), item.line(), item.column()),
@@ -159,13 +164,40 @@ public final class MappingSpecs {
             return NAMES.fieldName(cobolName);
         }
 
-        private static String uniqueJson(DataItem child, Map<String, Integer> seen) {
-            if (child.isFiller()) {
-                return null;
+        /** Gives the path of the named item, or the name as written if it is not found. */
+        private String pathOf(QualifiedName name, List<DataItem> candidates) {
+            DataItem found = resolve(name, candidates);
+            return found == null ? name.toString() : paths.get(found);
+        }
+
+        /**
+         * Gives the JSON names of sibling items: null for a FILLER. The first item with a
+         * name keeps it. A later item with the same name gets the number 2, 3, ... , the
+         * first that no sibling uses or has as its natural name.
+         */
+        private static List<String> jsonNames(List<DataItem> siblings) {
+            Set<String> taken = new HashSet<>();
+            for (DataItem sibling : siblings) {
+                if (!sibling.isFiller()) {
+                    taken.add(jsonName(sibling.name()).toLowerCase(Locale.ROOT));
+                }
             }
-            String name = jsonName(child.name());
-            int count = seen.merge(name.toLowerCase(Locale.ROOT), 1, Integer::sum);
-            return count > 1 ? name + count : name;
+            Set<String> used = new HashSet<>();
+            List<String> names = new ArrayList<>();
+            for (DataItem sibling : siblings) {
+                names.add(sibling.isFiller() ? null : unique(jsonName(sibling.name()), taken, used));
+            }
+            return names;
+        }
+
+        private static String unique(String natural, Set<String> taken, Set<String> used) {
+            String name = natural;
+            for (int n = 2; used.contains(name.toLowerCase(Locale.ROOT)); n++) {
+                String candidate = natural + n;
+                name = taken.contains(candidate.toLowerCase(Locale.ROOT)) ? name : candidate;
+            }
+            used.add(name.toLowerCase(Locale.ROOT));
+            return name;
         }
 
         private static Sign sign(DataItem item, Usage usage) {

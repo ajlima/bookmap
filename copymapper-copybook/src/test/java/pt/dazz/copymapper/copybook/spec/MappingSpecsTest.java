@@ -166,17 +166,36 @@ class MappingSpecsTest {
     }
 
     @Test
-    void unresolvedDependingOnFails() {
-        assertThatThrownBy(() -> draft("R", "01 R.",
-                "05 ROWS PIC X OCCURS 1 TO 3 DEPENDING ON GONE."))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("GONE");
+    void keepsAnUnresolvedDependingOnName() {
+        var spec = draft("R", "01 R.", "05 CNT PIC 9.",
+                "05 ROWS PIC X OCCURS 1 TO 3 DEPENDING ON GONE.");
+        assertThat(at(spec, "R.ROWS").occurs().dependingOn()).isEqualTo("GONE");
+        assertThat(at(spec, "R.ROWS").counter()).isEqualTo("GONE");
+        assertThat(at(spec, "R.CNT").direction()).isEqualTo(FieldDirection.INPUT_OUTPUT);
     }
 
     @Test
-    void unresolvedQualifierFails() {
-        assertThatThrownBy(() -> draft("R", "01 R.", "05 CNT PIC 9.",
-                "05 ROWS PIC X OCCURS 1 TO 3 DEPENDING ON CNT OF NOWHERE."))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("NOWHERE");
+    void keepsAnUnresolvedQualifier() {
+        var spec = draft("R", "01 R.", "05 CNT PIC 9.",
+                "05 ROWS PIC X OCCURS 1 TO 3 DEPENDING ON CNT OF NOWHERE.");
+        assertThat(at(spec, "R.ROWS").counter()).isEqualTo("CNT OF NOWHERE");
+        assertThat(at(spec, "R.CNT").direction()).isEqualTo(FieldDirection.INPUT_OUTPUT);
+    }
+
+    @Test
+    void keepsAnUnresolvedRedefines() {
+        var spec = draft("R", "01 R.", "05 B REDEFINES GONE PIC X.");
+        assertThat(at(spec, "R.B").redefines()).isEqualTo("GONE");
+    }
+
+    @Test
+    void jsonNamesStayUniqueNextToNaturalOnes() {
+        assertThat(draft("R", "01 R.", "05 CODE PIC X.", "05 CODE2 PIC X.", "05 CODE PIC X.")
+                .root().children()).extracting(SpecNode::jsonName)
+                .containsExactly("code", "code2", "code3");
+        assertThat(draft("R", "01 R.", "05 CODE PIC X.", "05 CODE PIC X.", "05 CODE2 PIC X.")
+                .root().children()).extracting(SpecNode::jsonName)
+                .containsExactly("code", "code3", "code2");
     }
 
     @Test
