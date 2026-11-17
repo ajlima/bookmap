@@ -143,7 +143,7 @@ A discriminator, or a fixed selection for each direction. An area without one is
 ### 5.1 Module and packages
 
 - Module: `copymapper-runtime`. Dependencies: `api(project(":copymapper-core"))`, `api(project(":copymapper-copybook"))` for the AST, and `api` Jackson 3 `jackson-databind`.
-- One module for the draft, the compiler, the layout, and the codec **[builder call]**. The Gateway of CopyBridge compiles only a book spec, but the parser on its classpath has no cost.
+- One module for the draft, the compiler, the layout, and the codec **[builder call]**. The Gateway of CopyBridge compiles only a book spec. The parser and JavaPoet (an `api` dependency of `copymapper-copybook`) are then on its classpath, but it does not use them.
 - Packages **[builder call]**:
   - `pt.dazz.copymapper.runtime.spec`: the book spec, its JSON form, and the draft.
   - `pt.dazz.copymapper.runtime.layout`: the compiler, the compile result, and the layout.
@@ -203,6 +203,8 @@ The book spec is a tree with one node for each item of the record, `FILLER` incl
 | Component | Meaning |
 |---|---|
 | `cobolName`, `level` | From the AST. `FILLER` keeps the name `FILLER`. |
+| (all) | The **resolved** values, not the declared clauses. The draft resolves a `USAGE` that a group gives, and the default `TRAILING` sign of a signed item. The node is then complete without the AST. |
+| `blankWhenZero`, `justified`, `edited` | Flags from the AST. The picture text does not show `BLANK WHEN ZERO`, so the flag is necessary. The compiler reports `UNSUPPORTED_TYPE` for `blankWhenZero` and `edited`. `justified` is a warning only, as in the parser. |
 | `path` | The qualified path, for example `GET-ACCOUNT.CHECKING-DATA.OVERDRAFT-LIMIT`. Unique in the spec. A `FILLER` gets an index, for example `FILLER#2` **[builder call]**. |
 | `picture` | The picture text, or `null` for a group. |
 | `usage` | `DISPLAY`, `COMP`, `COMP3`, or `COMP5`. |
@@ -232,6 +234,11 @@ The book spec is a tree with one node for each item of the record, `FILLER` incl
 - It copies the COBOL side of each item, and sets the REST defaults of 5.3.
 - It does not guess. A `REDEFINES` area gets no variant, and a numeric item that looks like a date stays `NUMBER`.
 - The draft always succeeds for a record that the parser accepts. The compiler reports what is missing.
+
+**The JSON form** **[builder call]**:
+
+- `BookSpecJson.read` rejects an unknown property, and a `formatVersion` other than `1`. The message gives the JSON path, as `ModelJson` does.
+- The canonical form has the properties in the order of the tables in 5.3, no whitespace, no `null` property, and integers without a fraction. A test freezes the canonical form and the hash of one book spec. A change of the form needs a new `formatVersion`.
 
 ### 5.5 The compiler and the open decisions
 
@@ -279,13 +286,22 @@ The book spec is a tree with one node for each item of the record, `FILLER` incl
 | `PIC 9` `DISPLAY`, `COMP-3`, with `NUMBER` | number | Accepts an integer node, a `DecimalNode`, or a decimal string. Refuses a `DoubleNode` and a `FloatNode`: the value can already have lost digits. More integer digits than the picture is an error. More decimals than the scale is an error, except trailing zeros. | Scale 0: an integer node. Scale > 0: a `DecimalNode` with exactly `scale` decimals. |
 | The same, with `DECIMAL_STRING` | string | As `NUMBER`. | A plain decimal string with `scale` decimals, for example `"1500.00"`. |
 | Signs | | Overpunch, and `SIGN LEADING` or `TRAILING`, `SEPARATE` or not. A negative value in an unsigned item is an error. | The rules of the generated codec. |
-| `COMP`, `COMP-4`, `BINARY` | number | Big-endian, two's complement if signed. The value is limited by the digits of the picture: `PIC 9(4) COMP` accepts 9999 maximum. | The same limit. |
-| `COMP-5` | number | Big-endian. The value is limited by the binary size: `PIC 9(4) COMP-5` accepts 65535 maximum. | The same limit. |
-| `DATE`, `TIME`, `DATE_TIME` | ISO string: `2026-11-17`, `14:30:00`, `2026-11-17T14:30:00` | `DISPLAY` or `COMP-3`, with `format`. | The rules of the generated codec for zero, blank, and LOW-VALUES (packed dates design). |
+| `COMP`, `COMP-4`, `BINARY` | number | Big-endian, two's complement if signed. The value is limited by the digits of the picture: `PIC 9(4) COMP` accepts 9999 maximum. | Accepts all values that fit in the binary size, as the generated codec does (main design, 5.3: hosts with `TRUNC(BIN)`). Never `null`. |
+| `COMP-5` | number | Big-endian. The value is limited by the binary size: `PIC 9(4) COMP-5` accepts 65535 maximum. | The same as `COMP`. |
+| `DATE`, `TIME`, `DATE_TIME` | ISO string: `2026-11-17`, `14:30:00`, `2026-11-17T14:30:00` | `PIC X`, `DISPLAY`, or `COMP-3`, with `format`, where the generated codec supports the combination **[builder call]**. | The rules of the generated codec for zero, blank, and LOW-VALUES (packed dates design). |
 
 Use `BookWriter` and `BookReader` for all conversions **[builder call]**. Do not use `codec.internal`. If `COMP-5` needs a primitive that `BookWriter` does not have, add a public method to `BookWriter` and `BookReader` in `copymapper-core`.
 
-`COMP-5` is different from the generator today, which maps `COMP-5` as `COMP`. Thus, the `COMP-5` fixtures use independent expected bytes, not the generated codec.
+`COMP-5` is different from the generator today on write: the generated codec writes only values within the picture digits. Thus, the `COMP-5` encode fixtures use independent expected bytes. The decode fixtures can use the generated codec.
+
+**`null` and blank values on decode.** The codec writes an explicit JSON `null` when the generated codec gives `null`, for example a blank `DISPLAY` number or a zero date. A blank text is `""`. The codec never omits a property of the response direction **[builder call]**.
+
+**Directions of groups and tables** **[builder call]**:
+
+- The draft gives each group and table `INPUT_OUTPUT`. A child can have a narrower direction than its parent: an `INPUT` child in an `INPUT_OUTPUT` group.
+- A child with a direction that its parent does not include is an `INVALID_DIRECTION` open decision, for example an `INPUT` child in an `OUTPUT` group.
+- `IGNORE` on a group or a table removes all its children from JSON. Their bytes stay.
+- A group or a table with no child in one direction is not in the JSON of that direction.
 
 ### 5.8 Fixed `OCCURS` (#138)
 
@@ -305,6 +321,7 @@ The rules of the fixed-occurs design and the empty-item markers design:
 - Encode: an array with more items than the maximum, or fewer than the minimum, is an error.
 - Decode: a blank counter is 0. A counter below the minimum, above the maximum, or negative is an error. A response that is too short for the items is an error.
 - The generated codec does not check the minimum on decode. This difference shows only in an error case.
+- Placement: the same rules as the copybook generator. The counter is an elementary integer item before the table, in the same group or in a parent group. An `OCCURS DEPENDING ON` table in another table, or a counter in a table, is an `INVALID_TABLE` open decision **[builder call]**.
 
 ### 5.10 `REDEFINES` (#142)
 
@@ -335,6 +352,7 @@ The generated codec does not pad a subtype at the operation level, and it does n
 - One test runs each fixture through the interpreted codec, in both directions, and compares the bytes and the JSON.
 - One test also generates the Java classes for the same copybook with the copybook generator and the processor, in memory, as `EndToEndTest` of `copymapper-copybook` does. It compares the bytes of the generated codec with the expected bytes. A case that the generator does not support (for example `COMP-5`) is marked in the fixture, and it uses independent expected bytes.
 - Each type of 5.7, each table mode, each variant kind, and each error case of this design has a fixture.
+- The copybook generator ignores `VALUE`. A fixture that leaves out an item with a `VALUE` is marked, and it does not use the generated codec for that direction.
 - The fixtures are in the `testFixtures` source set of `copymapper-runtime`, and they are published with the module (Gradle test fixtures) **[builder call]**. Thus, CopyBridge can run the same fixtures.
 
 ### 5.12 The CTG timeout for one call (#143)
