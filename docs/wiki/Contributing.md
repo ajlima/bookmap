@@ -55,7 +55,7 @@ The build runs the tasks of independent modules in parallel (`org.gradle.paralle
 
 | Check | Tool | Rule | Report |
 |---|---|---|---|
-| Dependency structure | ArchUnit, in the test `ArchitectureTest` of a module | A module must not have a package cycle. `copymapper-core`, `copymapper-processor`, and `copymapper-copybook` must depend only on a list of allowed packages. | The test report. |
+| Dependency structure | ArchUnit, in the test `ArchitectureTest` of a module | A module must not have a package cycle. `copymapper-core`, `copymapper-processor`, `copymapper-copybook`, and `copymapper-runtime` must depend only on a list of allowed packages. | The test report. |
 | Cyclomatic complexity | PMD, rule `CyclomaticComplexity` in `config/pmd/complexity.xml` | The complexity of a method in the main code must not be more than 35. | `build/reports/pmd/` of each module. |
 | Module size | The task `moduleSize` | No limit. | `build/reports/module-size.md`. |
 
@@ -82,7 +82,7 @@ The mutation tests are slow, so `./gradlew build` does not run them. Run them wi
 ./gradlew mutationTest
 ```
 
-The task runs PIT on `copymapper-core`, `copymapper-processor`, and `copymapper-copybook`.
+The task runs PIT on `copymapper-core`, `copymapper-processor`, `copymapper-copybook`, and `copymapper-runtime`.
 It fails if the mutation score of a module is less than 95%. The minimum score of each module is in `build.gradle.kts`.
 Each module writes a PIT report in `build/reports/pitest/` (HTML and XML).
 The workflow `.github/workflows/mutation.yml` runs the mutation tests on `main` each night, at 02:00 UTC. It does not run on a pull request.
@@ -90,7 +90,7 @@ A scheduled run does nothing if `main` has no new commit in the last 25 hours.
 To run the mutation tests on request, open **Actions** > **Mutation tests** > **Run workflow**, and select a branch.
 GitHub sends an email for a failed scheduled run to the user who last changed the schedule.
 
-**CAUTION:** Run `./gradlew mutationTest` before you open a pull request that changes `copymapper-core`, `copymapper-processor`, or `copymapper-copybook`. A pull request does not run the mutation tests, so a low score shows only in the next night run.
+**CAUTION:** Run `./gradlew mutationTest` before you open a pull request that changes `copymapper-core`, `copymapper-processor`, `copymapper-copybook`, or `copymapper-runtime`. A pull request does not run the mutation tests, so a low score shows only in the next night run.
 
 ### Pull requests that change only documentation
 
@@ -207,7 +207,7 @@ The workflow `.github/workflows/release.yml` has four jobs:
 | `attest` | After a successful `publish`. | `id-token: write` and `attestations: write`. No environment and no secret. | A build provenance attestation for each file on Maven Central. |
 | `release` | After a successful `publish`. | `contents: write`. The `readme-update` environment gives the key of the release app. | The tag, the GitHub release, and the README version commit. |
 
-These modules go to Maven Central: `copymapper-core`, `copymapper-processor`, `copymapper-transport-simulator`, `copymapper-transport-ctg`, `copymapper-transport-http`, `copymapper-transport-mq`, `copymapper-spring-boot`, `copymapper-copybook`, `copymapper-copybook-cli`, `copymapper-copybook-gradle-plugin`, and `copymapper-copybook-maven-plugin`.
+These modules go to Maven Central: `copymapper-core`, `copymapper-processor`, `copymapper-transport-simulator`, `copymapper-transport-ctg`, `copymapper-transport-http`, `copymapper-transport-mq`, `copymapper-spring-boot`, `copymapper-copybook`, `copymapper-runtime`, `copymapper-copybook-cli`, `copymapper-copybook-gradle-plugin`, and `copymapper-copybook-maven-plugin`.
 
 ### The release app
 
