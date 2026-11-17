@@ -26,7 +26,7 @@ CopyMapperException
 
 Each exception has a constructor `(String message)` and a constructor `(String message, Throwable cause)`.
 `TransportException` and `ConnectionException` also have the constructors `(String message, boolean requestSent)` and `(String message, Throwable cause, boolean requestSent)`.
-`OperationNotFoundException` has only the constructor `(String message, boolean requestSent)`. Use `false` if the transport certainly did not send the request.
+`OperationNotFoundException` also has the constructor `(String message, boolean requestSent)`. Use `false` if the transport certainly did not send the request.
 `RemoteAbendException` has the constructors `(String abendCode, String message)` and `(String abendCode, String message, Throwable cause)`.
 
 **WARNING:** Do not retry a call after a `TransportException` when `requestSent()` is `true`. The remote program can run two times.
