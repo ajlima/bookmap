@@ -245,7 +245,7 @@ copymapper {
 
 - Run the Gradle daemon on JDK 21 or later. The plugin is compiled for Java 21.
 - The tests of the plugin use Gradle 9.9.1.
-- The plugin puts these libraries on the build script classpath: `copymapper-copybook`, `copymapper-core`, JavaPoet, and Jackson. They are not isolated from other plugins.
+- The plugin puts these libraries on the build script classpath: `copymapper-copybook`, `copymapper-core`, JavaPoet, and Jackson 3 (`tools.jackson`). They are not isolated from other plugins.
 
 ## 10. Example
 

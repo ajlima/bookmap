@@ -22,7 +22,7 @@ class ArchitectureTest {
     @Test
     void dependsOnlyOnTheAllowedPackages() {
         classes().should().onlyDependOnClassesThat()
-                .resideInAnyPackage("java..", "javax.lang.model..", "com.fasterxml.jackson..",
+                .resideInAnyPackage("java..", "javax.lang.model..", "tools.jackson..",
                         "com.palantir.javapoet..", "pt.dazz.copymapper..")
                 .check(MAIN_CLASSES);
     }
