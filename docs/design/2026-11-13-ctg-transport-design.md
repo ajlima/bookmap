@@ -3,7 +3,7 @@
 Date: 2026-11-13
 Status: implemented in v0.8.0.
 
-Related documents: `docs/design/2026-11-10-copymapper-design.md` (the main design, sections 2.2, 5.9, and 5.10), `CLAUDE.md` (project rules), GitHub issue #26.
+Related documents: `docs/design/2026-11-10-copymapper-design.md` (the main design, sections 2.2, 5.9, and 5.10), `CLAUDE.md` (project rules), GitHub issue #26. `docs/design/2026-11-17-dynamic-runtime-design.md`, sections 5.13 and 5.14 (GitHub issues #143 and #144), adds the timeout of one call and `requestSent()`.
 
 ## 1. Intent
 
@@ -169,12 +169,15 @@ Rules:
 
 1. Find the route of `request.operation()`. If no route exists, throw `OperationNotFoundException`. The transport does not open a connection.
 2. Calculate the COMMAREA length: the larger of `payload.length` and `maxResponseLength`. If the length is more than 32,500 bytes, throw `TransportException`. The message gives the operation, the length, and the limit. The transport does not open a connection.
-3. Get a connection from the pool (5.6).
-4. Call `EciConnection.call` with the route, the builder values, the payload, and the COMMAREA length.
-5. Give the connection back to the pool, or close it (5.6).
-6. If the return code is `0`, return the COMMAREA of the reply. Otherwise, translate the return code (5.5).
+3. Find the ECI timeout of the call. If `request.attributes()` has the key `ctg.timeoutSeconds` (`CtgTransport.TIMEOUT_ATTRIBUTE`), use its value. Otherwise, use the timeout of the builder. The value is a decimal integer from 0 to 32767, with digits only. `0` means no ECI timeout. For an incorrect value, throw `IllegalArgumentException`. The message gives the key and the value. The transport does not open a connection.
+4. Get a connection from the pool (5.6).
+5. Call `EciConnection.call` with the route, the builder values, the ECI timeout of step 3, the payload, and the COMMAREA length.
+6. Give the connection back to the pool, or close it (5.6).
+7. If the return code is `0`, return the COMMAREA of the reply. Otherwise, translate the return code (5.5).
 
 The response is the full COMMAREA, with the length of step 2. The codec ignores the bytes after the response layout (main design, 5.8).
+
+The timeout of step 3 applies to one call only. The next call without the attribute uses the timeout of the builder. `CopyMapperClient` sends no attributes. To set the timeout of one call, call `Transport.exchange` with a `BookRequest`.
 
 **COMMAREA lengths in the adapter.** The adapter sets `Commarea_Length` to the COMMAREA length. It sets the outbound length to `payload.length`: CTG sends only the request bytes, and CICS gets a COMMAREA of the full length. The adapter sets the inbound length to the COMMAREA length. Thus, CTG does not remove the trailing `X'00'` bytes of the response ("null stripping"). Without this, a response that ends with a binary or packed zero would be too short.
 
@@ -182,20 +185,22 @@ The response is the full COMMAREA, with the length of step 2. The codec ignores 
 
 Each failure has one source and one exception:
 
-| Source | Exception |
-|---|---|
-| No route for the operation. | `OperationNotFoundException` |
-| The COMMAREA length is more than 32,500 bytes. | `TransportException` |
-| No free connection after `connectionWaitTimeout`. | `ConnectionException` |
-| `EciConnector.open()` throws `IOException`. | `ConnectionException` |
-| `EciConnection.call` throws `IOException` or an unchecked exception. The request can be complete in CICS. | `TransportException` |
-| The thread is interrupted while it waits for a connection. | `TransportException`. The interrupt flag stays set. |
-| `ECI_ERR_TRANSACTION_ABEND` (-7) with the abend code `AEI0` (`PGMIDERR`: CICS does not know the program). | `OperationNotFoundException` |
-| `ECI_ERR_TRANSACTION_ABEND` (-7) with another abend code. | `RemoteAbendException(abendCode)` |
-| `ECI_ERR_REQUEST_TIMEOUT` and `ECI_ERR_NO_REPLY` (-5), `ECI_ERR_RESPONSE_TIMEOUT` (-6). | `TransportTimeoutException` |
-| `ECI_ERR_NO_CICS` (-3), `ECI_ERR_CICS_DIED` (-4), `ECI_ERR_RESOURCE_SHORTAGE` (-16), `ECI_ERR_NO_SESSIONS` (-17), `ECI_ERR_UNKNOWN_SERVER` (-22), `ECI_ERR_NO_SYSTEMS` (-26), `ECI_ERR_MAX_SYSTEMS` (-28), `ECI_ERR_MAX_SESSIONS` (-29). | `ConnectionException` |
-| `ECI_ERR_SECURITY_ERROR` (-27). | `TransportException` |
-| Any other non-zero return code. | `TransportException` |
+| Source | Exception | `requestSent()` |
+|---|---|---|
+| No route for the operation. | `OperationNotFoundException` | `false` |
+| The COMMAREA length is more than 32,500 bytes. | `TransportException` | `false` |
+| No free connection after `connectionWaitTimeout`. | `ConnectionException` | `false` |
+| `EciConnector.open()` throws `IOException`. | `ConnectionException` | `false` |
+| `EciConnection.call` throws `IOException` or an unchecked exception. The request can be complete in CICS. | `TransportException` | `true` |
+| The thread is interrupted while it waits for a connection. | `TransportException`. The interrupt flag stays set. | `false` |
+| `ECI_ERR_TRANSACTION_ABEND` (-7) with the abend code `AEI0` (`PGMIDERR`: CICS does not know the program). | `OperationNotFoundException` | `true` |
+| `ECI_ERR_TRANSACTION_ABEND` (-7) with another abend code. | `RemoteAbendException(abendCode)` | `true` |
+| `ECI_ERR_REQUEST_TIMEOUT` and `ECI_ERR_NO_REPLY` (-5), `ECI_ERR_RESPONSE_TIMEOUT` (-6). | `TransportTimeoutException` | `true` |
+| `ECI_ERR_NO_CICS` (-3), `ECI_ERR_CICS_DIED` (-4), `ECI_ERR_RESOURCE_SHORTAGE` (-16), `ECI_ERR_NO_SESSIONS` (-17), `ECI_ERR_UNKNOWN_SERVER` (-22), `ECI_ERR_NO_SYSTEMS` (-26), `ECI_ERR_MAX_SYSTEMS` (-28), `ECI_ERR_MAX_SESSIONS` (-29). | `ConnectionException` | `true` |
+| `ECI_ERR_SECURITY_ERROR` (-27). | `TransportException` | `true` |
+| Any other non-zero return code. | `TransportException` | `true` |
+
+`requestSent()` is `false` only when the transport certainly did not send the request: the failure occurs before `EciConnection.call`. An `exchange` after `close()` is also `false` (5.6). Each failure during or after `EciConnection.call`, and each ECI return code, is `true`. Change a return code to `false` only if the IBM documentation guarantees that the program did not run. An unchecked exception of `EciConnector.open()` is not translated.
 
 Each message gives the operation, the program, the return code, and the name of the return code, for example `GetInvoice (PGMINV01): ECI return code -22 (ECI_ERR_UNKNOWN_SERVER)`. The transport has a table of the names of the codes in this design. For another code, the name is `UNKNOWN`. For an abend, the message ends with the abend code, for example `, abend ASRA`.
 
@@ -212,7 +217,7 @@ A security failure has no CopyMapper exception of its own. This design adds no e
 - After a call that gives a reply, the connection goes back to the queue. This is also true when the return code is not `0`: the connection to the gateway is still correct.
 - After an exception from `call`, the transport closes the connection and ignores a second `IOException` from `close`. The next exchange opens a new connection.
 - The permit is always released, also after an unchecked exception from `open()` or `call`, for example a `NoClassDefFoundError` when `ctgclient.jar` is missing.
-- `close()` closes all free connections and marks the transport closed. An `exchange` after `close()` throws `TransportException`. A connection that is in use at `close()` is closed when its exchange ends. `close()` ignores an `IOException` of a connection. A second `close()` does nothing.
+- `close()` closes all free connections and marks the transport closed. An `exchange` after `close()` throws `TransportException`, with `requestSent()` `false`. A connection that is in use at `close()` is closed when its exchange ends. `close()` ignores an `IOException` of a connection. A second `close()` does nothing.
 
 The transport opens no connection in `build()`. The first exchange opens the first connection.
 
