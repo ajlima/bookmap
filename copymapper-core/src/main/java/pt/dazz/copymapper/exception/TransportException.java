@@ -7,7 +7,12 @@ public class TransportException extends CopyMapperException {
 
     private static final long serialVersionUID = 1L;
 
-    private final boolean requestSent;
+    /**
+     * {@code true} if the transport certainly did not send the request. The field stores the
+     * inverse of {@link #requestSent()}, so an exception that an older version serialized
+     * (without this field) reads as "possibly sent".
+     */
+    private final boolean notSent;
 
     /**
      * Creates the exception with a message.
@@ -37,7 +42,7 @@ public class TransportException extends CopyMapperException {
      */
     public TransportException(String message, boolean requestSent) {
         super(message);
-        this.requestSent = requestSent;
+        this.notSent = !requestSent;
     }
 
     /**
@@ -50,7 +55,7 @@ public class TransportException extends CopyMapperException {
      */
     public TransportException(String message, Throwable cause, boolean requestSent) {
         super(message, cause);
-        this.requestSent = requestSent;
+        this.notSent = !requestSent;
     }
 
     /**
@@ -61,6 +66,6 @@ public class TransportException extends CopyMapperException {
      *     system can have run it.
      */
     public boolean requestSent() {
-        return requestSent;
+        return !notSent;
     }
 }
