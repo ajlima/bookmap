@@ -1,8 +1,9 @@
 package pt.dazz.copymapper.runtime.layout;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import pt.dazz.copymapper.copybook.spec.MappingSpec;
 
 /** The byte layout of the record of a mapping spec. */
@@ -10,17 +11,22 @@ public final class Layout {
 
     private final MappingSpec spec;
     private final LayoutNode root;
-    private final Map<String, LayoutNode> byPath = new LinkedHashMap<>();
+    private final Map<String, LayoutNode> byPath;
 
+    /**
+     * Creates the layout.
+     *
+     * @throws IllegalStateException if two nodes have the same path
+     */
     Layout(MappingSpec spec, LayoutNode root) {
         this.spec = spec;
         this.root = root;
-        index(root);
+        this.byPath = nodes(root).collect(
+                Collectors.toUnmodifiableMap(node -> node.spec().path(), node -> node));
     }
 
-    private void index(LayoutNode node) {
-        byPath.put(node.spec().path(), node);
-        node.children().forEach(this::index);
+    private static Stream<LayoutNode> nodes(LayoutNode node) {
+        return Stream.concat(Stream.of(node), node.children().stream().flatMap(Layout::nodes));
     }
 
     /**

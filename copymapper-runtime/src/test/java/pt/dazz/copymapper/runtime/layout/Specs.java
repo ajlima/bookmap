@@ -17,6 +17,8 @@ import pt.dazz.copymapper.copybook.spec.MappingSpec;
 import pt.dazz.copymapper.copybook.spec.MappingSpecs;
 import pt.dazz.copymapper.copybook.spec.OccursSpec;
 import pt.dazz.copymapper.copybook.spec.SpecNode;
+import pt.dazz.copymapper.copybook.spec.TableSpec;
+import pt.dazz.copymapper.copybook.spec.VariantSpec;
 
 /** Test helpers: drafts a spec from copybook lines and changes one node of it. */
 final class Specs {
@@ -65,6 +67,8 @@ final class Specs {
     /** A copy of a node with some changed components. */
     static final class Change {
         private final SpecNode n;
+        private String path;
+        private int level;
         private String picture;
         private Usage usage;
         private Sign sign;
@@ -75,10 +79,16 @@ final class Specs {
         private String jsonName;
         private FieldDirection direction;
         private JsonType jsonType;
+        private String format;
+        private TableSpec table;
+        private String counter;
+        private VariantSpec variant;
         private List<SpecNode> children;
 
         Change(SpecNode n) {
             this.n = n;
+            path = n.path();
+            level = n.level();
             picture = n.picture();
             usage = n.usage();
             sign = n.sign();
@@ -89,7 +99,41 @@ final class Specs {
             jsonName = n.jsonName();
             direction = n.direction();
             jsonType = n.jsonType();
+            format = n.format();
+            table = n.table();
+            counter = n.counter();
+            variant = n.variant();
             children = n.children();
+        }
+
+        Change path(String v) {
+            path = v;
+            return this;
+        }
+
+        Change level(int v) {
+            level = v;
+            return this;
+        }
+
+        Change format(String v) {
+            format = v;
+            return this;
+        }
+
+        Change table(TableSpec v) {
+            table = v;
+            return this;
+        }
+
+        Change counter(String v) {
+            counter = v;
+            return this;
+        }
+
+        Change variant(VariantSpec v) {
+            variant = v;
+            return this;
         }
 
         Change picture(String v) {
@@ -148,10 +192,10 @@ final class Specs {
         }
 
         SpecNode build() {
-            return new SpecNode(n.cobolName(), n.level(), n.path(), picture, usage, sign,
+            return new SpecNode(n.cobolName(), level, path, picture, usage, sign,
                     occurs, redefines, n.value(), n.conditions(), n.location(), blankWhenZero,
-                    edited, jsonName, direction, jsonType, n.format(), n.table(), n.counter(),
-                    n.variant(), n.javaName(), children);
+                    edited, jsonName, direction, jsonType, format, table, counter,
+                    variant, n.javaName(), children);
         }
     }
 }

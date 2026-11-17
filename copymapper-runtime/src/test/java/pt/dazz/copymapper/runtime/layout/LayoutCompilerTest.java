@@ -108,7 +108,7 @@ class LayoutCompilerTest {
                 .contains("USAGE COMP.");
         assertThat(decisions(edit(base, "GET-ACCOUNT.BALANCE", c -> c.usage(Usage.COMP5))))
                 .singleElement().extracting(OpenDecision::message).asString()
-                .contains("USAGE COMP5");
+                .contains("USAGE COMP-5.");
         for (JsonType type : List.of(JsonType.DATE, JsonType.TIME, JsonType.DATE_TIME)) {
             assertThat(decisions(edit(base, id, c -> c.jsonType(type))))
                     .singleElement().extracting(OpenDecision::message).asString()
@@ -192,7 +192,56 @@ class LayoutCompilerTest {
     void reportsDerivedDirection() {
         MappingSpec spec = edit(account(), "GET-ACCOUNT.BALANCE",
                 c -> c.direction(FieldDirection.DERIVED));
-        assertThat(kinds(spec)).containsExactly(OpenDecisionKind.INVALID_DIRECTION);
+        assertThat(decisions(spec)).singleElement().satisfies(d -> {
+            assertThat(d.kind()).isEqualTo(OpenDecisionKind.INVALID_DIRECTION);
+            assertThat(d.message()).isEqualTo(
+                    "BALANCE has the direction DERIVED. This version does not support DERIVED.");
+        });
+    }
+
+    @Test
+    void reportsAnUnsupportedSymbolWithoutAnIssueNumber() {
+        MappingSpec spec = edit(account(), "GET-ACCOUNT.ACCOUNT-ID", c -> c.picture("N(3)"));
+        assertThat(decisions(spec)).singleElement().satisfies(d -> {
+            assertThat(d.kind()).isEqualTo(OpenDecisionKind.INVALID_COBOL);
+            assertThat(d.message()).isEqualTo("ACCOUNT-ID has an invalid PICTURE: "
+                    + "picture symbol N is not supported by CopyMapper.");
+        });
+    }
+
+    @Test
+    void compilesTheDraftOfAFillerGroup() {
+        MappingSpec spec = draft("REC", "01 REC.", "05 FILLER.", "10 A PIC X(2).", "10 G.",
+                "15 B PIC 9(3).", "05 C PIC X.");
+        Compilation compilation = LayoutCompiler.compile(spec);
+        assertThat(compilation.openDecisions()).isEmpty();
+        assertThat(compilation.layout().root().length()).isEqualTo(6);
+    }
+
+    @Test
+    void compilesTheItemsOfAnIgnoredGroup() {
+        MappingSpec group = draft("REC", "01 REC.", "05 G.", "10 A PIC X(2).", "10 H.",
+                "15 B PIC 9(3).", "15 C PIC X.", "05 D PIC X.");
+        MappingSpec spec = edit(edit(edit(edit(group, "REC.G",
+                c -> c.direction(FieldDirection.IGNORE)),
+                "REC.G.A", c -> c.jsonName(null).jsonType(null)),
+                "REC.G.H.B", c -> c.jsonName("c").jsonType(null)),
+                "REC.G.H.C", c -> c.direction(FieldDirection.OUTPUT));
+        assertThat(decisions(spec)).isEmpty();
+        assertThat(kinds(edit(spec, "REC.G.H.C", c -> c.direction(null))))
+                .containsExactly(OpenDecisionKind.INVALID_DIRECTION);
+        assertThat(kinds(edit(spec, "REC.G.H.C", c -> c.jsonType(JsonType.NUMBER))))
+                .containsExactly(OpenDecisionKind.INVALID_TYPE);
+    }
+
+    @Test
+    void needsNoJsonTypeForAnIgnoredItem() {
+        MappingSpec spec = edit(account(), "GET-ACCOUNT.BALANCE",
+                c -> c.direction(FieldDirection.IGNORE).jsonType(null));
+        assertThat(decisions(spec)).isEmpty();
+        assertThat(kinds(edit(account(), "GET-ACCOUNT.BALANCE",
+                c -> c.direction(FieldDirection.IGNORE).jsonType(JsonType.TEXT))))
+                .containsExactly(OpenDecisionKind.INVALID_TYPE);
     }
 
     @Test
