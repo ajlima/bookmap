@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import pt.dazz.copymapper.copybook.ast.Picture;
@@ -31,7 +31,7 @@ public final class LayoutCompiler {
      */
     public static Compilation compile(MappingSpec spec) {
         List<OpenDecision> decisions = new ArrayList<>();
-        new Checker(decisions).visit(spec.root(), null, Set.of(), new HashSet<>());
+        new Checker(decisions).visit(spec.root(), null, Map.of(), new HashSet<>());
         if (!decisions.isEmpty()) {
             return new Compilation(spec, decisions, null);
         }
@@ -47,12 +47,8 @@ public final class LayoutCompiler {
             next += placed.length();
         }
         int length = node.isGroup() ? next - offset
-                : Picture.parse(node.picture()).byteLength(usageOf(node), node.sign());
+                : Picture.parse(node.picture()).byteLength(node.usage(), node.sign());
         return new LayoutNode(node, offset, length, children);
-    }
-
-    private static Usage usageOf(SpecNode node) {
-        return node.usage() == null ? Usage.DISPLAY : node.usage();
     }
 
     /** Walks the tree of the spec and adds one decision for each rule that a node breaks. */
@@ -64,15 +60,17 @@ public final class LayoutCompiler {
             this.decisions = decisions;
         }
 
-        void visit(SpecNode node, FieldDirection parentDirection, Set<String> redefined,
+        void visit(SpecNode node, FieldDirection parentDirection, Map<String, String> redefined,
                 Set<String> jsonNames) {
             Picture picture = cobol(node);
-            unsupported(node, picture, redefined.contains(node.path()));
+            unsupported(node, picture, redefined.get(node.path()));
             jsonName(node, jsonNames);
             direction(node, parentDirection);
             type(node, picture);
-            Set<String> childRedefined = node.children().stream().map(SpecNode::redefines)
-                    .filter(Objects::nonNull).collect(Collectors.toSet());
+            Map<String, String> childRedefined = node.children().stream()
+                    .filter(c -> c.redefines() != null).collect(Collectors.groupingBy(
+                            SpecNode::redefines,
+                            Collectors.mapping(SpecNode::cobolName, Collectors.joining(", "))));
             Set<String> childNames = new HashSet<>();
             for (SpecNode child : node.children()) {
                 visit(child, node.direction(), childRedefined, childNames);
@@ -108,7 +106,11 @@ public final class LayoutCompiler {
         }
 
         private void usageAndSign(SpecNode node, Picture picture) {
-            Usage usage = usageOf(node);
+            Usage usage = node.usage();
+            if (usage == null) {
+                add(OpenDecisionKind.INVALID_COBOL, node, "has no USAGE.");
+                return;
+            }
             if (usage == Usage.COMP3 && !picture.numeric()) {
                 add(OpenDecisionKind.INVALID_COBOL, node,
                         "has USAGE COMP-3 and a PICTURE that is not numeric.");
@@ -119,38 +121,54 @@ public final class LayoutCompiler {
             }
         }
 
-        private void unsupported(SpecNode node, Picture picture, boolean redefinedBySibling) {
-            Feature feature = feature(node, picture, redefinedBySibling);
-            if (feature != null) {
-                add(OpenDecisionKind.UNSUPPORTED_TYPE, node, "has " + feature.has()
-                        + ". The runtime does not support " + feature.unsupported() + ".");
+        private void unsupported(SpecNode node, Picture picture, String redefinedBy) {
+            List<Feature> features = features(node, picture);
+            boolean redefinedSide = redefinedBy != null;
+            int count = features.size() + (redefinedSide ? 1 : 0);
+            if (count == 0) {
+                return;
             }
+            StringBuilder text = new StringBuilder();
+            if (!features.isEmpty()) {
+                text.append("has ").append(features.stream().map(Feature::has)
+                        .collect(Collectors.joining(" and ")));
+            }
+            if (redefinedSide) {
+                text.append(features.isEmpty() ? "is" : " and is").append(" redefined by ")
+                        .append(redefinedBy);
+            }
+            String unsupported = count > 1 ? "them"
+                    : redefinedSide ? "REDEFINES" : features.get(0).unsupported();
+            add(OpenDecisionKind.UNSUPPORTED_TYPE, node,
+                    text + ". The runtime does not support " + unsupported + ".");
         }
 
-        private static Feature feature(SpecNode node, Picture picture, boolean redefinedBySibling) {
-            if (node.edited()) {
-                return new Feature("an edited picture", "edited pictures");
+        private static List<Feature> features(SpecNode node, Picture picture) {
+            List<Feature> found = new ArrayList<>();
+            boolean edited = node.edited() || picture != null && picture.editSymbols();
+            if (edited) {
+                found.add(new Feature("an edited picture", "edited pictures"));
             }
             if (node.blankWhenZero()) {
-                return new Feature("BLANK WHEN ZERO");
+                found.add(new Feature("BLANK WHEN ZERO"));
             }
             if (node.occurs() != null) {
-                return new Feature("OCCURS");
+                found.add(new Feature("OCCURS"));
             }
-            if (node.redefines() != null || redefinedBySibling) {
-                return new Feature("REDEFINES");
+            if (node.redefines() != null) {
+                found.add(new Feature("REDEFINES"));
             }
-            if (picture != null && picture.signed()) {
-                return new Feature("a signed picture", "signed pictures");
+            if (!edited && picture != null && picture.signed()) {
+                found.add(new Feature("a signed picture", "signed pictures"));
             }
             if (EnumSet.of(Usage.COMP, Usage.COMP5).contains(node.usage())) {
-                return new Feature("USAGE " + node.usage());
+                found.add(new Feature("USAGE " + node.usage()));
             }
             if (EnumSet.of(JsonType.DATE, JsonType.TIME, JsonType.DATE_TIME)
                     .contains(node.jsonType())) {
-                return new Feature("the JSON type " + node.jsonType());
+                found.add(new Feature("the JSON type " + node.jsonType()));
             }
-            return null;
+            return found;
         }
 
         /** A feature that the runtime does not support, as the text says it. */

@@ -47,7 +47,8 @@ public final class Compilation {
             String lines = openDecisions.stream().map(OpenDecision::format)
                     .collect(Collectors.joining("\n"));
             throw new MappingException("the mapping spec of " + spec.root().path() + " has "
-                    + openDecisions.size() + " open decisions:\n" + lines);
+                    + openDecisions.size() + (openDecisions.size() == 1
+                            ? " open decision:\n" : " open decisions:\n") + lines);
         }
         return layout;
     }

@@ -63,23 +63,30 @@ class LayoutCompilerTest {
     }
 
     @Test
-    void treatsAMissingUsageAsDisplay() {
+    void reportsAMissingUsageOnAnElementaryItemOnly() {
         MappingSpec spec = edit(account(), "GET-ACCOUNT.ACCOUNT-ID", c -> c.usage(null));
-        assertThat(LayoutCompiler.compile(spec).layout().root().length()).isEqualTo(20);
+        assertThat(decisions(spec)).singleElement().satisfies(d -> {
+            assertThat(d.kind()).isEqualTo(OpenDecisionKind.INVALID_COBOL);
+            assertThat(d.message()).isEqualTo("ACCOUNT-ID has no USAGE.");
+        });
+        MappingSpec group = draft("REC", "01 REC.", "05 G.", "10 A PIC X(2).");
+        assertThat(LayoutCompiler.compile(edit(group, "REC.G", c -> c.usage(null))).complete())
+                .isTrue();
     }
 
     @Test
     void reportsAllOpenDecisionsAtOnce() {
         MappingSpec spec = draft("GET-ACCOUNT", "01 GET-ACCOUNT.", "05 AMOUNT PIC Z(4)9.",
                 "05 ITEM PIC X(2) OCCURS 3.", "05 SIGNED PIC S9(3).",
-                "05 OTHER REDEFINES SIGNED PIC X(3).", "05 BIN PIC 9(4) COMP.");
+                "05 PLAIN PIC X(3).", "05 OTHER REDEFINES PLAIN PIC X(3).",
+                "05 BIN PIC 9(4) COMP.");
         List<OpenDecision> found = decisions(spec);
 
         assertThat(found).extracting(OpenDecision::kind)
-                .containsOnly(OpenDecisionKind.UNSUPPORTED_TYPE).hasSize(5);
+                .containsOnly(OpenDecisionKind.UNSUPPORTED_TYPE).hasSize(6);
         assertThat(found).extracting(OpenDecision::path).containsExactly(
                 "GET-ACCOUNT.AMOUNT", "GET-ACCOUNT.ITEM", "GET-ACCOUNT.SIGNED",
-                "GET-ACCOUNT.OTHER", "GET-ACCOUNT.BIN");
+                "GET-ACCOUNT.PLAIN", "GET-ACCOUNT.OTHER", "GET-ACCOUNT.BIN");
         assertThat(found.get(0).message()).isEqualTo("AMOUNT has an edited picture. "
                 + "The runtime does not support edited pictures.");
     }
@@ -96,6 +103,9 @@ class LayoutCompilerTest {
         assertThat(decisions(edit(base, id, c -> c.redefines("GET-ACCOUNT.BALANCE"))))
                 .extracting(OpenDecision::path)
                 .containsExactly(id, "GET-ACCOUNT.BALANCE");
+        assertThat(decisions(edit(base, id, c -> c.usage(Usage.COMP))))
+                .singleElement().extracting(OpenDecision::message).asString()
+                .contains("USAGE COMP.");
         assertThat(decisions(edit(base, "GET-ACCOUNT.BALANCE", c -> c.usage(Usage.COMP5))))
                 .singleElement().extracting(OpenDecision::message).asString()
                 .contains("USAGE COMP5");
@@ -111,6 +121,34 @@ class LayoutCompilerTest {
         MappingSpec spec = draft("REC", "01 REC.", "05 A PIC S9(3).");
         assertThat(decisions(spec)).singleElement().extracting(OpenDecision::message)
                 .asString().contains("signed pictures");
+    }
+
+    @Test
+    void namesEveryFeatureOfAnItem() {
+        MappingSpec spec = edit(account(), "GET-ACCOUNT.ACCOUNT-ID",
+                c -> c.occurs(new OccursSpec(3, 3, null)).usage(Usage.COMP));
+        assertThat(decisions(spec)).singleElement().extracting(OpenDecision::message)
+                .isEqualTo("ACCOUNT-ID has OCCURS and USAGE COMP. "
+                        + "The runtime does not support them.");
+    }
+
+    @Test
+    void namesBothSidesOfARedefines() {
+        MappingSpec spec = draft("REC", "01 REC.", "05 A PIC X(3).", "05 B REDEFINES A PIC X(3).");
+        assertThat(decisions(spec)).extracting(OpenDecision::message).containsExactly(
+                "A is redefined by B. The runtime does not support REDEFINES.",
+                "B has REDEFINES. The runtime does not support REDEFINES.");
+        MappingSpec both = edit(spec, "REC.A", c -> c.occurs(new OccursSpec(2, 2, null)));
+        assertThat(decisions(both).get(0).message()).isEqualTo(
+                "A has OCCURS and is redefined by B. The runtime does not support them.");
+    }
+
+    @Test
+    void trustsTheEditSymbolsOfThePictureOverTheFlag() {
+        MappingSpec spec = edit(account(), "GET-ACCOUNT.ACCOUNT-ID",
+                c -> c.picture("Z(4)9").jsonType(JsonType.NUMBER).edited(false));
+        assertThat(decisions(spec)).singleElement().extracting(OpenDecision::message)
+                .asString().startsWith("ACCOUNT-ID has an edited picture.");
     }
 
     @Test
@@ -278,6 +316,13 @@ class LayoutCompilerTest {
                     assertThat(lines[1]).isEqualTo(compilation.openDecisions().get(0).format());
                     assertThat(lines[2]).isEqualTo(compilation.openDecisions().get(1).format());
                 });
+    }
+
+    @Test
+    void layoutMessageUsesTheSingularForOneDecision() {
+        MappingSpec spec = edit(account(), "GET-ACCOUNT.BALANCE", c -> c.jsonName(null));
+        assertThatThrownBy(() -> LayoutCompiler.compile(spec).layout())
+                .hasMessageStartingWith("the mapping spec of GET-ACCOUNT has 1 open decision:\n");
     }
 
     @Test
